@@ -2,6 +2,8 @@
 
 Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek danych między klientem, warstwą HTTP (NestJS), logiką aplikacyjną oraz adapterami providerów.
 
+**Założenie:** gateway jest uruchomiony po pozytywnej walidacji env — w MVP wymagany jest **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`; opis w `docs/konfiguracja.md`).
+
 ## Legenda uczestników
 
 | Skrót | Znaczenie |

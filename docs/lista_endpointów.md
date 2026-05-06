@@ -11,6 +11,8 @@ Wersja dokumentu: **0.1** (na start; źródłem prawdy pozostaje implementacja w
 | **Format** | JSON (`application/json`) dla standard; SSE (`text/event-stream`) dla stream |
 | **Błędy** | `application/json` — envelope: `statusCode`, `code`, `message`, `requestId`, opcjonalnie `details[]` |
 
+**Uruchomienie serwisu:** proces nie przechodzi walidacji env bez **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (MVP; szczegóły: `docs/konfiguracja.md`, `src/config/env.validation.ts`).
+
 ---
 
 ## Health *(publiczne)*

@@ -8,6 +8,10 @@ Zamknąć integracje z providerami LLM w adapterach tak, aby:
 - kontrakt request/response gateway był spójny,
 - błędy providerów były mapowane do stabilnych kodów gateway.
 
+## Klucze API (env)
+
+Wartości uwierzytelniające są wczytywane z env (w konfiguracji modeli: `apiKeyRef`). Niezależnie od tego przy **starcie** aplikacji obowiązuje globalna reguła z `src/config/env.validation.ts`: musi być ustawiony **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (szczegóły: `docs/konfiguracja.md`).
+
 ## Użytkownicy i scenariusze
 
 ### Scenariusz A — dodanie nowego providera

@@ -8,6 +8,8 @@
   - **standard** (pełna odpowiedź JSON),
   - **streaming** (SSE).
 
+**Warunek uruchomienia:** zanim endpointy będą dostępne, gateway przechodzi walidację env — w MVP wymagany jest **minimum jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`; opis w `docs/konfiguracja.md`).
+
 ## Identyfikacja modeli (aliasy)
 
 Preferowana forma wyboru modelu w request:

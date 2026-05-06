@@ -113,7 +113,7 @@ ai-provider-gateway/
 
 - **`src/chat/`**: warstwa przypadków użycia “chat” (standard i streaming), walidacja wejścia (DTO), delegacja do providerów, unifikacja formatu odpowiedzi.
 - **`src/providers/`**: adaptery providerów i rejestr. Jedyny fragment kodu, który “zna” SDK providerów.
-- **`src/config/`**: konfiguracja i walidacja env + (docelowo) wczytanie oraz walidacja plików configu modeli/polityk.
+- **`src/config/`**: konfiguracja i walidacja env (`env.validation.ts`: constraint `AtLeastOneApiKeyConstraint`, `@Validate` na jednym polu — **minimum jeden** niepusty klucz `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`) + (docelowo) wczytanie oraz walidacja plików configu modeli/polityk.
 - **`src/health/`**: healthchecki (liveness, docelowo readiness związany z konfiguracją).
 - **`src/common/`**: elementy współdzielone (enumy, wyjątki, mapowanie błędów, requestId, filtry/interceptory).
 - **Testy**:

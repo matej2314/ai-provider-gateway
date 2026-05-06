@@ -15,6 +15,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Streaming** | Tryb odpowiedzi: SSE. | `POST /chat/stream`. |
 | **Request ID** | Identyfikator korelacyjny żądania. | W logach i w error envelope. |
 | **Policy** | Zestaw limitów i zasad (timeout, retry, allowlista parametrów). | Konfigurowalne per alias / per provider. |
+| **Walidacja env (klucze)** | Reguły na zmiennych środowiskowych przy starcie aplikacji. | W MVP gateway wymaga **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` po `trim()` (constraint `AtLeastOneApiKeyConstraint`; `src/config/env.validation.ts`). |
 
 ## Kody błędów (stabilne)
 

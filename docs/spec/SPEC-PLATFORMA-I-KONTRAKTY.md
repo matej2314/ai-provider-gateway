@@ -16,7 +16,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 
 ### Scenariusz A — uruchomienie lokalne
 
-1. Użytkownik wypełnia `.env` własnymi kluczami.
+1. Użytkownik wypełnia `.env`: **minimum jeden** klucz API providera wymagany przez gateway (w MVP co najmniej jeden z `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` — patrz `src/config/env.validation.ts` i `docs/konfiguracja.md`).
 2. Użytkownik przygotowuje plik konfiguracyjny modeli/polityk.
 3. Uruchamia serwis.
 4. Wysyła request na `/chat` lub `/chat/stream`.

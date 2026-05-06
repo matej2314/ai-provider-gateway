@@ -17,6 +17,8 @@ Wersja dokumentu: **0.1**. Dokument jest wersjonowany razem z kodem. Przy rozbie
 | Standard | `application/json` |
 | Streaming | `text/event-stream` (SSE) |
 
+**Walidacja env przy starcie:** w MVP wymagany jest **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (implementacja: `src/config/env.validation.ts`; opis: `docs/konfiguracja.md`). Bez spełnienia tego warunku endpointów HTTP nie udostępniasz.
+
 ## Format błędów (envelope)
 
 ```json

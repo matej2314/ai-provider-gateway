@@ -100,3 +100,9 @@ Ten plik zbiera typowe pułapki w projektach “LLM gateway”.
 - testy normalizacji błędów,
 - testy formatu SSE (co najmniej jednostkowe na eventy).
 
+## 10) Uruchomienie bez wymaganego klucza API
+
+**Nie rób**: zwalniania serwisu do ruchu, gdy w env nie ma **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (reguła w `src/config/env.validation.ts`).
+
+**Rób**: fail-fast przy starcie z komunikatem z walidacji env (szczegóły: `docs/konfiguracja.md`).
+

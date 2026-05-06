@@ -11,6 +11,8 @@ Przykładowe zmienne (nazwy mogą różnić się od implementacji — dokument s
 - `ANTHROPIC_API_KEY`
 - `GOOGLE_API_KEY`
 
+**Wymóg przy starcie (walidacja env):** musi być ustawiony **co najmniej jeden** z powyższych kluczy — dowolny (Anthropic **albo** Google). Same zmienne są **opcjonalne** pojedynczo, ale nie można uruchomić serwisu bez żadnego niepustego klucza (wartości są trimowane przy sprawdzaniu reguły „co najmniej jeden”). Implementacja: `src/config/env.validation.ts` (constraint `AtLeastOneApiKeyConstraint`; dekorator `@Validate` jest na jednym z pól klasy env — reguła dotyczy całego zbioru zmiennych przez `args.object`).
+
 W repo powinien istnieć `.env.example` bez wartości sekretów.
 
 ## 2) Pliki konfiguracyjne (modele/polityki)
@@ -64,6 +66,7 @@ Uwagi:
 
 Gateway powinien zakończyć start, jeśli:
 
+- **nie jest spełniony globalny wymóg:** brak co najmniej jednego z `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` (patrz wyżej),
 - brakuje wymaganej zmiennej env wskazanej przez `apiKeyRef`,
 - `modelAlias` w configu ma nieznany `providerInstance`,
 - `bounds` są nielogiczne,

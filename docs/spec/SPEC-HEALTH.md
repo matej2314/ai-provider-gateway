@@ -20,7 +20,7 @@ F-1. `GET /health` zwraca `200` i lekki JSON `{ "status": "ok" }`.
 
 F-2. Gateway musi być w stanie jednoznacznie określić “gotowość” do obsługi żądań LLM:
 
-- poprawna konfiguracja env,
+- poprawna konfiguracja env (m.in. **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` — walidacja przy starcie w `src/config/env.validation.ts`),
 - poprawna konfiguracja plików modeli/polityk.
 
 *(Opcjonalnie w przyszłości: test połączenia do providerów.)*

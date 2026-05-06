@@ -4,6 +4,10 @@
 
 Udostępnić endpoint streamingowy (SSE), który zwraca odpowiedź LLM w formie strumienia zdarzeń w **jednym** formacie gateway, niezależnym od providera.
 
+## Warunki wstępne (env)
+
+Identycznie jak dla `POST /chat`: przy starcie gateway wymaga **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`, `docs/konfiguracja.md`).
+
 ## Użytkownicy i scenariusze
 
 ### Scenariusz A — streaming w UI

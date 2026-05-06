@@ -4,6 +4,10 @@
 
 Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym formacie niezależnie od providera.
 
+## Warunki wstępne (env)
+
+Gateway musi działać na poprawnie zwalidowanym środowisku: przy starcie obowiązuje **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`), zgodnie z `src/config/env.validation.ts` i `docs/konfiguracja.md`.
+
 ## Użytkownicy i scenariusze
 
 ### Scenariusz A — prosta rozmowa

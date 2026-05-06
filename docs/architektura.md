@@ -54,6 +54,7 @@ flowchart TB
 ## Konfiguracja i sekrety
 
 - Sekrety (klucze providerów) **wyłącznie** w env (`.env` lokalnie, w infrastrukturze użytkownika: menedżer sekretów).
+- Przy starcie walidowane jest m.in., że ustawiony jest **co najmniej jeden** klucz spośród zmiennych providerów objętych `env.validation.ts` (MVP: Anthropic lub Google Gemini).
 - Pliki konfiguracyjne opisują **modele, aliasy, limity i polityki** (bez wartości sekretów).
 - Gateway uruchamia się w trybie “plug&play”: jeśli konfiguracja jest błędna → proces kończy się na starcie z czytelną informacją.
 

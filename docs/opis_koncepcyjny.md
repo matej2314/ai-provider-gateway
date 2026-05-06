@@ -49,7 +49,7 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 - Wybór providera i modelu odbywa się:
   - przez konfigurację środowiskową,
   - lub parametry żądania.
-- Klucze API są zarządzane wyłącznie po stronie serwera (użytkownik przed uruchomieniem serwisu zobowiązany jest do uzupełnienia zmiennych środowiskowych).
+- Klucze API są zarządzane wyłącznie po stronie serwera; przed uruchomieniem serwisu należy ustawić **co najmniej jeden** klucz wybranego providera z zestawu obsługiwanych w walidacji env (w MVP: Anthropic lub Google Gemini — szczegóły w `docs/konfiguracja.md` i `src/config/env.validation.ts`).
 
 ### 4. Architektura modułowa
 

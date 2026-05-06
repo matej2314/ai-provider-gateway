@@ -17,6 +17,6 @@ Ten katalog zawiera **specyfikacje obszarów** systemu (1 plik = 1 obszar). Plik
 - `SPEC-CHAT.md` — endpoint standardowego czatu (`POST /chat`).
 - `SPEC-CHAT-STREAMING.md` — streaming SSE (`POST /chat/stream`).
 - `SPEC-PROVIDERS.md` — adaptery providerów (Anthropic/Google Gemini) i normalizacja.
-- `SPEC-KONFIGURACJA.md` — konfiguracja plug&play (env + pliki modeli/polityk).
+- `SPEC-KONFIGURACJA.md` — konfiguracja plug&play (env + pliki modeli/polityk), m.in. wymóg **minimum jednego** klucza API (`ANTHROPIC_API_KEY` lub `GOOGLE_API_KEY`) wg `env.validation.ts`.
 - `SPEC-HEALTH.md` — liveness/readiness.
 

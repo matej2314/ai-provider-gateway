@@ -46,6 +46,10 @@ Jeśli gateway ma w przyszłości wykonywać narzędzia:
 - wymaga jawnego modelu zagrożeń i ograniczeń (allowlisty, timeouts, limity),
 - wymaga testów bezpieczeństwa (SSRF, exfiltracja).
 
+## Klucze API a MCP
+
+Uruchomienie gateway (w tym wczytanie i walidacja konfiguracji) zakłada spełnienie **globalnych** reguł env: w MVP **minimum jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` zgodnie z `src/config/env.validation.ts` oraz `konfiguracja.md`.
+
 ## Powiązane dokumenty
 
 - Konfiguracja ogólna: `konfiguracja.md`

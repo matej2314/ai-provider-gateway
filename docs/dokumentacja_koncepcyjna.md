@@ -31,7 +31,7 @@ MVP obejmuje:
   - **Anthropic**,
   - **Google Gemini**.
 - Konfiguracja “plug&play”:
-  - klucze API i sekrety w `.env`,
+  - klucze API i sekrety w `.env` — **obowiązkowo co najmniej jeden** klucz spośród providerów objętych walidacją env (w MVP: `ANTHROPIC_API_KEY` lub `GOOGLE_API_KEY`; pojedyncza zmienna może pozostać pusta, jeśli druga jest ustawiona),
   - modele / aliasy / polityki w pliku(ach) konfiguracyjnych,
   - walidacja konfiguracji przy starcie (fail‑fast).
 - Spójny format błędów (envelope) i requestId.
