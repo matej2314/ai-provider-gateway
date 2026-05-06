@@ -59,17 +59,16 @@ ai-provider-gateway/
 │   └── common/
 │       ├── enums/
 │       │   └── ai-provider.enum.ts
+│       ├── errors/
+│       │   ├── api-error.code.ts
+│       │   ├── api-error.dto.ts
+│       │   └── provider-error.mapper.ts
 │       ├── exceptions/
 │       │   └── unsupported-provider.exception.ts
-│       └── (obsługa błędów) *(plan)*:
-│           ├── errors/
-│           │   ├── api-error.code.ts *(plan)*
-│           │   ├── api-error.dto.ts *(plan)*
-│           │   └── provider-error.mapper.ts *(plan)*
-│           ├── interceptors/
-│           │   └── request-id.interceptor.ts *(plan)*
-│           └── filters/
-│               └── http-exception.filter.ts *(plan)*
+│       ├── filters/
+│       │   └── http-exception.filter.ts
+│       └── interceptors/
+│           └── request-id.interceptor.ts
 │
 ├── test/
 │   ├── chat.service.spec.ts
@@ -117,7 +116,9 @@ ai-provider-gateway/
 - **`src/config/`**: konfiguracja i walidacja env + (docelowo) wczytanie oraz walidacja plików configu modeli/polityk.
 - **`src/health/`**: healthchecki (liveness, docelowo readiness związany z konfiguracją).
 - **`src/common/`**: elementy współdzielone (enumy, wyjątki, mapowanie błędów, requestId, filtry/interceptory).
-- **`test/`**: testy jednostkowe modułów (bez prawdziwych wywołań do providerów).
+- **Testy**:
+  - **Unit/integration (modułowe)**: trzymamy *co-located* przy kodzie, np. `src/chat/*.spec.ts`, `src/providers/*.spec.ts`.
+  - **E2E (jeśli dojdą)**: trzymamy osobno (np. `test/e2e/**`), z własną konfiguracją i uruchamianiem.
 - **`docs/`**: dokumentacja architektury, kontraktów API i specyfikacje SDD.
 
 ---
@@ -128,6 +129,6 @@ Te pliki są rekomendowane do domknięcia założeń “skonfiguruj i używaj”
 
 - **`gateway.config.yaml`** *(plan)*: definicje provider instances, aliasy modeli, capabilities (streaming), policy (timeout/retry), allowlista parametrów + bounds.
 - **`mcp.json`** *(plan)*: konfiguracja MCP użytkownika (sposób użycia opisany w `docs/mcp.md`).
-- **`src/common/errors/*`** *(plan)*: spójne `code` błędów i mapowanie wyjątków providerów do envelope API.
-- **`src/common/interceptors/request-id.interceptor.ts`** *(plan)*: generowanie/propagacja requestId.
+- **`src/common/errors/*`**: spójne `code` błędów i mapowanie wyjątków providerów do envelope API.
+- **`src/common/interceptors/request-id.interceptor.ts`**: generowanie/propagacja requestId.
 
