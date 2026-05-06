@@ -1,0 +1,90 @@
+# SPEC — Platforma i kontrakty (AI Provider Gateway)
+
+## Cel / problem
+
+Gateway ma być komponentem “plug&play”: użytkownik dostarcza konfigurację i klucze, a następnie korzysta z jednego API niezależnie od providera LLM.
+
+Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie endpointy:
+
+- envelope błędów,
+- requestId,
+- stabilne kody błędów,
+- zasady walidacji,
+- zasady logowania (bez sekretów).
+
+## Użytkownicy i scenariusze
+
+### Scenariusz A — uruchomienie lokalne
+
+1. Użytkownik wypełnia `.env` własnymi kluczami.
+2. Użytkownik przygotowuje plik konfiguracyjny modeli/polityk.
+3. Uruchamia serwis.
+4. Wysyła request na `/chat` lub `/chat/stream`.
+
+### Scenariusz B — użycie w infrastrukturze
+
+1. Użytkownik wdraża serwis w kontenerze.
+2. Sekrety są dostarczone przez menedżer sekretów.
+3. Konfiguracja modeli jest montowana jako plik.
+4. System jest monitorowany przez healthchecki i logi.
+
+## Wymagania funkcjonalne
+
+### Envelope błędów
+
+F-1. Każdy błąd zwracany jako JSON ma kształt:
+
+- `statusCode: number`
+- `code: string`
+- `message: string`
+- `requestId: string`
+- `details?: unknown[]`
+
+F-2. `code` jest stabilny i opisany w `docs/dictionary.md`.
+
+### Request ID
+
+F-3. Gateway musi propagować requestId:
+
+- jeśli klient przysłał requestId w nagłówku (np. `x-request-id`) → użyj go,
+- jeśli nie → wygeneruj nowy.
+
+F-4. `requestId` musi pojawić się:
+
+- w envelope błędów,
+- w odpowiedziach sukcesu (standard),
+- w zdarzeniu `meta` (streaming),
+- w logach.
+
+### Walidacja
+
+F-5. Wejście do endpointów jest walidowane na brzegu; niepoprawne requesty kończą się `400` z `code=VALIDATION_FAILED` (lub bardziej szczegółowym, jeśli rozróżniasz).
+
+F-6. Nieznany `modelAlias` kończy się deterministycznym błędem (np. `MODEL_ALIAS_NOT_FOUND`) bez wywołania providera.
+
+### Logowanie
+
+F-7. Logi nie mogą zawierać sekretów (kluczy API, tokenów, nagłówków autoryzacji).
+
+F-8. W logach musi być możliwa korelacja request→provider (co najmniej przez `requestId` i pola `provider`, `modelAlias`).
+
+## Wymagania niefunkcjonalne
+
+NFR-1. Fail‑fast konfiguracji: serwis nie startuje, jeśli konfiguracja env/plików jest błędna lub niekompletna.
+
+NFR-2. Brak “open proxy”: konfiguracja nie może pozwalać na dowolne URL-e providerów.
+
+NFR-3. Domyślne zachowanie powinno być bezpieczne: bez dumpowania surowych wyjątków SDK w odpowiedziach.
+
+## Kryteria akceptacji (checklista)
+
+- [ ] Wszystkie błędy mają envelope z `code` i `requestId`.
+- [ ] Nieznany `modelAlias` nie wykonuje żadnego wywołania do providerów.
+- [ ] Logi nie zawierają kluczy i nagłówków auth (weryfikacja przez test/manual).
+- [ ] `requestId` jest widoczny w odpowiedziach standard/stream.
+
+## Poza zakresem (MVP)
+
+- Uwierzytelnianie użytkowników końcowych (AuthN/AuthZ).
+- Billing i limity użytkownikowe (poza podstawowym throttlingiem serwisu).
+
