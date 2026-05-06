@@ -12,8 +12,8 @@ Użytkownik ma móc skonfigurować gateway bez zmian w kodzie:
 
 ### Scenariusz A — minimalna konfiguracja
 
-1. Użytkownik wypełnia `OPENAI_API_KEY` w `.env`.
-2. W configu dodaje `providerInstance=openai-main` i `modelAlias=chat-default`.
+1. Użytkownik wypełnia `ANTHROPIC_API_KEY` w `.env`.
+2. W configu dodaje `providerInstance=anthropic-main` i `modelAlias=chat-default`.
 3. Uruchamia serwis i wywołuje `/chat`.
 
 ### Scenariusz B — konfiguracja dwóch providerów + streaming

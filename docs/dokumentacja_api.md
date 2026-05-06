@@ -37,8 +37,8 @@ Klienci powinni opierać logikę na polu **`code`** (patrz `dictionary.md`).
 
 Klient wybiera model przez **`modelAlias`** (np. `chat-default`). Alias jest mapowany przez gateway na:
 
-- `provider` (np. `openai`, `anthropic`),
-- vendorowy `modelId` (np. `gpt-…`, `claude-…`),
+- `provider` (np. `anthropic`, `google`),
+- vendorowy `modelId` (np. `claude-3-5-sonnet-20241022`, `gemini-1.5-pro`),
 - polityki i limity (timeout, retry, allowlista parametrów).
 
 Szczegóły konfiguracji: `konfiguracja.md`.
@@ -84,8 +84,8 @@ Wartości dozwolone zależą od konfiguracji (allowlista per alias / per provide
 ```json
 {
   "id": "gw_01H…",
-  "provider": "openai",
-  "model": "gpt-…",
+  "provider": "anthropic",
+  "model": "claude-3-5-sonnet-20241022",
   "output": {
     "type": "text",
     "text": "…"

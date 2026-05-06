@@ -10,7 +10,7 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **HTTP** | Kontroler + walidacja DTO + response mapping. |
 | **ChatService** | Przypadek użycia: resolve aliasu, polityki, wywołanie providera. |
 | **Registry** | Rejestr adapterów providerów (DI). |
-| **Provider** | Adapter: OpenAI / Anthropic / Google. |
+| **Provider** | Adapter: Anthropic / Google Gemini. |
 | **LLM API** | Zewnętrzny serwis providera. |
 
 ---

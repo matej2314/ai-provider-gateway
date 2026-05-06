@@ -28,8 +28,8 @@ MVP obejmuje:
   - standardowa odpowiedź (pełna, JSON),
   - **streaming** (SSE / strumień zdarzeń).
 - Integracja z co najmniej dwoma providerami:
-  - **OpenAI**,
-  - **Anthropic**.
+  - **Anthropic**,
+  - **Google Gemini**.
 - Konfiguracja “plug&play”:
   - klucze API i sekrety w `.env`,
   - modele / aliasy / polityki w pliku(ach) konfiguracyjnych,
@@ -76,7 +76,7 @@ Zamiast zmuszać klientów do podawania vendorowego `modelId`, gateway wspiera *
 
 ## Kierunek po MVP (orientacyjnie)
 
-- Google LLM (w repo widać zależność `@google/genai`) jako trzeci provider.
+- OpenAI jako trzeci provider (wymaga płatnego konta API).
 - Retry/circuit‑breaker i metryki per provider.
 - “Policy packs”: profile ustawień per środowisko (dev/prod) i per alias modelu.
 - Opcjonalnie: SDK klienta, OpenAPI, przykłady integracji.

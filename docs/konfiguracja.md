@@ -8,9 +8,8 @@ Zasada: **sekrety tylko w env**. Pliki konfiguracyjne nie zawierają wartości k
 
 Przykładowe zmienne (nazwy mogą różnić się od implementacji — dokument synchronizuj z `src/config`):
 
-- `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
-- `GOOGLE_API_KEY` *(docelowo)*
+- `GOOGLE_API_KEY`
 
 W repo powinien istnieć `.env.example` bez wartości sekretów.
 
@@ -24,17 +23,17 @@ Rekomendacja: jeden plik “gateway config” w formacie YAML/JSON, wczytywany p
 schemaVersion: 1
 
 providers:
-  openai-main:
-    type: openai
-    apiKeyRef: OPENAI_API_KEY
   anthropic-main:
     type: anthropic
     apiKeyRef: ANTHROPIC_API_KEY
+  google-main:
+    type: google
+    apiKeyRef: GOOGLE_API_KEY
 
 models:
   chat-default:
-    providerInstance: openai-main
-    modelId: gpt-...
+    providerInstance: anthropic-main
+    modelId: claude-3-5-sonnet-20241022
     capabilities:
       streaming: true
     policy:

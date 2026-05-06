@@ -22,9 +22,8 @@ flowchart TB
   end
 
   subgraph external [Zewnętrzne systemy]
-    openai[(OpenAI API)]
     anthropic[(Anthropic API)]
-    google[(Google LLM API)]
+    google[(Google Gemini API)]
   end
 
   clients --> http
@@ -32,7 +31,6 @@ flowchart TB
   chat --> providers
   http --> health
   http --> config
-  providers --> openai
   providers --> anthropic
   providers --> google
 ```
@@ -42,7 +40,7 @@ flowchart TB
 | Moduł | Odpowiedzialność |
 |------|------------------|
 | **Chat** (`src/chat`) | Dwa endpointy: standard i streaming. Orkiestracja wyboru modelu i delegacja do warstwy providerów. Normalizacja odpowiedzi. |
-| **Providers** (`src/providers`) | Adaptery providerów (OpenAI/Anthropic/Google) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
+| **Providers** (`src/providers`) | Adaptery providerów (Anthropic/Google Gemini) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
 | **Health** (`src/health`) | Liveness/readiness. Readiness uwzględnia stan konfiguracji oraz możliwość “wywołania” adapterów (na MVP: walidacja konfiguracji i zależności runtime). |
 

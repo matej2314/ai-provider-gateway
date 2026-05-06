@@ -16,7 +16,7 @@ Ten katalog zawiera **specyfikacje obszarów** systemu (1 plik = 1 obszar). Plik
 - `SPEC-PLATFORMA-I-KONTRAKTY.md` — wspólne kontrakty: requestId, błędy, logi, podstawy konfiguracji.
 - `SPEC-CHAT.md` — endpoint standardowego czatu (`POST /chat`).
 - `SPEC-CHAT-STREAMING.md` — streaming SSE (`POST /chat/stream`).
-- `SPEC-PROVIDERS.md` — adaptery providerów (OpenAI/Anthropic/Google) i normalizacja.
+- `SPEC-PROVIDERS.md` — adaptery providerów (Anthropic/Google Gemini) i normalizacja.
 - `SPEC-KONFIGURACJA.md` — konfiguracja plug&play (env + pliki modeli/polityk).
 - `SPEC-HEALTH.md` — liveness/readiness.
 

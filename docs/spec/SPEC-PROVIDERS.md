@@ -1,4 +1,4 @@
-# SPEC — Provider adapters (OpenAI / Anthropic / Google)
+# SPEC — Provider adapters (Anthropic / Google Gemini)
 
 ## Cel / problem
 
@@ -12,14 +12,14 @@ Zamknąć integracje z providerami LLM w adapterach tak, aby:
 
 ### Scenariusz A — dodanie nowego providera
 
-1. Implementator tworzy nowy adapter (np. Google).
+1. Implementator tworzy nowy adapter (np. OpenAI).
 2. Rejestruje go w module Providers.
-3. Konfiguracja pozwala wskazać `providerInstance` typu `google`.
+3. Konfiguracja pozwala wskazać `providerInstance` typu `openai`.
 4. ChatService używa go bez zmian w kontrolerze.
 
 ### Scenariusz B — ujednolicone błędy
 
-1. OpenAI zwraca 429.
+1. Anthropic zwraca 429.
 2. Gateway mapuje to do `PROVIDER_RATE_LIMITED`.
 3. Klient ma jeden kod obsługi, niezależnie od providera.
 
@@ -54,9 +54,9 @@ NFR-2. W przypadku braku wsparcia funkcji (np. stream) adapter musi zgłosić b�
 
 ## Kryteria akceptacji
 
-- [ ] Dwa adaptery (OpenAI i Anthropic) działają zgodnie z portem.
+- [ ] Dwa adaptery (Anthropic i Google Gemini) działają zgodnie z portem.
 - [ ] Błędy 429/timeout są mapowane na te same `code`.
-- [ ] Dodanie trzeciego adaptera nie wymaga zmian w kontrolerach.
+- [ ] Dodanie trzeciego adaptera (np. OpenAI) nie wymaga zmian w kontrolerach.
 
 ## Poza zakresem (MVP)
 

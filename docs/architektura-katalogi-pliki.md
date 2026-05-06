@@ -35,15 +35,15 @@ ai-provider-gateway/
 │   │   ├── provider-registry.service.ts
 │   │   ├── interfaces/
 │   │   │   └── ai-provider.interface.ts
-│   │   ├── openai/
-│   │   │   ├── openai.module.ts
-│   │   │   └── openai.provider.ts
 │   │   ├── anthropic/
 │   │   │   ├── anthropic.module.ts
 │   │   │   └── anthropic.provider.ts
-│   │   └── google/ *(plan)*:
-│   │       ├── google.module.ts *(plan)*
-│   │       └── google.provider.ts *(plan)*
+│   │   ├── google/
+│   │   │   ├── google.module.ts
+│   │   │   └── google.provider.ts
+│   │   └── openai/ *(plan - wymaga płatnego API)*:
+│   │       ├── openai.module.ts *(plan)*
+│   │       └── openai.provider.ts *(plan)*
 │   │
 │   ├── config/
 │   │   ├── configuration.ts

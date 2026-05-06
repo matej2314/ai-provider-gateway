@@ -84,8 +84,8 @@
                   "okText": {
                     "value": {
                       "id": "gw_01H...",
-                      "provider": "openai",
-                      "model": "gpt-...",
+                      "provider": "anthropic",
+                      "model": "claude-3-5-sonnet-20241022",
                       "output": { "type": "text", "text": "..." },
                       "usage": { "inputTokens": 123, "outputTokens": 456, "totalTokens": 579 },
                       "requestId": "req_..."

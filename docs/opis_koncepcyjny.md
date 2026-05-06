@@ -41,7 +41,7 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 
 ### 2. Abstrakcja providerów AI
 
-- Każdy provider (np. OpenAI, Anthropic, lokalne modele) jest zaimplementowany jako osobna instancja adaptera.
+- Każdy provider (np. Anthropic, Google Gemini, lokalne modele) jest zaimplementowany jako osobna instancja adaptera.
 - Logika biznesowa nie zna szczegółów implementacyjnych zewnętrznych API.
 
 ### 3. Konfigurowalność

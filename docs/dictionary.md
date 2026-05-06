@@ -7,7 +7,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | Termin | Definicja | Uwagi |
 |--------|-----------|------|
 | **Gateway / Proxy** | Warstwa pośrednia unifikująca integrację z LLM providerami. | Nie jest “open proxy” do dowolnych URL. |
-| **Provider** | Konkretny dostawca LLM (OpenAI, Anthropic, Google). | Implementowany jako adapter. |
+| **Provider** | Konkretny dostawca LLM (Anthropic, Google Gemini, ewentualnie OpenAI). | Implementowany jako adapter. |
 | **Adapter** | Implementacja kontraktu gateway dla danego providera. | Ukrywa SDK i szczegóły request/response. |
 | **Model ID** | Vendorowa nazwa modelu (np. `gpt-*`, `claude-*`). | Trafia do requestów providera. |
 | **Model alias** | Nazwa używana w gateway (np. `chat-default`). | Mapowana do provider+modelId+policy. |
