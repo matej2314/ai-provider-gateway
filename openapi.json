@@ -1,0 +1,366 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI Provider Gateway API",
+    "version": "0.1.0",
+    "description": "Spójne REST API dla chat completions (standard JSON) oraz streamingu (SSE) niezależnie od providera.\n\nKontrakt jest opisany w `docs/` w repozytorium."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Przykład lokalny"
+    }
+  ],
+  "tags": [
+    { "name": "Health", "description": "Liveness/readiness" },
+    { "name": "Chat", "description": "Chat completions (standard + streaming)" }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": ["Health"],
+        "operationId": "getHealth",
+        "summary": "Healthcheck (liveness)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" },
+                "examples": {
+                  "ok": { "value": { "status": "ok" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat": {
+      "post": {
+        "tags": ["Chat"],
+        "operationId": "postChat",
+        "summary": "Chat (standard)",
+        "description": "Zwraca pełną odpowiedź w JSON w spójnym formacie gateway.",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "description": "Opcjonalny identyfikator korelacyjny. Jeśli nie podany, gateway wygeneruje własny `requestId`.",
+            "schema": { "type": "string", "minLength": 1 }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChatRequest" },
+              "examples": {
+                "minimal": {
+                  "value": {
+                    "modelAlias": "chat-default",
+                    "messages": [{ "role": "user", "content": "Napisz krótkie streszczenie." }]
+                  }
+                },
+                "withParams": {
+                  "value": {
+                    "modelAlias": "chat-default",
+                    "messages": [{ "role": "user", "content": "Napisz krótkie streszczenie." }],
+                    "params": { "temperature": 0.7, "maxOutputTokens": 512 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Odpowiedź gateway (standard)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatResponse" },
+                "examples": {
+                  "okText": {
+                    "value": {
+                      "id": "gw_01H...",
+                      "provider": "openai",
+                      "model": "gpt-...",
+                      "output": { "type": "text", "text": "..." },
+                      "usage": { "inputTokens": 123, "outputTokens": 456, "totalTokens": 579 },
+                      "requestId": "req_..."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Błąd walidacji lub deterministyczny błąd konfiguracji (np. nieznany modelAlias).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "validationFailed": {
+                    "value": {
+                      "statusCode": 400,
+                      "code": "VALIDATION_FAILED",
+                      "message": "Niepoprawne dane wejściowe.",
+                      "requestId": "req_...",
+                      "details": []
+                    }
+                  },
+                  "aliasNotFound": {
+                    "value": {
+                      "statusCode": 400,
+                      "code": "MODEL_ALIAS_NOT_FOUND",
+                      "message": "Podany modelAlias nie istnieje w konfiguracji gateway.",
+                      "requestId": "req_...",
+                      "details": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (gateway lub provider).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "rateLimited": {
+                    "value": {
+                      "statusCode": 429,
+                      "code": "PROVIDER_RATE_LIMITED",
+                      "message": "Limit zapytań został przekroczony.",
+                      "requestId": "req_..."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Błąd/dostępność providera.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "providerUnavailable": {
+                    "value": {
+                      "statusCode": 502,
+                      "code": "PROVIDER_UNAVAILABLE",
+                      "message": "Provider jest niedostępny.",
+                      "requestId": "req_..."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Timeout providera.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "providerTimeout": {
+                    "value": {
+                      "statusCode": 504,
+                      "code": "PROVIDER_TIMEOUT",
+                      "message": "Przekroczono timeout wywołania providera.",
+                      "requestId": "req_..."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/stream": {
+      "post": {
+        "tags": ["Chat"],
+        "operationId": "postChatStream",
+        "summary": "Chat (streaming)",
+        "description": "Streaming odpowiedzi jako Server-Sent Events (SSE). Sekwencja zdarzeń: `meta` (1x), `delta` (0..n), `done` (1x).",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "description": "Opcjonalny identyfikator korelacyjny. Jeśli nie podany, gateway wygeneruje własny `requestId` i umieści go w zdarzeniu `meta`.",
+            "schema": { "type": "string", "minLength": 1 }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChatRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": {
+              "text/event-stream": {
+                "schema": { "type": "string", "description": "Strumień SSE (tekst). Każde zdarzenie jest zakończone pustą linią." },
+                "examples": {
+                  "sse": {
+                    "value": "event: meta\ndata: {\"id\":\"gw_01H...\",\"provider\":\"anthropic\",\"model\":\"claude-...\",\"requestId\":\"req_...\"}\n\nevent: delta\ndata: {\"text\":\"Cześć\"}\n\nevent: delta\ndata: {\"text\":\"! Jak mogę pomóc?\"}\n\nevent: done\ndata: {\"usage\":{\"inputTokens\":12,\"outputTokens\":34,\"totalTokens\":46}}\n"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Błąd walidacji, nieznany modelAlias lub streaming niedozwolony dla aliasu.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "streamingNotSupported": {
+                    "value": {
+                      "statusCode": 400,
+                      "code": "STREAMING_NOT_SUPPORTED",
+                      "message": "Wybrany model/provider nie wspiera streamingu.",
+                      "requestId": "req_...",
+                      "details": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit (gateway lub provider).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              }
+            }
+          },
+          "502": {
+            "description": "Błąd/dostępność providera. Po rozpoczęciu strumienia implementacja może zamiast JSON po prostu zakończyć połączenie.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              }
+            }
+          },
+          "504": {
+            "description": "Timeout providera. Po rozpoczęciu strumienia implementacja może zamiast JSON po prostu zakończyć połączenie.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status"],
+        "properties": {
+          "status": { "type": "string", "const": "ok" }
+        }
+      },
+      "ChatRole": {
+        "type": "string",
+        "enum": ["system", "user", "assistant"]
+      },
+      "ChatMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "content"],
+        "properties": {
+          "role": { "$ref": "#/components/schemas/ChatRole" },
+          "content": { "type": "string", "minLength": 1 }
+        }
+      },
+      "ChatParams": {
+        "type": "object",
+        "description": "Opcjonalne parametry wyjścia. W praktyce gateway może dodatkowo ograniczać allowlistę/bounds per alias/policy.",
+        "additionalProperties": false,
+        "properties": {
+          "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+          "maxOutputTokens": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "ChatRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["modelAlias", "messages"],
+        "properties": {
+          "modelAlias": { "type": "string", "minLength": 1, "description": "Alias modelu z konfiguracji gateway (np. `chat-default`)." },
+          "messages": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/ChatMessage" }
+          },
+          "params": { "$ref": "#/components/schemas/ChatParams" }
+        }
+      },
+      "ChatOutputText": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "text"],
+        "properties": {
+          "type": { "type": "string", "const": "text" },
+          "text": { "type": "string" }
+        }
+      },
+      "ChatUsage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inputTokens": { "type": "integer", "minimum": 0 },
+          "outputTokens": { "type": "integer", "minimum": 0 },
+          "totalTokens": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "ChatResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "provider", "model", "output", "requestId"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "description": "Id odpowiedzi (gateway)." },
+          "provider": { "type": "string", "minLength": 1, "description": "Nazwa providera użytego do wykonania." },
+          "model": { "type": "string", "minLength": 1, "description": "Vendorowy modelId po resolvie aliasu." },
+          "output": {
+            "description": "Treść odpowiedzi (MVP: tekst).",
+            "oneOf": [{ "$ref": "#/components/schemas/ChatOutputText" }]
+          },
+          "usage": { "$ref": "#/components/schemas/ChatUsage" },
+          "requestId": { "type": "string", "minLength": 1, "description": "Id korelacyjne żądania (logi, błędy, streaming meta)." }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["statusCode", "code", "message", "requestId"],
+        "properties": {
+          "statusCode": { "type": "integer", "minimum": 400, "maximum": 599 },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stabilny kod maszynowy (patrz `docs/dictionary.md`).",
+            "examples": ["VALIDATION_FAILED", "MODEL_ALIAS_NOT_FOUND", "STREAMING_NOT_SUPPORTED", "PROVIDER_RATE_LIMITED", "PROVIDER_TIMEOUT", "PROVIDER_UNAVAILABLE"]
+          },
+          "message": { "type": "string", "minLength": 1 },
+          "requestId": { "type": "string", "minLength": 1 },
+          "details": { "type": "array", "items": {} }
+        }
+      }
+    }
+  }
+}
