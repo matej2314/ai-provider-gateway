@@ -13,5 +13,5 @@ export interface ChatResponse {
 }
 
 export interface AIProvider {
-  complete(messages: ChatMessage[]): Promise<ChatResponse>;
+  complete(messages: ChatMessage[], modelId: string): Promise<ChatResponse>;
 }
