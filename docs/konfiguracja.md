@@ -56,6 +56,7 @@ models:
 Uwagi:
 
 - `apiKeyRef` to **nazwa** zmiennej env, nie wartość.
+- Rekomendacja: `models.<modelAlias>` nazywaj „zwyczajowo” i czytelnie (np. `claude-sonnet-4-5`) i mapuj na vendorowy `modelId` wymagany przez API providera (np. `claude-sonnet-4-5-20250929` dla Anthropic). Analogiczne mapowanie dotyczy wszystkich providerów.
 - `policy.params` definiuje co klient może nadpisać.
 - `capabilities.streaming` kontroluje endpoint `/chat/stream`.
 

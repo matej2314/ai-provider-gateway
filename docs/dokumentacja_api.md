@@ -41,6 +41,8 @@ Klient wybiera model przez **`modelAlias`** (np. `chat-default`). Alias jest map
 - vendorowy `modelId` (np. `claude-3-5-sonnet-20241022`, `gemini-1.5-pro`),
 - polityki i limity (timeout, retry, allowlista parametrów).
 
+Założenie kontraktowe: `modelAlias` powinien być **zwyczajową / czytelną nazwą modelu**, stabilną dla klientów (np. `claude-sonnet-4-5`), a gateway mapuje ją na **vendorowy identyfikator wymagany przez API providera** (np. `claude-sonnet-4-5-20250929` dla Anthropic). Analogiczne mapowanie dotyczy wszystkich providerów.
+
 Szczegóły konfiguracji: `konfiguracja.md`.
 
 ---

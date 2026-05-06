@@ -301,7 +301,7 @@
         "additionalProperties": false,
         "required": ["modelAlias", "messages"],
         "properties": {
-          "modelAlias": { "type": "string", "minLength": 1, "description": "Alias modelu z konfiguracji gateway (np. `chat-default`)." },
+          "modelAlias": { "type": "string", "minLength": 1, "description": "Alias modelu z konfiguracji gateway (np. `chat-default` albo zwyczajowa nazwa modelu typu `claude-sonnet-4-5`). Gateway mapuje alias na providera + vendorowy `modelId` wymagany przez API providera." },
           "messages": {
             "type": "array",
             "minItems": 1,

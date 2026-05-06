@@ -10,7 +10,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Provider** | Konkretny dostawca LLM (Anthropic, Google Gemini, ewentualnie OpenAI). | Implementowany jako adapter. |
 | **Adapter** | Implementacja kontraktu gateway dla danego providera. | Ukrywa SDK i szczegóły request/response. |
 | **Model ID** | Vendorowa nazwa modelu (np. `gpt-*`, `claude-*`). | Trafia do requestów providera. |
-| **Model alias** | Nazwa używana w gateway (np. `chat-default`). | Mapowana do provider+modelId+policy. |
+| **Model alias** | Zwyczajowa / czytelna nazwa modelu używana w gateway (np. `claude-sonnet-4-5` lub `chat-default`). | Mapowana do provider+vendorowy modelId+policy (np. `claude-sonnet-4-5` → `claude-sonnet-4-5-20250929` w Anthropic). |
 | **Standard** | Tryb odpowiedzi: pełna odpowiedź JSON. | `POST /chat`. |
 | **Streaming** | Tryb odpowiedzi: SSE. | `POST /chat/stream`. |
 | **Request ID** | Identyfikator korelacyjny żądania. | W logach i w error envelope. |

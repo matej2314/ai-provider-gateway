@@ -20,6 +20,8 @@ Gateway mapuje alias do:
 - vendorowego `modelId`,
 - polityk i limitów.
 
+Założenie: `modelAlias` jest zwyczajową/czytelną nazwą modelu (np. `claude-sonnet-4-5`), mapowaną na vendorowy `modelId` wymagany przez danego providera (np. `claude-sonnet-4-5-20250929` w Anthropic). Analogiczne mapowanie dotyczy wszystkich providerów.
+
 ## Konwencje odpowiedzi sukcesu (standard)
 
 Gateway odpowiada JSON w spójnym kształcie, niezależnym od providera.
