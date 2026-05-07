@@ -99,6 +99,9 @@ npm run build
 # prod (po build)
 npm run start:prod
 
+# walidacja gateway.config.yaml + env (diagnostyka / CI — szczegóły: docs/konfiguracja.md)
+npm run config:validate
+
 # testy
 npm test
 ```

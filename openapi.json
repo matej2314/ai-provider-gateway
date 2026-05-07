@@ -28,7 +28,13 @@
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/HealthResponse" },
                 "examples": {
-                  "ok": { "value": { "status": "ok" } }
+                  "ok": {
+                    "value": {
+                      "status": "ok",
+                      "message": "Gateway is running",
+                      "timestamp": "2026-05-07T13:54:00.000Z"
+                    }
+                  }
                 }
               }
             }
@@ -269,9 +275,11 @@
       "HealthResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["status"],
+        "required": ["status", "message", "timestamp"],
         "properties": {
-          "status": { "type": "string", "const": "ok" }
+          "status": { "type": "string", "const": "ok" },
+          "message": { "type": "string", "minLength": 1 },
+          "timestamp": { "type": "string", "format": "date-time" }
         }
       },
       "ChatRole": {

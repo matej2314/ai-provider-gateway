@@ -10,6 +10,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 - requestId,
 - stabilne kody błędów,
 - zasady walidacji,
+- zasady uwierzytelnienia na brzegu (gateway key),
 - zasady logowania (bez sekretów).
 
 ## Użytkownicy i scenariusze
@@ -61,6 +62,21 @@ F-4. `requestId` musi pojawić się:
 F-5. Wejście do endpointów jest walidowane na brzegu; niepoprawne requesty kończą się `400` z `code=VALIDATION_FAILED` (lub bardziej szczegółowym, jeśli rozróżniasz).
 
 F-6. Nieznany `modelAlias` kończy się deterministycznym błędem (np. `MODEL_ALIAS_NOT_FOUND`) bez wywołania providera.
+
+### Gateway Key (nagłówek `X-Gateway-Key`)
+
+F-9. Gateway musi weryfikować nagłówek `X-Gateway-Key` dla endpointów czatu:
+
+- `POST /api/v1/chat`
+- `POST /api/v1/chat/stream`
+
+F-10. `X-Gateway-Key` jest porównywany z **allowlistą kluczy** (lista/array), aby umożliwić rotację i dokładanie kluczy bez zmian w kontrakcie.
+
+F-11. Brak nagłówka `X-Gateway-Key` kończy się błędem `401` z dedykowanym `code` (opis w `docs/dictionary.md`).
+
+F-12. Niepoprawny `X-Gateway-Key` kończy się błędem `403` z dedykowanym `code` (opis w `docs/dictionary.md`).
+
+F-13. `GET /api/v1/health` nie wymaga `X-Gateway-Key` (integracje orchestratorów).
 
 ### Logowanie
 

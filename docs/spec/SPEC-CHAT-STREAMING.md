@@ -8,6 +8,8 @@ Udostępnić endpoint streamingowy (SSE), który zwraca odpowiedź LLM w formie 
 
 Identycznie jak dla `POST /chat`: przy starcie gateway wymaga **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`, `docs/konfiguracja.md`).
 
+Wymagany jest też nagłówek `X-Gateway-Key` zgodnie z kontraktem platformy (`SPEC-PLATFORMA-I-KONTRAKTY`).
+
 ## Użytkownicy i scenariusze
 
 ### Scenariusz A — streaming w UI

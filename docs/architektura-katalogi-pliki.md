@@ -127,7 +127,7 @@ ai-provider-gateway/
 
 Te pliki są rekomendowane do domknięcia założeń “skonfiguruj i używaj”:
 
-- **`gateway.config.yaml`** *(plan)*: definicje provider instances, aliasy modeli, capabilities (streaming), policy (timeout/retry), allowlista parametrów + bounds.
+- **`gateway.config.yaml`** *(plan)*: definicje provider instances, aliasy modeli, capabilities (streaming), policy (timeout/retry), allowlista parametrów + bounds. Walidacja poza runtime: docelowo skrypt **`npm run config:validate`** (patrz `docs/konfiguracja.md`, plan w `PLAN_IMPLEMENTACJI.md`, Faza 5, krok 5.5).
 - **`mcp.json`** *(plan)*: konfiguracja MCP użytkownika (sposób użycia opisany w `docs/mcp.md`).
 - **`src/common/errors/*`**: spójne `code` błędów i mapowanie wyjątków providerów do envelope API.
 - **`src/common/interceptors/request-id.interceptor.ts`**: generowanie/propagacja requestId.

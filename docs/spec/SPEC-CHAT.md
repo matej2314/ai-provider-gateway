@@ -8,6 +8,8 @@ Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym for
 
 Gateway musi działać na poprawnie zwalidowanym środowisku: przy starcie obowiązuje **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`), zgodnie z `src/config/env.validation.ts` i `docs/konfiguracja.md`.
 
+Wymagany jest też nagłówek `X-Gateway-Key` zgodnie z kontraktem platformy (`SPEC-PLATFORMA-I-KONTRAKTY`).
+
 ## Użytkownicy i scenariusze
 
 ### Scenariusz A — prosta rozmowa

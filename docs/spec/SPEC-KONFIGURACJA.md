@@ -47,11 +47,14 @@ NFR-1. Konfiguracja powinna być wersjonowana (`schemaVersion`).
 
 NFR-2. Dokumentacja configu musi być spójna z implementacją.
 
+NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`), który docelowo waliduje `gateway.config.yaml` oraz wymagane wartości env **bez uruchamiania serwera**, z niezerowym kodem wyjścia przy błędzie (np. dla CI). Szczegóły planu: `PLAN_IMPLEMENTACJI.md`, Faza 5, krok 5.5. Opis użytkowy: `docs/konfiguracja.md`.
+
 ## Kryteria akceptacji
 
 - [ ] Serwis nie startuje bez **minimum jednego** klucza providera w env (zg. z `env.validation.ts`) oraz bez env wymaganych przez `apiKeyRef` w aktywnej konfiguracji modeli.
 - [ ] Serwis nie startuje z configiem niespójnym (np. nieznany providerInstance).
 - [ ] `modelAlias` jest jedyną publiczną metodą wyboru modelu w API (MVP).
+- [ ] `npm run config:validate` przechodzi na poprawnym zestawie pliku `gateway.config.yaml` + env i kończy się błędem na zestawie świadomie niepoprawnym (zgodnie z NFR-3).
 
 ## Poza zakresem (MVP)
 

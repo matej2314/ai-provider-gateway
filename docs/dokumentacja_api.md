@@ -19,6 +19,8 @@ Wersja dokumentu: **0.1**. Dokument jest wersjonowany razem z kodem. Przy rozbie
 
 **Walidacja env przy starcie:** w MVP wymagany jest **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (implementacja: `src/config/env.validation.ts`; opis: `docs/konfiguracja.md`). Bez spełnienia tego warunku endpointów HTTP nie udostępniasz.
 
+**Gateway key (nagłówek):** endpointy czatu wymagają nagłówka `X-Gateway-Key` (allowlista kluczy). `GET /api/v1/health` nie wymaga tego nagłówka.
+
 ## Format błędów (envelope)
 
 ```json
@@ -52,6 +54,9 @@ Szczegóły konfiguracji: `konfiguracja.md`.
 ## `POST /api/v1/chat` — standard
 
 ### Request body
+
+Nagłówek wymagany:
+- `X-Gateway-Key: <twoj-klucz>`
 
 Minimalny kontrakt wejścia:
 
@@ -116,6 +121,9 @@ Uwagi:
 
 Taki sam jak dla standardowego endpointu.
 
+Nagłówek wymagany:
+- `X-Gateway-Key: <twoj-klucz>`
+
 ### Response (`200`) — `text/event-stream`
 
 Przykładowy strumień:
@@ -148,6 +156,8 @@ W razie błędu po rozpoczęciu strumienia:
 ---
 
 ## `GET /api/v1/health`
+
+Endpoint publiczny (bez `X-Gateway-Key`) — przeznaczony do liveness/orchestratorów.
 
 ### Response (`200`)
 

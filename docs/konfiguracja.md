@@ -72,6 +72,12 @@ Gateway powinien zakończyć start, jeśli:
 - `bounds` są nielogiczne,
 - aliasy się duplikują lub config nie zgadza się z `schemaVersion`.
 
+### Skrypt diagnostyczny `npm run config:validate`
+
+W repozytorium jest skrypt npm **`config:validate`** (wpis w `package.json`). **Docelowo** uruchamia walidację **bez startu serwera HTTP**: sprawdza m.in. `gateway.config.yaml` oraz reguły env powiązane z providerami (w tym globalny warunek minimum jednego klucza API zgodny z `src/config/env.validation.ts`). Przy błędach kończy się niezerowym kodem wyjścia — nadaje się do uruchomienia lokalnie po edycji configu oraz w CI przed deployem.
+
+Szczegóły implementacji i zakres kontroli: `PLAN_IMPLEMENTACJI.md` (Faza 5, krok 5.5). Do momentu wdrożenia logiki skrypt może być placeholderem.
+
 ## 4) Nadpisywanie parametrów per request
 
 Klient może przesłać `params` w request, ale gateway:

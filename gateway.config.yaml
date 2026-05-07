@@ -1,0 +1,77 @@
+# Gateway: modele, instancje providerów, polityki (sekrety tylko przez env — patrz apiKeyRef).
+schemaVersion: 1
+
+providers:
+  anthropic-main:
+    type: anthropic
+    apiKeyRef: ANTHROPIC_API_KEY
+  google-main:
+    type: google
+    apiKeyRef: GOOGLE_API_KEY
+
+models:
+  # Domyślny alias zgodny ze scenariuszem A w docs/spec/SPEC-KONFIGURACJA.md
+  chat-default:
+    providerInstance: anthropic-main
+    modelId: claude-sonnet-4-5-20250929
+    capabilities:
+      streaming: true
+    policy:
+      timeoutMs: 30000
+      retry:
+        maxAttempts: 2
+        onStatus: [429, 500, 502, 503, 504]
+      params:
+        defaults:
+          temperature: 0.7
+          maxOutputTokens: 1024
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+        bounds:
+          temperature: { min: 0, max: 2 }
+          maxOutputTokens: { min: 1, max: 8192 }
+
+  # Drugi alias (Google) — ułatwia scenariusz B (dwa providery) bez duplikowania nazw z prefiksów z kodu
+  gemini-flash:
+    providerInstance: google-main
+    modelId: gemini-2.5-flash
+    capabilities:
+      streaming: true
+    policy:
+      timeoutMs: 30000
+      retry:
+        maxAttempts: 2
+        onStatus: [429, 500, 502, 503, 504]
+      params:
+        defaults:
+          temperature: 0.7
+          maxOutputTokens: 1024
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+        bounds:
+          temperature: { min: 0, max: 2 }
+          maxOutputTokens: { min: 1, max: 8192 }
+
+  # Opcjonalnie: jawny alias „anthropicowy” dla klarowności przy dwóch modelach Claude w przyszłości
+  claude-sonnet:
+    providerInstance: anthropic-main
+    modelId: claude-sonnet-4-5-20250929
+    capabilities:
+      streaming: true
+    policy:
+      timeoutMs: 30000
+      retry:
+        maxAttempts: 2
+        onStatus: [429, 500, 502, 503, 504]
+      params:
+        defaults:
+          temperature: 0.7
+          maxOutputTokens: 1024
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+        bounds:
+          temperature: { min: 0, max: 2 }
+          maxOutputTokens: { min: 1, max: 8192 }

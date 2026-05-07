@@ -32,6 +32,9 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | `PROVIDER_TIMEOUT` | Przekroczono timeout dla wywołania providera. |
 | `PROVIDER_UNAVAILABLE` | Provider zwrócił błąd 5xx lub jest niedostępny. |
 | `STREAMING_NOT_SUPPORTED` | Wybrany model/provider nie wspiera streamingu. |
+| `GATEWAY_KEY_NOT_CONFIGURED` | Gateway nie ma skonfigurowanej allowlisty kluczy (błąd serwera; fail-safe). |
+| `GATEWAY_KEY_MISSING` | Brak wymaganego nagłówka `X-Gateway-Key`. |
+| `GATEWAY_KEY_INVALID` | Niepoprawna wartość nagłówka `X-Gateway-Key`. |
 
 ## Kody HTTP (mapowanie)
 
@@ -42,6 +45,9 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | 429 | `PROVIDER_RATE_LIMITED` |
 | 502 | `PROVIDER_UNAVAILABLE` |
 | 504 | `PROVIDER_TIMEOUT` |
+| 401 | `GATEWAY_KEY_MISSING` |
+| 403 | `GATEWAY_KEY_INVALID` |
+| 500 | `GATEWAY_KEY_NOT_CONFIGURED` |
 
 Powiązane: `architektura_api.md`, `dokumentacja_api.md`, `anty-patterny.md`.
 
