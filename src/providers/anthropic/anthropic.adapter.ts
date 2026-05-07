@@ -41,8 +41,6 @@ export class AnthropicAdapter implements AIProvider {
       if (c.type === 'text') text += c.text;
     }
 
-    console.log(`[AnthropicAdapter] Response: ${text}`);
-
     return {
       text,
       model: response.model,

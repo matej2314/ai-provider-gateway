@@ -27,7 +27,7 @@ export class ProviderRegistryService {
       modelId = 'claude-sonnet-4-5-20250929';
     } else if (modelAlias.startsWith('gemini')) {
       providerKey = 'google';
-      modelId = 'gemini-1.5-pro';
+      modelId = 'gemini-2.5-flash';
     } else {
       throw new BadRequestException(`Unknown model alias: ${modelAlias}`);
     }
