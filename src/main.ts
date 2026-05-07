@@ -8,6 +8,8 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

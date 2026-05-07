@@ -60,6 +60,11 @@ Gateway przyjmuje w kontrakcie HTTP `messages[]` z rolami `system|user|assistant
 
 Powód: providerzy różnią się semantyką i kształtem pola `system` (np. Anthropic wymaga osobnego pola `system`, a nie roli `system` w `messages[]`), a gateway utrzymuje spójny kontrakt na wejściu.
 
+W warstwie adaptera `system` z portu jest mapowany na natywne pole SDK providera:
+
+- **Anthropic** (`@anthropic-ai/sdk`) — `messages.create({ system })`.
+- **Google Gemini** (`@google/genai` 1.52+) — `config.systemInstruction` przekazywane do `ai.chats.create({ config })` lub `ai.models.generateContent({ config })`. Adapter dodatkowo mapuje rolę `assistant` na `model` (wymóg SDK Gemini). Szczegóły mapowania: `spec/SPEC-PROVIDERS.md`.
+
 ## Konfiguracja i sekrety
 
 - Sekrety (klucze providerów) **wyłącznie** w env (`.env` lokalnie, w infrastrukturze użytkownika: menedżer sekretów).

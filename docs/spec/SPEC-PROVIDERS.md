@@ -65,7 +65,8 @@ NFR-2. W przypadku braku wsparcia funkcji (np. stream) adapter musi zgłosić b�
 
 NFR-3. Adapter nie może zakładać, że rola `system` jest wspierana w `messages[]` providera.
 Jeśli provider wymaga osobnego pola `system` (np. Anthropic) — adapter używa `system` z portu.
-Jeśli provider wspiera `system` jako wiadomość — adapter mapuje `system` na format providera zgodnie ze swoją implementacją (np. jako pierwszą wiadomość).
+Jeśli provider udostępnia natywne pole instrukcji systemowej (np. Google Gemini przez `@google/genai` — `config.systemInstruction`), adapter używa tego pola zamiast wstrzykiwać `system` jako wiadomość użytkownika.
+Mapowanie `system` na pierwszą wiadomość `user` jest dopuszczalne **tylko** jako fallback dla providerów, które nie udostępniają osobnego pola — w MVP nie dotyczy żadnego z używanych SDK.
 
 ## Kryteria akceptacji
 
@@ -77,4 +78,35 @@ Jeśli provider wspiera `system` jako wiadomość — adapter mapuje `system` na
 
 - Zaawansowany routing (fallback, hedging, multi-provider).
 - Automatyczne wykrywanie dostępnych modeli po API providerów.
+
+## Notatki implementacyjne — mapowanie SDK
+
+Tabela referencyjna pokazująca jak port providera (`ProviderChatInput` + `modelId`) mapuje się na używane SDK. Opisuje **aktualnie zainstalowane** wersje (`package.json`).
+
+### Anthropic — `@anthropic-ai/sdk`
+
+| Port providera | Pole SDK |
+|----------------|----------|
+| `system` | `messages.create({ system })` — osobne pole, nie wiadomość |
+| `messages[]` (`user` / `assistant`) | `messages.create({ messages })` — te same role |
+| `modelId` | `messages.create({ model })` |
+| `response.text` | konkatenacja `response.content[*].text` (gdzie `type === 'text'`) |
+| `usage.inputTokens` / `usage.outputTokens` | `response.usage.input_tokens` / `response.usage.output_tokens` |
+
+### Google Gemini — `@google/genai` (1.52+)
+
+SDK `@google/genai` zastąpiło wcześniejszy pakiet `@google/generative-ai`. Adapter musi używać **wyłącznie** nowego SDK; stare API (`GoogleGenerativeAI`, `getGenerativeModel`, `model.startChat`, `result.response.text()`) **nie istnieje** w `@google/genai` i nie wolno się na nim opierać.
+
+| Port providera | Pole / wywołanie SDK |
+|----------------|----------------------|
+| inicjalizacja | `new GoogleGenAI({ apiKey })` |
+| `system` | `config.systemInstruction` w `ai.chats.create({ config })` lub `ai.models.generateContent({ config })` |
+| `messages[]` (`user` / `assistant`) | `Content[]` z `role: 'user' \| 'model'` (`assistant` → `model`) i `parts: [{ text }]`; historia musi naprzemiennie zawierać `user`/`model` i zaczynać się od `user` |
+| `modelId` | `ai.chats.create({ model })` lub `ai.models.generateContent({ model })` |
+| wywołanie sync | `chat.sendMessage({ message })` — zwraca `GenerateContentResponse` bezpośrednio (nie zagnieżdżone w `result.response`) |
+| wywołanie stream | `chat.sendMessageStream({ message })` — zwraca `AsyncGenerator<GenerateContentResponse>`; iterujemy bez `.stream` |
+| `response.text` | property (getter) — **nie** `response.text()` |
+| `usage.inputTokens` / `usage.outputTokens` | `response.usageMetadata.promptTokenCount` / `response.usageMetadata.candidatesTokenCount` |
+
+Dla MVP wystarczy `chats.create` (obsługuje historię i system instruction). Dla pojedynczych zapytań bez historii idiomatyczne jest `ai.models.generateContent({ model, contents, config })`.
 
