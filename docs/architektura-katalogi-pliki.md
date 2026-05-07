@@ -5,7 +5,7 @@ Ten dokument opisuje **strukturę katalogów i plików** projektu *AI Provider G
 Zasady:
 
 - Struktura jest **modułowa** (NestJS), a integracje providerów są w `src/providers/`.
-- Dokument zawiera **aktualne elementy repo** oraz **planowane** (oznaczone jako *(plan)*), potrzebne do osiągnięcia docelowego “plug&play” (konfig plikami, dwa endpointy: standard + streaming).
+- Elementy oznaczone *(plan)* pochodzą z `PLAN_IMPLEMENTACJI.md` / specyfikacji i nie mają jeszcze pełnej implementacji.
 
 ---
 
@@ -13,6 +13,8 @@ Zasady:
 
 ```
 ai-provider-gateway/
+├── openapi.json
+├── gateway.config.yaml
 ├── src/
 │   ├── main.ts
 │   ├── app.module.ts
@@ -20,15 +22,10 @@ ai-provider-gateway/
 │   ├── chat/
 │   │   ├── chat.module.ts
 │   │   ├── chat.controller.ts
+│   │   ├── chat-stream.controller.ts    # szkielet (Faza 4 — streaming)
 │   │   ├── chat.service.ts
-│   │   ├── dto/
-│   │   │   ├── chat-request.dto.ts
-│   │   │   └── chat-message.dto.ts
-│   │   └── (streaming) *(plan)*:
-│   │       ├── chat-stream.controller.ts *(plan, jeśli rozdzielisz kontrolery)*
-│   │       └── sse/
-│   │           ├── sse-event.type.ts *(plan)*
-│   │           └── sse.serializer.ts *(plan)*
+│   │   └── dto/
+│   │       └── chat-request.dto.ts
 │   │
 │   ├── providers/
 │   │   ├── providers.module.ts
@@ -37,43 +34,22 @@ ai-provider-gateway/
 │   │   │   └── ai-provider.interface.ts
 │   │   ├── anthropic/
 │   │   │   ├── anthropic.module.ts
-│   │   │   └── anthropic.provider.ts
+│   │   │   └── anthropic.adapter.ts
 │   │   ├── google/
 │   │   │   ├── google.module.ts
-│   │   │   └── google.provider.ts
-│   │   └── openai/ *(plan - wymaga płatnego API)*:
-│   │       ├── openai.module.ts *(plan)*
-│   │       └── openai.provider.ts *(plan)*
+│   │   │   └── google.adapter.ts
+│   │   └── openai/ *(plan — post-MVP)*
 │   │
 │   ├── config/
-│   │   ├── configuration.ts
+│   │   ├── configuration.ts       # load gateway.config.yaml + Zod
 │   │   └── env.validation.ts
 │   │
-│   ├── health/
-│   │   ├── health.module.ts
-│   │   ├── health.controller.ts
-│   │   └── (ready) *(plan)*:
-│   │       ├── health.service.ts *(plan)*
-│   │       └── readiness.controller.ts *(plan lub rozbudowa health.controller.ts)*
-│   │
-│   └── common/
-│       ├── enums/
-│       │   └── ai-provider.enum.ts
-│       ├── errors/
-│       │   ├── api-error.code.ts
-│       │   ├── api-error.dto.ts
-│       │   └── provider-error.mapper.ts
-│       ├── exceptions/
-│       │   └── unsupported-provider.exception.ts
-│       ├── filters/
-│       │   └── http-exception.filter.ts
-│       └── interceptors/
-│           └── request-id.interceptor.ts
+│   └── health/
+│       ├── health.module.ts
+│       ├── health.controller.ts
+│       └── health.service.ts
 │
-├── test/
-│   ├── chat.service.spec.ts
-│   └── provider-registry.spec.ts
-│
+├── test/                           # e2e (gdy rozbudowane)
 ├── docs/
 │   ├── README.md
 │   ├── dokumentacja_koncepcyjna.md
@@ -99,36 +75,32 @@ ai-provider-gateway/
 │
 ├── .env.example
 ├── .env *(lokalnie, nie commitować)*
-├── docker-compose.yml
+├── docker-compose.yml *(jeśli obecny)*
 ├── package.json
+├── PLAN_IMPLEMENTACJI.md
 ├── README.md
-└── (konfiguracja plug&play) *(plan)*:
-    ├── gateway.config.yaml *(plan: plik modeli/aliasów/polityk)*
-    └── mcp.json *(plan: konfiguracja MCP użytkownika)*
+└── mcp.json *(plan — konfiguracja MCP użytkownika; patrz docs/mcp.md)*
 ```
 
 ---
 
 ## 2) Opis katalogów (odpowiedzialności)
 
-- **`src/chat/`**: warstwa przypadków użycia “chat” (standard i streaming), walidacja wejścia (DTO), delegacja do providerów, unifikacja formatu odpowiedzi.
-- **`src/providers/`**: adaptery providerów i rejestr. Jedyny fragment kodu, który “zna” SDK providerów.
-- **`src/config/`**: konfiguracja i walidacja env (`env.validation.ts`: constraint `AtLeastOneApiKeyConstraint`, `@Validate` na jednym polu — **minimum jeden** niepusty klucz `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`) + (docelowo) wczytanie oraz walidacja plików configu modeli/polityk.
-- **`src/health/`**: healthchecki (liveness, docelowo readiness związany z konfiguracją).
-- **`src/common/`**: elementy współdzielone (enumy, wyjątki, mapowanie błędów, requestId, filtry/interceptory).
-- **Testy**:
-  - **Unit/integration (modułowe)**: trzymamy *co-located* przy kodzie, np. `src/chat/*.spec.ts`, `src/providers/*.spec.ts`.
-  - **E2E (jeśli dojdą)**: trzymamy osobno (np. `test/e2e/**`), z własną konfiguracją i uruchamianiem.
-- **`docs/`**: dokumentacja architektury, kontraktów API i specyfikacje SDD.
+- **`src/chat/`**: HTTP dla czatu standardowego; **streaming w przygotowaniu** (Faza 4). Orkiestracja wywołania przez `ChatService` i rejestr providerów.
+- **`src/providers/`**: adaptery Anthropic / Google i `ProviderRegistryService`. Jedyna warstwa bezpośrednio używająca SDK vendorów.
+- **`src/config/`**: `configuration.ts` — wczytanie `gateway.config.yaml` i walidacja Zod; `env.validation.ts` — reguły env (m.in. klucze API w production).
+- **`src/health/`**: liveness (`GET /api/v1/health`). Readiness jako osobny endpoint/service *(plan / rozszerzenie)*.
+- **`src/common/`** *(plan pod Fazę 5 i dalej)*: współdzielone filtry (envelope błędów), interceptory `request-id`, mapowanie kodów — **obecnie brak tego katalogu** w repo.
+- **Testy jednostkowe**: obok kodu, np. `src/**/*.spec.ts`.
+- **`docs/`**: dokumentacja oraz specyfikacje SDD.
 
 ---
 
-## 3) Pliki “planowane” — minimalny zestaw do docelowego plug&play
+## 3) Powiązanie z planem implementacji
 
-Te pliki są rekomendowane do domknięcia założeń “skonfiguruj i używaj”:
+Zamknięte lub częściowo zamknięte (śledź tabele statusów w `PLAN_IMPLEMENTACJI.md`):
 
-- **`gateway.config.yaml`** *(plan)*: definicje provider instances, aliasy modeli, capabilities (streaming), policy (timeout/retry), allowlista parametrów + bounds. Walidacja poza runtime: docelowo skrypt **`npm run config:validate`** (patrz `docs/konfiguracja.md`, plan w `PLAN_IMPLEMENTACJI.md`, Faza 5, krok 5.5).
-- **`mcp.json`** *(plan)*: konfiguracja MCP użytkownika (sposób użycia opisany w `docs/mcp.md`).
-- **`src/common/errors/*`**: spójne `code` błędów i mapowanie wyjątków providerów do envelope API.
-- **`src/common/interceptors/request-id.interceptor.ts`**: generowanie/propagacja requestId.
+- Fundament: config z YAML, registry, adaptery Anthropic + Google.
+- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, SSE, spójny error envelope + `x-request-id`, działający `npm run config:validate`.
 
+Powiązane: `PLAN_IMPLEMENTACJI.md`, `openapi.json`, `docs/konfiguracja.md`.

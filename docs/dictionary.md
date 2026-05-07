@@ -15,7 +15,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Streaming** | Tryb odpowiedzi: SSE. | `POST /chat/stream`. |
 | **Request ID** | Identyfikator korelacyjny żądania. | W logach i w error envelope. |
 | **Policy** | Zestaw limitów i zasad (timeout, retry, allowlista parametrów). | Konfigurowalne per alias / per provider. |
-| **Walidacja env (klucze)** | Reguły na zmiennych środowiskowych przy starcie aplikacji. | W MVP gateway wymaga **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` po `trim()` (constraint `AtLeastOneApiKeyConstraint`; `src/config/env.validation.ts`). |
+| **Walidacja env (klucze)** | Reguły na zmiennych środowiskowych przy starcie aplikacji. | Przy **`NODE_ENV=production`** wymagany jest **co najmniej jeden** niepusty klucz (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W innych środowiskach ta reguła nie blokuje startu (`src/config/env.validation.ts`). |
 
 ## Kody błędów (stabilne)
 
@@ -32,9 +32,9 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | `PROVIDER_TIMEOUT` | Przekroczono timeout dla wywołania providera. |
 | `PROVIDER_UNAVAILABLE` | Provider zwrócił błąd 5xx lub jest niedostępny. |
 | `STREAMING_NOT_SUPPORTED` | Wybrany model/provider nie wspiera streamingu. |
-| `GATEWAY_KEY_NOT_CONFIGURED` | Gateway nie ma skonfigurowanej allowlisty kluczy (błąd serwera; fail-safe). |
-| `GATEWAY_KEY_MISSING` | Brak wymaganego nagłówka `X-Gateway-Key`. |
-| `GATEWAY_KEY_INVALID` | Niepoprawna wartość nagłówka `X-Gateway-Key`. |
+| `GATEWAY_KEY_NOT_CONFIGURED` | Gateway nie ma skonfigurowanej allowlisty kluczy (błąd serwera; fail-safe). **Docelowo** (`SPEC-PLATFORMA-I-KONTRAKTY`); **nie mapowane** w obecnym kodzie. |
+| `GATEWAY_KEY_MISSING` | Brak wymaganego nagłówka `X-Gateway-Key`. **Docelowo**; brak egzekucji w kontrolerach (patrz Faza 5 / platforma). |
+| `GATEWAY_KEY_INVALID` | Niepoprawna wartość nagłówka `X-Gateway-Key`. **Docelowo**; brak egzekucji w kontrolerach. |
 
 ## Kody HTTP (mapowanie)
 
@@ -49,5 +49,7 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | 403 | `GATEWAY_KEY_INVALID` |
 | 500 | `GATEWAY_KEY_NOT_CONFIGURED` |
 
-Powiązane: `architektura_api.md`, `dokumentacja_api.md`, `anty-patterny.md`.
+**Uwaga:** kody `MODEL_ALIAS_NOT_FOUND`, pełny **ErrorEnvelope** przy walidacji Nest oraz stabilne mapowanie błędów providerów są **celem kontraktu** (`openapi.json`, Faza 5). Bieżące odpowiedzi mogą używać domyślnych komunikatów Nest (`BadRequestException` itd.) — por. `docs/dokumentacja_api.md`.
+
+Powiązane: `openapi.json`, `architektura_api.md`, `dokumentacja_api.md`, `anty-patterny.md`.
 

@@ -39,10 +39,10 @@ flowchart TB
 
 | Moduł | Odpowiedzialność |
 |------|------------------|
-| **Chat** (`src/chat`) | Dwa endpointy: standard i streaming. Orkiestracja wyboru modelu i delegacja do warstwy providerów. Normalizacja odpowiedzi. |
+| **Chat** (`src/chat`) | Standardowy czat (`POST /api/v1/chat`). Streaming pod ścieżką z OpenAPI — **w przygotowaniu** (Faza 4). Orkiestracja wyboru modelu i delegacja do providerów; normalizacja wiadomości i odpowiedzi. |
 | **Providers** (`src/providers`) | Adaptery providerów (Anthropic/Google Gemini) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
-| **Health** (`src/health`) | Liveness/readiness. Readiness uwzględnia stan konfiguracji oraz możliwość “wywołania” adapterów (na MVP: walidacja konfiguracji i zależności runtime). |
+| **Health** (`src/health`) | Liveness: `GET /api/v1/health` (JSON ze statusem i znacznikiem czasu). Osobny **readiness** (np. dependency check) — opcjonalnie w kolejnych iteracjach; walidacja konfiguracji następuje przy **starcie** procesu. |
 
 ## Warstwy wewnątrz modułów (konwencja NestJS)
 
@@ -68,7 +68,7 @@ W warstwie adaptera `system` z portu jest mapowany na natywne pole SDK providera
 ## Konfiguracja i sekrety
 
 - Sekrety (klucze providerów) **wyłącznie** w env (`.env` lokalnie, w infrastrukturze użytkownika: menedżer sekretów).
-- Przy starcie walidowane jest m.in., że ustawiony jest **co najmniej jeden** klucz spośród zmiennych providerów objętych `env.validation.ts` (MVP: Anthropic lub Google Gemini).
+- Przy starcie w **`NODE_ENV=production`** walidowane jest, że ustawiony jest **co najmniej jeden** klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`env.validation.ts`).
 - Pliki konfiguracyjne opisują **modele, aliasy, limity i polityki** (bez wartości sekretów).
 - Gateway uruchamia się w trybie “plug&play”: jeśli konfiguracja jest błędna → proces kończy się na starcie z czytelną informacją.
 

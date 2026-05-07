@@ -22,20 +22,20 @@ Projekt powstaje jako ćwiczenie NestJS, architektury i wzorców projektowych, a
 
 ## Zakres MVP
 
-MVP obejmuje:
+MVP obejmuje (śledź szczegółowy status faz w **`PLAN_IMPLEMENTACJI.md`** oraz kontrakt w **`openapi.json`**):
 
-- **Dwa endpointy czatu**:
-  - standardowa odpowiedź (pełna, JSON),
-  - **streaming** (SSE / strumień zdarzeń).
-- Integracja z co najmniej dwoma providerami:
+- **Endpoint czatu standardowego**: `POST /api/v1/chat` — pełna odpowiedź JSON (**zaimplementowany**).
+- **Streaming** (`POST /api/v1/chat/stream`, SSE) — **kontrakt** w OpenAPI; implementacja w **Fazie 4** planu.
+- Integracja z dwoma providerami:
   - **Anthropic**,
-  - **Google Gemini**.
+  - **Google Gemini**  
+  (adaptery i rejestr — **zaimplementowane**).
 - Konfiguracja “plug&play”:
-  - klucze API i sekrety w `.env` — **obowiązkowo co najmniej jeden** klucz spośród providerów objętych walidacją env (w MVP: `ANTHROPIC_API_KEY` lub `GOOGLE_API_KEY`; pojedyncza zmienna może pozostać pusta, jeśli druga jest ustawiona),
-  - modele / aliasy / polityki w pliku(ach) konfiguracyjnych,
-  - walidacja konfiguracji przy starcie (fail‑fast).
-- Spójny format błędów (envelope) i requestId.
-- Podstawowe testy jednostkowe warstwy wyboru providera i mapowania request/response.
+  - klucze API w `.env`; **w środowisku production** obowiązuje **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`),
+  - aliasy modeli i polityki w **`gateway.config.yaml`** — plik **wczytywany i walidowany przy starcie**; pełne odwzorowanie policy w adapterach jest **stopniowo dopinane** (plan),
+  - fail‑fast przy braku/błędzie pliku konfiguracyjnego.
+- Spójny format błędów (**envelope**) i propagacja **`x-request-id`** — **Faza 5** (plan); część odpowiedzi sukcesu już zawiera `requestId` generowany w serwisie.
+- Testy jednostkowe przy modułach (`*.spec.ts`).
 
 ## Poza zakresem MVP (na start)
 

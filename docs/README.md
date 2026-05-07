@@ -6,20 +6,22 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 
 1. Zacznij od `dokumentacja_koncepcyjna.md` (WHAT/WHY).
 2. Następnie `architektura.md` (moduły i granice) oraz `architektura_api.md` (konwencje API).
-3. Dla szczegółów HTTP: `lista_endpointów.md` i `dokumentacja_api.md`.
+3. Dla szczegółów HTTP: **maszynowy kontrakt** w `openapi.json` (w katalogu głównym repo), oraz opis ludzki: `lista_endpointów.md` i `dokumentacja_api.md` (tam jest też **stan implementacji vs OpenAPI**).
 4. Dla konfiguracji “plug&play”: `konfiguracja.md` + `mcp.md`.
 5. Dla przepływów: `data_flow.md`.
 6. Dla ryzyk: `anty-patterny.md`.
 7. Dla pracy spec‑first: katalog `spec/`.
+8. Dla harmonogramu i faz rozwoju: `PLAN_IMPLEMENTACJI.md` (w katalogu głównym repo).
 
 ## Spis plików
 
+- `../openapi.json` *(w katalogu głównym repo)* — OpenAPI 3.1: docelowy kontrakt REST (czat, streaming, health, schematy).
 - `dokumentacja_koncepcyjna.md` — cel produktu, zakres MVP, założenia.
 - `architektura.md` — widok logiczny, moduły, warstwy, integracje providerów.
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.
 - `lista_endpointów.md` — szybka lista endpointów (standard + streaming).
 - `dokumentacja_api.md` — szczegółowy kontrakt endpointów, przykłady payloadów.
-- `konfiguracja.md` — env + pliki konfiguracyjne modeli/polityk (m.in. wymóg **minimum jednego** klucza: Anthropic lub Google — patrz `src/config/env.validation.ts`; skrypt diagnostyczny `npm run config:validate`).
+- `konfiguracja.md` — env + `gateway.config.yaml` (wczytywanie przy starcie); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); skrypt `npm run config:validate` — wpis w `package.json`, implementacja w planie (Faza 5).
 - `mcp.md` — integracja MCP (konfiguracja i granice odpowiedzialności).
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.
 - `dictionary.md` — słownik pojęć i kody błędów.

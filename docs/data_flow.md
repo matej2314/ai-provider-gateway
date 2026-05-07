@@ -2,22 +2,22 @@
 
 Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek danych między klientem, warstwą HTTP (NestJS), logiką aplikacyjną oraz adapterami providerów.
 
-**Założenie:** gateway jest uruchomiony po pozytywnej walidacji env — w MVP wymagany jest **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`; opis w `docs/konfiguracja.md`).
+**Konfiguracja:** przy starcie ładowany jest `gateway.config.yaml` (`src/config/configuration.ts`). Env: w **production** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
 
 ## Legenda uczestników
 
 | Skrót | Znaczenie |
 |-------|-----------|
 | **Klient** | Dowolny klient HTTP (aplikacja, serwis, BFF). |
-| **HTTP** | Kontroler + walidacja DTO + response mapping. |
-| **ChatService** | Przypadek użycia: resolve aliasu, polityki, wywołanie providera. |
-| **Registry** | Rejestr adapterów providerów (DI). |
-| **Provider** | Adapter: Anthropic / Google Gemini. |
+| **HTTP** | Kontroler + walidacja DTO + odpowiedź. |
+| **ChatService** | Resolve aliasu, normalizacja wiadomości, wywołanie adaptera. |
+| **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na adapter + `modelId`. |
+| **Provider** | Adapter Anthropic / Google. |
 | **LLM API** | Zewnętrzny serwis providera. |
 
 ---
 
-## 0. Wspólny szkielet: requestId, walidacja, wybór modelu
+## 0. Wspólny szkielet: walidacja, wybór modelu
 
 ```mermaid
 sequenceDiagram
@@ -26,17 +26,17 @@ sequenceDiagram
   participant H as HTTP (ChatController)
   participant S as ChatService
 
-  K->>+H: POST /chat (JSON)
+  K->>+H: POST /api/v1/chat (JSON)
   H->>H: ValidationPipe (DTO)
-  H->>H: requestId (propaguj lub wygeneruj)
-  H->>+S: execute(modelAlias, messages, params)
-  S-->>-H: wynik lub błąd domenowy
-  H-->>-K: 200 JSON lub error envelope
+  Note over H: x-request-id / gateway key — docelowo (Faza 5)
+  H->>+S: executeChat(request)
+  S-->>-H: wynik lub wyjątek HTTP
+  H-->>-K: 200 JSON lub błąd
 ```
 
 ---
 
-## 1. Standard `POST /chat` — sukces (200)
+## 1. Standard `POST /api/v1/chat` — sukces (200)
 
 ```mermaid
 sequenceDiagram
@@ -48,23 +48,28 @@ sequenceDiagram
   participant P as Provider Adapter
   participant A as LLM API
 
-  K->>+H: POST /chat (modelAlias, messages, params)
-  H->>H: walidacja DTO + requestId
-  H->>+S: execute
-  S->>S: resolve modelAlias -> provider + modelId + policy
-  S->>+R: getProvider(provider)
-  R-->>-S: adapter
-  S->>+P: complete(modelId, messages, params, policy)
+  K->>+H: POST /api/v1/chat (modelAlias, messages)
+  H->>H: walidacja DTO
+  H->>+S: executeChat
+  S->>S: normalizeMessagesForProvider
+  S->>+R: resolve(modelAlias)
+  R-->>-S: adapter + providerName + modelId
+  S->>+P: complete(input, modelId)
   P->>+A: request do providera
   A-->>-P: response
-  P-->>-S: znormalizowana odpowiedź
-  S-->>-H: ChatResponse
-  H-->>-K: 200 JSON (gateway contract)
+  P-->>-S: ProviderChatResponse
+  S-->>-H: ChatResponse (id, usage, requestId, …)
+  H-->>-K: 200 JSON
 ```
+
+**Uwaga:** opcjonalne `params` z kontraktu OpenAPI nie są jeszcze w DTO — nie występują w tym przepływie.
 
 ---
 
-## 2. Standard `POST /chat` — błąd (np. 429 / timeout)
+## 2. Standard `POST /api/v1/chat` — błąd (plan kontraktu)
+
+Docelowo (Faza 5 + mapowanie w adapterach): 429 / timeout / 5xx mają być mapowane na envelope z polami `code` i `requestId` (`openapi.json`, `dictionary.md`).  
+**Dziś:** zachowanie zależy od wyjątków Nest/SDK — konsument powinien traktować to jako przejściowe do czasu ujednolicenia.
 
 ```mermaid
 sequenceDiagram
@@ -73,23 +78,21 @@ sequenceDiagram
   participant P as Provider
   participant A as LLM API
 
-  H->>S: execute
+  H->>S: executeChat
   S->>P: complete
   P->>A: request
-  alt 429 / throttling
-    A-->>P: 429
-    P-->>S: ProviderRateLimited
-    S-->>H: map -> 429 + code PROVIDER_RATE_LIMITED
-  else timeout
-    A--xP: timeout
-    P-->>S: ProviderTimeout
-    S-->>H: map -> 504 + code PROVIDER_TIMEOUT
+  alt błąd HTTP / timeout (aktualne SDK)
+    A-->>P: błąd
+    P-->>S: wyjątek
+    S-->>H: propagacja / mapowanie (do ujednolicenia)
   end
 ```
 
 ---
 
-## 3. Streaming `POST /chat/stream` — sukces (SSE)
+## 3. Streaming `POST /api/v1/chat/stream` — sukces (SSE) *(plan)*
+
+Kontrakt i diagram docelowy są zgodne z `openapi.json` i **Fazą 4** (`PLAN_IMPLEMENTACJI.md`). Implementacja **nie jest jeszcze podłączona** pod ścieżkę z OpenAPI.
 
 ```mermaid
 sequenceDiagram
@@ -101,28 +104,23 @@ sequenceDiagram
   participant P as Provider Adapter
   participant A as LLM API
 
-  K->>+H: POST /chat/stream
-  H->>H: walidacja DTO + requestId
+  K->>+H: POST /api/v1/chat/stream
+  H->>H: walidacja DTO
   H-->>K: SSE: event meta
-  H->>+S: executeStream
-  S->>S: resolve modelAlias -> provider + modelId + policy
-  S->>+R: getProvider
-  R-->>-S: adapter
-  S->>+P: stream(modelId,...)
-  P->>+A: request stream
+  H->>+S: executeStream *(plan)*
+  S->>+R: resolve
+  R-->>-S: adapter + modelId
+  S->>+P: stream *(plan)*
+  P->>+A: streaming request
   loop fragmenty
-    A-->>P: delta chunk
+    A-->>P: chunk
     P-->>S: delta
     S-->>H: delta
     H-->>K: SSE: event delta
   end
-  A-->>P: done/usage
-  P-->>S: done
-  S-->>H: done
-  H-->>-K: SSE: event done (i zamknięcie)
+  H-->>-K: SSE: event done
 ```
 
 ---
 
-Powiązane: `dokumentacja_api.md`, `architektura.md`, `anty-patterny.md`.
-
+Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura.md`, `PLAN_IMPLEMENTACJI.md`.

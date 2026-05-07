@@ -21,7 +21,7 @@ export class ChatService {
     return {
       id: `gw_${uuidv4()}`,
       provider: providerName,
-      model: response.model,
+      model: modelId,
       output: {
         type: 'text',
         text: response.text,

@@ -4,22 +4,27 @@ Cel: “plug&play” — użytkownik wypełnia env + pliki konfiguracyjne i uruc
 
 ## 1) Sekrety i env (`.env`)
 
-Zasada: **sekrety tylko w env**. Pliki konfiguracyjne nie zawierają wartości kluczy.
+Zasada: **sekrety tylko w env**. Pliki konfiguracyjne nie zawierają wartości kluczy — jedynie **nazwy** zmiennych (`apiKeyRef`).
 
-Przykładowe zmienne (nazwy mogą różnić się od implementacji — dokument synchronizuj z `src/config`):
+Zmienne providerów (MVP):
 
 - `ANTHROPIC_API_KEY`
 - `GOOGLE_API_KEY`
 
-**Wymóg przy starcie (walidacja env):** musi być ustawiony **co najmniej jeden** z powyższych kluczy — dowolny (Anthropic **albo** Google). Same zmienne są **opcjonalne** pojedynczo, ale nie można uruchomić serwisu bez żadnego niepustego klucza (wartości są trimowane przy sprawdzaniu reguły „co najmniej jeden”). Implementacja: `src/config/env.validation.ts` (constraint `AtLeastOneApiKeyConstraint`; dekorator `@Validate` jest na jednym z pól klasy env — reguła dotyczy całego zbioru zmiennych przez `args.object`).
+**Walidacja przy starcie (`src/config/env.validation.ts`):**
+
+- W **`NODE_ENV=production`** wymagane jest, aby **co najmniej jedna** z powyższych zmiennych była niepusta po `trim()`. W przeciwnym razie start się nie powiedzie.
+- W środowisku innym niż production ta reguła **nie jest sprawdzana** — nadal potrzebujesz jednak realnego klucza dla providera, którego alias wywołujesz (adapter rzuci błąd konfiguracji lub API).
 
 W repo powinien istnieć `.env.example` bez wartości sekretów.
 
-## 2) Pliki konfiguracyjne (modele/polityki)
+## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
 
-Rekomendacja: jeden plik “gateway config” w formacie YAML/JSON, wczytywany przy starcie.
+**Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/configuration.ts`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
 
-### Schemat koncepcyjny (v1)
+Repozytoryjny przykład: `gateway.config.yaml` w katalogu głównym projektu.
+
+### Schemat (zgodny z walidatorem Zod)
 
 ```yaml
 schemaVersion: 1
@@ -35,7 +40,7 @@ providers:
 models:
   chat-default:
     providerInstance: anthropic-main
-    modelId: claude-3-5-sonnet-20241022
+    modelId: claude-sonnet-4-5-20250929
     capabilities:
       streaming: true
     policy:
@@ -46,47 +51,44 @@ models:
       params:
         defaults:
           temperature: 0.7
-          maxOutputTokens: 512
+          maxOutputTokens: 1024
         allowOverrides:
           - temperature
           - maxOutputTokens
         bounds:
           temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 4096 }
+          maxOutputTokens: { min: 1, max: 8192 }
 ```
 
 Uwagi:
 
 - `apiKeyRef` to **nazwa** zmiennej env, nie wartość.
-- Rekomendacja: `models.<modelAlias>` nazywaj „zwyczajowo” i czytelnie (np. `claude-sonnet-4-5`) i mapuj na vendorowy `modelId` wymagany przez API providera (np. `claude-sonnet-4-5-20250929` dla Anthropic). Analogiczne mapowanie dotyczy wszystkich providerów.
-- `policy.params` definiuje co klient może nadpisać.
-- `capabilities.streaming` kontroluje endpoint `/chat/stream`.
+- Aliasy pod `models` są publicznym API (`modelAlias`).
+- **Uwaga implementacyjna:** mapowanie kluczy env do `ConfigService` w `configuration.ts` odwołuje się obecnie do instancji nazwanych **`anthropic-main`** i **`google-main`** przy budowaniu obiektu `providers.*.apiKey`. Zmiana nazw instancji w YAML bez aktualizacji tego fragmentu kodu złamie start — docelowo powinno to być wyprowadzone z configu dynamicznie (patrz `PLAN_IMPLEMENTACJI.md`, rozwój Fazy 3).
+- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane, ale **adaptery nie korzystają z nich w pełni** (np. Anthropic używa stałego `max_tokens` w kodzie adaptera) — harmonogram dopięcia: plan implementacji, kolejne fazy.
 
 ## 3) Walidacja i fail-fast
 
-Gateway powinien zakończyć start, jeśli:
+Gateway kończy start m.in. gdy:
 
-- **nie jest spełniony globalny wymóg:** brak co najmniej jednego z `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` (patrz wyżej),
-- brakuje wymaganej zmiennej env wskazanej przez `apiKeyRef`,
-- `modelAlias` w configu ma nieznany `providerInstance`,
-- `bounds` są nielogiczne,
-- aliasy się duplikują lub config nie zgadza się z `schemaVersion`.
+- **`gateway.config.yaml`** nie istnieje lub nie przechodzi walidacji Zod,
+- w **production** nie ma co najmniej jednego klucza API (patrz wyżej).
+
+Docelowo (spec): dodatkowe reguły — brak env wskazanego przez `apiKeyRef` dla używanej instancji, niespójny `providerInstance`, zduplikowane aliasy — część z tego jest częściowo pokryta przez schema; szczegóły rozwoju w planie.
 
 ### Skrypt diagnostyczny `npm run config:validate`
 
-W repozytorium jest skrypt npm **`config:validate`** (wpis w `package.json`). **Docelowo** uruchamia walidację **bez startu serwera HTTP**: sprawdza m.in. `gateway.config.yaml` oraz reguły env powiązane z providerami (w tym globalny warunek minimum jednego klucza API zgodny z `src/config/env.validation.ts`). Przy błędach kończy się niezerowym kodem wyjścia — nadaje się do uruchomienia lokalnie po edycji configu oraz w CI przed deployem.
-
-Szczegóły implementacji i zakres kontroli: `PLAN_IMPLEMENTACJI.md` (Faza 5, krok 5.5). Do momentu wdrożenia logiki skrypt może być placeholderem.
+Wpis w `package.json` istnieje (`"config:validate": ""`), ale **komenda jest na razie pusta** — nie uruchamia walidacji. Docelowo (Faza 5, `PLAN_IMPLEMENTACJI.md`, krok 5.5): walidacja `gateway.config.yaml` + reguł env **bez** podnoszenia serwera HTTP, kod wyjścia ≠ 0 przy błędzie (CI).
 
 ## 4) Nadpisywanie parametrów per request
 
-Klient może przesłać `params` w request, ale gateway:
+Kontrakt OpenAPI przewiduje opcjonalne `params` w body czatu. **Obecne DTO nie zawiera `params`** — klient nie może ich przesłać bez błędu walidacji. Po wdrożeniu:
 
-- odrzuca pola spoza allowlisty,
-- clampuje lub odrzuca wartości spoza zakresów (decyzja kontraktowa),
-- mapuje parametry do SDK (OpenAI/Anthropic/Google).
+- odrzucanie pól spoza allowlisty,
+- clampowanie wg `bounds` z YAML,
+- mapowanie na pola SDK.
 
-Szczegóły request/response: `dokumentacja_api.md`.
+Szczegóły request/response: `dokumentacja_api.md`, `openapi.json`.
 
 ## 5) Profile środowiskowe (opcjonalnie)
 
@@ -95,5 +97,4 @@ W praktyce wygodne są osobne pliki, np.:
 - `gateway.config.dev.yaml`
 - `gateway.config.prod.yaml`
 
-albo łączenie plików (bazowy + override).
-
+albo łączenie plików (bazowy + override). Obecna implementacja wczytuje **jeden** plik o stałej ścieżce `gateway.config.yaml` w `process.cwd()` — zmiana profili wymaga podmiany pliku lub rozwoju kodu.

@@ -6,9 +6,9 @@ Udostępnić endpoint streamingowy (SSE), który zwraca odpowiedź LLM w formie 
 
 ## Warunki wstępne (env)
 
-Identycznie jak dla `POST /chat`: przy starcie gateway wymaga **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`, `docs/konfiguracja.md`).
+Identycznie jak dla `POST /chat`: w **production** gateway wymaga **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`, `docs/konfiguracja.md`), oraz poprawnego `gateway.config.yaml`.
 
-Wymagany jest też nagłówek `X-Gateway-Key` zgodnie z kontraktem platformy (`SPEC-PLATFORMA-I-KONTRAKTY`).
+**Stan implementacji:** endpoint `POST /api/v1/chat/stream` z **openapi.json** **nie jest zaimplementowany** (Faza 4 w `PLAN_IMPLEMENTACJI.md`). Nagłówek `X-Gateway-Key` — docelowo (`SPEC-PLATFORMA-I-KONTRAKTY`), bez egzekucji w kodzie.
 
 ## Użytkownicy i scenariusze
 

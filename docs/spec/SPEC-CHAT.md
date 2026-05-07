@@ -6,9 +6,9 @@ Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym for
 
 ## Warunki wstępne (env)
 
-Gateway musi działać na poprawnie zwalidowanym środowisku: przy starcie obowiązuje **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`), zgodnie z `src/config/env.validation.ts` i `docs/konfiguracja.md`.
+Gateway musi działać na poprawnie zwalidowanym środowisku: w **`NODE_ENV=production`** obowiązuje **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`), zgodnie z `src/config/env.validation.ts` i `docs/konfiguracja.md`. Ponadto wymagany jest poprawny `gateway.config.yaml` (fail‑fast przy starcie).
 
-Wymagany jest też nagłówek `X-Gateway-Key` zgodnie z kontraktem platformy (`SPEC-PLATFORMA-I-KONTRAKTY`).
+**Stan implementacji:** nagłówek `X-Gateway-Key` jest **wymaganiem docelowym** (`SPEC-PLATFORMA-I-KONTRAKTY`), ale **nie jest jeszcze egzekwowany** w kontrolerach — nie występuje w `openapi.json`. Opcjonalne body `params` jest w OpenAPI; **obecne DTO** przyjmują wyłącznie `modelAlias` i `messages`.
 
 ## Użytkownicy i scenariusze
 

@@ -8,7 +8,7 @@
   - **standard** (pełna odpowiedź JSON),
   - **streaming** (SSE).
 
-**Warunek uruchomienia:** zanim endpointy będą dostępne, gateway przechodzi walidację env — w MVP wymagany jest **minimum jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`; opis w `docs/konfiguracja.md`).
+**Warunek uruchomienia:** przy starcie wczytywany jest `gateway.config.yaml` (fail‑fast przy błędzie). Walidacja env: **minimum jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` obowiązuje **tylko gdy `NODE_ENV=production`** (`src/config/env.validation.ts`; szczegóły: `docs/konfiguracja.md`).
 
 ## Identyfikacja modeli (aliasy)
 
@@ -39,16 +39,12 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 
 ## Streaming (SSE)
 
-Streaming jest realizowany jako **Server‑Sent Events**:
+Docelowy kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/event-stream`), zdarzenia `meta` → `delta*` → `done`.
 
-- `Content-Type: text/event-stream`
-- zdarzenia w spójnym formacie gateway (nie 1:1 z providerem)
-- ostatnie zdarzenie zamyka strumień (np. `event: done`).
+**Stan kodu:** endpoint `POST /api/v1/chat/stream` z kontraktu **nie jest zaimplementowany** — praca w **Fazie 4** (`PLAN_IMPLEMENTACJI.md`). Po wdrożeniu:
 
-Ważne:
-
-- Gateway nie gwarantuje identycznego zachowania token‑po‑token pomiędzy providerami.
-- Klient powinien traktować SSE jako strumień “fragmentów” + metadanych.
+- Gateway nie będzie gwarantował identycznego zachowania token‑po‑token między providerami.
+- Klient powinien traktować SSE jako strumień fragmentów + metadane.
 
 ## Konwencje błędów (envelope)
 
@@ -84,11 +80,12 @@ Wszystkie błędy z ciałem JSON mają jednolity kształt:
 
 ## CORS / Auth
 
-Na start gateway nie narzuca AuthN/AuthZ użytkownikom końcowym (to komponent infrastrukturalny).
+Gateway **nie egzekwuje** jeszcze nagłówka `X-Gateway-Key` opisanego w `spec/SPEC-PLATFORMA-I-KONTRAKTY.md` — to jest **kierunek** (Faza 5 / bezpieczeństwo brzegowe). Dziś zabezpieczenie przed nieautoryzowanym dostępem pozostaje po stronie sieci użytkownika.
 
 Jeżeli gateway jest używany w sieci publicznej, zalecane jest dodanie:
 
-- API key / mTLS / reverse proxy auth,
+- API key (docelowo gateway key lub reverse proxy),
+- mTLS / reverse proxy auth,
 - rate limiting i WAF,
 - ograniczeń originów w CORS (jeśli wystawiane do przeglądarki).
 

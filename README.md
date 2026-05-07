@@ -2,9 +2,9 @@
 
 Gateway HTTP dla LLM, który **ukrywa SDK providerów** i wystawia spójny kontrakt do:
 
-- standardowego czatu (`POST /api/v1/chat`),
-- streamingu SSE (`POST /api/v1/chat/stream`),
-- healthchecka (`GET /api/v1/health`).
+- standardowego czatu (`POST /api/v1/chat`) — **działa**,
+- streamingu SSE (`POST /api/v1/chat/stream`) — kontrakt w `openapi.json`; **implementacja w toku** (Faza 4 w `PLAN_IMPLEMENTACJI.md`),
+- healthchecka (`GET /api/v1/health`) — **działa**.
 
 Aktualnie wspierani providerzy (MVP):
 
@@ -24,6 +24,7 @@ Najważniejsze pliki:
 - `docs/dokumentacja_api.md` — kontrakt request/response + przykłady
 - `docs/konfiguracja.md` — env + “plug&play” konfiguracja
 - `docs/spec/` — specyfikacje (SDD), np. `SPEC-CHAT.md`, `SPEC-PROVIDERS.md`
+- `openapi.json` — OpenAPI 3.1 (docelowy kontrakt HTTP)
 
 ## Szybki start (lokalnie)
 
@@ -41,8 +42,7 @@ npm install
 copy .env.example .env
 ```
 
-**Ważne:** przy starcie wymagany jest **co najmniej jeden** niepusty klucz (po `trim()`):
-`ANTHROPIC_API_KEY` albo `GOOGLE_API_KEY`.
+**Ważne:** w **`NODE_ENV=production`** przy starcie wymagany jest **co najmniej jeden** niepusty klucz (po `trim()`): `ANTHROPIC_API_KEY` albo `GOOGLE_API_KEY`. W development ta reguła nie blokuje startu — nadal ustaw klucz dla providera, którego alias wywołujesz. Potrzebny jest też poprawny `gateway.config.yaml` w katalogu roboczym (patrz `docs/konfiguracja.md`).
 
 3) Uruchomienie (dev):
 
@@ -65,18 +65,16 @@ curl http://localhost:3000/api/v1/health
 ```bash
 curl -X POST "http://localhost:3000/api/v1/chat" ^
   -H "content-type: application/json" ^
-  -d "{\"modelAlias\":\"chat-default\",\"messages\":[{\"role\":\"user\",\"content\":\"Napisz krótkie streszczenie.\"}],\"params\":{\"temperature\":0.7,\"maxOutputTokens\":256}}"
+  -d "{\"modelAlias\":\"chat-default\",\"messages\":[{\"role\":\"user\",\"content\":\"Napisz krótkie streszczenie.\"}]}"
 ```
+
+Opcjonalne `params` są przewidziane w `openapi.json`; **obecne DTO** nie przyjmują tego pola — szczegóły: `docs/dokumentacja_api.md`.
 
 ### Chat (streaming SSE)
 
-```bash
-curl -N -X POST "http://localhost:3000/api/v1/chat/stream" ^
-  -H "content-type: application/json" ^
-  -d "{\"modelAlias\":\"chat-default\",\"messages\":[{\"role\":\"user\",\"content\":\"Napisz to w 3 punktach.\"}]}"
-```
+Po wdrożeniu Fazy 4 przykład wywołania będzie zgodny z `openapi.json`. Tymczasem nie korzystaj z `POST /api/v1/chat/stream` jako działającego endpointu.
 
-Szczegóły kontraktów i przykładowe payloady: `docs/dokumentacja_api.md`.
+Szczegóły kontraktów: `openapi.json`, `docs/dokumentacja_api.md`.
 
 ## Normalizacja `system`
 
@@ -99,7 +97,7 @@ npm run build
 # prod (po build)
 npm run start:prod
 
-# walidacja gateway.config.yaml + env (diagnostyka / CI — szczegóły: docs/konfiguracja.md)
+# walidacja gateway.config.yaml + env (placeholder — szczegóły: docs/konfiguracja.md, PLAN_IMPLEMENTACJI.md Faza 5)
 npm run config:validate
 
 # testy

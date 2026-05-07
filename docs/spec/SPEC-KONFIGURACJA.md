@@ -12,13 +12,13 @@ Użytkownik ma móc skonfigurować gateway bez zmian w kodzie:
 
 ### Scenariusz A — minimalna konfiguracja
 
-1. Użytkownik ustawia **co najmniej jeden** klucz providera w `.env`: `ANTHROPIC_API_KEY` **lub** `GOOGLE_API_KEY` (w MVP gateway wymaga minimum jednego z tych dwóch — walidacja przy starcie).
+1. Użytkownik ustawia **co najmniej jeden** klucz providera w `.env`: `ANTHROPIC_API_KEY` **lub** `GOOGLE_API_KEY` (w środowisku **production** gateway odrzuca start bez żadnego niepustego klucza po `trim()`; w development ta reguła nie jest egzekwowana — patrz `src/config/env.validation.ts`).
 2. W configu dodaje `providerInstance=anthropic-main` i `modelAlias=chat-default`.
 3. Uruchamia serwis i wywołuje `/chat`.
 
 ### Scenariusz B — konfiguracja dwóch providerów + streaming
 
-1. Użytkownik ustawia w `.env` klucze dla **każdego** providera faktycznie używanego w konfiguracji modeli (np. przy aliasach na Anthropic i Google — typowo **oba** klucze: `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`). Niezależnie od tego **globalny** warunek startu pozostaje: musi istnieć **co najmniej jeden** niepusty klucz spośród zmiennych walidowanych w `env.validation.ts` (w MVP wystarczy jeden provider). Same zmienne env są opcjonalne pojedynczo; wartości są liczone po `trim()`.
+1. Użytkownik ustawia w `.env` klucze dla **każdego** providera faktycznie używanego w konfiguracji modeli (np. przy aliasach na Anthropic i Google — typowo **oba** klucze: `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`). W **production** dodatkowo musi być spełniony **globalny** warunek: **co najmniej jeden** niepusty klucz spośród `env.validation.ts` (wystarczy jeden provider). Same zmienne env są opcjonalne pojedynczo (poza production); wartości są liczone po `trim()`.
 2. Tworzy dwa aliasy modeli, jeden z `streaming: true`.
 3. Wywołuje `/chat/stream` dla aliasu wspierającego streaming.
 
@@ -26,7 +26,7 @@ Użytkownik ma móc skonfigurować gateway bez zmian w kodzie:
 
 F-1. Sekrety muszą być pobierane wyłącznie z env.
 
-F-1a. Przy starcie musi być spełniony warunek **„co najmniej jeden klucz API”** spośród zmiennych walidowanych w `src/config/env.validation.ts` (w MVP: `ANTHROPIC_API_KEY` lub `GOOGLE_API_KEY`). Serwis nie startuje, jeśli po `trim()` oba są puste lub nieustawione. Implementacja: constraint `AtLeastOneApiKeyConstraint` + `@Validate` na jednym z pól klasy env (walidacja nadal dotyczy całego obiektu).
+F-1a. Przy starcie w **`NODE_ENV=production`** musi być spełniony warunek **„co najmniej jeden klucz API”** spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`). W przeciwnym razie serwis nie startuje. Implementacja: `hasAtLeastOneProviderKey` w `src/config/env.validation.ts` (po `validateSync` dla klasy `EnvironmentVariables`).
 
 F-2. Plik konfiguracyjny modeli musi wspierać:
 
@@ -35,7 +35,7 @@ F-2. Plik konfiguracyjny modeli musi wspierać:
 - polityki (timeout, retry, allowlista parametrów, bounds),
 - capabilities (co najmniej `streaming`).
 
-F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast).
+F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast). Plik `gateway.config.yaml` jest wczytywany i walidowany schematem Zod w `src/config/configuration.ts`.
 
 F-4. Brak wymaganej zmiennej env wskazanej przez `apiKeyRef` → start odrzucony z czytelnym komunikatem.
 
@@ -47,7 +47,7 @@ NFR-1. Konfiguracja powinna być wersjonowana (`schemaVersion`).
 
 NFR-2. Dokumentacja configu musi być spójna z implementacją.
 
-NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`), który docelowo waliduje `gateway.config.yaml` oraz wymagane wartości env **bez uruchamiania serwera**, z niezerowym kodem wyjścia przy błędzie (np. dla CI). Szczegóły planu: `PLAN_IMPLEMENTACJI.md`, Faza 5, krok 5.5. Opis użytkowy: `docs/konfiguracja.md`.
+NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`; obecnie **placeholder** bez komendy), który docelowo waliduje `gateway.config.yaml` oraz reguły env **bez uruchamiania serwera**, z niezerowym kodem wyjścia przy błędzie (np. dla CI). Szczegóły planu: `PLAN_IMPLEMENTACJI.md`, Faza 5, krok 5.5. Opis użytkowy: `docs/konfiguracja.md`.
 
 ## Kryteria akceptacji
 

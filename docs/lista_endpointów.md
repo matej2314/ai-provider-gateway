@@ -1,17 +1,20 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **0.1** (na start; źródłem prawdy pozostaje implementacja w `src/`).
+Wersja dokumentu: **0.2**.  
+**Kontrakt docelowy (SSE, pełny envelope błędów, opcjonalne `params`, nagłówek `x-request-id`):** `openapi.json` w repozytorium.  
+**Stan kodu:** zgodnie z `PLAN_IMPLEMENTACJI.md` działa m.in. standardowy chat i health; streaming (Faza 4) oraz ujednolicone błęde/requestId (Faza 5) są w toku lub zaplanowane — szczegóły: `dokumentacja_api.md`.
 
 ## Konwencje globalne
 
 | Element | Wartość |
 |--------|---------|
 | **Baza (przykład)** | `http://localhost:3000` |
-| **Prefiks ścieżek** | `/api/v1` (jeśli skonfigurowany global prefix) |
-| **Format** | JSON (`application/json`) dla standard; SSE (`text/event-stream`) dla stream |
-| **Błędy** | `application/json` — envelope: `statusCode`, `code`, `message`, `requestId`, opcjonalnie `details[]` |
+| **Prefiks ścieżek** | `/api/v1` (`src/main.ts`: `setGlobalPrefix('api/v1')`) |
+| **Format** | JSON (`application/json`) dla standard; SSE (`text/event-stream`) — **docelowo** dla stream (`openapi.json`) |
+| **Błędy (docelowo)** | `application/json` — envelope jak w `openapi.json` (`dictionary.md`) |
 
-**Uruchomienie serwisu:** proces nie przechodzi walidacji env bez **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (MVP; szczegóły: `docs/konfiguracja.md`, `src/config/env.validation.ts`).
+**Uruchomienie serwisu:** w **`NODE_ENV=production`** walidacja env wymaga **co najmniej jednego** niepustego klucza (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W development ten warunek **nie** jest egzekwowany (`src/config/env.validation.ts`).  
+Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod w `src/config/configuration.ts`); brak pliku lub błąd schema kończy start aplikacji.
 
 ---
 
@@ -21,7 +24,7 @@ Wersja dokumentu: **0.1** (na start; źródłem prawdy pozostaje implementacja w
 
 | | |
 |--|--|
-| **200** | `{ "status": "ok" }` |
+| **200** | JSON: `status`, `message`, `timestamp` (ISO 8601) — zgodnie z `openapi.json` i `HealthService` |
 
 ---
 
@@ -29,26 +32,24 @@ Wersja dokumentu: **0.1** (na start; źródłem prawdy pozostaje implementacja w
 
 ### `POST /api/v1/chat`
 
-Standardowa odpowiedź (pełna).
+Standardowa odpowiedź (pełna) — **zaimplementowane.**
 
 | | |
 |--|--|
-| **200** | odpowiedź gateway (patrz `dokumentacja_api.md`) |
-| **400** | walidacja body / nieznany modelAlias |
-| **401/403** | opcjonalnie, jeśli użytkownik doda własne zabezpieczenia na reverse proxy |
-| **429** | limit (gateway lub provider) |
-| **502/504** | błąd providera / timeout |
+| **200** | odpowiedź gateway (patrz `dokumentacja_api.md`, schemas w `openapi.json`) |
+| **400** | walidacja DTO / nieznany `modelAlias` / dodatkowe pola w body (`ValidationPipe`: `forbidNonWhitelisted`) |
+| **429** | limit (gateway lub provider) — mapowanie zależy od adaptera (Faza 5: ujednolicenie) |
+| **502/504** | błąd providera / timeout — mapowanie zależy od adaptera (Faza 5: ujednolicenie) |
 
 ### `POST /api/v1/chat/stream`
 
-Streaming SSE.
+**Kontrakt:** `openapi.json` (sekwencja SSE: `meta` → `delta` → `done`).  
+**Implementacja:** endpoint zgodny ze ścieżką OpenAPI **nie jest jeszcze podłączony** — w kodzie istnieje pusty kontroler `ChatStreamController` pod inną ścieżką kontrolera (Faza 4 w `PLAN_IMPLEMENTACJI.md`).
 
 | | |
 |--|--|
-| **200** | `text/event-stream` |
-| **400** | walidacja body / nieznany modelAlias |
-| **429** | limit (gateway lub provider) |
-| **502/504** | błąd providera / timeout |
+| **200** | `text/event-stream` *(plan)* |
+| **400** | walidacja / nieznany alias / brak wsparcia streamingu *(plan wg OpenAPI)* |
 
 ---
 
@@ -57,8 +58,8 @@ Streaming SSE.
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | GET | `/api/v1/health` | liveness |
-| POST | `/api/v1/chat` | standard (pełna odpowiedź) |
-| POST | `/api/v1/chat/stream` | streaming (SSE) |
+| POST | `/api/v1/chat` | standard (pełna odpowiedź) — działa |
+| POST | `/api/v1/chat/stream` | streaming (SSE) — kontrakt w OpenAPI; implementacja w fazie 4 |
 
-Powiązane: `dokumentacja_api.md`, `architektura_api.md`.
+Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura_api.md`, `PLAN_IMPLEMENTACJI.md`.
 

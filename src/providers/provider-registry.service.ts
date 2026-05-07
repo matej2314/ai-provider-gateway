@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIProvider } from './interfaces/ai-provider.interface';
 
-interface ResolvedAlias {
+interface ResolvedProviderConfig {
   provider: AIProvider;
   providerName: string;
   modelId: string;
@@ -18,33 +18,42 @@ export class ProviderRegistryService {
     this.providers.set(providerName, { provider, name: providerName });
   }
 
-  resolve(modelAlias: string): ResolvedAlias {
-    let providerKey: string;
-    let modelId: string;
+  resolve(modelAlias: string): ResolvedProviderConfig {
+    const gatewayConfig = this.configService.get('gateway');
 
-    if (modelAlias.startsWith('claude')) {
-      providerKey = 'anthropic';
-      modelId = 'claude-sonnet-4-5-20250929';
-    } else if (modelAlias.startsWith('gemini')) {
-      providerKey = 'google';
-      modelId = 'gemini-2.5-flash';
-    } else {
-      throw new BadRequestException(`Unknown model alias: ${modelAlias}`);
+    const modelConfig = gatewayConfig.models[modelAlias];
+
+    if (!modelConfig) {
+      throw new BadRequestException(
+        `Model alias ${modelAlias} not found in config`,
+      );
     }
 
-    const entry = this.providers.get(providerKey);
+    const providerInstanceConfig =
+      gatewayConfig.providers[modelConfig.providerInstance];
+
+    if (!providerInstanceConfig) {
+      throw new BadRequestException(
+        `Provider instance ${modelConfig.providerInstance} not found in config`,
+      );
+    }
+
+    const providerType = providerInstanceConfig.type;
+
+    const entry = this.providers.get(providerType);
 
     if (!entry) {
-      throw new BadRequestException(`Provider not configured: ${providerKey}`);
+      throw new BadRequestException(`Provider ${providerType} not registered`);
     }
 
     console.log(
-      `[ProviderRegistry] Resolved alias '${modelAlias}' → provider '${entry.name}', model '${modelId}'`,
+      `[ProviderRegistry] Resolved alias '${modelAlias}' → provider '${entry.name}', model '${modelConfig.modelId}'`,
     );
+
     return {
       provider: entry.provider,
       providerName: entry.name,
-      modelId,
+      modelId: modelConfig.modelId,
     };
   }
 

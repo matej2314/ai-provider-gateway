@@ -13,11 +13,13 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 - zasady uwierzytelnienia na brzegu (gateway key),
 - zasady logowania (bez sekretów).
 
+**Stan implementacji (skrót):** maszynowy kontrakt żądań/odpowiedzi sukcesu dla czatu i health jest opisany w **`openapi.json`**. Pełny **ErrorEnvelope**, propagacja **`x-request-id`** na całym HTTP oraz **gateway key** są **w toku / Faza 5** (`PLAN_IMPLEMENTACJI.md`). Dziś część zachowań pozostaje przy domyślnych odpowiedziach Nest — patrz `docs/dokumentacja_api.md`.
+
 ## Użytkownicy i scenariusze
 
 ### Scenariusz A — uruchomienie lokalne
 
-1. Użytkownik wypełnia `.env`: **minimum jeden** klucz API providera wymagany przez gateway (w MVP co najmniej jeden z `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` — patrz `src/config/env.validation.ts` i `docs/konfiguracja.md`).
+1. Użytkownik wypełnia `.env`: w **production** **minimum jeden** niepusty klucz spośród `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` (patrz `src/config/env.validation.ts` i `docs/konfiguracja.md`). Dodatkowo przygotowuje `gateway.config.yaml`.
 2. Użytkownik przygotowuje plik konfiguracyjny modeli/polityk.
 3. Uruchamia serwis.
 4. Wysyła request na `/chat` lub `/chat/stream`.
@@ -64,6 +66,8 @@ F-5. Wejście do endpointów jest walidowane na brzegu; niepoprawne requesty ko�
 F-6. Nieznany `modelAlias` kończy się deterministycznym błędem (np. `MODEL_ALIAS_NOT_FOUND`) bez wywołania providera.
 
 ### Gateway Key (nagłówek `X-Gateway-Key`)
+
+*(Docelowo — brak w `openapi.json`; brak egzekucji w kontrolerach w bieżącym kodzie.)*
 
 F-9. Gateway musi weryfikować nagłówek `X-Gateway-Key` dla endpointów czatu:
 

@@ -48,7 +48,7 @@ Jeśli gateway ma w przyszłości wykonywać narzędzia:
 
 ## Klucze API a MCP
 
-Uruchomienie gateway (w tym wczytanie i walidacja konfiguracji) zakłada spełnienie **globalnych** reguł env: w MVP **minimum jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` zgodnie z `src/config/env.validation.ts` oraz `konfiguracja.md`.
+Uruchomienie gateway zakłada m.in. poprawny **`gateway.config.yaml`** oraz — w **production** — spełnienie reguły **minimum jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`, `konfiguracja.md`).
 
 ## Powiązane dokumenty
 
