@@ -1,10 +1,22 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { ProviderRegistryService } from './provider-registry.service';
 import { AnthropicModule } from './anthropic/anthropic.module';
+import { AnthropicAdapter } from './anthropic/anthropic.adapter';
 import { GoogleModule } from './google/google.module';
 
 @Module({
   providers: [ProviderRegistryService],
+  exports: [ProviderRegistryService],
   imports: [AnthropicModule, GoogleModule],
 })
-export class ProvidersModule {}
+export class ProvidersModule implements OnModuleInit {
+  constructor(
+    private registry: ProviderRegistryService,
+    private anthropicAdapter: AnthropicAdapter,
+  ) {}
+
+  onModuleInit() {
+    this.registry.register('anthropic', this.anthropicAdapter);
+    console.log('[ProvidersModule] Providers registered');
+  }
+}

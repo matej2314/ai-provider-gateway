@@ -1,9 +1,19 @@
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
+export type SystemChatMessage = { role: 'system'; content: string };
+export type UserChatMessage = { role: 'user'; content: string };
+export type AssistantChatMessage = { role: 'assistant'; content: string };
+
+export type ChatMessage =
+  | SystemChatMessage
+  | UserChatMessage
+  | AssistantChatMessage;
+export type ProviderChatTurn = UserChatMessage | AssistantChatMessage;
+
+export interface ProviderChatInput {
+  system?: string;
+  messages: ProviderChatTurn[];
 }
 
-export interface ChatResponse {
+export interface ProviderChatResponse {
   text: string;
   model: string;
   usage?: {
@@ -13,5 +23,33 @@ export interface ChatResponse {
 }
 
 export interface AIProvider {
-  complete(messages: ChatMessage[], modelId: string): Promise<ChatResponse>;
+  complete(
+    input: ProviderChatInput,
+    modelId: string,
+  ): Promise<ProviderChatResponse>;
+}
+
+export function normalizeMessagesForProvider(
+  messages: ChatMessage[],
+  opts?: { systemJoiner?: string },
+): ProviderChatInput {
+  const systemJoiner = opts?.systemJoiner ?? '\n\n';
+
+  const systemParts: string[] = [];
+  const turns: ProviderChatTurn[] = [];
+
+  for (const m of messages) {
+    if (m.role === 'system') {
+      if (m.content?.trim()) systemParts.push(m.content);
+      continue;
+    }
+
+    turns.push(m);
+  }
+
+  const system = systemParts.length
+    ? systemParts.join(systemJoiner)
+    : undefined;
+
+  return { system, messages: turns };
 }

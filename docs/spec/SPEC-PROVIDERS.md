@@ -36,6 +36,13 @@ F-2. Adapter musi wspierać co najmniej:
 - `complete` (standard),
 - `stream` (jeśli provider wspiera).
 
+F-2a. Port providera przyjmuje **znormalizowane** wejście rozmowy:
+
+- `system?: string` — instrukcja systemowa przekazywana osobno,
+- `messages[]` — wyłącznie role `user` i `assistant` (bez `system`).
+
+Uwaga: kontrakt HTTP nadal może wspierać `messages[]` z rolą `system`, ale **normalizacja** (wycięcie/aglomeracja `system`) odbywa się przed wywołaniem adaptera.
+
 F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK:
 
 - `temperature`
@@ -55,6 +62,10 @@ F-5. Adapter nie loguje sekretów.
 NFR-1. Adaptery nie mogą “przeciekać” typami SDK do warstwy HTTP (kontrakt gateway jest własny).
 
 NFR-2. W przypadku braku wsparcia funkcji (np. stream) adapter musi zgłosić błąd domenowy, a nie próbować “udawać” streamingu.
+
+NFR-3. Adapter nie może zakładać, że rola `system` jest wspierana w `messages[]` providera.
+Jeśli provider wymaga osobnego pola `system` (np. Anthropic) — adapter używa `system` z portu.
+Jeśli provider wspiera `system` jako wiadomość — adapter mapuje `system` na format providera zgodnie ze swoją implementacją (np. jako pierwszą wiadomość).
 
 ## Kryteria akceptacji
 

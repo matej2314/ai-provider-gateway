@@ -32,6 +32,11 @@ F-1. Endpoint przyjmuje request zawierający:
 
 F-2. `messages[]` wspiera role co najmniej: `system`, `user`, `assistant`.
 
+F-2a. Gateway normalizuje wejściowe `messages[]` do formatu portu providerów:
+
+- wszystkie wiadomości `role=system` są agregowane do jednego pola `system?: string` (domyślnie join `\n\n`),
+- do adaptera providera trafia `messages[]` zawierające wyłącznie role `user` i `assistant`.
+
 F-3. Gateway musi zwrócić odpowiedź w spójnym formacie niezależnym od providera.
 
 F-4. Gateway musi dołączyć `provider` i resolved `model` do odpowiedzi.

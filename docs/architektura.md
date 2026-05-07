@@ -51,6 +51,15 @@ flowchart TB
 3. **Adapters (providers)** — tłumaczenie kontraktu gateway ↔ kontrakt SDK providera; obsługa błędów specyficznych dla SDK.
 4. **DTO + walidacja** — walidacja wejścia i konfiguracji jako brzeg systemu.
 
+### Normalizacja wiadomości (rola `system`)
+
+Gateway przyjmuje w kontrakcie HTTP `messages[]` z rolami `system|user|assistant`, ale przed wywołaniem adaptera normalizuje je do portu providerów:
+
+- `system?: string` — agregacja wszystkich wiadomości systemowych,
+- `messages[]` — wyłącznie `user|assistant`.
+
+Powód: providerzy różnią się semantyką i kształtem pola `system` (np. Anthropic wymaga osobnego pola `system`, a nie roli `system` w `messages[]`), a gateway utrzymuje spójny kontrakt na wejściu.
+
 ## Konfiguracja i sekrety
 
 - Sekrety (klucze providerów) **wyłącznie** w env (`.env` lokalnie, w infrastrukturze użytkownika: menedżer sekretów).
