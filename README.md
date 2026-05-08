@@ -3,7 +3,7 @@
 Gateway HTTP dla LLM, który **ukrywa SDK providerów** i wystawia spójny kontrakt do:
 
 - standardowego czatu (`POST /api/v1/chat`) — **działa**,
-- streamingu SSE (`POST /api/v1/chat/stream`) — kontrakt w `openapi.json`; **implementacja w toku** (Faza 4 w `PLAN_IMPLEMENTACJI.md`),
+- streamingu SSE (`POST /api/v1/chat/stream`) — **działa**, kontrakt w `openapi.json`,
 - healthchecka (`GET /api/v1/health`) — **działa**.
 
 Aktualnie wspierani providerzy (MVP):
@@ -24,7 +24,7 @@ Najważniejsze pliki:
 - `docs/dokumentacja_api.md` — kontrakt request/response + przykłady
 - `docs/konfiguracja.md` — env + “plug&play” konfiguracja
 - `docs/spec/` — specyfikacje (SDD), np. `SPEC-CHAT.md`, `SPEC-PROVIDERS.md`
-- `openapi.json` — OpenAPI 3.1 (docelowy kontrakt HTTP)
+- `openapi.json` — OpenAPI 3.1 (zsynchronizowany z kodem)
 
 ## Szybki start (lokalnie)
 
@@ -68,11 +68,16 @@ curl -X POST "http://localhost:3000/api/v1/chat" ^
   -d "{\"modelAlias\":\"chat-default\",\"messages\":[{\"role\":\"user\",\"content\":\"Napisz krótkie streszczenie.\"}]}"
 ```
 
-Opcjonalne `params` są przewidziane w `openapi.json`; **obecne DTO** nie przyjmują tego pola — szczegóły: `docs/dokumentacja_api.md`.
+Body **`params`** (per request) jest zaplanowane (**Faza 5**); DTO przyjmują tylko `modelAlias` i `messages` — szczegóły: `docs/dokumentacja_api.md`.
 
 ### Chat (streaming SSE)
 
-Po wdrożeniu Fazy 4 przykład wywołania będzie zgodny z `openapi.json`. Tymczasem nie korzystaj z `POST /api/v1/chat/stream` jako działającego endpointu.
+```bash
+curl -X POST "http://localhost:3000/api/v1/chat/stream" ^
+  -H "content-type: application/json" ^
+  -d "{\"modelAlias\":\"chat-default\",\"messages\":[{\"role\":\"user\",\"content\":\"Powiedz coś krótko.\"}]}" ^
+  --no-buffer
+```
 
 Szczegóły kontraktów: `openapi.json`, `docs/dokumentacja_api.md`.
 

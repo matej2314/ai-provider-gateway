@@ -22,7 +22,7 @@ ai-provider-gateway/
 │   ├── chat/
 │   │   ├── chat.module.ts
 │   │   ├── chat.controller.ts
-│   │   ├── chat-stream.controller.ts    # szkielet (Faza 4 — streaming)
+│   │   ├── chat-stream.controller.ts    # POST …/chat/stream (SSE)
 │   │   ├── chat.service.ts
 │   │   └── dto/
 │   │       └── chat-request.dto.ts
@@ -42,7 +42,8 @@ ai-provider-gateway/
 │   │
 │   ├── config/
 │   │   ├── configuration.ts       # load gateway.config.yaml + Zod
-│   │   └── env.validation.ts
+│   │   ├── env.validation.ts
+│   │   └── system-prompt/        # MASTER_SYSTEM_PROMPT.md, MAIN_SYSTEM_PROMPT.md, models/<alias>.md — wdrożenie wg SYSTEM_PROMPTS_REFACTOR.md
 │   │
 │   └── health/
 │       ├── health.module.ts
@@ -86,7 +87,7 @@ ai-provider-gateway/
 
 ## 2) Opis katalogów (odpowiedzialności)
 
-- **`src/chat/`**: HTTP dla czatu standardowego; **streaming w przygotowaniu** (Faza 4). Orkiestracja wywołania przez `ChatService` i rejestr providerów.
+- **`src/chat/`**: HTTP dla czatu standardowego i streamingu (`chat-stream.controller.ts`, SSE). Orkiestracja przez `ChatService` i rejestr providerów; podkatalog `sse/` (serializer zdarzeń).
 - **`src/providers/`**: adaptery Anthropic / Google i `ProviderRegistryService`. Jedyna warstwa bezpośrednio używająca SDK vendorów.
 - **`src/config/`**: `configuration.ts` — wczytanie `gateway.config.yaml` i walidacja Zod; `env.validation.ts` — reguły env (m.in. klucze API w production).
 - **`src/health/`**: liveness (`GET /api/v1/health`). Readiness jako osobny endpoint/service *(plan / rozszerzenie)*.
@@ -101,6 +102,6 @@ ai-provider-gateway/
 Zamknięte lub częściowo zamknięte (śledź tabele statusów w `PLAN_IMPLEMENTACJI.md`):
 
 - Fundament: config z YAML, registry, adaptery Anthropic + Google.
-- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, SSE, spójny error envelope + `x-request-id`, działający `npm run config:validate`.
+- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, spójny error envelope + `x-request-id`, działający `npm run config:validate`; plan promptów serwerowych: `SYSTEM_PROMPTS_REFACTOR.md`.
 
 Powiązane: `PLAN_IMPLEMENTACJI.md`, `openapi.json`, `docs/konfiguracja.md`.

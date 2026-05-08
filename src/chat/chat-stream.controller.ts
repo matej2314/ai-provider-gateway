@@ -1,4 +1,4 @@
-import { Controller, Body, Post, Res, Sse } from '@nestjs/common';
+import { Controller, Body, Post, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseSerializer } from './sse/sse.serializer';

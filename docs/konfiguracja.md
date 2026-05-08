@@ -64,8 +64,8 @@ Uwagi:
 
 - `apiKeyRef` to **nazwa** zmiennej env, nie wartość.
 - Aliasy pod `models` są publicznym API (`modelAlias`).
-- **Uwaga implementacyjna:** mapowanie kluczy env do `ConfigService` w `configuration.ts` odwołuje się obecnie do instancji nazwanych **`anthropic-main`** i **`google-main`** przy budowaniu obiektu `providers.*.apiKey`. Zmiana nazw instancji w YAML bez aktualizacji tego fragmentu kodu złamie start — docelowo powinno to być wyprowadzone z configu dynamicznie (patrz `PLAN_IMPLEMENTACJI.md`, rozwój Fazy 3).
-- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane, ale **adaptery nie korzystają z nich w pełni** (np. Anthropic używa stałego `max_tokens` w kodzie adaptera) — harmonogram dopięcia: plan implementacji, kolejne fazy.
+- **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując **wszystkie** wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic-main`) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach. **Uwaga:** jeśli zdefiniujesz **dwie instancje tego samego `type`** (np. dwa wpisy `anthropic`), do adaptera trafi **ostatnia** nadpisana wartość — wiele kluczy per ten sam vendor wymaga rozszerzenia modelu konfiguracji (poza obecnym MVP).
+- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane, ale **adaptery nie korzystają z nich w pełni** — część parametrów pochodzi ze stałych w kodzie adaptera lub wyłącznie z `policy.params.defaults` w `ChatService`; harmonogram dopięcia: `PLAN_IMPLEMENTACJI.md`.
 
 ## 3) Walidacja i fail-fast
 
@@ -82,13 +82,9 @@ Wpis w `package.json` istnieje (`"config:validate": ""`), ale **komenda jest na 
 
 ## 4) Nadpisywanie parametrów per request
 
-Kontrakt OpenAPI przewiduje opcjonalne `params` w body czatu. **Obecne DTO nie zawiera `params`** — klient nie może ich przesłać bez błędu walidacji. Po wdrożeniu:
+**DTO i `openapi.json`** przyjmują wyłącznie `modelAlias` i `messages`. Domyślne **temperature** / **maxOutputTokens** dla wywołania pochodzą z **`policy.params.defaults`** w YAML (użycie w `ChatService`). Opcjonalne **`params` w body** jest zaplanowane (**Faza 5**): allowlista, bounds, mapowanie na SDK.
 
-- odrzucanie pól spoza allowlisty,
-- clampowanie wg `bounds` z YAML,
-- mapowanie na pola SDK.
-
-Szczegóły request/response: `dokumentacja_api.md`, `openapi.json`.
+Szczegóły: `dokumentacja_api.md`, `openapi.json`.
 
 ## 5) Profile środowiskowe (opcjonalnie)
 

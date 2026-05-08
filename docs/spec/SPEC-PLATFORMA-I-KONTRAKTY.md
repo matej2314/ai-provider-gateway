@@ -13,7 +13,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 - zasady uwierzytelnienia na brzegu (gateway key),
 - zasady logowania (bez sekretów).
 
-**Stan implementacji (skrót):** maszynowy kontrakt żądań/odpowiedzi sukcesu dla czatu i health jest opisany w **`openapi.json`**. Pełny **ErrorEnvelope**, propagacja **`x-request-id`** na całym HTTP oraz **gateway key** są **w toku / Faza 5** (`PLAN_IMPLEMENTACJI.md`). Dziś część zachowań pozostaje przy domyślnych odpowiedziach Nest — patrz `docs/dokumentacja_api.md`.
+**Stan implementacji (skrót):** **`openapi.json`** opisuje żądania, odpowiedzi sukcesu oraz błędy w **formacie NestJS** (`NestHttpExceptionBody`). Pełny **ErrorEnvelope** (pole `code`), nagłówek **`x-request-id`** oraz **gateway key** są zaplanowane w **Fazie 5** (`PLAN_IMPLEMENTACJI.md`).
 
 ## Użytkownicy i scenariusze
 

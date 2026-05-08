@@ -39,7 +39,7 @@ flowchart TB
 
 | Moduł | Odpowiedzialność |
 |------|------------------|
-| **Chat** (`src/chat`) | Standardowy czat (`POST /api/v1/chat`). Streaming pod ścieżką z OpenAPI — **w przygotowaniu** (Faza 4). Orkiestracja wyboru modelu i delegacja do providerów; normalizacja wiadomości i odpowiedzi. |
+| **Chat** (`src/chat`) | Czat standardowy (`POST /api/v1/chat`) i streaming SSE (`POST /api/v1/chat/stream` — `ChatStreamController`). Orkiestracja wyboru modelu i delegacja do providerów; normalizacja wiadomości (`normalizeMessagesForProvider`) i odpowiedzi. |
 | **Providers** (`src/providers`) | Adaptery providerów (Anthropic/Google Gemini) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
 | **Health** (`src/health`) | Liveness: `GET /api/v1/health` (JSON ze statusem i znacznikiem czasu). Osobny **readiness** (np. dependency check) — opcjonalnie w kolejnych iteracjach; walidacja konfiguracji następuje przy **starcie** procesu. |
@@ -64,6 +64,8 @@ W warstwie adaptera `system` z portu jest mapowany na natywne pole SDK providera
 
 - **Anthropic** (`@anthropic-ai/sdk`) — `messages.create({ system })`.
 - **Google Gemini** (`@google/genai` 1.52+) — `config.systemInstruction` przekazywane do `ai.chats.create({ config })` lub `ai.models.generateContent({ config })`. Adapter dodatkowo mapuje rolę `assistant` na `model` (wymóg SDK Gemini). Szczegóły mapowania: `spec/SPEC-PROVIDERS.md`.
+
+**Kierunek rozwoju:** plan `SYSTEM_PROMPTS_REFACTOR.md` przewiduje rezygnację z roli `system` w żądaniach HTTP na rzecz promptów wczytywanych z plików w repozytorium — po wdrożeniu niniejszą sekcję należy zastąpić opisem warstw MASTER / MAIN / per‑model.
 
 ## Konfiguracja i sekrety
 

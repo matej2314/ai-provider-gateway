@@ -12,7 +12,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Model ID** | Vendorowa nazwa modelu (np. `gpt-*`, `claude-*`). | Trafia do requestów providera. |
 | **Model alias** | Zwyczajowa / czytelna nazwa modelu używana w gateway (np. `claude-sonnet-4-5` lub `chat-default`). | Mapowana do provider+vendorowy modelId+policy (np. `claude-sonnet-4-5` → `claude-sonnet-4-5-20250929` w Anthropic). |
 | **Standard** | Tryb odpowiedzi: pełna odpowiedź JSON. | `POST /chat`. |
-| **Streaming** | Tryb odpowiedzi: SSE. | `POST /chat/stream`. |
+| **Streaming** | Tryb odpowiedzi: SSE. | `POST /api/v1/chat/stream` — patrz `openapi.json`, `dokumentacja_api.md`. |
 | **Request ID** | Identyfikator korelacyjny żądania. | W logach i w error envelope. |
 | **Policy** | Zestaw limitów i zasad (timeout, retry, allowlista parametrów). | Konfigurowalne per alias / per provider. |
 | **Walidacja env (klucze)** | Reguły na zmiennych środowiskowych przy starcie aplikacji. | Przy **`NODE_ENV=production`** wymagany jest **co najmniej jeden** niepusty klucz (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W innych środowiskach ta reguła nie blokuje startu (`src/config/env.validation.ts`). |
@@ -49,7 +49,7 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | 403 | `GATEWAY_KEY_INVALID` |
 | 500 | `GATEWAY_KEY_NOT_CONFIGURED` |
 
-**Uwaga:** kody `MODEL_ALIAS_NOT_FOUND`, pełny **ErrorEnvelope** przy walidacji Nest oraz stabilne mapowanie błędów providerów są **celem kontraktu** (`openapi.json`, Faza 5). Bieżące odpowiedzi mogą używać domyślnych komunikatów Nest (`BadRequestException` itd.) — por. `docs/dokumentacja_api.md`.
+**Uwaga:** Tabela kodów opisuje **docelowy** kontrakt (Faza 5 — `PLAN_IMPLEMENTACJI.md`). Obecne odpowiedzi błędów są w formacie Nest (`NestHttpExceptionBody` w `openapi.json`); pole **`code`** jak poniżej pojawi się po wdrożeniu envelope.
 
 Powiązane: `openapi.json`, `architektura_api.md`, `dokumentacja_api.md`, `anty-patterny.md`.
 

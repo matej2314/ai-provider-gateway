@@ -1,76 +1,63 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **0.2**. Dokument jest wersjonowany razem z kodem. Przy rozbieżnościach między opisem a maszynowym schematem pierwszeństwo ma **`openapi.json`**; dla zachowania runtime pierwszeństwo ma **implementacja** — poniżej sekcja „Stan implementacji”.
+Wersja dokumentu: **0.4**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu, domyślne błędy NestJS).
 
 ## Źródła prawdy (kolejność)
 
-1. **`openapi.json`** — docelowy kontrakt HTTP (OpenAPI 3.1): ścieżki, schematy, przykłady SSE i envelope błędów.
-2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — co faktycznie działa dziś.
-3. **`PLAN_IMPLEMENTACJI.md`** — które elementy kontraktu są już zrobione, a które w kolejnych fazach (np. Faza 4: streaming, Faza 5: błędy + requestId + `config:validate`).
-4. **`docs/spec/`** — wymagania SDD (docelowe zachowanie); mogą wyprzedzać kod.
+1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
+2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
+3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: envelope z polem `code`, `x-request-id`, `params` w body, skrypt `config:validate`).
+4. **`SYSTEM_PROMPTS_REFACTOR.md`** — plan zmiany ról w `messages[]` (**jeszcze nie wdrożony** — po zmianie konieczna aktualizacja OpenAPI i tego dokumentu).
+5. **`docs/spec/`** — SDD (wymagania docelowe, mogą wyprzedzać wdrożenie).
 
 ## Podstawy
 
 | Element | Wartość |
 |---------|---------|
 | Bazowy URL (przykład lokalny) | `http://localhost:3000` |
-| Prefiks API | `/api/v1` (`src/main.ts`) |
+| Prefiks API | `/api/v1` (`src/main.ts`: `setGlobalPrefix`) |
 | Kodowanie | UTF‑8 |
 | Standard | `application/json` |
-| Streaming (docelowo) | `text/event-stream` (SSE), patrz `openapi.json` `/api/v1/chat/stream` |
+| Streaming | `text/event-stream` (`POST /api/v1/chat/stream`) |
 
 **Konfiguracja przy starcie:**
 
-- Wczytanie i walidacja **`gateway.config.yaml`** (ścieżka: katalog roboczy procesu). Implementacja: `src/config/configuration.ts` (schema Zod).
-- Walidacja env: `src/config/env.validation.ts` — **wymóg „co najmniej jednego klucza API” dotyczy wyłącznie `NODE_ENV=production`** (po `trim()` na `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`). W development aplikacja może wystartować bez ustawionych kluczy (wywołanie providera i tak się nie powiedzie bez klucza w adapterze).
+- **`gateway.config.yaml`** — wczytanie i walidacja Zod (`src/config/configuration.ts`).
+- **Env** — w **`NODE_ENV=production`** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
 
-**Nagłówek `X-Gateway-Key`:** opisany w `docs/spec/SPEC-PLATFORMA-I-KONTRAKTY.md` i `dictionary.md` jako **wymóg docelowy** — **nie jest obecnie egzekwowany** w kontrolerach (`src/chat/*.ts`). Nie występuje w `openapi.json`.
-
-**Nagłówek `x-request-id`:** opcjonalna propagacja korelacji — w `openapi.json`; **generowanie/propagacja po HTTP nie jest jeszcze zaimplementowane** (Faza 5). Pole `requestId` w odpowiedzi czatu jest obecnie ustawiane w `ChatService` (losowy prefiks `req_`).
+**Nagłówek `X-Gateway-Key`:** wymóg docelowy (`SPEC-PLATFORMA-I-KONTRAKTY`); **nie jest egzekwowany** w kontrolerach.
 
 ---
 
-## Stan implementacji vs `openapi.json`
+## Format błędów (dziś)
 
-| Obszar | OpenAPI (docelowo) | Kod (bieżący) |
-|--------|-------------------|---------------|
-| `GET /api/v1/health` | `status`, `message`, `timestamp` | Zgodne (`HealthService`) |
-| `POST /api/v1/chat` — body | `modelAlias`, `messages`, opcjonalnie `params` | DTO: tylko `modelAlias` i `messages`. Pole **`params` nie istnieje** — żądanie z `params` kończy się **400** (`forbidNonWhitelisted`). |
-| `POST /api/v1/chat/stream` | SSE `meta` / `delta` / `done` | **Brak implementacji** endpointu pod tą ścieżką; istnieje szkielet `ChatStreamController` bez handlera (Faza 4). |
-| Envelope błędów (`code`, `requestId`, …) | Tak | Nest domyślny format dla wyjątków; **brak** mapowania na `ErrorEnvelope` z OpenAPI (Faza 5). |
-| `MODEL_ALIAS_NOT_FOUND` itd. | Kody stabilne w `dictionary.md` | Nieznany alias → `BadRequestException` z komunikatem tekstowym (nie ten sam kształt co envelope docelowy). |
-
----
-
-## Format błędów (envelope) — docelowy kontrakt
-
-Zgodnie z `openapi.json` / `dictionary.md`:
+Zgodnie z **`openapi.json`** (`NestHttpExceptionBody`): NestJS zwraca m.in.
 
 ```json
 {
   "statusCode": 400,
-  "code": "VALIDATION_FAILED",
-  "message": "Niepoprawne dane wejściowe.",
-  "requestId": "…",
-  "details": []
+  "message": "Model alias … not found in config",
+  "error": "Bad Request"
 }
 ```
 
-Klienci powinni opierać logikę na polu **`code`**. Do czasu Fazy 5 realne odpowiedzi błędów mogą odbiegać od powyższego — porównuj z Zachowaniem Nest przy `ValidationPipe` i wyjątkach HTTP.
+Przy walidacji `ValidationPipe` pole `message` bywa **tablicą** stringów.
+
+---
+
+### System prompt i role w `messages[]` *(kod vs plan refaktora)*
+
+**Dziś:** `ChatRequestDto` dopuszcza role `system`, `user`, `assistant`; `normalizeMessagesForProvider` (`ai-provider.interface.ts`) składa treść systemową przed wywołaniem adaptera.
+
+**Plan (`SYSTEM_PROMPTS_REFACTOR.md`):** usunięcie `system` z API na rzecz plików w `src/config/system-prompt/`.
 
 ---
 
 ## Modele i wybór providera
 
-Klient wybiera model przez **`modelAlias`** (np. `chat-default`, `gemini-flash`). Alias jest mapowany w **`gateway.config.yaml`** na:
+Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRegistryService.resolve()`; adaptery: typy `anthropic`, `google` (`ProvidersModule`).
 
-- instancję providera (`providerInstance`),
-- vendorowy `modelId`,
-- polityki i capabilities (w pliku; **część pól np. timeout/retry nie jest jeszcze wykorzystywana** przez adaptery — patrz plan).
-
-Rejestr w kodzie: `ProviderRegistryService.resolve()` + adaptery rejestrowane pod kluczami `anthropic` i `google` (`ProvidersModule`).
-
-Szczegóły pliku konfiguracyjnego: `konfiguracja.md`, repozytoryjny `gateway.config.yaml`.
+Część pól policy (timeout, retry per YAML) nie jest jeszcze w pełni wykorzystywana w adapterach — szczegóły: `PLAN_IMPLEMENTACJI.md`.
 
 ---
 
@@ -78,99 +65,53 @@ Szczegóły pliku konfiguracyjnego: `konfiguracja.md`, repozytoryjny `gateway.co
 
 ### Request body
 
-Minimalny request zgodny z **aktualnym** DTO:
-
-```json
-{
-  "modelAlias": "chat-default",
-  "messages": [
-    { "role": "user", "content": "Napisz krótkie streszczenie." }
-  ]
-}
-```
-
-W **`openapi.json`** opcjonalne jest także:
-
-```json
-"params": { "temperature": 0.7, "maxOutputTokens": 512 }
-```
-
-— wdrożenie w DTO i warstwie policy jest **zaplanowane** (polityki już są w YAML; mapowanie do SDK — kolejne iteracje).
-
-#### `messages[]`
-
-- `role`: `system` \| `user` \| `assistant`
-- `content`: string (OpenAPI: `minLength: 1`; w DTO warto dopilnować tego samego w przyszłości)
-
-#### Normalizacja `system`
-
-Przed wywołaniem adaptera wiadomości są normalizowane (`normalizeMessagesForProvider` w `ai-provider.interface.ts`): role systemowe → pole `system`, pozostałe → `user`/`assistant`.
+Zgodnie z DTO: **`modelAlias`**, **`messages`** — bez **`params`** (nadwyżkowe pola odrzuca `ValidationPipe`: `forbidNonWhitelisted`).
 
 ### Response (`200`)
 
-Kształt zgodny z OpenAPI (`ChatResponse`), generowany w `ChatService`:
+`ChatService.executeChat`: `id`, `provider`, `model`, `output`, `usage` (opcjonalnie, zależnie od adaptera), `requestId`.
 
-```json
-{
-  "id": "gw_01H…",
-  "provider": "anthropic",
-  "model": "claude-sonnet-4-5-20250929",
-  "output": {
-    "type": "text",
-    "text": "…"
-  },
-  "usage": {
-    "inputTokens": 123,
-    "outputTokens": 456,
-    "totalTokens": 579
-  },
-  "requestId": "req_…"
-}
-```
+### Typowe kody
 
-Uwagi:
-
-- `usage` zależy od adaptera; pola mogą być niekompletne (np. brak `totalTokens` jeśli SDK go nie zwraca).
-- `id` / `requestId` są generowane po stronie gateway (nie są to identyfikatory vendorów).
+| HTTP | Kiedy |
+|------|--------|
+| 200 | Sukces |
+| 400 | Walidacja / nieznany alias lub konfiguracja providera |
+| 500 | Nieobsłużony błąd (np. SDK) |
 
 ---
 
-## `POST /api/v1/chat/stream` — streaming (SSE)
+## `POST /api/v1/chat/stream` — SSE
 
-Opis kontraktu i przykładowy strumień: **`openapi.json`** (`text/event-stream`, zdarzenia `meta`, `delta`, `done`).
+**Kontroler:** `ChatStreamController`. Nagłówki SSE, potem `ChatService.executeStream`.
 
-**Status:** implementacja zaplanowana w **Fazie 4** (`PLAN_IMPLEMENTACJI.md`). Nie używaj tej ścieżki jako działającej usługi do czasu domknięcia tej fazy.
+**Zdarzenia:**
+
+1. `meta` — `{ id, provider, model, requestId }`
+2. `delta` — `{ text }`
+3. `done` — `{}` (pusty obiekt)
+
+**Błędy:** jeśli żądanie nie przechodzi walidacji lub pada wczesny `BadRequestException` **przed** `flushHeaders`, odpowiedź jest JSON jak przy czacie standardowym. Po rozpoczęciu strumienia błąd zwykle **zamyka połączenie**.
 
 ---
 
 ## `GET /api/v1/health`
 
-Endpoint bez gateway key — przeznaczony do liveness.
-
-### Response (`200`)
-
-```json
-{
-  "status": "ok",
-  "message": "Gateway is running",
-  "timestamp": "2026-05-07T13:54:00.000Z"
-}
-```
+Liveness — `HealthService.check()` (`status`, `message`, `timestamp` ISO).
 
 ---
 
-## Kody błędów (skrót)
+## Kody i słownik
 
-Pełna lista (w tym kody planowane pod Fazę 5 i gateway key): `dictionary.md`.  
-W `openapi.json` jako przykłady m.in.: `VALIDATION_FAILED`, `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_RATE_LIMITED`, `PROVIDER_TIMEOUT`, `PROVIDER_UNAVAILABLE`.
+Stabilne kody maszynowe (`MODEL_ALIAS_NOT_FOUND`, itd.) — **`dictionary.md`**; wdrożenie w odpowiedziach HTTP przewidziane w **Fazie 5**. Obecnie klienci opierają się na **`statusCode`** oraz **`message`** z Nest.
 
 ---
 
 ## Uwagi dla klientów
 
-1. Traktuj **`openapi.json`** jako referencję kontraktu pod integracje i generatory klientów; sprawdzaj „Stan implementacji” powyżej.
-2. Parsuj **`code`** w envelope (gdy Faza 5 wejdzie), nie `message`.
-3. Przy streamingu (po wdrożeniu) traktuj `delta` jako fragmenty tekstu.
-4. Nie zakładaj pełnego `usage` dla wszystkich providerów.
+1. Używaj **`openapi.json`** do generatorów i integracji.
+2. Nie wysyłaj **`params`** w body — nie są częścią DTO (konfiguracja aliasu w YAML dostarcza domyślne wartości używane w serwisie).
+3. Przy streamingu składaj tekst z kolejnych `delta`; `done` nie niesie metryk tokenów w obecnej wersji.
+4. **`usage`** może być niekompletne między providerami.
 
-Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `anty-patterny.md`, `PLAN_IMPLEMENTACJI.md`.
+Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `PLAN_IMPLEMENTACJI.md`.

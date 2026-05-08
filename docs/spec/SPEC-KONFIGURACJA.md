@@ -20,7 +20,7 @@ Użytkownik ma móc skonfigurować gateway bez zmian w kodzie:
 
 1. Użytkownik ustawia w `.env` klucze dla **każdego** providera faktycznie używanego w konfiguracji modeli (np. przy aliasach na Anthropic i Google — typowo **oba** klucze: `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`). W **production** dodatkowo musi być spełniony **globalny** warunek: **co najmniej jeden** niepusty klucz spośród `env.validation.ts` (wystarczy jeden provider). Same zmienne env są opcjonalne pojedynczo (poza production); wartości są liczone po `trim()`.
 2. Tworzy dwa aliasy modeli, jeden z `streaming: true`.
-3. Wywołuje `/chat/stream` dla aliasu wspierającego streaming.
+3. Wywołuje `POST /api/v1/chat/stream` dla aliasu wspierającego streaming.
 
 ## Wymagania funkcjonalne
 

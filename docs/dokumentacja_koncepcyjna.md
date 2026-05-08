@@ -25,7 +25,7 @@ Projekt powstaje jako ćwiczenie NestJS, architektury i wzorców projektowych, a
 MVP obejmuje (śledź szczegółowy status faz w **`PLAN_IMPLEMENTACJI.md`** oraz kontrakt w **`openapi.json`**):
 
 - **Endpoint czatu standardowego**: `POST /api/v1/chat` — pełna odpowiedź JSON (**zaimplementowany**).
-- **Streaming** (`POST /api/v1/chat/stream`, SSE) — **kontrakt** w OpenAPI; implementacja w **Fazie 4** planu.
+- **Streaming** (`POST /api/v1/chat/stream`, SSE) — **zaimplementowany**; kontrakt w `openapi.json` jest zgodny z kodem (rozszerzenia API — **Faza 5**).
 - Integracja z dwoma providerami:
   - **Anthropic**,
   - **Google Gemini**  
@@ -76,6 +76,7 @@ Zamiast zmuszać klientów do podawania vendorowego `modelId`, gateway wspiera *
 
 ## Kierunek po MVP (orientacyjnie)
 
+- **System prompt po stronie serwera** — plan w **`SYSTEM_PROMPTS_REFACTOR.md`** (pliki w `src/config/system-prompt/`, blokada `role=system` w API po wdrożeniu).
 - OpenAI jako trzeci provider (wymaga płatnego konta API).
 - Retry/circuit‑breaker i metryki per provider.
 - “Policy packs”: profile ustawień per środowisko (dev/prod) i per alias modelu.

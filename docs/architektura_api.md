@@ -39,34 +39,20 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 
 ## Streaming (SSE)
 
-Docelowy kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/event-stream`), zdarzenia `meta` → `delta*` → `done`.
+Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/event-stream`), zdarzenia `meta` → `delta*` → `done`.
 
-**Stan kodu:** endpoint `POST /api/v1/chat/stream` z kontraktu **nie jest zaimplementowany** — praca w **Fazie 4** (`PLAN_IMPLEMENTACJI.md`). Po wdrożeniu:
+**Stan kodu:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream` (`meta` → `delta*` → `done`; `done` ma pusty payload — `openapi.json`).
 
-- Gateway nie będzie gwarantował identycznego zachowania token‑po‑token między providerami.
-- Klient powinien traktować SSE jako strumień fragmentów + metadane.
+- Gateway nie gwarantuje identycznego zachowania token‑po‑token między providerami.
+- Klient powinien traktować SSE jako strumień fragmentów + metadane z `meta`.
 
-## Konwencje błędów (envelope)
+## Błędy HTTP
 
-Wszystkie błędy z ciałem JSON mają jednolity kształt:
+**Dziś (`openapi.json`):** domyślny format NestJS (`statusCode`, `message` jako string lub tablica, opcjonalnie `error`).
 
-```json
-{
-  "statusCode": 400,
-  "code": "VALIDATION_FAILED",
-  "message": "Niepoprawne dane wejściowe.",
-  "requestId": "…",
-  "details": []
-}
-```
+## Docelowy envelope (Faza 5)
 
-| Pole | Znaczenie |
-|------|-----------|
-| `statusCode` | Powielenie kodu HTTP. |
-| `code` | Stabilny kod maszynowy (patrz `dictionary.md`). |
-| `message` | Komunikat dla człowieka (bez sekretów i surowych wyjątków SDK). |
-| `requestId` | Korelacja z logami. |
-| `details` | Opcjonalna lista szczegółów walidacji. |
+Wymaganie produktowe (`spec/SPEC-PLATFORMA-I-KONTRAKTY`, `dictionary.md`): jednolity envelope z polem **`code`** i **`requestId`** w każdej odpowiedzi błędu JSON — wdrożenie zaplanowane w **`PLAN_IMPLEMENTACJI.md`**.
 
 ## Walidacja
 

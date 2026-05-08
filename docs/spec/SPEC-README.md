@@ -3,7 +3,7 @@
 Ten katalog zawiera **specyfikacje obszarów** systemu (1 plik = 1 obszar). Pliki są pisane w duchu **Spec‑Driven Development**: skupiają się na **WHAT/WHY** (co system ma robić i po co), a nie na implementacji.
 
 **Kontrakt HTTP w repozytorium:** `openapi.json` (OpenAPI 3.1).  
-**Stan kodu vs te dokumenty:** krótkie zestawienie w `docs/dokumentacja_api.md` oraz harmonogram w `PLAN_IMPLEMENTACJI.md` (np. Faza 4: SSE, Faza 5: envelope + gateway key + requestId).
+**Stan kodu vs te dokumenty:** zestawienie w `docs/dokumentacja_api.md`, harmonogram w `PLAN_IMPLEMENTACJI.md` (**Faza 4 SSE:** zamknięta w planie; **Faza 5:** envelope + gateway key + `x-request-id` + `config:validate`), plan kontraktu promptów: `SYSTEM_PROMPTS_REFACTOR.md`.
 
 ### Jak czytać te pliki
 

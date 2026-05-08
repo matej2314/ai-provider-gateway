@@ -28,7 +28,7 @@ sequenceDiagram
 
   K->>+H: POST /api/v1/chat (JSON)
   H->>H: ValidationPipe (DTO)
-  Note over H: x-request-id / gateway key — docelowo (Faza 5)
+  Note over H: x-request-id / gateway key — docelowo (Faza 5); stream: ChatStreamController
   H->>+S: executeChat(request)
   S-->>-H: wynik lub wyjątek HTTP
   H-->>-K: 200 JSON lub błąd
@@ -62,14 +62,13 @@ sequenceDiagram
   H-->>-K: 200 JSON
 ```
 
-**Uwaga:** opcjonalne `params` z kontraktu OpenAPI nie są jeszcze w DTO — nie występują w tym przepływie.
+**Uwaga:** body **`params`** nie jest częścią DTO — wartości wyjścia pochodzą z konfiguracji aliasu (`gateway.config.yaml`).
 
 ---
 
-## 2. Standard `POST /api/v1/chat` — błąd (plan kontraktu)
+## 2. Standard `POST /api/v1/chat` — błąd
 
-Docelowo (Faza 5 + mapowanie w adapterach): 429 / timeout / 5xx mają być mapowane na envelope z polami `code` i `requestId` (`openapi.json`, `dictionary.md`).  
-**Dziś:** zachowanie zależy od wyjątków Nest/SDK — konsument powinien traktować to jako przejściowe do czasu ujednolicenia.
+Odpowiedzi JSON błędów są w **formacie NestJS** (`openapi.json`: `NestHttpExceptionBody`). Docelowe mapowanie kodów providerów na envelope z polem `code` — **Faza 5**.
 
 ```mermaid
 sequenceDiagram
@@ -81,40 +80,40 @@ sequenceDiagram
   H->>S: executeChat
   S->>P: complete
   P->>A: request
-  alt błąd HTTP / timeout (aktualne SDK)
+  alt błąd HTTP / timeout (SDK)
     A-->>P: błąd
     P-->>S: wyjątek
-    S-->>H: propagacja / mapowanie (do ujednolicenia)
+    S-->>H: odpowiedź błędu Nest / propagacja
   end
 ```
 
 ---
 
-## 3. Streaming `POST /api/v1/chat/stream` — sukces (SSE) *(plan)*
+## 3. Streaming `POST /api/v1/chat/stream` — sukces (SSE)
 
-Kontrakt i diagram docelowy są zgodne z `openapi.json` i **Fazą 4** (`PLAN_IMPLEMENTACJI.md`). Implementacja **nie jest jeszcze podłączona** pod ścieżkę z OpenAPI.
+Zgodnie z `openapi.json` i kodem (`ChatStreamController`, `ChatService.executeStream`): nagłówki SSE, potem `meta`, `delta`, `done` (`done` z pustym `data`).
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant K as Klient
-  participant H as HTTP (stream)
+  participant H as HTTP (ChatStreamController)
   participant S as ChatService
   participant R as ProviderRegistry
   participant P as Provider Adapter
   participant A as LLM API
 
   K->>+H: POST /api/v1/chat/stream
-  H->>H: walidacja DTO
+  H->>H: walidacja DTO + nagłówki SSE
   H-->>K: SSE: event meta
-  H->>+S: executeStream *(plan)*
+  H->>+S: executeStream
   S->>+R: resolve
-  R-->>-S: adapter + modelId
-  S->>+P: stream *(plan)*
+  R-->>-S: adapter + modelId + capabilities
+  S->>+P: stream(...)
   P->>+A: streaming request
   loop fragmenty
     A-->>P: chunk
-    P-->>S: delta
+    P-->>S: tekst
     S-->>H: delta
     H-->>K: SSE: event delta
   end
