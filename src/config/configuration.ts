@@ -3,7 +3,7 @@ import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { z } from 'zod';
 
-const GatewayConfigSchema = z.object({
+export const GatewayConfigSchema = z.object({
   schemaVersion: z.number().int().min(1),
   providers: z.record(
     z.string(),
@@ -17,40 +17,83 @@ const GatewayConfigSchema = z.object({
     z.object({
       providerInstance: z.string(),
       modelId: z.string(),
-      capabilities: z.object({
-        streaming: z.boolean(),
-      }),
-      policy: z.object({
-        timeoutMs: z.number().int().min(1),
-        retry: z.object({
-          maxAttempts: z.number().int().min(1),
-          onStatus: z.array(z.number().int().min(1)),
-        }),
-        params: z.object({
-          defaults: z.object({
-            temperature: z.number().min(0).max(2),
-            maxOutputTokens: z.number().int().min(1),
-          }),
-          allowOverrides: z.array(z.string()),
-          bounds: z.object({
-            temperature: z.object({
-              min: z.number().min(0),
-              max: z.number().max(2),
+      capabilities: z
+        .object({
+          streaming: z.boolean().optional(),
+        })
+        .optional()
+        .default({}),
+      policy: z
+        .object({
+          timeoutMs: z.number().int().min(1).optional(),
+          retry: z
+            .object({
+              maxAttempts: z.number().int().min(1).optional(),
+              onStatus: z.array(z.number().int().min(1)).optional(),
+            })
+            .optional()
+            .default({}),
+          params: z
+            .object({
+              defaults: z
+                .object({
+                  temperature: z.number().min(0).max(2).optional(),
+                  maxOutputTokens: z.number().int().min(1).optional(),
+                })
+                .optional()
+                .default({}),
+              allowOverrides: z.array(z.string()).optional().default([]),
+              bounds: z
+                .object({
+                  temperature: z
+                    .object({
+                      min: z.number().min(0),
+                      max: z.number().max(2),
+                    })
+                    .optional(),
+                  maxOutputTokens: z
+                    .object({
+                      min: z.number().min(1),
+                      max: z.number().max(8192),
+                    })
+                    .optional(),
+                })
+                .optional()
+                .default({}),
+            })
+            .optional()
+            .default({
+              defaults: {},
+              allowOverrides: [],
+              bounds: {},
             }),
-            maxOutputTokens: z.object({
-              min: z.number().min(1),
-              max: z.number().max(8192),
-            }),
-          }),
+        })
+        .optional()
+        .default({
+          retry: {},
+          params: {
+            defaults: {},
+            allowOverrides: [],
+            bounds: {},
+          },
         }),
-      }),
     }),
   ),
 });
 
+export type GatewayConfig = z.infer<typeof GatewayConfigSchema>;
+export type GatewayModelConfig = GatewayConfig['models'][string];
+export type GatewayProviderInstanceConfig = GatewayConfig['providers'][string];
+export type GatewayCapabilitiesConfig = GatewayModelConfig['capabilities'];
+export type GatewayPolicyConfig = GatewayModelConfig['policy'];
+export type GatewayRetryConfig = GatewayPolicyConfig['retry'];
+export type GatewayParamsConfig = GatewayPolicyConfig['params'];
+export type GatewayParamsBoundConfig =
+  GatewayParamsConfig['bounds']['temperature'];
+
 export default () => {
   const configPath = join(process.cwd(), 'gateway.config.yaml');
-  let gatewayConfig;
+  let gatewayConfig: GatewayConfig;
 
   try {
     const fileContents = readFileSync(configPath, 'utf8');
@@ -58,15 +101,16 @@ export default () => {
 
     const validationResult = GatewayConfigSchema.safeParse(parsedYaml);
 
-
     if (!validationResult.success) {
-      console.error('Config validation failed:', validationResult.error.flatten());
+      console.error(
+        'Config validation failed:',
+        validationResult.error.flatten().fieldErrors,
+      );
       throw new Error('Invalid configuration file');
     }
 
     gatewayConfig = validationResult.data;
     console.log('Config loaded successfully');
-
   } catch (error) {
     if (error.code === 'ENOENT') {
       console.error('Config file not found:', configPath);
@@ -75,17 +119,18 @@ export default () => {
     throw error;
   }
 
+  const providersByType: Record<string, { apiKey: string }> = {};
+
+  for (const instance of Object.values(gatewayConfig.providers)) {
+    providersByType[instance.type] = {
+      apiKey: process.env[instance.apiKeyRef] ?? '',
+    };
+  }
+
   return {
     gateway: gatewayConfig,
     port: parseInt(process.env.PORT || '3000', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
-    providers: {
-      anthropic: {
-        apiKey: process.env[gatewayConfig.providers['anthropic-main'].apiKeyRef] || '',
-      },
-      google: {
-        apiKey: process.env[gatewayConfig.providers['google-main'].apiKeyRef] || '',
-      },
-    }
-  }
-}
+    providers: providersByType,
+  };
+};

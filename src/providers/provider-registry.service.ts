@@ -5,28 +5,19 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIProvider } from './interfaces/ai-provider.interface';
+import {
+  GatewayConfig,
+  GatewayModelConfig,
+  GatewayCapabilitiesConfig,
+  GatewayParamsConfig,
+} from '../config/configuration';
 
 interface ResolvedProviderConfig {
   provider: AIProvider;
   providerName: string;
   modelId: string;
-}
-
-export interface GatewayModelConfig {
-  providerInstance: string;
-  modelId: string;
-  [key: string]: unknown;
-}
-
-export interface GatewayProviderInstanceConfig {
-  type: string;
-  [key: string]: unknown;
-}
-
-export interface GatewayConfig {
-  models: Record<string, GatewayModelConfig>;
-  providers: Record<string, GatewayProviderInstanceConfig>;
-  [key: string]: unknown;
+  capabilities: GatewayCapabilitiesConfig;
+  params?: GatewayParamsConfig;
 }
 
 @Injectable()
@@ -103,6 +94,8 @@ export class ProviderRegistryService {
       provider: providerEntry.provider,
       providerName: providerEntry.name,
       modelId: modelConfig.modelId,
+      capabilities: modelConfig.capabilities ?? undefined,
+      params: modelConfig.policy?.params ?? undefined,
     };
   }
 

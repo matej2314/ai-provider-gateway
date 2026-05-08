@@ -22,10 +22,16 @@ export interface ProviderChatResponse {
   };
 }
 
+export interface ProviderCallOptions {
+  temperature?: number;
+  maxOutputTokens?: number;
+}
+
 export interface AIProvider {
   complete(
     input: ProviderChatInput,
     modelId: string,
+    options?: ProviderCallOptions,
   ): Promise<ProviderChatResponse>;
 }
 

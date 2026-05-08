@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
 import {
   AIProvider,
+  ProviderCallOptions,
   ProviderChatInput,
   ProviderChatResponse,
 } from '../interfaces/ai-provider.interface';
@@ -23,13 +24,13 @@ export class GoogleAdapter implements AIProvider {
   async complete(
     input: ProviderChatInput,
     modelId: string,
+    options?: ProviderCallOptions,
   ): Promise<ProviderChatResponse> {
     console.log(
       `[GoogleAdapter] Calling model: ${modelId} with ${input.messages.length} messages`,
     );
 
     const history = input.messages.slice(0, -1).map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
 
@@ -38,12 +39,16 @@ export class GoogleAdapter implements AIProvider {
     const chat = this.client.chats.create({
       model: modelId,
       history,
-      config: input.system?.trim()
-        ? { systemInstruction: input.system.trim() }
-        : undefined,
+      config: {
+        ...(input.system?.trim() ? { systemInstruction: input.system } : {}),
+        temperature: options?.temperature ?? undefined,
+        maxOutputTokens: options?.maxOutputTokens ?? 1024,
+      },
     });
 
-    const response = await chat.sendMessage({ message: lastMessage.content });
+    const response = await chat.sendMessage({
+      message: lastMessage.content,
+    });
 
     return {
       text: response.text ?? '',

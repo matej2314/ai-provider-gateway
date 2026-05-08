@@ -3,9 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   AIProvider,
-  ProviderChatResponse,
+  ProviderCallOptions,
   ProviderChatInput,
+  ProviderChatResponse,
 } from '../interfaces/ai-provider.interface';
+
 
 @Injectable()
 export class AnthropicAdapter implements AIProvider {
@@ -23,16 +25,16 @@ export class AnthropicAdapter implements AIProvider {
   async complete(
     input: ProviderChatInput,
     modelId: string,
+    options?: ProviderCallOptions,
   ): Promise<ProviderChatResponse> {
-    console.log(
-      `[AnthropicAdapter] Calling model: ${modelId} with ${input.messages.length} messages`,
-    );
+    console.log(`[AnthropicAdapter] Calling model: ${modelId} with ${input.messages.length} messages`);
 
     const response = await this.client.messages.create({
       model: modelId,
-      max_tokens: 1024,
+      max_tokens: options?.maxOutputTokens ?? 1024,
+      temperature: options?.temperature ?? undefined,
       system: input.system,
-      messages: input.messages,
+      messages: input.messages
     });
 
     let text = '';
@@ -47,7 +49,7 @@ export class AnthropicAdapter implements AIProvider {
       usage: {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
-      },
-    };
+      }
+    }
   }
 }
