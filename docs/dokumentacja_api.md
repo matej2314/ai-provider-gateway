@@ -1,14 +1,14 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **0.4**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu, domyślne błędy NestJS).
+Wersja dokumentu: **0.5**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu, domyślne błędy NestJS).
 
 ## Źródła prawdy (kolejność)
 
 1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
 2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
 3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: envelope z polem `code`, `x-request-id`, `params` w body, skrypt `config:validate`).
-4. **`SYSTEM_PROMPTS_REFACTOR.md`** — plan zmiany ról w `messages[]` (**jeszcze nie wdrożony** — po zmianie konieczna aktualizacja OpenAPI i tego dokumentu).
-5. **`docs/spec/`** — SDD (wymagania docelowe, mogą wyprzedzać wdrożenie).
+4. **`SYSTEM_PROMPTS_REFACTOR.md`** — pierwotny plan przeniesienia system promptu do plików (wdrożony w kodzie: DTO + `ChatService` + `configuration.ts`). Nadal może opisywać kolejne usprawnienia poza MVP.
+5. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
 
 ## Podstawy
 
@@ -23,6 +23,7 @@ Wersja dokumentu: **0.4**. Dokument jest wersjonowany razem z kodem. **`openapi.
 **Konfiguracja przy starcie:**
 
 - **`gateway.config.yaml`** — wczytanie i walidacja Zod (`src/config/configuration.ts`).
+- **Pliki system promptu** — `MASTER_SYSTEM_PROMPT.md` (wymagany), opcjonalnie `MAIN_SYSTEM_PROMPT.md` oraz `models/<modelAlias>.md` dla aliasów z YAML; treść składana w `ChatService` (`MASTER` + `MAIN?` + warstwa per model). Szczegóły: `konfiguracja.md`.
 - **Env** — w **`NODE_ENV=production`** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
 
 **Nagłówek `X-Gateway-Key`:** wymóg docelowy (`SPEC-PLATFORMA-I-KONTRAKTY`); **nie jest egzekwowany** w kontrolerach.
@@ -45,11 +46,11 @@ Przy walidacji `ValidationPipe` pole `message` bywa **tablicą** stringów.
 
 ---
 
-### System prompt i role w `messages[]` *(kod vs plan refaktora)*
+### System prompt i role w `messages[]`
 
-**Dziś:** `ChatRequestDto` dopuszcza role `system`, `user`, `assistant`; `normalizeMessagesForProvider` (`ai-provider.interface.ts`) składa treść systemową przed wywołaniem adaptera.
+**Stan kodu:** w żądaniu HTTP dozwolone są wyłącznie role `user` i `assistant` (`ChatMessageDto`, walidacja `400` przy `role=system`). Instrukcja systemowa dla providera jest **składana po stronie serwera** w `ChatService.buildProviderInput`: `MASTER` + opcjonalnie `MAIN` + opcjonalnie treść z `src/config/system-prompt/models/<modelAlias>.md`, a następnie przekazywana adapterom jako `ProviderChatInput.system`. Nie ma już agregacji `system` z treści żądania.
 
-**Plan (`SYSTEM_PROMPTS_REFACTOR.md`):** usunięcie `system` z API na rzecz plików w `src/config/system-prompt/`.
+**Spójny opis warstw i ścieżek plików:** `konfiguracja.md`, plan źródłowy: `SYSTEM_PROMPTS_REFACTOR.md`.
 
 ---
 
@@ -70,6 +71,8 @@ Zgodnie z DTO: **`modelAlias`**, **`messages`** — bez **`params`** (nadwyżkow
 ### Response (`200`)
 
 `ChatService.executeChat`: `id`, `provider`, `model`, `output`, `usage` (opcjonalnie, zależnie od adaptera), `requestId`.
+
+Pole **`model`** w odpowiedzi standardowej to **alias** z żądania (`modelAlias`), nie rozwiązany vendorowy `modelId`. W **SSE** zdarzenie `meta` zawiera w polu `model` rozwiązany **`modelId`** z konfiguracji (zachowanie `executeStream` — patrz `openapi.json`).
 
 ### Typowe kody
 
@@ -111,7 +114,8 @@ Stabilne kody maszynowe (`MODEL_ALIAS_NOT_FOUND`, itd.) — **`dictionary.md`**;
 
 1. Używaj **`openapi.json`** do generatorów i integracji.
 2. Nie wysyłaj **`params`** w body — nie są częścią DTO (konfiguracja aliasu w YAML dostarcza domyślne wartości używane w serwisie).
-3. Przy streamingu składaj tekst z kolejnych `delta`; `done` nie niesie metryk tokenów w obecnej wersji.
-4. **`usage`** może być niekompletne między providerami.
+3. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator gateway w plikach `src/config/system-prompt/`.
+4. Przy streamingu składaj tekst z kolejnych `delta`; `done` nie niesie metryk tokenów w obecnej wersji.
+5. **`usage`** może być niekompletne między providerami.
 
 Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `PLAN_IMPLEMENTACJI.md`.

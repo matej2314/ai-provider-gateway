@@ -32,14 +32,9 @@ F-1. Endpoint przyjmuje request zawierający:
 - `messages[]` (wymagane),
 - `params` (opcjonalnie).
 
-F-2. `messages[]` wspiera role co najmniej: `system`, `user`, `assistant`.
+F-2. `messages[]` wspiera role wyłącznie: `user`, `assistant` (rola `system` w API jest zablokowana).
 
-F-2a. Gateway normalizuje wejściowe `messages[]` do formatu portu providerów:
-
-- wszystkie wiadomości `role=system` są agregowane do jednego pola `system?: string` (domyślnie join `\n\n`),
-- do adaptera providera trafia `messages[]` zawierające wyłącznie role `user` i `assistant`.
-
-> **Plan:** po wdrożeniu `SYSTEM_PROMPTS_REFACTOR.md` ta normalizacja zostanie zastąpiona promptami z plików — F-2 / F-2a będą wymagały aktualizacji specyfikacji.
+F-2a. Gateway buduje `system` dla adaptera **wyłącznie z plików** w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie `models/<modelAlias>.md`), zgodnie z `ChatService` i `configuration.ts`. Do adaptera trafia `messages[]` zawierające wyłącznie `user` i `assistant`.
 
 F-3. Gateway musi zwrócić odpowiedź w spójnym formacie niezależnym od providera.
 

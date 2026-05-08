@@ -43,7 +43,7 @@ ai-provider-gateway/
 │   ├── config/
 │   │   ├── configuration.ts       # load gateway.config.yaml + Zod
 │   │   ├── env.validation.ts
-│   │   └── system-prompt/        # MASTER_SYSTEM_PROMPT.md, MAIN_SYSTEM_PROMPT.md, models/<alias>.md — wdrożenie wg SYSTEM_PROMPTS_REFACTOR.md
+│   │   └── system-prompt/        # MASTER / MAIN / models/<alias>.md — składanie system promptu (configuration.ts + ChatService)
 │   │
 │   └── health/
 │       ├── health.module.ts

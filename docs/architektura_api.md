@@ -32,7 +32,7 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 
 - `id` — identyfikator odpowiedzi (gateway),
 - `provider` — nazwa providera użytego do wykonania,
-- `model` — vendorowy `modelId` po resolvie aliasu,
+- `model` — w odpowiedzi **standardowej** jest to **alias** (`modelAlias`) z żądania; w zdarzeniu SSE **`meta`** pole `model` zawiera rozwiązany **vendorowy `modelId`** (patrz `ChatService` vs `openapi.json`),
 - `output` — treść odpowiedzi (tekst i/lub struktura),
 - `usage` — metadane tokenów (jeśli dostępne),
 - `requestId` — korelacja z logami.

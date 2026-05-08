@@ -19,7 +19,7 @@ models:
     policy:
       timeoutMs: 30000
       retry:
-        maxAttempts: 2
+        maxAttempts: 3
         onStatus: [429, 500, 502, 503, 504]
       params:
         defaults:
@@ -41,7 +41,7 @@ models:
     policy:
       timeoutMs: 30000
       retry:
-        maxAttempts: 2
+        maxAttempts: 3
         onStatus: [429, 500, 502, 503, 504]
       params:
         defaults:
@@ -63,7 +63,7 @@ models:
     policy:
       timeoutMs: 30000
       retry:
-        maxAttempts: 2
+        maxAttempts: 3
         onStatus: [429, 500, 502, 503, 504]
       params:
         defaults:

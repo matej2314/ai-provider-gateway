@@ -3,6 +3,60 @@ import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { z } from 'zod';
 
+const MASTER_PROMPT = 'src/config/system-prompt/MASTER_SYSTEM_PROMPT.md';
+const MAIN_PROMPT = 'src/config/system-prompt/MAIN_SYSTEM_PROMPT.md';
+const MODEL_PROMPTS = 'src/config/system-prompt/models/';
+
+export type ResolvedSystemPrompts = {
+  master: string;
+  main?: string;
+  perModelByAlias: Record<string, string>;
+};
+
+function readRequiredPrompt(label: string, absPath: string): string {
+  let raw: string;
+
+  try {
+    raw = readFileSync(absPath, 'utf-8');
+  } catch (e: unknown) {
+    if (
+      e &&
+      typeof e === 'object' &&
+      'code' in e &&
+      (e as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
+      throw new Error(`[SystemPrompts] ${label} missing: ${absPath}`);
+    }
+    throw e;
+  }
+  const trimmed = raw.trim();
+  if (!trimmed.length) {
+    throw new Error(`[SystemPrompts] ${label} empty after trim: ${absPath}`);
+  }
+  return trimmed;
+}
+
+function stripHtmlComments(raw: string): string {
+  return raw.replace(/<!--[\s\S]*?-->/g, '').trim();
+}
+
+function tryReadOptionalPrompts(absPath: string): string | undefined {
+  try {
+    const raw = stripHtmlComments(readFileSync(absPath, 'utf-8'));
+    return raw.length ? raw : undefined;
+  } catch (e: unknown) {
+    if (
+      e &&
+      typeof e === 'object' &&
+      'code' in e &&
+      (e as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
+      return undefined;
+    }
+    throw e;
+  }
+}
+
 export const GatewayConfigSchema = z.object({
   schemaVersion: z.number().int().min(1),
   providers: z.record(
@@ -112,12 +166,41 @@ export default () => {
     gatewayConfig = validationResult.data;
     console.log('Config loaded successfully');
   } catch (error) {
-    if (error.code === 'ENOENT') {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
       console.error('Config file not found:', configPath);
       throw new Error('Config file not found');
     }
     throw error;
   }
+
+  const cwd = process.cwd();
+  const master = readRequiredPrompt(
+    'MASTER_SYSTEM_PROMPT',
+    join(cwd, MASTER_PROMPT),
+  );
+  const main = tryReadOptionalPrompts(join(cwd, MAIN_PROMPT));
+
+  const perModelByAlias: Record<string, string> = {};
+
+  for (const alias of Object.keys(gatewayConfig.models)) {
+    const perModelPath = join(cwd, MODEL_PROMPTS, `${alias}.md`);
+    const content = tryReadOptionalPrompts(perModelPath);
+
+    if (content) {
+      perModelByAlias[alias] = content;
+    }
+  }
+  
+  const systemPromptsResolved: ResolvedSystemPrompts = {
+    master,
+    main,
+    perModelByAlias,
+  };
 
   const providersByType: Record<string, { apiKey: string }> = {};
 
@@ -132,5 +215,6 @@ export default () => {
     port: parseInt(process.env.PORT || '3000', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
     providers: providersByType,
+    systemPrompts: systemPromptsResolved,
   };
 };

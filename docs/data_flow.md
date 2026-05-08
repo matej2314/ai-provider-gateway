@@ -10,7 +10,7 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 |-------|-----------|
 | **Klient** | Dowolny klient HTTP (aplikacja, serwis, BFF). |
 | **HTTP** | Kontroler + walidacja DTO + odpowiedź. |
-| **ChatService** | Resolve aliasu, normalizacja wiadomości, wywołanie adaptera. |
+| **ChatService** | Resolve aliasu, składanie system promptu z konfiguracji, mapowanie `messages[]` na `user|assistant`, wywołanie adaptera. |
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na adapter + `modelId`. |
 | **Provider** | Adapter Anthropic / Google. |
 | **LLM API** | Zewnętrzny serwis providera. |
@@ -51,7 +51,7 @@ sequenceDiagram
   K->>+H: POST /api/v1/chat (modelAlias, messages)
   H->>H: walidacja DTO
   H->>+S: executeChat
-  S->>S: normalizeMessagesForProvider
+  S->>S: composeSystemPrompt + toProviderTurns (ConfigService)
   S->>+R: resolve(modelAlias)
   R-->>-S: adapter + providerName + modelId
   S->>+P: complete(input, modelId)

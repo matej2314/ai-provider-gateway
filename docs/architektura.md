@@ -39,7 +39,7 @@ flowchart TB
 
 | Moduł | Odpowiedzialność |
 |------|------------------|
-| **Chat** (`src/chat`) | Czat standardowy (`POST /api/v1/chat`) i streaming SSE (`POST /api/v1/chat/stream` — `ChatStreamController`). Orkiestracja wyboru modelu i delegacja do providerów; normalizacja wiadomości (`normalizeMessagesForProvider`) i odpowiedzi. |
+| **Chat** (`src/chat`) | Czat standardowy (`POST /api/v1/chat`) i streaming SSE (`POST /api/v1/chat/stream` — `ChatStreamController`). Orkiestracja wyboru modelu: składanie system promptu z plików (`MASTER` / `MAIN` / per alias), mapowanie `messages[]` na `user|assistant`, delegacja do adapterów. |
 | **Providers** (`src/providers`) | Adaptery providerów (Anthropic/Google Gemini) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
 | **Health** (`src/health`) | Liveness: `GET /api/v1/health` (JSON ze statusem i znacznikiem czasu). Osobny **readiness** (np. dependency check) — opcjonalnie w kolejnych iteracjach; walidacja konfiguracji następuje przy **starcie** procesu. |
@@ -51,21 +51,22 @@ flowchart TB
 3. **Adapters (providers)** — tłumaczenie kontraktu gateway ↔ kontrakt SDK providera; obsługa błędów specyficznych dla SDK.
 4. **DTO + walidacja** — walidacja wejścia i konfiguracji jako brzeg systemu.
 
-### Normalizacja wiadomości (rola `system`)
+### System prompt i wiadomości do adaptera
 
-Gateway przyjmuje w kontrakcie HTTP `messages[]` z rolami `system|user|assistant`, ale przed wywołaniem adaptera normalizuje je do portu providerów:
+Kontrakt HTTP **nie** przyjmuje roli `system` w `messages[]` (walidacja DTO). Treść systemowa dla LLM jest **polityką gatewaya**: przy starcie wczytywane są pliki z `src/config/system-prompt/`, a w `ChatService` składane są warstwy:
 
-- `system?: string` — agregacja wszystkich wiadomości systemowych,
-- `messages[]` — wyłącznie `user|assistant`.
+- **MASTER** — wymagany plik `MASTER_SYSTEM_PROMPT.md`,
+- **MAIN** — opcjonalny `MAIN_SYSTEM_PROMPT.md`,
+- **per model** — opcjonalny `models/<modelAlias>.md` dla aliasu z `gateway.config.yaml`.
 
-Powód: providerzy różnią się semantyką i kształtem pola `system` (np. Anthropic wymaga osobnego pola `system`, a nie roli `system` w `messages[]`), a gateway utrzymuje spójny kontrakt na wejściu.
+Łączenie sekcji: podwójna nowa linia (`\n\n`). Wynik trafia do portu providerów jako `ProviderChatInput.system`. Tablica `messages[]` w żądaniu zawiera wyłącznie **`user`** i **`assistant`** i jest mapowana na `ProviderChatTurn[]`.
 
 W warstwie adaptera `system` z portu jest mapowany na natywne pole SDK providera:
 
 - **Anthropic** (`@anthropic-ai/sdk`) — `messages.create({ system })`.
 - **Google Gemini** (`@google/genai` 1.52+) — `config.systemInstruction` przekazywane do `ai.chats.create({ config })` lub `ai.models.generateContent({ config })`. Adapter dodatkowo mapuje rolę `assistant` na `model` (wymóg SDK Gemini). Szczegóły mapowania: `spec/SPEC-PROVIDERS.md`.
 
-**Kierunek rozwoju:** plan `SYSTEM_PROMPTS_REFACTOR.md` przewiduje rezygnację z roli `system` w żądaniach HTTP na rzecz promptów wczytywanych z plików w repozytorium — po wdrożeniu niniejszą sekcję należy zastąpić opisem warstw MASTER / MAIN / per‑model.
+Szerszy kontekst decyzji: `SYSTEM_PROMPTS_REFACTOR.md`, konfiguracja: `docs/konfiguracja.md`.
 
 ## Konfiguracja i sekrety
 

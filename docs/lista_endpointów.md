@@ -1,6 +1,6 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **0.4**.  
+Wersja dokumentu: **0.5**.  
 **OpenAPI:** `openapi.json` — zsynchronizowany z `src/`; w **Fazie 5** planowane m.in.: envelope z `code`, `x-request-id`, body `params`, skrypt `config:validate` (`PLAN_IMPLEMENTACJI.md`, `dokumentacja_api.md`).
 
 ## Konwencje globalne

@@ -94,3 +94,17 @@ W praktyce wygodne są osobne pliki, np.:
 - `gateway.config.prod.yaml`
 
 albo łączenie plików (bazowy + override). Obecna implementacja wczytuje **jeden** plik o stałej ścieżce `gateway.config.yaml` w `process.cwd()` — zmiana profili wymaga podmiany pliku lub rozwoju kodu.
+
+## 6) Pliki system promptu (`src/config/system-prompt/`)
+
+Przy starcie `configuration.ts` wczytuje treści używane do złożenia instrukcji systemowej dla providerów (pole `system` w porcie adapterów). Kolejność składania w runtime: **MASTER** → opcjonalnie **MAIN** → opcjonalnie warstwa **per alias modelu**, oddzielane podwójną newline (`\n\n`).
+
+| Plik | Wymagany | Opis |
+|------|----------|------|
+| `MASTER_SYSTEM_PROMPT.md` | tak | Guardrails i obowiązkowa warstwa polityki; brak pliku lub treść pusta po obróbce → **fail-fast** przy starcie. |
+| `MAIN_SYSTEM_PROMPT.md` | nie | Opcjonalna warstwa wdrożeniowa (np. styl, format); brak lub pusto → pomijana. |
+| `models/<modelAlias>.md` | nie | Opcjonalna warstwa dla danego aliasu z `gateway.config.yaml` → `models`; nazwa pliku = dokładnie klucz aliasu (np. `chat-default.md`). Brak lub pusto → pomijana. |
+
+Dla plików opcjonalnych komentarze HTML `<!-- ... -->` są usuwane przy ładowaniu — można umieścić w nich dokumentację bez wysyłania jej do modelu (`stripHtmlComments` w `configuration.ts`).
+
+Powiązane: `dokumentacja_api.md`, `SYSTEM_PROMPTS_REFACTOR.md`.

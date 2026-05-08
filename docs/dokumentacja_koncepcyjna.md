@@ -76,7 +76,7 @@ Zamiast zmuszać klientów do podawania vendorowego `modelId`, gateway wspiera *
 
 ## Kierunek po MVP (orientacyjnie)
 
-- **System prompt po stronie serwera** — plan w **`SYSTEM_PROMPTS_REFACTOR.md`** (pliki w `src/config/system-prompt/`, blokada `role=system` w API po wdrożeniu).
+- **System prompt po stronie serwera** — **wdrożone**: pliki w `src/config/system-prompt/`, brak roli `system` w API; szczegóły w `konfiguracja.md` i pierwotny opis decyzji w **`SYSTEM_PROMPTS_REFACTOR.md`**.
 - OpenAI jako trzeci provider (wymaga płatnego konta API).
 - Retry/circuit‑breaker i metryki per provider.
 - “Policy packs”: profile ustawień per środowisko (dev/prod) i per alias modelu.

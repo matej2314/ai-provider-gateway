@@ -12,7 +12,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 6. Dla ryzyk: `anty-patterny.md`.
 7. Dla pracy spec‑first: katalog `spec/`.
 8. Dla harmonogramu i faz rozwoju: `PLAN_IMPLEMENTACJI.md` (w katalogu głównym repo).
-9. Dla planowanej zmiany **system promptów po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`): `SYSTEM_PROMPTS_REFACTOR.md` (w katalogu głównym repo).
+9. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — wdrożone w kodzie; tło projektowe i kolejne pomysły: `SYSTEM_PROMPTS_REFACTOR.md` (w katalogu głównym repo).
 
 ## Spis plików
 

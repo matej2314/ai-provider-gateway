@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Provider Gateway API",
-    "version": "0.2.0",
-    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\nSchematy żądań i odpowiedzi sukcesu odpowiadają kodowi w `src/`. Błędy zwracane są w **domyślnym formacie NestJS** (`statusCode`, `message`, opcjonalnie `error`). Dodatkowe pola body (`params`), ujednolicony envelope z polem `code` oraz nagłówek `x-request-id` są zaplanowane w `PLAN_IMPLEMENTACJI.md` (Faza 5).\n\nOpis ludzki: katalog `docs/` w repozytorium."
+    "version": "0.3.0",
+    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\nSchematy żądań i odpowiedzi sukcesu odpowiadają kodowi w `src/`. W `messages[]` dozwolone są wyłącznie role `user` i `assistant`; instrukcja systemowa jest składana po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias — patrz `docs/konfiguracja.md`). Błędy zwracane są w **domyślnym formacie NestJS** (`statusCode`, `message`, opcjonalnie `error`). Dodatkowe pola body (`params`), ujednolicony envelope z polem `code` oraz nagłówek `x-request-id` są zaplanowane w `PLAN_IMPLEMENTACJI.md` (Faza 5).\n\nOpis ludzki: katalog `docs/` w repozytorium."
   },
   "servers": [
     {
@@ -47,7 +47,7 @@
         "tags": ["Chat"],
         "operationId": "postChat",
         "summary": "Chat (standard)",
-        "description": "Pełna odpowiedź JSON. `requestId` w odpowiedzi jest generowany po stronie gateway (prefiks `req_`). Parametry wyjścia (`temperature`, `maxOutputTokens`) pochodzą obecnie z domyślnych wartości w konfiguracji aliasu (`gateway.config.yaml`), nie z body żądania.",
+        "description": "Pełna odpowiedź JSON. `requestId` w odpowiedzi jest generowany po stronie gateway (prefiks `req_`). Parametry wyjścia (`temperature`, `maxOutputTokens`) pochodzą obecnie z domyślnych wartości w konfiguracji aliasu (`gateway.config.yaml`), nie z body żądania. Pole `model` w odpowiedzi to ten sam alias co `modelAlias` z żądania (nie vendorowy `modelId`).",
         "requestBody": {
           "required": true,
           "content": {
@@ -60,12 +60,13 @@
                     "messages": [{ "role": "user", "content": "Napisz krótkie streszczenie." }]
                   }
                 },
-                "withSystem": {
+                "multiTurn": {
                   "value": {
                     "modelAlias": "chat-default",
                     "messages": [
-                      { "role": "system", "content": "Odpowiadaj zwięźle po polsku." },
-                      { "role": "user", "content": "Opisz działanie gateway." }
+                      { "role": "user", "content": "Czym jest gateway?" },
+                      { "role": "assistant", "content": "Warstwa pośrednia między klientem a LLM." },
+                      { "role": "user", "content": "Podsumuj w jednym zdaniu." }
                     ]
                   }
                 }
@@ -84,7 +85,7 @@
                     "value": {
                       "id": "gw_01H...",
                       "provider": "anthropic",
-                      "model": "claude-sonnet-4-5-20250929",
+                      "model": "chat-default",
                       "output": { "type": "text", "text": "..." },
                       "usage": { "inputTokens": 123, "outputTokens": 456 },
                       "requestId": "req_..."
@@ -215,7 +216,8 @@
       },
       "ChatRole": {
         "type": "string",
-        "enum": ["system", "user", "assistant"]
+        "enum": ["user", "assistant"],
+        "description": "Zgodnie z `ChatMessageDto`: rola `system` w API jest zablokowana — system prompt ustala gateway z plików (`src/config/system-prompt/`)."
       },
       "ChatMessage": {
         "type": "object",
@@ -293,7 +295,11 @@
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "provider": { "type": "string", "minLength": 1 },
-          "model": { "type": "string", "minLength": 1 },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias modelu z żądania (`modelAlias`). W odpowiedzi standardowej jest to ten sam identyfikator co w `POST /chat`; vendorowy `modelId` nie jest tutaj zwracany (w SSE `meta.model` jest rozwiązanym `modelId` — patrz `ChatService.executeStream`)."
+          },
           "output": {
             "description": "Treść odpowiedzi (MVP: tekst).",
             "oneOf": [{ "$ref": "#/components/schemas/ChatOutputText" }]

@@ -1,14 +1,8 @@
-import { IsString, IsArray, ValidateNested, IsIn } from 'class-validator';
-import {ApiProperty} from '@nestjs/swagger';
+import { IsString, IsArray, ValidateNested} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-class ChatMessageDto {
-  @IsIn(['system', 'user', 'assistant'])
-  role: 'system' | 'user' | 'assistant';
-
-  @IsString()
-  content: string;
-}
+import { ChatMessageDto } from './chat-message.dto';
 
 export class ChatRequestDto {
   @IsString()

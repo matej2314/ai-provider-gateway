@@ -41,7 +41,7 @@ F-2a. Port providera przyjmuje **znormalizowane** wejście rozmowy:
 - `system?: string` — instrukcja systemowa przekazywana osobno,
 - `messages[]` — wyłącznie role `user` i `assistant` (bez `system`).
 
-Uwaga: kontrakt HTTP nadal może wspierać `messages[]` z rolą `system`, ale **normalizacja** (wycięcie/aglomeracja `system`) odbywa się przed wywołaniem adaptera.
+Uwaga: kontrakt HTTP **nie** przekazuje roli `system` w `messages[]`; pole `system` w porcie providera pochodzi z polityki gatewaya (pliki promptów), nie z body żądania.
 
 F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK:
 
