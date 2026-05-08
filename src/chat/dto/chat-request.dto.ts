@@ -1,4 +1,5 @@
 import { IsString, IsArray, ValidateNested, IsIn } from 'class-validator';
+import {ApiProperty} from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 class ChatMessageDto {

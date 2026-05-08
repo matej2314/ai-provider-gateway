@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIProvider } from './interfaces/ai-provider.interface';
 
@@ -6,6 +10,23 @@ interface ResolvedProviderConfig {
   provider: AIProvider;
   providerName: string;
   modelId: string;
+}
+
+export interface GatewayModelConfig {
+  providerInstance: string;
+  modelId: string;
+  [key: string]: unknown;
+}
+
+export interface GatewayProviderInstanceConfig {
+  type: string;
+  [key: string]: unknown;
+}
+
+export interface GatewayConfig {
+  models: Record<string, GatewayModelConfig>;
+  providers: Record<string, GatewayProviderInstanceConfig>;
+  [key: string]: unknown;
 }
 
 @Injectable()
@@ -18,10 +39,21 @@ export class ProviderRegistryService {
     this.providers.set(providerName, { provider, name: providerName });
   }
 
-  resolve(modelAlias: string): ResolvedProviderConfig {
-    const gatewayConfig = this.configService.get('gateway');
+  private getGatewayConfig(): GatewayConfig {
+    const config = this.configService.get<GatewayConfig>('gateway');
 
-    const modelConfig = gatewayConfig.models[modelAlias];
+    if (!config) {
+      throw new InternalServerErrorException('Gateway config not found');
+    }
+
+    return config;
+  }
+
+  private resolveModelAlias(
+    gatewayConfig: GatewayConfig,
+    modelAlias: string,
+  ): GatewayModelConfig {
+    const modelConfig = gatewayConfig?.models[modelAlias];
 
     if (!modelConfig) {
       throw new BadRequestException(
@@ -29,6 +61,13 @@ export class ProviderRegistryService {
       );
     }
 
+    return modelConfig;
+  }
+
+  private resolveProviderEntry(
+    gatewayConfig: GatewayConfig,
+    modelConfig: GatewayModelConfig,
+  ) {
     const providerInstanceConfig =
       gatewayConfig.providers[modelConfig.providerInstance];
 
@@ -46,13 +85,23 @@ export class ProviderRegistryService {
       throw new BadRequestException(`Provider ${providerType} not registered`);
     }
 
+    return entry;
+  }
+
+  resolve(modelAlias: string): ResolvedProviderConfig {
+    const gatewayConfig = this.getGatewayConfig();
+
+    const modelConfig = this.resolveModelAlias(gatewayConfig, modelAlias);
+
+    const providerEntry = this.resolveProviderEntry(gatewayConfig, modelConfig);
+
     console.log(
-      `[ProviderRegistry] Resolved alias '${modelAlias}' → provider '${entry.name}', model '${modelConfig.modelId}'`,
+      `[ProviderRegistry] Resolved alias '${modelAlias}' → provider '${providerEntry.name}', model '${modelConfig.modelId}'`,
     );
 
     return {
-      provider: entry.provider,
-      providerName: entry.name,
+      provider: providerEntry.provider,
+      providerName: providerEntry.name,
       modelId: modelConfig.modelId,
     };
   }
