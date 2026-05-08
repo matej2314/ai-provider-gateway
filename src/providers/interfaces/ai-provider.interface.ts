@@ -33,6 +33,12 @@ export interface AIProvider {
     modelId: string,
     options?: ProviderCallOptions,
   ): Promise<ProviderChatResponse>;
+
+  stream?(
+    input: ProviderChatInput,
+    modelId: string,
+    options?: ProviderCallOptions,
+  ): AsyncIterable<string>;
 }
 
 export function normalizeMessagesForProvider(

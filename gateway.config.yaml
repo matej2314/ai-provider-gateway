@@ -23,7 +23,7 @@ models:
         onStatus: [429, 500, 502, 503, 504]
       params:
         defaults:
-          temperature: 0.7
+          temperature: 0.4
           maxOutputTokens: 500
         allowOverrides:
           - temperature
@@ -45,7 +45,7 @@ models:
         onStatus: [429, 500, 502, 503, 504]
       params:
         defaults:
-          temperature: 0.7
+          temperature: 0.4
           maxOutputTokens: 1024
         allowOverrides:
           - temperature
@@ -67,7 +67,7 @@ models:
         onStatus: [429, 500, 502, 503, 504]
       params:
         defaults:
-          temperature: 0.7
+          temperature: 0.4
           maxOutputTokens: 1024
         allowOverrides:
           - temperature

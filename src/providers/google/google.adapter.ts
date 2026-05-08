@@ -61,4 +61,32 @@ export class GoogleAdapter implements AIProvider {
         : undefined,
     };
   }
+
+  async *stream(
+    input: ProviderChatInput,
+    modelId: string,
+    options?: ProviderCallOptions,
+  ): AsyncIterable<string> {
+    const history = input.messages.slice(0, -1).map((m) => ({
+      parts: [{ text: m.content }],
+    }));
+
+    const lastMessage = input.messages[input.messages.length - 1];
+
+    const stream = await this.client.models.generateContentStream({
+      model: modelId,
+      contents: [lastMessage.content],
+      config: {
+        ...(input.system?.trim() ? { systemInstruction: input.system } : {}),
+        temperature: options?.temperature ?? undefined,
+        maxOutputTokens: options?.maxOutputTokens ?? 1024,
+      },
+    });
+
+    for await (const event of stream) {
+      if (event.text) {
+        yield event.text;
+      }
+    }
+  }
 }

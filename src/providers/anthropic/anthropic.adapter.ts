@@ -8,7 +8,6 @@ import {
   ProviderChatResponse,
 } from '../interfaces/ai-provider.interface';
 
-
 @Injectable()
 export class AnthropicAdapter implements AIProvider {
   private client: Anthropic;
@@ -27,14 +26,16 @@ export class AnthropicAdapter implements AIProvider {
     modelId: string,
     options?: ProviderCallOptions,
   ): Promise<ProviderChatResponse> {
-    console.log(`[AnthropicAdapter] Calling model: ${modelId} with ${input.messages.length} messages`);
+    console.log(
+      `[AnthropicAdapter] Calling model: ${modelId} with ${input.messages.length} messages`,
+    );
 
     const response = await this.client.messages.create({
       model: modelId,
       max_tokens: options?.maxOutputTokens ?? 1024,
       temperature: options?.temperature ?? undefined,
       system: input.system,
-      messages: input.messages
+      messages: input.messages,
     });
 
     let text = '';
@@ -49,6 +50,30 @@ export class AnthropicAdapter implements AIProvider {
       usage: {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
+      },
+    };
+  }
+
+  async *stream(
+    input: ProviderChatInput,
+    modelId: string,
+    options?: ProviderCallOptions,
+  ): AsyncIterable<string> {
+    const stream = await this.client.messages.stream({
+      model: modelId,
+      max_tokens: options?.maxOutputTokens ?? 1024,
+      temperature: options?.temperature ?? undefined,
+      system: input.system,
+      messages: input.messages,
+      stream: true,
+    });
+
+    for await (const event of stream) {
+      if (
+        event.type === 'content_block_delta' &&
+        event.delta.type === 'text_delta'
+      ) {
+        yield event.delta.text;
       }
     }
   }
