@@ -1,4 +1,3 @@
-# Gateway: modele, instancje providerów, polityki (sekrety tylko przez env — patrz apiKeyRef).
 schemaVersion: 1
 
 providers:

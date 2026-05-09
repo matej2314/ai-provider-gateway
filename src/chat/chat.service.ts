@@ -62,12 +62,12 @@ export class ChatService {
     };
   }
 
-  async executeChat(request: ChatRequestDto) {
+  async executeChat(requestBody: ChatRequestDto, requestId: string) {
     const { provider, providerName, modelId, params } = this.registry.resolve(
-      request.modelAlias,
+      requestBody.modelAlias,
     );
 
-    const providerInput = this.buildProviderInput(request);
+    const providerInput = this.buildProviderInput(requestBody);
 
     const options: ProviderCallOptions = {
       temperature: params?.defaults?.temperature ?? undefined,
@@ -79,22 +79,23 @@ export class ChatService {
     return {
       id: `gw_${uuidv4()}`,
       provider: providerName,
-      model: request.modelAlias,
+      model: requestBody.modelAlias,
       output: {
         type: 'text',
         text: response.text,
       },
       usage: response.usage,
-      requestId: `req_${uuidv4()}`,
+      requestId: requestId,
     };
   }
 
   async executeStream(
-    request: ChatRequestDto,
+    requestBody: ChatRequestDto,
+    requestId: string,
     emit: (event: SseEvent) => void,
   ): Promise<void> {
     const { provider, providerName, modelId, capabilities, params } =
-      this.registry.resolve(request.modelAlias);
+      this.registry.resolve(requestBody.modelAlias);
 
     if (!capabilities?.streaming) {
       throw new BadRequestException('Streaming not supported for this model');
@@ -106,7 +107,7 @@ export class ChatService {
       );
     }
 
-    const providerInput = this.buildProviderInput(request);
+    const providerInput = this.buildProviderInput(requestBody);
 
     const options: ProviderCallOptions = {
       temperature: params?.defaults?.temperature ?? undefined,
@@ -114,7 +115,6 @@ export class ChatService {
     };
 
     const id = `gw_${uuidv4()}`;
-    const requestId = `req_${uuidv4()}`;
 
     emit({
       name: 'meta',

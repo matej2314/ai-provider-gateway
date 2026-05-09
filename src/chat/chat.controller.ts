@@ -1,4 +1,5 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { ChatService } from './chat.service';
 import { ChatRequestDto } from './dto/chat-request.dto';
 
@@ -7,8 +8,8 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post()
-  async chat(@Body() request: ChatRequestDto) {
+  async chat(@Req() req: Request, @Body() requestBody: ChatRequestDto) {
     console.log('[ChatController] POST /api/v1/chat');
-    return this.chatService.executeChat(request);
+    return this.chatService.executeChat(requestBody, req.requestId);
   }
 }

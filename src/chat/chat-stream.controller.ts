@@ -1,5 +1,5 @@
-import { Controller, Body, Post, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Controller, Body, Post, Res, Req } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseSerializer } from './sse/sse.serializer';
 import { ChatService } from './chat.service';
@@ -11,7 +11,11 @@ export class ChatStreamController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post('stream')
-  async streamChat(@Body() request: ChatRequestDto, @Res() res: Response) {
+  async streamChat(
+    @Req() req: Request,
+    @Body() requestBody: ChatRequestDto,
+    @Res() res: Response,
+  ) {
     res.status(200);
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -19,9 +23,13 @@ export class ChatStreamController {
     res.flushHeaders?.();
 
     try {
-      await this.chatService.executeStream(request, (event) => {
-        res.write(this.sse.serialize(event));
-      });
+      await this.chatService.executeStream(
+        requestBody,
+        req.requestId,
+        (event) => {
+          res.write(this.sse.serialize(event));
+        },
+      );
     } finally {
       res.end();
     }

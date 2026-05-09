@@ -21,6 +21,15 @@ export class GoogleAdapter implements AIProvider {
     console.log('[GoogleAdapter] Initialized');
   }
 
+  private prepareContents(messages: Record<string, string>[]) {
+    return messages.map((m) => {
+      return {
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      };
+    });
+  }
+
   async complete(
     input: ProviderChatInput,
     modelId: string,
@@ -30,24 +39,14 @@ export class GoogleAdapter implements AIProvider {
       `[GoogleAdapter] Calling model: ${modelId} with ${input.messages.length} messages`,
     );
 
-    const history = input.messages.slice(0, -1).map((m) => ({
-      parts: [{ text: m.content }],
-    }));
-
-    const lastMessage = input.messages[input.messages.length - 1];
-
-    const chat = this.client.chats.create({
+    const response = await this.client.models.generateContent({
       model: modelId,
-      history,
+      contents: this.prepareContents(input.messages),
       config: {
         ...(input.system?.trim() ? { systemInstruction: input.system } : {}),
         temperature: options?.temperature ?? undefined,
         maxOutputTokens: options?.maxOutputTokens ?? 1024,
       },
-    });
-
-    const response = await chat.sendMessage({
-      message: lastMessage.content,
     });
 
     return {
@@ -67,15 +66,9 @@ export class GoogleAdapter implements AIProvider {
     modelId: string,
     options?: ProviderCallOptions,
   ): AsyncIterable<string> {
-    const history = input.messages.slice(0, -1).map((m) => ({
-      parts: [{ text: m.content }],
-    }));
-
-    const lastMessage = input.messages[input.messages.length - 1];
-
     const stream = await this.client.models.generateContentStream({
       model: modelId,
-      contents: [lastMessage.content],
+      contents: this.prepareContents(input.messages),
       config: {
         ...(input.system?.trim() ? { systemInstruction: input.system } : {}),
         temperature: options?.temperature ?? undefined,
