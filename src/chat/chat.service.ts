@@ -22,7 +22,7 @@ export class ChatService {
 
   private getResolvedPrompts(): ResolvedSystemPrompts {
     const resolved = this.config.get<ResolvedSystemPrompts>(
-      'systemPrompts',
+      'resolvedSystemPrompts',
     );
 
     if (!resolved) {
@@ -37,11 +37,11 @@ export class ChatService {
     resolved: ResolvedSystemPrompts,
     modelAlias: string,
   ): string {
-    const parts: string[] = [resolved.master];
-    if (resolved.main?.trim()) parts.push(resolved.main.trim());
+    const parts: string[] = [resolved.master.trim()];
+    if (resolved.main) parts.push(resolved.main.trim());
 
-    const perModelPrompt = resolved.perModelByAlias[modelAlias]?.trim();
-    if (perModelPrompt) parts.push(perModelPrompt);
+    const perModelPrompt = resolved.perModelByAlias[modelAlias];
+    if (perModelPrompt) parts.push(perModelPrompt.trim());
     return parts.join(SYSTEM_PROMPT_SECTION_JOINER);
   }
 
@@ -71,7 +71,7 @@ export class ChatService {
 
     const options: ProviderCallOptions = {
       temperature: params?.defaults?.temperature ?? undefined,
-      maxOutputTokens: params?.defaults.maxOutputTokens ?? undefined,
+      maxOutputTokens: params?.defaults?.maxOutputTokens ?? undefined,
     };
 
     const response = await provider.complete(providerInput, modelId, options);
