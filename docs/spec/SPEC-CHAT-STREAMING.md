@@ -57,7 +57,7 @@ NFR-3. Gateway nie może emitować surowych payloadów SDK providerów jako SSE.
 - [x] `done` kończy stream (`data: {}` w obecnym kontrakcie).
 - [x] Dla modelu bez streamingu zwracany jest deterministyczny `400` (Nest); stabilne pole `code` — Faza 5.
 
-## Poza zakresem (MVP)
+## Poza zakresem (względem rdzenia MVP)
 
 - Wznawianie streamingu, reconnect, exactly-once semantics.
 

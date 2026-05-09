@@ -122,4 +122,4 @@ sequenceDiagram
 
 ---
 
-Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura.md`, `PLAN_IMPLEMENTACJI.md`.
+Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura.md`, `PLAN_IMPLEMENTACJI.md`, `REDIS_IMPLEMENTATION_PLAN.md` (opcjonalny cache — plan).

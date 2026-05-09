@@ -61,7 +61,7 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [ ] Parametry są walidowane (allowlista + bounds); DTO nie przyjmuje jeszcze `params`.
 - [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka `x-request-id` — **Faza 5** (`SPEC-PLATFORMA-I-KONTRAKTY`).
 
-## Poza zakresem (MVP)
+## Poza zakresem (względem rdzenia MVP)
 
 - Pamięć rozmowy i persistence.
 - Narzędzia (MCP tool runner) wykonywane przez gateway.

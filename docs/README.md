@@ -12,12 +12,13 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 6. Dla ryzyk: `anty-patterny.md`.
 7. Dla pracy spec‑first: katalog `spec/`.
 8. Dla harmonogramu i faz rozwoju: `PLAN_IMPLEMENTACJI.md` (w katalogu głównym repo).
-9. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — wdrożone w kodzie; tło projektowe i kolejne pomysły: `SYSTEM_PROMPTS_REFACTOR.md` (w katalogu głównym repo).
+9. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — wdrożone w kodzie; dokumentacja refaktoru: `SYSTEM_PROMPTS_REFACTOR-READY.md` (w katalogu głównym repo).
+10. Opcjonalna warstwa **cache / Redis** (port + adapter; start po Fazie 6): `REDIS_IMPLEMENTATION_PLAN.md` (w katalogu głównym repo).
 
 ## Spis plików
 
 - `../openapi.json` *(w katalogu głównym repo)* — OpenAPI 3.1: kontrakt REST zsynchronizowany z kodem (czat, streaming SSE, health, błędy NestJS).
-- `dokumentacja_koncepcyjna.md` — cel produktu, zakres MVP, założenia.
+- `dokumentacja_koncepcyjna.md` — cel produktu, zakres produktu (nagłówek `PLAN_IMPLEMENTACJI.md`: MVP / v1), założenia.
 - `architektura.md` — widok logiczny, moduły, warstwy, integracje providerów.
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.
 - `lista_endpointów.md` — szybka lista endpointów (standard + streaming).

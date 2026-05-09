@@ -1,14 +1,15 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **0.5**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu, domyślne błędy NestJS).
+Wersja dokumentu: **0.6**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu, domyślne błędy NestJS).
 
 ## Źródła prawdy (kolejność)
 
 1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
 2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
-3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: envelope z polem `code`, `x-request-id`, `params` w body, skrypt `config:validate`).
-4. **`SYSTEM_PROMPTS_REFACTOR.md`** — pierwotny plan przeniesienia system promptu do plików (wdrożony w kodzie: DTO + `ChatService` + `configuration.ts`). Nadal może opisywać kolejne usprawnienia poza MVP.
-5. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
+3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: envelope z polem `code`, `x-request-id`, `params` w body, skrypt `config:validate`; **Faza 6**: observability).
+4. **`REDIS_IMPLEMENTATION_PLAN.md`** — opcjonalna warstwa cache / limitów / metryk (Redis jako adapter; start po zamknięciu Fazy 6).
+5. **`SYSTEM_PROMPTS_REFACTOR-READY.md`** — plan i status refaktoru system promptu (✅ wykonane w kodzie: DTO + `ChatService` + `configuration.ts` + `openapi.json` + dokumentacja); ewentualne usprawnienia poza rdzeniem MVP są opisane w tym dokumencie.
+6. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
 
 ## Podstawy
 
@@ -50,7 +51,7 @@ Przy walidacji `ValidationPipe` pole `message` bywa **tablicą** stringów.
 
 **Stan kodu:** w żądaniu HTTP dozwolone są wyłącznie role `user` i `assistant` (`ChatMessageDto`, walidacja `400` przy `role=system`). Instrukcja systemowa dla providera jest **składana po stronie serwera** w `ChatService.buildProviderInput`: `MASTER` + opcjonalnie `MAIN` + opcjonalnie treść z `src/config/system-prompt/models/<modelAlias>.md`, a następnie przekazywana adapterom jako `ProviderChatInput.system`. Nie ma już agregacji `system` z treści żądania.
 
-**Spójny opis warstw i ścieżek plików:** `konfiguracja.md`, plan źródłowy: `SYSTEM_PROMPTS_REFACTOR.md`.
+**Spójny opis warstw i ścieżek plików:** `konfiguracja.md`, dokumentacja refaktoru: `SYSTEM_PROMPTS_REFACTOR-READY.md`.
 
 ---
 

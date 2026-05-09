@@ -20,24 +20,29 @@ Projekt powstaje jako ćwiczenie NestJS, architektury i wzorców projektowych, a
 | **Integrator / platform team** | Ustandaryzować integrację z LLM w organizacji, spiąć limity, logi, requestId, polityki retry i timeouts. |
 | **Operacje / DevOps** | Statyczne, proste wdrożenie; konfiguracja przez env + pliki; healthchecki; logi na stdout. |
 
-## Zakres MVP
+## Zakres produktu (nagłówek `PLAN_IMPLEMENTACJI.md`)
 
-MVP obejmuje (śledź szczegółowy status faz w **`PLAN_IMPLEMENTACJI.md`** oraz kontrakt w **`openapi.json`**):
+Poniższy opis odpowiada **nagłówkowi** **`PLAN_IMPLEMENTACJI.md`** (definicja MVP / v1). Szczegółowe statusy faz i checklisty są w tym pliku; kontrakt HTTP w **`openapi.json`**.
 
-- **Endpoint czatu standardowego**: `POST /api/v1/chat` — pełna odpowiedź JSON (**zaimplementowany**).
-- **Streaming** (`POST /api/v1/chat/stream`, SSE) — **zaimplementowany**; kontrakt w `openapi.json` jest zgodny z kodem (rozszerzenia API — **Faza 5**).
-- Integracja z dwoma providerami:
-  - **Anthropic**,
-  - **Google Gemini**  
-  (adaptery i rejestr — **zaimplementowane**).
-- Konfiguracja “plug&play”:
-  - klucze API w `.env`; **w środowisku production** obowiązuje **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`),
-  - aliasy modeli i polityki w **`gateway.config.yaml`** — plik **wczytywany i walidowany przy starcie**; pełne odwzorowanie policy w adapterach jest **stopniowo dopinane** (plan),
-  - fail‑fast przy braku/błędzie pliku konfiguracyjnego.
-- Spójny format błędów (**envelope**) i propagacja **`x-request-id`** — **Faza 5** (plan); część odpowiedzi sukcesu już zawiera `requestId` generowany w serwisie.
+- **Status projektu:** Rdzeń **MVP** (routing + chat + streaming) domknięty w Fazach 1–2 oraz 4; Faza 0 zamknięta. Trwa **v1** (m.in. Fazy 3 oraz 5–7 według tabeli w planie).
+- **Providery (MVP):** Anthropic API + Google Gemini API
+- **Cel MVP:** Działające **kierowanie zapytań do providerów** (registry / routing), działający **chat** synchroniczny (`POST /api/v1/chat`) oraz działający **streaming** (SSE / `POST /api/v1/chat/stream`).
+- **v1:** Wszystko ponadto — m.in. konfiguracja z plików (Faza 3), utwardzenie błędów i kontraktu API (Faza 5), observability (Faza 6), polish i deploy (Faza 7), oraz pozostałe elementy planu poza rdzeniem MVP.
+
+**Podział MVP / v1:** Rdzeń MVP realizują **Fazy 1–2** oraz **4** (routing, chat, streaming). **Faza 3** i **Fazy 5–7** traktuj jako **v1** — numeracja faz jest chronologiczna w projekcie, nie równa się kolejności „MVP najpierw”.
+
+### Stan realizacji (skrót)
+
+- **Endpoint czatu standardowego** `POST /api/v1/chat` — zaimplementowany.
+- **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; rozszerzenia kontraktu API (envelope, `params`, …) — **Faza 5** (plan).
+- **Providery** Anthropic i Google Gemini — adaptery i rejestr zaimplementowane.
+- **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie zaimplementowane (**Faza 3** w planie; wg nagłówka planu jest to część **v1**, nie rdzenia MVP).
+- Klucze API w `.env`; **w production** obowiązuje **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
+- Pełne odwzorowanie policy z YAML w adapterach — **stopniowo dopinane** (`PLAN_IMPLEMENTACJI.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego — działa.
+- Spójny format błędów (**envelope**) i pełna propagacja **`x-request-id`** — **Faza 5** (plan); część odpowiedzi sukcesu już zawiera `requestId` generowany w serwisie.
 - Testy jednostkowe przy modułach (`*.spec.ts`).
 
-## Poza zakresem MVP (na start)
+## Poza zakresem (wybrane wykluczenia na start)
 
 - Autoryzacja użytkowników końcowych (AuthN/AuthZ) — gateway jest narzędziem dla infrastruktury użytkownika.
 - Billing / rozliczenia — koszty ponosi użytkownik przez własne klucze.
@@ -74,9 +79,10 @@ Zamiast zmuszać klientów do podawania vendorowego `modelId`, gateway wspiera *
 - Logika wyboru providera/modelu oraz mapowanie parametrów jest testowalne bez realnych wywołań providerów.
 - Adaptery providerów mogą być mockowane.
 
-## Kierunek po MVP (orientacyjnie)
+## Kierunek rozwoju (v1 i dalej)
 
-- **System prompt po stronie serwera** — **wdrożone**: pliki w `src/config/system-prompt/`, brak roli `system` w API; szczegóły w `konfiguracja.md` i pierwotny opis decyzji w **`SYSTEM_PROMPTS_REFACTOR.md`**.
+- **System prompt po stronie serwera** — **wdrożone**: pliki w `src/config/system-prompt/`, brak roli `system` w API; szczegóły w `konfiguracja.md`; dokumentacja decyzji i statusu refaktoru: **`SYSTEM_PROMPTS_REFACTOR-READY.md`**.
+- **Cache / Redis** (port + adapter, bez zmiany core czatu) — plan: **`REDIS_IMPLEMENTATION_PLAN.md`** (start po zamknięciu Fazy 6).
 - OpenAI jako trzeci provider (wymaga płatnego konta API).
 - Retry/circuit‑breaker i metryki per provider.
 - “Policy packs”: profile ustawień per środowisko (dev/prod) i per alias modelu.

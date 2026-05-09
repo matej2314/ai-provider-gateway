@@ -38,7 +38,7 @@ ai-provider-gateway/
 │   │   ├── google/
 │   │   │   ├── google.module.ts
 │   │   │   └── google.adapter.ts
-│   │   └── openai/ *(plan — post-MVP)*
+│   │   └── openai/ *(plan — poza rdzeniem MVP / v1+)*
 │   │
 │   ├── config/
 │   │   ├── configuration.ts       # load gateway.config.yaml + Zod
@@ -79,6 +79,8 @@ ai-provider-gateway/
 ├── docker-compose.yml *(jeśli obecny)*
 ├── package.json
 ├── PLAN_IMPLEMENTACJI.md
+├── SYSTEM_PROMPTS_REFACTOR-READY.md
+├── REDIS_IMPLEMENTATION_PLAN.md
 ├── README.md
 └── mcp.json *(plan — konfiguracja MCP użytkownika; patrz docs/mcp.md)*
 ```
@@ -102,6 +104,6 @@ ai-provider-gateway/
 Zamknięte lub częściowo zamknięte (śledź tabele statusów w `PLAN_IMPLEMENTACJI.md`):
 
 - Fundament: config z YAML, registry, adaptery Anthropic + Google.
-- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, spójny error envelope + `x-request-id`, działający `npm run config:validate`; plan promptów serwerowych: `SYSTEM_PROMPTS_REFACTOR.md`.
+- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, spójny error envelope + `x-request-id`, działający `npm run config:validate`; refaktor promptów serwerowych — ✅ wg `SYSTEM_PROMPTS_REFACTOR-READY.md`; opcjonalny cache/Redis — `REDIS_IMPLEMENTATION_PLAN.md`.
 
-Powiązane: `PLAN_IMPLEMENTACJI.md`, `openapi.json`, `docs/konfiguracja.md`.
+Powiązane: `PLAN_IMPLEMENTACJI.md`, `REDIS_IMPLEMENTATION_PLAN.md`, `openapi.json`, `docs/konfiguracja.md`.

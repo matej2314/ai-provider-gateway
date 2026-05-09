@@ -53,10 +53,10 @@ NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`; o
 
 - [ ] Serwis nie startuje bez **minimum jednego** klucza providera w env (zg. z `env.validation.ts`) oraz bez env wymaganych przez `apiKeyRef` w aktywnej konfiguracji modeli.
 - [ ] Serwis nie startuje z configiem niespójnym (np. nieznany providerInstance).
-- [ ] `modelAlias` jest jedyną publiczną metodą wyboru modelu w API (MVP).
+- [ ] `modelAlias` jest jedyną publiczną metodą wyboru modelu w API (rdzeń MVP — kontrakt na start).
 - [ ] `npm run config:validate` przechodzi na poprawnym zestawie pliku `gateway.config.yaml` + env i kończy się błędem na zestawie świadomie niepoprawnym (zgodnie z NFR-3).
 
-## Poza zakresem (MVP)
+## Poza zakresem (względem rdzenia MVP)
 
 - Hot reload konfiguracji bez restartu.
 - UI do zarządzania konfiguracją.

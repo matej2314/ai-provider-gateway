@@ -66,14 +66,14 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 
 ---
 
-## Zakres funkcjonalny (MVP)
+## Zakres funkcjonalny
 
-- endpoint do wysyłania promptu do wybranego modelu,
-- obsługa dwóch providerów AI,
-- mechanizm wyboru providera,
-- spójny format odpowiedzi niezależny od źródła,
-- obsługa błędów i timeoutów,
-- podstawowe testy jednostkowe.
+Źródło prawdy: **`docs/dokumentacja_koncepcyjna.md`**:
+
+- **Status projektu:** Rdzeń **MVP** (routing + chat + streaming) domknięty w Fazach 1–2 oraz 4; trwa **v1** (m.in. Fazy 3 oraz 5–7).
+- **Providery (MVP):** Anthropic API + Google Gemini API
+- **Cel MVP:** działające **kierowanie zapytań do providerów** (registry / routing), działający **chat** synchroniczny (`POST /api/v1/chat`) oraz działający **streaming** (SSE / `POST /api/v1/chat/stream`).
+- **v1:** m.in. konfiguracja z plików (Faza 3), utwardzenie kontraktu API (Faza 5), observability (Faza 6), polish i deploy (Faza 7); opcjonalnie cache/Redis wg **`REDIS_IMPLEMENTATION_PLAN.md`**.
 
 ---
 

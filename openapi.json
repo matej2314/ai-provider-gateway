@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Provider Gateway API",
-    "version": "0.3.0",
-    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\nSchematy żądań i odpowiedzi sukcesu odpowiadają kodowi w `src/`. W `messages[]` dozwolone są wyłącznie role `user` i `assistant`; instrukcja systemowa jest składana po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias — patrz `docs/konfiguracja.md`). Błędy zwracane są w **domyślnym formacie NestJS** (`statusCode`, `message`, opcjonalnie `error`). Dodatkowe pola body (`params`), ujednolicony envelope z polem `code` oraz nagłówek `x-request-id` są zaplanowane w `PLAN_IMPLEMENTACJI.md` (Faza 5).\n\nOpis ludzki: katalog `docs/` w repozytorium."
+    "version": "0.4.0",
+    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu (nagłówek `PLAN_IMPLEMENTACJI.md`):** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, dokumentacja decyzji: `SYSTEM_PROMPTS_REFACTOR-READY.md`.\n\nSchematy żądań i odpowiedzi sukcesu odpowiadają kodowi w `src/`. Błędy zwracane są w **domyślnym formacie NestJS** (`statusCode`, `message`, opcjonalnie `error`). Dodatkowe pola body (`params`), ujednolicony envelope z polem `code` oraz nagłówek `x-request-id` są zaplanowane w `PLAN_IMPLEMENTACJI.md` (Faza 5). Opcjonalna warstwa cache / Redis (port + adapter) jest opisana w `REDIS_IMPLEMENTATION_PLAN.md` (start po zamknięciu Fazy 6).\n\nOpis ludzki: katalog `docs/` w repozytorium."
   },
   "servers": [
     {
@@ -301,7 +301,7 @@
             "description": "Alias modelu z żądania (`modelAlias`). W odpowiedzi standardowej jest to ten sam identyfikator co w `POST /chat`; vendorowy `modelId` nie jest tutaj zwracany (w SSE `meta.model` jest rozwiązanym `modelId` — patrz `ChatService.executeStream`)."
           },
           "output": {
-            "description": "Treść odpowiedzi (MVP: tekst).",
+            "description": "Treść odpowiedzi (bieżąca wersja: wyłącznie tekst, `type: text`).",
             "oneOf": [{ "$ref": "#/components/schemas/ChatOutputText" }]
           },
           "usage": { "$ref": "#/components/schemas/ChatUsage" },

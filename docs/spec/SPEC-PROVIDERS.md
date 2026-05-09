@@ -66,7 +66,7 @@ NFR-2. W przypadku braku wsparcia funkcji (np. stream) adapter musi zgłosić b�
 NFR-3. Adapter nie może zakładać, że rola `system` jest wspierana w `messages[]` providera.
 Jeśli provider wymaga osobnego pola `system` (np. Anthropic) — adapter używa `system` z portu.
 Jeśli provider udostępnia natywne pole instrukcji systemowej (np. Google Gemini przez `@google/genai` — `config.systemInstruction`), adapter używa tego pola zamiast wstrzykiwać `system` jako wiadomość użytkownika.
-Mapowanie `system` na pierwszą wiadomość `user` jest dopuszczalne **tylko** jako fallback dla providerów, które nie udostępniają osobnego pola — w MVP nie dotyczy żadnego z używanych SDK.
+Mapowanie `system` na pierwszą wiadomość `user` jest dopuszczalne **tylko** jako fallback dla providerów, które nie udostępniają osobnego pola — w rdzeniu MVP (wybrane SDK Anthropic / Gemini) nie dotyczy żadnego z używanych adapterów.
 
 ## Kryteria akceptacji
 
@@ -74,7 +74,7 @@ Mapowanie `system` na pierwszą wiadomość `user` jest dopuszczalne **tylko** j
 - [ ] Błędy 429/timeout są mapowane na te same `code`.
 - [ ] Dodanie trzeciego adaptera (np. OpenAI) nie wymaga zmian w kontrolerach.
 
-## Poza zakresem (MVP)
+## Poza zakresem (względem rdzenia MVP)
 
 - Zaawansowany routing (fallback, hedging, multi-provider).
 - Automatyczne wykrywanie dostępnych modeli po API providerów.
@@ -108,5 +108,5 @@ SDK `@google/genai` zastąpiło wcześniejszy pakiet `@google/generative-ai`. Ad
 | `response.text` | property (getter) — **nie** `response.text()` |
 | `usage.inputTokens` / `usage.outputTokens` | `response.usageMetadata.promptTokenCount` / `response.usageMetadata.candidatesTokenCount` |
 
-Dla MVP wystarczy `chats.create` (obsługuje historię i system instruction). Dla pojedynczych zapytań bez historii idiomatyczne jest `ai.models.generateContent({ model, contents, config })`.
+Dla rdzenia MVP wystarczy `chats.create` (obsługuje historię i system instruction). Dla pojedynczych zapytań bez historii idiomatyczne jest `ai.models.generateContent({ model, contents, config })`.
 

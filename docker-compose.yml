@@ -1,0 +1,6 @@
+services:
+  gateway:
+    container_name: llm-provider-gateway
+    build: .
+    ports:
+      - 3000:3000

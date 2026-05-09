@@ -6,7 +6,7 @@ Gateway HTTP dla LLM, który **ukrywa SDK providerów** i wystawia spójny kontr
 - streamingu SSE (`POST /api/v1/chat/stream`) — **działa**, kontrakt w `openapi.json`,
 - healthchecka (`GET /api/v1/health`) — **działa**.
 
-Aktualnie wspierani providerzy (MVP):
+Aktualnie wspierani providerzy (rdzeń MVP wg `PLAN_IMPLEMENTACJI.md` — Anthropic + Google Gemini):
 
 - **Anthropic** (`@anthropic-ai/sdk`)
 - **Google Gemini** (`@google/genai`)
@@ -17,7 +17,7 @@ Wejście od strony dokumentów: `docs/README.md`.
 
 Najważniejsze pliki:
 
-- `docs/dokumentacja_koncepcyjna.md` — WHAT/WHY, zakres MVP
+- `docs/dokumentacja_koncepcyjna.md` — WHAT/WHY, zakres produktu (nagłówek `PLAN_IMPLEMENTACJI.md`)
 - `docs/architektura.md` — moduły, warstwy, integracje providerów
 - `docs/architektura_api.md` — konwencje API, requestId, streaming
 - `docs/lista_endpointów.md` — szybka lista endpointów

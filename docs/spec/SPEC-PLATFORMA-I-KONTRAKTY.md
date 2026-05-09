@@ -103,7 +103,7 @@ NFR-3. Domyślne zachowanie powinno być bezpieczne: bez dumpowania surowych wyj
 - [ ] Logi nie zawierają kluczy i nagłówków auth (weryfikacja przez test/manual).
 - [ ] `requestId` jest widoczny w odpowiedziach standard/stream.
 
-## Poza zakresem (MVP)
+## Poza zakresem (względem rdzenia MVP)
 
 - Uwierzytelnianie użytkowników końcowych (AuthN/AuthZ).
 - Billing i limity użytkownikowe (poza podstawowym throttlingiem serwisu).

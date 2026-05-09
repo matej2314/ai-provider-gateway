@@ -3,7 +3,7 @@
 Ten katalog zawiera **specyfikacje obszarów** systemu (1 plik = 1 obszar). Pliki są pisane w duchu **Spec‑Driven Development**: skupiają się na **WHAT/WHY** (co system ma robić i po co), a nie na implementacji.
 
 **Kontrakt HTTP w repozytorium:** `openapi.json` (OpenAPI 3.1).  
-**Stan kodu vs te dokumenty:** zestawienie w `docs/dokumentacja_api.md`, harmonogram w `PLAN_IMPLEMENTACJI.md` (**Faza 4 SSE:** zamknięta w planie; **Faza 5:** envelope + gateway key + `x-request-id` + `config:validate`), plan kontraktu promptów: `SYSTEM_PROMPTS_REFACTOR.md`.
+**Stan kodu vs te dokumenty:** zestawienie w `docs/dokumentacja_api.md`, harmonogram w `PLAN_IMPLEMENTACJI.md` (**Faza 4 SSE:** zamknięta w planie; **Faza 5:** envelope + gateway key + `x-request-id` + `config:validate`; **Faza 6:** observability w toku), kontrakt promptów serwerowych — ✅ wg `SYSTEM_PROMPTS_REFACTOR-READY.md`, opcjonalny cache/Redis — `REDIS_IMPLEMENTATION_PLAN.md`.
 
 ### Jak czytać te pliki
 
@@ -12,7 +12,7 @@ Ten katalog zawiera **specyfikacje obszarów** systemu (1 plik = 1 obszar). Plik
 - **Wymagania funkcjonalne**: testowalne, ponumerowane wymagania.
 - **Wymagania niefunkcjonalne**: bezpieczeństwo, prywatność, spójność kontraktów, limity.
 - **Kryteria akceptacji**: obserwowalne warunki spełnienia (checklista / Given‑When‑Then).
-- **Poza zakresem**: czego obszar nie obejmuje w MVP.
+- **Poza zakresem**: czego obszar nie obejmuje w **rdzeniu MVP** (Fazy 1–2, 4 — por. nagłówek `PLAN_IMPLEMENTACJI.md`).
 
 ### Obszary
 

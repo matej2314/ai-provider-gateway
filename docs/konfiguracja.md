@@ -6,7 +6,7 @@ Cel: “plug&play” — użytkownik wypełnia env + pliki konfiguracyjne i uruc
 
 Zasada: **sekrety tylko w env**. Pliki konfiguracyjne nie zawierają wartości kluczy — jedynie **nazwy** zmiennych (`apiKeyRef`).
 
-Zmienne providerów (MVP):
+Zmienne providerów (Anthropic + Google Gemini — providery rdzenia MVP wg `PLAN_IMPLEMENTACJI.md`):
 
 - `ANTHROPIC_API_KEY`
 - `GOOGLE_API_KEY`
@@ -64,7 +64,7 @@ Uwagi:
 
 - `apiKeyRef` to **nazwa** zmiennej env, nie wartość.
 - Aliasy pod `models` są publicznym API (`modelAlias`).
-- **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując **wszystkie** wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic-main`) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach. **Uwaga:** jeśli zdefiniujesz **dwie instancje tego samego `type`** (np. dwa wpisy `anthropic`), do adaptera trafi **ostatnia** nadpisana wartość — wiele kluczy per ten sam vendor wymaga rozszerzenia modelu konfiguracji (poza obecnym MVP).
+- **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując **wszystkie** wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic-main`) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach. **Uwaga:** jeśli zdefiniujesz **dwie instancje tego samego `type`** (np. dwa wpisy `anthropic`), do adaptera trafi **ostatnia** nadpisana wartość — wiele kluczy per ten sam vendor wymaga rozszerzenia modelu konfiguracji (poza zakresem rdzenia MVP / obecną konfiguracją).
 - Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane, ale **adaptery nie korzystają z nich w pełni** — część parametrów pochodzi ze stałych w kodzie adaptera lub wyłącznie z `policy.params.defaults` w `ChatService`; harmonogram dopięcia: `PLAN_IMPLEMENTACJI.md`.
 
 ## 3) Walidacja i fail-fast
@@ -107,4 +107,4 @@ Przy starcie `configuration.ts` wczytuje treści używane do złożenia instrukc
 
 Dla plików opcjonalnych komentarze HTML `<!-- ... -->` są usuwane przy ładowaniu — można umieścić w nich dokumentację bez wysyłania jej do modelu (`stripHtmlComments` w `configuration.ts`).
 
-Powiązane: `dokumentacja_api.md`, `SYSTEM_PROMPTS_REFACTOR.md`.
+Powiązane: `dokumentacja_api.md`, `SYSTEM_PROMPTS_REFACTOR-READY.md`.

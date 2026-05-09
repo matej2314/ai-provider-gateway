@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **0.5**.  
-**OpenAPI:** `openapi.json` — zsynchronizowany z `src/`; w **Fazie 5** planowane m.in.: envelope z `code`, `x-request-id`, body `params`, skrypt `config:validate` (`PLAN_IMPLEMENTACJI.md`, `dokumentacja_api.md`).
+Wersja dokumentu: **0.6**.  
+**OpenAPI:** `openapi.json` — zsynchronizowany z `src/`; w **Fazie 5** planowane m.in.: envelope z `code`, `x-request-id`, body `params`, skrypt `config:validate` (`PLAN_IMPLEMENTACJI.md`, `dokumentacja_api.md`). Opcjonalna warstwa cache / Redis (bez zmiany ścieżek REST na start) — `REDIS_IMPLEMENTATION_PLAN.md`.
 
 ## Konwencje globalne
 

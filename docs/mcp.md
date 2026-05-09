@@ -6,7 +6,7 @@ Ten dokument opisuje, jak gateway ma traktować konfigurację MCP w kontekście 
 
 Użytkownik może skonfigurować, jakie serwery MCP są dostępne dla modelu (np. przez plik `mcp.json`), bez zmiany kodu gateway.
 
-## Założenie odpowiedzialności gateway (MVP)
+## Założenie odpowiedzialności gateway (rdzeń MVP)
 
 Na start gateway:
 
@@ -38,7 +38,7 @@ Gateway powinien:
 - odrzucać konfiguracje, które wskazują na niebezpieczne targety (np. `localhost`, prywatne IP) jeśli gateway miałby je wykonywać (to dotyczy dopiero wariantu “tool runner”),
 - redagować logi, aby nie ujawniać tokenów/nagłówków.
 
-## Kierunek po MVP: “tool runner”
+## Kierunek po rdzeniu MVP (v1+): “tool runner”
 
 Jeśli gateway ma w przyszłości wykonywać narzędzia:
 

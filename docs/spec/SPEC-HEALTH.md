@@ -49,7 +49,7 @@ NFR-2. Health endpoint ma działać szybko (p95 < 50ms lokalnie).
 - [ ] Odpowiedź ma pola `status`, `message`, `timestamp` (bez ujawniania sekretów).
 - [ ] Readiness (jeśli dodana) odróżnia konfigurację poprawną od błędnej.
 
-## Poza zakresem (MVP)
+## Poza zakresem (względem rdzenia MVP)
 
 - Sprawdzanie dostępności providerów przy każdym health (może generować koszty i opóźnienia).
 
