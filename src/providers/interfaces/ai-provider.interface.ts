@@ -1,13 +1,6 @@
-export type SystemChatMessage = { role: 'system'; content: string };
 export type UserChatMessage = { role: 'user'; content: string };
 export type AssistantChatMessage = { role: 'assistant'; content: string };
 
-export type ChatMessage =
-  | SystemChatMessage
-  | UserChatMessage
-  | AssistantChatMessage;
-
-  
 export type ProviderChatTurn = UserChatMessage | AssistantChatMessage;
 
 export interface ProviderChatInput {
