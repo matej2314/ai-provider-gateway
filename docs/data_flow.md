@@ -28,7 +28,7 @@ sequenceDiagram
 
   K->>+H: POST /api/v1/chat (JSON)
   H->>H: ValidationPipe (DTO)
-  Note over H: x-request-id propagation aktywna (RequestIdInterceptor); gateway key X-Gateway-Key — Faza 5; stream: ChatStreamController
+  Note over H: RequestIdInterceptor (x-request-id); GatewayKeyGuard (X-Gateway-Key) na czacie; stream: ChatStreamController
   H->>+S: executeChat(request)
   S-->>-H: wynik lub wyjątek HTTP
   H-->>-K: 200 JSON lub błąd
@@ -68,7 +68,7 @@ sequenceDiagram
 
 ## 2. Standard `POST /api/v1/chat` — błąd
 
-Odpowiedzi JSON błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polami `{statusCode, code, message, requestId, details?}` — `GlobalExceptionFilter` (global). Aktualny mapping `code` ze statusu HTTP jest minimalistyczny (5 wartości); pełne mapowanie kodów providerów na docelowy słownik (`dictionary.md`) — **Faza 5** (Krok 5.1b).
+Odpowiedzi JSON błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polami `{statusCode, code, message, requestId, details?}` — `GlobalExceptionFilter` (global). **`code`** pochodzi z payloadu wyjątku (m.in. auth brzegowy) lub z domyślnego mapowania statusu; pełne rozróżnienie wszystkich przypadków z `dictionary.md` — **Faza 5** (Krok 5.1b).
 
 ```mermaid
 sequenceDiagram

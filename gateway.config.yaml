@@ -1,4 +1,5 @@
 schemaVersion: 1
+masterKeyRef: MASTER_KEY
 
 providers:
   anthropic:
@@ -7,6 +8,18 @@ providers:
   google:
     type: google
     apiKeyRef: GOOGLE_API_KEY
+
+# Configuration for gateway clients
+
+clients:
+  webapp:
+    name: Web Application
+    type: webapp
+    gatewayKeyRef: GATEWAY_KEY_WEBAPP
+  ide-plugin:
+    name: IDE INTEGRATION
+    type: ide
+    gatewayKeyRef: GATEWAY_KEY_IDE_PLUGIN
 
 models:
   # Domyślny alias zgodny ze scenariuszem A w docs/spec/SPEC-KONFIGURACJA.md

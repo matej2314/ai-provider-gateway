@@ -48,11 +48,11 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Błędy HTTP
 
-**Stan kodu (`openapi.json`):** wszystkie błędy są w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`) emitowanym przez `GlobalExceptionFilter` (global w `src/main.ts`). Pole `code` jest mapowane ze statusu HTTP w `mapHttpStatusToCode` (400→`VALIDATION_FAILED`, 429→`PROVIDER_RATE_LIMITED`, 502→`PROVIDER_UNAVAILABLE`, 504→`PROVIDER_TIMEOUT`, inne→`INTERNAL_SERVER_ERROR`). `requestId` pochodzi z `RequestIdInterceptor` (czyta nagłówek żądania `x-request-id` lub generuje `req_<uuid>`).
+**Stan kodu (`openapi.json`):** wszystkie błędy są w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`) emitowanym przez `GlobalExceptionFilter` (global w `src/main.ts`). Pole **`code`** pochodzi z payloadu wyjątku, jeśli jest ustawione (np. **`GATEWAY_KEY_*`**), w przeciwnym razie z domyślnego mapowania statusu (`src/common/errors/api-error.code.ts`). `requestId` pochodzi z `RequestIdInterceptor` lub jest ustawiane przy obsłudze błędów auth w guardzie.
 
 ## Rozszerzenia (Faza 5)
 
-Pełny słownik kodów (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_AUTH_FAILED`, …) — `dictionary.md`. Aktualny mapping w filtrze jest minimalistyczny (5 wartości `code`); rozszerzenie na pełny zestaw + dedykowane `code` per typ wyjątku domenowego — `PLAN_IMPLEMENTACJI.md` Krok 5.1b. Response header `x-request-id` (poza body) — również TBD.
+Pełny słownik kodów (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, …) — `dictionary.md`. Doprecyzowanie mappingu dla wszystkich przypadków 400 (rozróżnienie aliasu vs walidacji ogólnej) — `PLAN_IMPLEMENTACJI.md` Krok 5.1b. Response header `x-request-id` (poza body) — TBD.
 
 ## Walidacja
 
@@ -66,14 +66,13 @@ Pełny słownik kodów (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PRO
 
 ## CORS / Auth
 
-Gateway **nie egzekwuje** jeszcze nagłówka `X-Gateway-Key` opisanego w `spec/SPEC-PLATFORMA-I-KONTRAKTY.md` — to jest **kierunek** (Faza 5 / bezpieczeństwo brzegowe). Dziś zabezpieczenie przed nieautoryzowanym dostępem pozostaje po stronie sieci użytkownika.
+Endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** wymagają nagłówka **`X-Gateway-Key`** (`GatewayKeyGuard`). **`GET /api/v1/health`** jest publiczny (np. dla orchestratorów).
 
-Jeżeli gateway jest używany w sieci publicznej, zalecane jest dodanie:
+W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** nie zastępuje izolacji sieciowej ani obrony przed nadużyciami na dużą skalę.
 
-- API key (docelowo gateway key lub reverse proxy),
-- mTLS / reverse proxy auth,
-- rate limiting i WAF,
-- ograniczeń originów w CORS (jeśli wystawiane do przeglądarki).
+- Reverse proxy z dodatkowym auth / mTLS w razie potrzeby,
+- Rate limiting i WAF,
+- Ograniczenia originów w CORS (jeśli wystawiane do przeglądarki).
 
 ## Powiązane dokumenty
 

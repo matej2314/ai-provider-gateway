@@ -2,63 +2,23 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { z } from 'zod';
+import type {
+  ResolvedSystemPrompts,
+  ResolvedGatewayClient,
+  GatewayKeyRuntimeConfig,
+} from './configuration.types';
+import {
+  readRequiredPrompt,
+  tryReadOptionalPrompts,
+} from './configuration.helpers';
 
 const MASTER_PROMPT = 'src/config/system-prompt/MASTER_SYSTEM_PROMPT.md';
 const MAIN_PROMPT = 'src/config/system-prompt/MAIN_SYSTEM_PROMPT.md';
 const MODEL_PROMPTS = 'src/config/system-prompt/models/';
 
-export type ResolvedSystemPrompts = {
-  master: string;
-  main?: string;
-  perModelByAlias: Record<string, string>;
-};
-
-function readRequiredPrompt(label: string, absPath: string): string {
-  let raw: string;
-
-  try {
-    raw = readFileSync(absPath, 'utf-8');
-  } catch (e: unknown) {
-    if (
-      e &&
-      typeof e === 'object' &&
-      'code' in e &&
-      (e as NodeJS.ErrnoException).code === 'ENOENT'
-    ) {
-      throw new Error(`[SystemPrompts] ${label} missing: ${absPath}`);
-    }
-    throw e;
-  }
-  const trimmed = raw.trim();
-  if (!trimmed.length) {
-    throw new Error(`[SystemPrompts] ${label} empty after trim: ${absPath}`);
-  }
-  return trimmed;
-}
-
-function stripHtmlComments(raw: string): string {
-  return raw.replace(/<!--[\s\S]*?-->/g, '').trim();
-}
-
-function tryReadOptionalPrompts(absPath: string): string | undefined {
-  try {
-    const raw = stripHtmlComments(readFileSync(absPath, 'utf-8'));
-    return raw.length ? raw : undefined;
-  } catch (e: unknown) {
-    if (
-      e &&
-      typeof e === 'object' &&
-      'code' in e &&
-      (e as NodeJS.ErrnoException).code === 'ENOENT'
-    ) {
-      return undefined;
-    }
-    throw e;
-  }
-}
-
 export const GatewayConfigSchema = z.object({
   schemaVersion: z.number().int().min(1),
+  masterKeyRef: z.string().min(1),
   providers: z
     .record(
       z.string(),
@@ -84,6 +44,23 @@ export const GatewayConfigSchema = z.object({
         }
       }
     }),
+  clients: z
+    .record(
+      z.string(),
+      z.object({
+        name: z.string().min(1),
+        type: z.enum([
+          'webapp',
+          'ide',
+          'cli',
+          'service',
+          'backend',
+          'automation',
+        ]),
+        gatewayKeyRef: z.string().min(1),
+      }),
+    )
+    .default({}),
   models: z.record(
     z.string(),
     z.object({
@@ -154,6 +131,7 @@ export const GatewayConfigSchema = z.object({
 });
 
 export type GatewayConfig = z.infer<typeof GatewayConfigSchema>;
+export type GatewayClientConfig = GatewayConfig['clients'][string];
 export type GatewayModelConfig = GatewayConfig['models'][string];
 export type GatewayProviderInstanceConfig = GatewayConfig['providers'][string];
 export type GatewayCapabilitiesConfig = GatewayModelConfig['capabilities'];
@@ -162,6 +140,40 @@ export type GatewayRetryConfig = GatewayPolicyConfig['retry'];
 export type GatewayParamsConfig = GatewayPolicyConfig['params'];
 export type GatewayParamsBoundConfig =
   GatewayParamsConfig['bounds']['temperature'];
+
+function buildGatewayKeyRuntime(
+  gatewayConfig: GatewayConfig,
+): GatewayKeyRuntimeConfig {
+  const masterRaw = (process.env[gatewayConfig.masterKeyRef] ?? '').trim();
+
+  if (!masterRaw) {
+    throw new Error(`[GatewayKey] Missing master key.`);
+  }
+
+  const clients: ResolvedGatewayClient[] = [];
+  for (const [instanceId, row] of Object.entries(gatewayConfig.clients)) {
+    const gatewayKey = (process.env[row.gatewayKeyRef] ?? '').trim();
+    clients.push({
+      instanceId,
+      name: row.name,
+      type: row.type,
+      gatewayKeyRef: row.gatewayKeyRef,
+      gatewayKey,
+    });
+  }
+
+  const allow = new Set<string>();
+  allow.add(masterRaw);
+  for (const client of clients) {
+    if (client.gatewayKey) allow.add(client.gatewayKey);
+  }
+
+  return {
+    allowList: [...allow],
+    masterKey: masterRaw,
+    clients,
+  };
+}
 
 export default () => {
   const configPath = join(process.cwd(), 'gateway.config.yaml');
@@ -195,6 +207,8 @@ export default () => {
     }
     throw error;
   }
+
+  const gatewayKey = buildGatewayKeyRuntime(gatewayConfig);
 
   const cwd = process.cwd();
   const master = readRequiredPrompt(
@@ -230,6 +244,7 @@ export default () => {
 
   return {
     gateway: gatewayConfig,
+    gatewayKey,
     port: parseInt(process.env.PORT || '3000', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
     providers: providersByType,

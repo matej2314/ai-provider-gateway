@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Provider Gateway API",
-    "version": "0.5.0",
-    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu (nagłówek `PLAN_IMPLEMENTACJI.md`):** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, dokumentacja decyzji: `SYSTEM_PROMPTS_REFACTOR-READY.md`.\n\n**Format błędów (stan kodu):** wszystkie odpowiedzi błędów (4xx i 5xx) są zwracane w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`) emitowanym przez **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`, podpięty globalnie w `src/main.ts`). Pole **`code`** jest mapowane ze statusu HTTP (`400→VALIDATION_FAILED`, `429→PROVIDER_RATE_LIMITED`, `502→PROVIDER_UNAVAILABLE`, `504→PROVIDER_TIMEOUT`, dowolny inny status `→INTERNAL_SERVER_ERROR`). Pełny słownik docelowych kodów: `docs/dictionary.md`.\n\n**`requestId` (stan kodu):** wartość pochodzi z `RequestIdInterceptor` (global; `src/common/interceptors/request-id.interceptor.ts`). Jeśli klient wysłał nagłówek żądania **`x-request-id`**, gateway używa jego wartości; w przeciwnym razie generuje `req_<uuid>`. `requestId` jest w body odpowiedzi sukcesu, w envelope błędów oraz w SSE `meta`. **Response header** `x-request-id` nie jest obecnie ustawiany.\n\n**Pozostałe planowane elementy:** dodatkowe pola body (`params`), nagłówek **`X-Gateway-Key`** (auth na brzegu) — `PLAN_IMPLEMENTACJI.md` Faza 5. Opcjonalna warstwa cache / Redis (port + adapter): `REDIS_IMPLEMENTATION_PLAN.md` (start po Fazie 6).\n\n**Walidacja DTO (stan kodu):** `ChatRequestDto` wymaga `modelAlias: string` i `messages: ChatMessageDto[]`; `ChatMessageDto` wymaga `role ∈ {user, assistant}` i `content: string`. **Minimalne limity** (`messages.length ≥ 1`, `content` niepuste, `modelAlias` niepuste, górne ograniczenia rozmiaru) **nie są** obecnie wymuszane przez DTO — patrz `PLAN_IMPLEMENTACJI.md` Krok 5.4b.\n\nOpis ludzki: katalog `docs/` w repozytorium."
+    "version": "0.6.0",
+    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu (nagłówek `PLAN_IMPLEMENTACJI.md`):** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, dokumentacja decyzji: `SYSTEM_PROMPTS_REFACTOR-READY.md`.\n\n**Auth na brzegu (`X-Gateway-Key`):** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** są chronione przez **`GatewayKeyGuard`** (`src/guards/gateway-key.guard.ts`). Nagłówek musi zawierać wartość z allowlisty zbudowanej przy starcie z klucza master (pole `masterKeyRef` w `gateway.config.yaml` → zmienna env, np. `MASTER_KEY`) oraz z niepustych wartości env wskazanych przez `clients[].gatewayKeyRef`. **`GET /api/v1/health`** nie wymaga `X-Gateway-Key`. Błędy: brak nagłówka → **401** (`code: GATEWAY_KEY_MISSING`); odrzucona wartość → **403** (`code: GATEWAY_KEY_INVALID`); brak skonfigurowanej allowlisty w runtime → **500** (`code: GATEWAY_KEY_NOT_CONFIGURED`). Szczegóły: `docs/konfiguracja.md`, `docs/dokumentacja_api.md`.\n\n**Format błędów (stan kodu):** odpowiedzi błędów (4xx i 5xx) są w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`) emitowanym przez **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`). Jeśli wyjątek przekazuje pole **`code`** w obiekcie odpowiedzi (np. guard klucza), filtr zachowuje ten kod; w przeciwnym razie **`code`** jest wyprowadzane ze statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE` w `src/common/errors/api-error.code.ts`, m.in. `400→VALIDATION_FAILED`). Pełny słownik docelowych kodów: `docs/dictionary.md`.\n\n**`requestId` (stan kodu):** wartość pochodzi z `RequestIdInterceptor` (global). Jeśli klient wysłał **`x-request-id`**, gateway używa go; w przeciwnym razie generuje `req_<uuid>`. Przy błędach auth z guarda `requestId` jest ustawiane w guardzie przed wyjątkiem. **Response header** `x-request-id` nie jest obecnie ustawiany.\n\n**Planowane:** dodatkowe pola body (`params`) — `PLAN_IMPLEMENTACJI.md` Faza 5; opcjonalna warstwa cache / Redis: `REDIS_IMPLEMENTATION_PLAN.md` (start po Fazie 6).\n\n**Walidacja DTO:** `ChatRequestDto` wymaga `modelAlias` i `messages`; `ChatMessageDto` wymaga `role ∈ {user, assistant}` i `content: string`. **Minimalne limity** rozmiaru konwersacji **nie są** obecnie wymuszane przez DTO — patrz `PLAN_IMPLEMENTACJI.md` Krok 5.4b.\n\nOpis ludzki: katalog `docs/` w repozytorium."
   },
   "servers": [
     {
@@ -44,6 +44,7 @@
     },
     "/api/v1/chat": {
       "post": {
+        "security": [{ "GatewayKeyAuth": [] }],
         "tags": ["Chat"],
         "operationId": "postChat",
         "summary": "Chat (standard)",
@@ -123,8 +124,46 @@
               }
             }
           },
+          "401": {
+            "description": "Brak nagłówka `X-Gateway-Key`. Envelope `ErrorEnvelope` z `code: GATEWAY_KEY_MISSING`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "missingKey": {
+                    "value": {
+                      "statusCode": 401,
+                      "code": "GATEWAY_KEY_MISSING",
+                      "message": "Missing X-Gateway-Key header value.",
+                      "requestId": "req_01H...",
+                      "details": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wartość `X-Gateway-Key` spoza allowlisty. Envelope `ErrorEnvelope` z `code: GATEWAY_KEY_INVALID`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "invalidKey": {
+                    "value": {
+                      "statusCode": 403,
+                      "code": "GATEWAY_KEY_INVALID",
+                      "message": "Invalid X-Gateway-Key header value.",
+                      "requestId": "req_01H...",
+                      "details": []
+                    }
+                  }
+                }
+              }
+            }
+          },
           "500": {
-            "description": "Nieobsłużony wyjątek (np. błąd SDK providera). Envelope `ErrorEnvelope` (z `code: INTERNAL_SERVER_ERROR`).",
+            "description": "Nieobsłużony wyjątek (np. błąd SDK providera) lub brak skonfigurowanej allowlisty kluczy gateway (`code: GATEWAY_KEY_NOT_CONFIGURED`). W typowym starcie z poprawnym `gateway.config.yaml` i env ten ostatni przypadek nie występuje.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
@@ -147,6 +186,7 @@
     },
     "/api/v1/chat/stream": {
       "post": {
+        "security": [{ "GatewayKeyAuth": [] }],
         "tags": ["Chat"],
         "operationId": "postChatStream",
         "summary": "Chat (streaming)",
@@ -199,12 +239,36 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Brak nagłówka `X-Gateway-Key` (przed `flushHeaders` SSE). Envelope `ErrorEnvelope` z `code: GATEWAY_KEY_MISSING`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              }
+            }
+          },
+          "403": {
+            "description": "Niepoprawny `X-Gateway-Key` (przed `flushHeaders` SSE). Envelope `ErrorEnvelope` z `code: GATEWAY_KEY_INVALID`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              }
+            }
           }
         }
       }
     }
   },
   "components": {
+    "securitySchemes": {
+      "GatewayKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Gateway-Key",
+        "description": "Klucz klienta gateway. Allowlista jest budowana przy starcie z wartości env wskazanej przez `masterKeyRef` oraz z niepustych wartości env dla `clients[].gatewayKeyRef` w `gateway.config.yaml` — patrz `docs/konfiguracja.md`."
+      }
+    },
     "schemas": {
       "HealthResponse": {
         "type": "object",
@@ -220,12 +284,12 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["statusCode", "code", "message", "requestId"],
-        "description": "Standardowy envelope błędów emitowany przez `GlobalExceptionFilter` (`src/common/filters/http-exception.filter.ts`). Stosowany dla wszystkich błędów (4xx i 5xx).",
+        "description": "Standardowy envelope błędów emitowany przez `GlobalExceptionFilter` (`src/common/filters/http-exception.filter.ts`). Stosowany dla wszystkich błędów (4xx i 5xx). Pole `message` w JSON odpowiedzi jest zwykle pojedynczym stringiem (filtr łączy tablice walidacji średnikami); w kontrakcie OpenAPI dopuszczalny jest też kształt tablicy dla zgodności z walidacją DTO.",
         "properties": {
           "statusCode": { "type": "integer", "minimum": 400, "maximum": 599 },
           "code": {
             "type": "string",
-            "description": "Stabilny kod maszynowy mapowany w filtrze ze statusu HTTP. Aktualnie: 400→`VALIDATION_FAILED`, 429→`PROVIDER_RATE_LIMITED`, 502→`PROVIDER_UNAVAILABLE`, 504→`PROVIDER_TIMEOUT`, dowolny inny status→`INTERNAL_SERVER_ERROR`. Pełny słownik docelowych kodów: `docs/dictionary.md`."
+            "description": "Stabilny kod maszynowy: jeśli wyjątek dostarcza `code` w obiekcie odpowiedzi (np. `GatewayKeyGuard`), filtr przepuszcza tę wartość; w przeciwnym razie mapowanie ze statusu HTTP (`src/common/errors/api-error.code.ts`). Pełny słownik docelowych kodów: `docs/dictionary.md`."
           },
           "message": {
             "oneOf": [

@@ -1,12 +1,12 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **0.7**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu, envelope błędów `ErrorEnvelope`).
+Wersja dokumentu: **0.8**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu, envelope błędów `ErrorEnvelope`, security `X-Gateway-Key` dla czatu).
 
 ## Źródła prawdy (kolejność)
 
 1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
 2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
-3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: nagłówek `X-Gateway-Key`, `params` w body, skrypt `config:validate`, limity DTO/body — Krok 5.4b, rozszerzenie mappingu kodów — Krok 5.1b; **Faza 6**: observability — pino + readiness + graceful shutdown). Envelope błędów (`code` + `requestId`) oraz propagacja nagłówka `x-request-id` z requestu do `requestId` w body — **już zaimplementowane** (`GlobalExceptionFilter` + `RequestIdInterceptor` w `src/common/`).
+3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: `params` w body, skrypt `config:validate`, limity DTO/body — Krok 5.4b, rozszerzenie mappingu kodów — Krok 5.1b; **Faza 6**: observability — pino + readiness + graceful shutdown). Envelope błędów (`code` + `requestId`), propagacja `x-request-id` oraz **`X-Gateway-Key`** na endpointach czatu — **wdrożone** (`GlobalExceptionFilter`, `RequestIdInterceptor`, `GatewayKeyGuard` w `src/`).
 4. **`REDIS_IMPLEMENTATION_PLAN.md`** — opcjonalna warstwa cache / limitów / metryk (Redis jako adapter; start po zamknięciu Fazy 6).
 5. **`SYSTEM_PROMPTS_REFACTOR-READY.md`** — plan i status refaktoru system promptu (✅ wykonane w kodzie: DTO + `ChatService` + `configuration.ts` + `openapi.json` + dokumentacja); ewentualne usprawnienia poza rdzeniem MVP są opisane w tym dokumencie.
 6. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
@@ -27,7 +27,7 @@ Wersja dokumentu: **0.7**. Dokument jest wersjonowany razem z kodem. **`openapi.
 - **Pliki system promptu** — `MASTER_SYSTEM_PROMPT.md` (wymagany), opcjonalnie `MAIN_SYSTEM_PROMPT.md` oraz `models/<modelAlias>.md` dla aliasów z YAML; treść składana w `ChatService` (`MASTER` + `MAIN?` + warstwa per model). Szczegóły: `konfiguracja.md`.
 - **Env** — w **`NODE_ENV=production`** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
 
-**Nagłówek `X-Gateway-Key`:** wymóg docelowy (`SPEC-PLATFORMA-I-KONTRAKTY`); **nie jest egzekwowany** w kontrolerach.
+**Nagłówek `X-Gateway-Key`:** **wymagany** dla **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** (`@UseGuards(GatewayKeyGuard)`). Wartość musi znajdować się na allowliście zbudowanej przy starcie z env wskazanego przez `masterKeyRef` oraz z niepustych wartości env dla wpisów `clients` w `gateway.config.yaml` (`src/config/configuration.ts`, funkcja `buildGatewayKeyRuntime`). **`GET /api/v1/health`** pozostaje bez tego nagłówka.
 
 ---
 
@@ -45,17 +45,21 @@ Wszystkie odpowiedzi błędów (4xx i 5xx) są w envelope **`ErrorEnvelope`** (`
 }
 ```
 
-Pole `code` jest mapowane ze statusu HTTP w `mapHttpStatusToCode`:
+Jeśli wyjątek przekazuje w obiekcie odpowiedzi pole **`code`** (np. `GatewayKeyGuard`), **`GlobalExceptionFilter`** zachowuje je (`GATEWAY_KEY_MISSING`, `GATEWAY_KEY_INVALID`, `GATEWAY_KEY_NOT_CONFIGURED`). W przeciwnym razie **`code`** pochodzi z domyślnego mapowania statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE` w `src/common/errors/api-error.code.ts`), m.in.:
 
-| HTTP | `code`                  |
-|------|-------------------------|
-| 400  | `VALIDATION_FAILED`     |
-| 429  | `PROVIDER_RATE_LIMITED` |
-| 502  | `PROVIDER_UNAVAILABLE`  |
-| 504  | `PROVIDER_TIMEOUT`      |
-| inne | `INTERNAL_SERVER_ERROR` |
+| HTTP | `code` (domyślnie)       |
+|------|--------------------------|
+| 400  | `VALIDATION_FAILED`      |
+| 401  | `PROVIDER_AUTH_FAILED`*    |
+| 403  | `GATEWAY_KEY_INVALID`*     |
+| 429  | `PROVIDER_RATE_LIMITED`    |
+| 502  | `PROVIDER_UNAVAILABLE`     |
+| 504  | `PROVIDER_TIMEOUT`         |
+| inne | `INTERNAL_SERVER_ERROR`    |
 
-Przy walidacji `ValidationPipe` pole `message` bywa **tablicą** stringów (przekazywaną z `HttpException.getResponse().message`). Pełny słownik **docelowych** kodów (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_AUTH_FAILED`, …) — `dictionary.md`; rozszerzenie mappingu w filtrze jest planowane w **Fazie 5** (`PLAN_IMPLEMENTACJI.md` Krok 5.1b).
+\* Przy guardzie klucza i jawnych kodach w payloadzie wyjątku używane są **`GATEWAY_KEY_MISSING`** / **`GATEWAY_KEY_INVALID`**, nie wartości z tej tabeli.
+
+Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; **w JSON odpowiedzi** filtr zwykle emituje **`message` jako jeden string** (łączenie tablic). Pełny słownik **docelowych** kodów — `dictionary.md`; doprecyzowanie mappingu dla pozostałych przypadków (np. rozróżnienie `MODEL_ALIAS_NOT_FOUND`) — **Faza 5** (`PLAN_IMPLEMENTACJI.md` Krok 5.1b).
 
 ---
 
@@ -93,7 +97,9 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 |------|--------|
 | 200 | Sukces |
 | 400 | Walidacja / nieznany alias lub konfiguracja providera |
-| 500 | Nieobsłużony błąd (np. SDK) |
+| 401 | Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`) |
+| 403 | Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`) |
+| 500 | Nieobsłużony błąd (np. SDK); wyjątkowo brak allowlisty kluczy (`GATEWAY_KEY_NOT_CONFIGURED`) |
 
 ---
 
@@ -119,16 +125,17 @@ Liveness — `HealthService.check()` (`status`, `message`, `timestamp` ISO).
 
 ## Kody i słownik
 
-Stabilne kody maszynowe (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, …) — **`dictionary.md`** (kontrakt docelowy). Obecnie filtr emituje uproszczony zestaw 5 wartości `code` (mapping w sekcji "Format błędów" wyżej); rozszerzenie mappingu (rozróżnianie błędów typu `MODEL_ALIAS_NOT_FOUND` od ogólnego `VALIDATION_FAILED`) jest w **Fazie 5** (Krok 5.1b).
+Stabilne kody maszynowe (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, …) — **`dictionary.md`** (kontrakt docelowy). **`GlobalExceptionFilter`** zachowuje **`code`** z payloadu wyjątku (m.in. `GATEWAY_KEY_*`) lub mapuje ze statusu HTTP (sekcja „Format błędów”). Rozszerzenie rozróżnień (np. `MODEL_ALIAS_NOT_FOUND` vs `VALIDATION_FAILED` przy każdym 400) jest w **Fazie 5** (Krok 5.1b).
 
 ---
 
 ## Uwagi dla klientów
 
-1. Używaj **`openapi.json`** do generatorów i integracji.
-2. Nie wysyłaj **`params`** w body — nie są częścią DTO (konfiguracja aliasu w YAML dostarcza domyślne wartości używane w serwisie).
-3. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator gateway w plikach `src/config/system-prompt/`.
-4. Przy streamingu składaj tekst z kolejnych `delta`; `done` nie niesie metryk tokenów w obecnej wersji.
-5. **`usage`** może być niekompletne między providerami.
+1. Używaj **`openapi.json`** do generatorów i integracji (w tym **`securitySchemes.GatewayKeyAuth`** dla czatu).
+2. Do **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** dołącz nagłówek **`X-Gateway-Key`** z wartością operatora (allowlista — `konfiguracja.md`).
+3. Nie wysyłaj **`params`** w body — nie są częścią DTO (konfiguracja aliasu w YAML dostarcza domyślne wartości używane w serwisie).
+4. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator gateway w plikach `src/config/system-prompt/`.
+5. Przy streamingu składaj tekst z kolejnych `delta`; `done` nie niesie metryk tokenów w obecnej wersji.
+6. **`usage`** może być niekompletne między providerami.
 
 Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `PLAN_IMPLEMENTACJI.md`.

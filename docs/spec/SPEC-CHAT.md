@@ -8,7 +8,7 @@ Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym for
 
 Gateway musi działać na poprawnie zwalidowanym środowisku: w **`NODE_ENV=production`** obowiązuje **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`), zgodnie z `src/config/env.validation.ts` i `docs/konfiguracja.md`. Ponadto wymagany jest poprawny `gateway.config.yaml` (fail‑fast przy starcie).
 
-**Stan implementacji:** nagłówek `X-Gateway-Key` — docelowo (`SPEC-PLATFORMA-I-KONTRAKTY`), bez egzekucji w kodzie; nie jest w `openapi.json`. Body **`params`** — zaplanowane (**Faza 5**); DTO i `openapi.json` przyjmują wyłącznie `modelAlias` i `messages`.
+**Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body **`params`** — zaplanowane (**Faza 5**); DTO i `openapi.json` przyjmują wyłącznie `modelAlias` i `messages`.
 
 ## Użytkownicy i scenariusze
 

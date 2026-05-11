@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **0.7**.  
-**OpenAPI:** `openapi.json` — zsynchronizowany z `src/`. W kodzie już są: envelope błędów `ErrorEnvelope` (z `code` + `requestId`) — `GlobalExceptionFilter` + `RequestIdInterceptor` w `src/common/`. W **Fazie 5** planowane: nagłówek `X-Gateway-Key`, body `params`, skrypt `config:validate`, limity DTO/body (Krok 5.4b), rozszerzenie mappingu kodów (Krok 5.1b) — `PLAN_IMPLEMENTACJI.md`, `dokumentacja_api.md`. Opcjonalna warstwa cache / Redis (bez zmiany ścieżek REST na start) — `REDIS_IMPLEMENTATION_PLAN.md`.
+Wersja dokumentu: **0.8**.  
+**OpenAPI:** `openapi.json` — zsynchronizowany z `src/`. Envelope błędów `ErrorEnvelope` (`GlobalExceptionFilter`) + `RequestIdInterceptor` w `src/common/`. **Uwierzytelnienie na brzegu:** nagłówek **`X-Gateway-Key`** jest **wymagany** dla czatu (`GatewayKeyGuard` na `ChatController` i `ChatStreamController`); allowlista z `gateway.config.yaml` + env (`docs/konfiguracja.md`). W **Fazie 5** m.in.: body `params`, skrypt `config:validate`, limity DTO/body (Krok 5.4b), rozszerzenie mappingu kodów (Krok 5.1b) — `PLAN_IMPLEMENTACJI.md`. Opcjonalna warstwa cache / Redis — `REDIS_IMPLEMENTATION_PLAN.md`.
 
 ## Konwencje globalne
 
@@ -27,27 +27,30 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod w 
 
 ---
 
-## Chat *(publiczne; plug&play)*
+## Chat *(wymaga `X-Gateway-Key`)*
 
 ### `POST /api/v1/chat`
 
-Standardowa odpowiedź (pełna) — **zaimplementowane.**
+Standardowa odpowiedź (pełna) — **zaimplementowane.** Nagłówek **`X-Gateway-Key`** musi być na allowliście (`src/guards/gateway-key.guard.ts`).
 
 | | |
 |--|--|
 | **200** | odpowiedź gateway (patrz `dokumentacja_api.md`, schemas w `openapi.json`) |
 | **400** | walidacja DTO / nieznany `modelAlias` / dodatkowe pola w body (`ValidationPipe`: `forbidNonWhitelisted`) |
-| **500** | nieobsłużone wyjątki (np. błędy SDK) — zwykle ten sam kształt Nest |
+| **401** | brak `X-Gateway-Key` — `code: GATEWAY_KEY_MISSING` |
+| **403** | niepoprawny klucz — `code: GATEWAY_KEY_INVALID` |
+| **500** | m.in. nieobsłużone wyjątki (np. SDK) lub skrajnie rzadko `GATEWAY_KEY_NOT_CONFIGURED` |
 
 ### `POST /api/v1/chat/stream`
 
 **Kontrakt:** `openapi.json` (sekwencja SSE: `meta` → `delta` → `done`).  
-**Implementacja:** `src/chat/chat-stream.controller.ts` (`@Controller('chat')` + `@Post('stream')`) przy prefiksie `/api/v1` — patrz `openapi.json` i `dokumentacja_api.md`.
+**Implementacja:** `src/chat/chat-stream.controller.ts` (`@Controller('chat')` + `@Post('stream')`) przy prefiksie `/api/v1` — patrz `openapi.json` i `dokumentacja_api.md`. **`X-Gateway-Key`** — jak dla czatu standardowego.
 
 | | |
 |--|--|
 | **200** | `text/event-stream` |
-| **400** | walidacja DTO / nieznany alias / brak wsparcia streamingu — envelope `ErrorEnvelope` (`code: VALIDATION_FAILED`) |
+| **400** | walidacja DTO / nieznany alias / brak wsparcia streamingu — envelope `ErrorEnvelope` (`code: VALIDATION_FAILED`), jeśli błąd jest **przed** rozpoczęciem nagłówków SSE |
+| **401** / **403** | jak przy `POST /chat`, o ile guard zadziała **przed** `flushHeaders` |
 
 ---
 

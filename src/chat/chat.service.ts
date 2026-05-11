@@ -2,7 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
-import type { ResolvedSystemPrompts } from '../config/configuration';
+import type { ResolvedSystemPrompts } from '../config/configuration.types';
 import { ProviderRegistryService } from '../providers/provider-registry.service';
 import type {
   ProviderCallOptions,

@@ -108,7 +108,8 @@ ai-provider-gateway/
 - **`src/providers/`**: adaptery Anthropic / Google i `ProviderRegistryService`. Jedyna warstwa bezpośrednio używająca SDK vendorów.
 - **`src/config/`**: `configuration.ts` — wczytanie `gateway.config.yaml` i walidacja Zod; `env.validation.ts` — reguły env (m.in. klucze API w production).
 - **`src/health/`**: liveness (`GET /api/v1/health`). Readiness jako osobny endpoint/service *(plan / rozszerzenie)*.
-- **`src/common/`**: współdzielone artefakty brzegowe — **`filters/http-exception.filter.ts`** (`GlobalExceptionFilter` z mappingiem statusu HTTP na `code` i envelope `ErrorEnvelope`), **`interceptors/request-id.interceptor.ts`** (`RequestIdInterceptor` ustawiający `request.requestId` z nagłówka `x-request-id` lub generowany `req_<uuid>`), **`dtos/error-envelope.dto.ts`** (kształt envelope). Wszystkie podpięte globalnie w `src/main.ts`. Rozszerzenia mappingu kodów oraz dodatkowe filtry/interceptory (np. `X-Gateway-Key` guard) — kolejne kroki w **Fazie 5** (`PLAN_IMPLEMENTACJI.md`).
+- **`src/common/`**: współdzielone artefakty brzegowe — **`filters/http-exception.filter.ts`** (`GlobalExceptionFilter`), **`interceptors/request-id.interceptor.ts`** (`RequestIdInterceptor`), **`dtos/error-envelope.dto.ts`**. Podpięte globalnie w `src/main.ts`.
+- **`src/guards/gateway-key.guard.ts`**: weryfikacja nagłówka **`X-Gateway-Key`** względem allowlisty z konfiguracji — używany na kontrolerach czatu (`@UseGuards(GatewayKeyGuard)`). Rozszerzenia mappingu kodów błędów dla wszystkich przypadków domenowych — **Faza 5** (`PLAN_IMPLEMENTACJI.md`).
 - **`src/types/`**: augmentacja typów innych pakietów; `express.d.ts` dodaje `requestId: string` do `Express.Request`, żeby `req.requestId` było typowane w kontrolerach i filtrach.
 - **Testy jednostkowe**: obok kodu, np. `src/**/*.spec.ts`.
 - **`docs/`**: dokumentacja oraz specyfikacje SDD.
@@ -121,6 +122,6 @@ Zamknięte lub częściowo zamknięte (śledź tabele statusów w `PLAN_IMPLEMEN
 
 - Fundament: config z YAML, registry, adaptery Anthropic + Google.
 - Już w kodzie (poza zamknięciem MVP): error envelope `ErrorEnvelope` (`GlobalExceptionFilter` global) i propagacja `x-request-id` z requestu do `requestId` w body (`RequestIdInterceptor` global); refaktor promptów serwerowych — ✅ wg `SYSTEM_PROMPTS_REFACTOR-READY.md`.
-- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, działający `npm run config:validate`, gateway key `X-Gateway-Key`, rozszerzenie mappingu kodów i limity DTO/body (Faza 5); opcjonalny cache/Redis — `REDIS_IMPLEMENTATION_PLAN.md`.
+- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, działający `npm run config:validate`, rozszerzenie mappingu kodów i limity DTO/body (Faza 5); opcjonalny cache/Redis — `REDIS_IMPLEMENTATION_PLAN.md`.
 
 Powiązane: `PLAN_IMPLEMENTACJI.md`, `REDIS_IMPLEMENTATION_PLAN.md`, `openapi.json`, `docs/konfiguracja.md`.

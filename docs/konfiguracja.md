@@ -18,6 +18,13 @@ Zmienne providerów (Anthropic + Google Gemini — providery rdzenia MVP wg `PLA
 
 W repo powinien istnieć `.env.example` bez wartości sekretów.
 
+**Klucze gateway (nagłówek `X-Gateway-Key`):**
+
+- W **`gateway.config.yaml`**: pole **`masterKeyRef`** (nazwa zmiennej env dla klucza master, np. `MASTER_KEY`) oraz opcjonalna sekcja **`clients`** — każdy klient ma **`gatewayKeyRef`** wskazujący nazwę zmiennej env z kluczem tego klienta (np. `GATEWAY_KEY_WEBAPP`).
+- Przy starcie **`buildGatewayKeyRuntime`** (`src/config/configuration.ts`) wczytuje wartość master z env, iteruje klientów i buduje **`allowList`**: master + wszystkie **niepuste** wartości kluczy klientów. Ta lista jest dostępna w aplikacji jako konfiguracja **`gatewayKey`** i jest używana przez **`GatewayKeyGuard`**.
+- **Brak niepustego klucza master** → wyjątek przy ładowaniu konfiguracji (`[GatewayKey] Missing master key.`), proces się nie uruchomi.
+- Endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** wymagają nagłówka **`X-Gateway-Key`** z wartością obecną na allowliście; **`GET /api/v1/health`** nie.
+
 ## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
 
 **Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/configuration.ts`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
@@ -26,8 +33,17 @@ Repozytoryjny przykład: `gateway.config.yaml` w katalogu głównym projektu.
 
 ### Schemat (zgodny z walidatorem Zod)
 
+Minimalny szkielet zgodny z repozytorium obejmuje m.in. **`masterKeyRef`**, **`clients`** (opcjonalnie) oraz **`providers`** / **`models`**:
+
 ```yaml
 schemaVersion: 1
+masterKeyRef: MASTER_KEY
+
+clients:
+  webapp:
+    name: Web Application
+    type: webapp
+    gatewayKeyRef: GATEWAY_KEY_WEBAPP
 
 providers:
   anthropic-main:
@@ -63,6 +79,7 @@ models:
 Uwagi:
 
 - `apiKeyRef` to **nazwa** zmiennej env, nie wartość.
+- `masterKeyRef` oraz każde `gatewayKeyRef` w `clients` to **nazwy** zmiennych env z wartościami kluczy gateway — ustawiane w `.env` (szablon: `.env.example`).
 - Aliasy pod `models` są publicznym API (`modelAlias`).
 - **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic-main`) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach.
 - **Ograniczenie: jedna instancja per typ providera.** W `providers` może wystąpić **co najwyżej jeden** wpis o danym `type` (np. tylko jeden `type: anthropic`). Walidacja Zod (`GatewayConfigSchema.providers.superRefine` w `src/config/configuration.ts`) **odrzuca start** z czytelnym komunikatem przy duplikacie (komunikat wskazuje zduplikowany typ i nazwy zderzających się instancji). Różnice między środowiskami (dev/staging/prod) wyraża się **wartością** zmiennej środowiskowej wskazanej przez `apiKeyRef`, a nie przez deklarowanie wielu instancji tego samego typu w YAML.

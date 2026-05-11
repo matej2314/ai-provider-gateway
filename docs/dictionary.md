@@ -32,9 +32,9 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | `PROVIDER_TIMEOUT` | Przekroczono timeout dla wywołania providera. |
 | `PROVIDER_UNAVAILABLE` | Provider zwrócił błąd 5xx lub jest niedostępny. |
 | `STREAMING_NOT_SUPPORTED` | Wybrany model/provider nie wspiera streamingu. |
-| `GATEWAY_KEY_NOT_CONFIGURED` | Gateway nie ma skonfigurowanej allowlisty kluczy (błąd serwera; fail-safe). **Docelowo** (`SPEC-PLATFORMA-I-KONTRAKTY`); **nie mapowane** w obecnym kodzie. |
-| `GATEWAY_KEY_MISSING` | Brak wymaganego nagłówka `X-Gateway-Key`. **Docelowo**; brak egzekucji w kontrolerach (patrz Faza 5 / platforma). |
-| `GATEWAY_KEY_INVALID` | Niepoprawna wartość nagłówka `X-Gateway-Key`. **Docelowo**; brak egzekucji w kontrolerach. |
+| `GATEWAY_KEY_NOT_CONFIGURED` | Brak allowlisty kluczy w runtime (np. nie zarejestrowano `gatewayKey` w konfiguracji) — **500**, guard zwraca ten kod (`GatewayKeyGuard`). Przy poprawnym starcie z `gateway.config.yaml` i env scenariusz nie występuje. |
+| `GATEWAY_KEY_MISSING` | Brak nagłówka `X-Gateway-Key` dla chronionego endpointu — **401** (`GatewayKeyGuard`). |
+| `GATEWAY_KEY_INVALID` | Wartość `X-Gateway-Key` spoza allowlisty — **403** (`GatewayKeyGuard`). |
 
 ## Kody HTTP (mapowanie)
 
@@ -49,17 +49,9 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | 403 | `GATEWAY_KEY_INVALID` |
 | 500 | `GATEWAY_KEY_NOT_CONFIGURED` |
 
-**Stan implementacji vs tabela docelowa:** odpowiedzi błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polem **`code`** (`GlobalExceptionFilter`). Aktualny mapping w filtrze jest minimalistyczny — emituje 5 wartości `code` w funkcji statusu HTTP:
+**Stan implementacji:** odpowiedzi błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polem **`code`**. Jeśli wyjątek ma obiektowy response z polem **`code`**, `GlobalExceptionFilter` je **zachowuje** (m.in. **`GATEWAY_KEY_*`** z `GatewayKeyGuard`). Gdy **`code`** nie został przekazany, filtr stosuje mapowanie domyślne ze statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE` w `src/common/errors/api-error.code.ts`). W JSON odpowiedzi pole **`message`** jest zwykle **pojedynczym stringiem** (filtr łączy tablice walidacji).
 
-| Status HTTP | Aktualnie emitowany `code` |
-|-------------|----------------------------|
-| 400         | `VALIDATION_FAILED`        |
-| 429         | `PROVIDER_RATE_LIMITED`    |
-| 502         | `PROVIDER_UNAVAILABLE`     |
-| 504         | `PROVIDER_TIMEOUT`         |
-| inne        | `INTERNAL_SERVER_ERROR`    |
-
-Pozostałe wartości z tabeli powyżej (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_AUTH_FAILED`, `MODEL_NOT_ALLOWED`, `PROVIDER_UNSUPPORTED`, `GATEWAY_KEY_*`) wymagają rozszerzenia mappingu w `GlobalExceptionFilter` lub wprowadzenia dedykowanych wyjątków domenowych (`PLAN_IMPLEMENTACJI.md` Faza 5, Krok 5.1b).
+Wartości takie jak `MODEL_ALIAS_NOT_FOUND` czy `STREAMING_NOT_SUPPORTED` przy **dedykowanych** komunikatach błędów — częściowo nadal do dopięcia (**Faza 5**, Krok 5.1b): dziś wiele przypadków kończy się ogólnym **`VALIDATION_FAILED`** przy statusie 400.
 
 Powiązane: `openapi.json`, `architektura_api.md`, `dokumentacja_api.md`, `anty-patterny.md`.
 

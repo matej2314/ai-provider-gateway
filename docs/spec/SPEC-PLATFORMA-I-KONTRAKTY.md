@@ -13,7 +13,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 - zasady uwierzytelnienia na brzegu (gateway key),
 - zasady logowania (bez sekretów).
 
-**Stan implementacji (skrót):** **`openapi.json`** opisuje żądania, odpowiedzi sukcesu oraz błędy w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`). **`GlobalExceptionFilter`** + **`RequestIdInterceptor`** są podpięte globalnie w `src/main.ts` — envelope (z `code`) i propagacja `requestId` z nagłówka żądania `x-request-id` są **aktywne**. Pozostałe pozycje Fazy 5 (gateway key `X-Gateway-Key`, body `params`, rozszerzenie mappingu kodów na docelowy słownik z `dictionary.md`, response header `x-request-id`) — `PLAN_IMPLEMENTACJI.md`.
+**Stan implementacji (skrót):** **`openapi.json`** opisuje żądania, odpowiedzi sukcesu, błędy w envelope **`ErrorEnvelope`** oraz **`securitySchemes.GatewayKeyAuth`** (`X-Gateway-Key`) dla **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`**. **`GlobalExceptionFilter`** + **`RequestIdInterceptor`** są podpięte globalnie w `src/main.ts`. **`GatewayKeyGuard`** jest podpięty do kontrolerów czatu — egzekucja klucza na brzegu jest **aktywna**. Pozostałe pozycje Fazy 5 (body `params`, rozszerzenie mappingu kodów na docelowy słownik z `dictionary.md`, response header `x-request-id`) — `PLAN_IMPLEMENTACJI.md`.
 
 ## Użytkownicy i scenariusze
 
@@ -67,7 +67,7 @@ F-6. Nieznany `modelAlias` kończy się deterministycznym błędem (np. `MODEL_A
 
 ### Gateway Key (nagłówek `X-Gateway-Key`)
 
-*(Docelowo — brak w `openapi.json`; brak egzekucji w kontrolerach w bieżącym kodzie.)*
+**Stan kodu:** `openapi.json` definiuje **`GatewayKeyAuth`**; **`GatewayKeyGuard`** (`src/guards/gateway-key.guard.ts`) jest zarejestrowany na kontrolerach czatu.
 
 F-9. Gateway musi weryfikować nagłówek `X-Gateway-Key` dla endpointów czatu:
 
@@ -99,6 +99,7 @@ NFR-3. Domyślne zachowanie powinno być bezpieczne: bez dumpowania surowych wyj
 ## Kryteria akceptacji (checklista)
 
 - [x] Wszystkie błędy mają envelope z `code` i `requestId` (`GlobalExceptionFilter`); rozszerzenie zestawu wartości `code` na pełny słownik z `dictionary.md` jest w **Fazie 5** (Krok 5.1b).
+- [x] Endpointy czatu wymagają `X-Gateway-Key` zgodnie z allowlistą (`GatewayKeyGuard`, konfiguracja w `src/config/configuration.ts`).
 - [x] Nieznany `modelAlias` nie wykonuje żadnego wywołania do providerów (`ProviderRegistryService.resolve` rzuca `BadRequestException` przed wywołaniem adaptera).
 - [ ] Logi nie zawierają kluczy i nagłówków auth (weryfikacja przez test/manual) — strukturalne logi z redakcją w **Fazie 6.1** (pino + redaction).
 - [x] `requestId` jest widoczny w odpowiedziach standard/stream (body sukcesu, envelope błędu, SSE `meta`); response header `x-request-id` — TBD.
