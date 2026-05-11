@@ -13,7 +13,7 @@ providers:
 
 clients:
   webapp:
-    name: Web Application
+    name: My web app
     type: webapp
     gatewayKeyRef: GATEWAY_KEY_WEBAPP
   ide-plugin:

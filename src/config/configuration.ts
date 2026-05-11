@@ -167,7 +167,12 @@ function buildGatewayKeyRuntime(
   for (const client of clients) {
     if (client.gatewayKey) allow.add(client.gatewayKey);
   }
-
+  console.log(
+    'Registered clients:',
+    clients.map((client) => {
+      return { name: client.name, type: client.type };
+    }),
+  );
   return {
     allowList: [...allow],
     masterKey: masterRaw,

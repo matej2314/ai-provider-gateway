@@ -11,7 +11,6 @@ export class ChatController {
 
   @Post()
   async chat(@Req() req: Request, @Body() requestBody: ChatRequestDto) {
-    console.log('[ChatController] POST /api/v1/chat');
     return this.chatService.executeChat(requestBody, req.requestId);
   }
 }
