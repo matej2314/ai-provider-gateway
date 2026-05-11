@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Provider Gateway API",
-    "version": "0.4.0",
-    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu (nagłówek `PLAN_IMPLEMENTACJI.md`):** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, dokumentacja decyzji: `SYSTEM_PROMPTS_REFACTOR-READY.md`.\n\nSchematy żądań i odpowiedzi sukcesu odpowiadają kodowi w `src/`. Błędy zwracane są w **domyślnym formacie NestJS** (`statusCode`, `message`, opcjonalnie `error`). Dodatkowe pola body (`params`), ujednolicony envelope z polem `code` oraz nagłówek `x-request-id` są zaplanowane w `PLAN_IMPLEMENTACJI.md` (Faza 5). Opcjonalna warstwa cache / Redis (port + adapter) jest opisana w `REDIS_IMPLEMENTATION_PLAN.md` (start po zamknięciu Fazy 6).\n\nOpis ludzki: katalog `docs/` w repozytorium."
+    "version": "0.5.0",
+    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu (nagłówek `PLAN_IMPLEMENTACJI.md`):** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, dokumentacja decyzji: `SYSTEM_PROMPTS_REFACTOR-READY.md`.\n\n**Format błędów (stan kodu):** wszystkie odpowiedzi błędów (4xx i 5xx) są zwracane w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`) emitowanym przez **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`, podpięty globalnie w `src/main.ts`). Pole **`code`** jest mapowane ze statusu HTTP (`400→VALIDATION_FAILED`, `429→PROVIDER_RATE_LIMITED`, `502→PROVIDER_UNAVAILABLE`, `504→PROVIDER_TIMEOUT`, dowolny inny status `→INTERNAL_SERVER_ERROR`). Pełny słownik docelowych kodów: `docs/dictionary.md`.\n\n**`requestId` (stan kodu):** wartość pochodzi z `RequestIdInterceptor` (global; `src/common/interceptors/request-id.interceptor.ts`). Jeśli klient wysłał nagłówek żądania **`x-request-id`**, gateway używa jego wartości; w przeciwnym razie generuje `req_<uuid>`. `requestId` jest w body odpowiedzi sukcesu, w envelope błędów oraz w SSE `meta`. **Response header** `x-request-id` nie jest obecnie ustawiany.\n\n**Pozostałe planowane elementy:** dodatkowe pola body (`params`), nagłówek **`X-Gateway-Key`** (auth na brzegu) — `PLAN_IMPLEMENTACJI.md` Faza 5. Opcjonalna warstwa cache / Redis (port + adapter): `REDIS_IMPLEMENTATION_PLAN.md` (start po Fazie 6).\n\n**Walidacja DTO (stan kodu):** `ChatRequestDto` wymaga `modelAlias: string` i `messages: ChatMessageDto[]`; `ChatMessageDto` wymaga `role ∈ {user, assistant}` i `content: string`. **Minimalne limity** (`messages.length ≥ 1`, `content` niepuste, `modelAlias` niepuste, górne ograniczenia rozmiaru) **nie są** obecnie wymuszane przez DTO — patrz `PLAN_IMPLEMENTACJI.md` Krok 5.4b.\n\nOpis ludzki: katalog `docs/` w repozytorium."
   },
   "servers": [
     {
@@ -47,7 +47,7 @@
         "tags": ["Chat"],
         "operationId": "postChat",
         "summary": "Chat (standard)",
-        "description": "Pełna odpowiedź JSON. `requestId` w odpowiedzi jest generowany po stronie gateway (prefiks `req_`). Parametry wyjścia (`temperature`, `maxOutputTokens`) pochodzą obecnie z domyślnych wartości w konfiguracji aliasu (`gateway.config.yaml`), nie z body żądania. Pole `model` w odpowiedzi to ten sam alias co `modelAlias` z żądania (nie vendorowy `modelId`).",
+        "description": "Pełna odpowiedź JSON. `requestId` w odpowiedzi pochodzi z `RequestIdInterceptor`: jeśli klient wysłał nagłówek **`x-request-id`**, użyta jest jego wartość; w przeciwnym razie generowany jest identyfikator z prefiksem `req_`. Parametry wyjścia (`temperature`, `maxOutputTokens`) pochodzą obecnie z domyślnych wartości w konfiguracji aliasu (`gateway.config.yaml`), nie z body żądania. Pole `model` w odpowiedzi to ten sam alias co `modelAlias` z żądania (nie vendorowy `modelId`).",
         "requestBody": {
           "required": true,
           "content": {
@@ -96,23 +96,27 @@
             }
           },
           "400": {
-            "description": "Walidacja DTO (`ValidationPipe`), nieznany `modelAlias` lub instancja providera (`BadRequestException`).",
+            "description": "Walidacja DTO (`ValidationPipe`), nieznany `modelAlias` lub instancja providera (`BadRequestException`). Envelope `ErrorEnvelope` (z `code: VALIDATION_FAILED`).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/NestHttpExceptionBody" },
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
                 "examples": {
                   "validationFailed": {
                     "value": {
                       "statusCode": 400,
+                      "code": "VALIDATION_FAILED",
                       "message": ["modelAlias must be a string"],
-                      "error": "Bad Request"
+                      "requestId": "req_01H...",
+                      "details": []
                     }
                   },
                   "unknownAlias": {
                     "value": {
                       "statusCode": 400,
+                      "code": "VALIDATION_FAILED",
                       "message": "Model alias unknown-alias not found in config",
-                      "error": "Bad Request"
+                      "requestId": "req_01H...",
+                      "details": []
                     }
                   }
                 }
@@ -120,10 +124,21 @@
             }
           },
           "500": {
-            "description": "Nieobsłużony wyjątek (np. błąd SDK providera) — kształt jak pozostałe odpowiedzi Nest.",
+            "description": "Nieobsłużony wyjątek (np. błąd SDK providera). Envelope `ErrorEnvelope` (z `code: INTERNAL_SERVER_ERROR`).",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/NestHttpExceptionBody" }
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "internalError": {
+                    "value": {
+                      "statusCode": 500,
+                      "code": "INTERNAL_SERVER_ERROR",
+                      "message": "An unexpected error occurred",
+                      "requestId": "req_01H...",
+                      "details": []
+                    }
+                  }
+                }
               }
             }
           }
@@ -135,7 +150,7 @@
         "tags": ["Chat"],
         "operationId": "postChatStream",
         "summary": "Chat (streaming)",
-        "description": "Streaming jako Server-Sent Events (`text/event-stream`). Sekwencja: `meta` (1×), `delta` (0..n), `done` (1×). Pole `data` dla `done` jest obecnie **pustym obiektem** `{}` (`ChatService.executeStream`).\n\nJeśli walidacja body lub wczesny `BadRequestException` zajdzie **przed** wysłaniem nagłówków SSE, klient dostanie JSON w formacie Nest (jak przy `POST /chat`). Po rozpoczęciu strumienia błąd zwykle kończy połączenie bez pełnego JSON.",
+        "description": "Streaming jako Server-Sent Events (`text/event-stream`). Sekwencja: `meta` (1×), `delta` (0..n), `done` (1×). Pole **`model`** w `meta` to **alias** z żądania (`modelAlias`) — ten sam identyfikator co w odpowiedzi `POST /chat`, nie vendorowy `modelId`. Pole `data` dla `done` jest obecnie **pustym obiektem** `{}` (`ChatService.executeStream`).\n\nJeśli walidacja body lub wczesny `BadRequestException` zajdzie **przed** wysłaniem nagłówków SSE, klient dostanie JSON w formacie envelope `ErrorEnvelope` (jak przy `POST /chat`). Po rozpoczęciu strumienia błąd zwykle kończy połączenie bez pełnego JSON.",
         "requestBody": {
           "required": true,
           "content": {
@@ -160,23 +175,25 @@
                 "schema": { "type": "string", "description": "Strumień SSE (tekst). Każde zdarzenie kończy się podwójnym znakiem nowej linii." },
                 "examples": {
                   "sse": {
-                    "value": "event: meta\ndata: {\"id\":\"gw_01H...\",\"provider\":\"anthropic\",\"model\":\"claude-...\",\"requestId\":\"req_...\"}\n\nevent: delta\ndata: {\"text\":\"Cześć\"}\n\nevent: delta\ndata: {\"text\":\"!\"}\n\nevent: done\ndata: {}\n"
+                    "value": "event: meta\ndata: {\"id\":\"gw_01H...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\"}\n\nevent: delta\ndata: {\"text\":\"Cześć\"}\n\nevent: delta\ndata: {\"text\":\"!\"}\n\nevent: done\ndata: {}\n"
                   }
                 }
               }
             }
           },
           "400": {
-            "description": "Walidacja DTO lub streaming niedozwolony dla aliasu / adaptera (przed rozpoczęciem body SSE).",
+            "description": "Walidacja DTO lub streaming niedozwolony dla aliasu / adaptera (przed rozpoczęciem body SSE). Envelope `ErrorEnvelope`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/NestHttpExceptionBody" },
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
                 "examples": {
                   "streamingNotSupported": {
                     "value": {
                       "statusCode": 400,
+                      "code": "VALIDATION_FAILED",
                       "message": "Streaming not supported for this model",
-                      "error": "Bad Request"
+                      "requestId": "req_01H...",
+                      "details": []
                     }
                   }
                 }
@@ -199,19 +216,33 @@
           "timestamp": { "type": "string", "format": "date-time" }
         }
       },
-      "NestHttpExceptionBody": {
+      "ErrorEnvelope": {
         "type": "object",
-        "description": "Domyślny format odpowiedzi błędu NestJS (HttpException / ValidationPipe).",
-        "required": ["statusCode", "message"],
+        "additionalProperties": false,
+        "required": ["statusCode", "code", "message", "requestId"],
+        "description": "Standardowy envelope błędów emitowany przez `GlobalExceptionFilter` (`src/common/filters/http-exception.filter.ts`). Stosowany dla wszystkich błędów (4xx i 5xx).",
         "properties": {
           "statusCode": { "type": "integer", "minimum": 400, "maximum": 599 },
+          "code": {
+            "type": "string",
+            "description": "Stabilny kod maszynowy mapowany w filtrze ze statusu HTTP. Aktualnie: 400→`VALIDATION_FAILED`, 429→`PROVIDER_RATE_LIMITED`, 502→`PROVIDER_UNAVAILABLE`, 504→`PROVIDER_TIMEOUT`, dowolny inny status→`INTERNAL_SERVER_ERROR`. Pełny słownik docelowych kodów: `docs/dictionary.md`."
+          },
           "message": {
             "oneOf": [
               { "type": "string" },
               { "type": "array", "items": { "type": "string" } }
-            ]
+            ],
+            "description": "Komunikat z `HttpException.getResponse().message`. Przy walidacji DTO (`ValidationPipe`) bywa tablicą stringów; w pozostałych przypadkach jest stringiem."
           },
-          "error": { "type": "string" }
+          "requestId": {
+            "type": "string",
+            "description": "Korelacja z requestem. Wartość pochodzi z `RequestIdInterceptor`: nagłówek `x-request-id` z requestu jeśli klient go podał, w przeciwnym razie wygenerowany `req_<uuid>`."
+          },
+          "details": {
+            "type": "array",
+            "description": "Lista dodatkowych informacji diagnostycznych. Obecna implementacja zawsze emituje pustą tablicę.",
+            "items": {}
+          }
         }
       },
       "ChatRole": {
@@ -225,7 +256,10 @@
         "required": ["role", "content"],
         "properties": {
           "role": { "$ref": "#/components/schemas/ChatRole" },
-          "content": { "type": "string", "minLength": 1 }
+          "content": {
+            "type": "string",
+            "description": "Treść wiadomości. DTO obecnie nie wymusza minimalnej długości ani górnego limitu — patrz `PLAN_IMPLEMENTACJI.md` Krok 5.4b."
+          }
         }
       },
       "ChatRequest": {
@@ -235,12 +269,11 @@
         "properties": {
           "modelAlias": {
             "type": "string",
-            "minLength": 1,
-            "description": "Alias modelu z `gateway.config.yaml`. Mapowany na providera i vendorowy `modelId`."
+            "description": "Alias modelu z `gateway.config.yaml`. Mapowany na providera i vendorowy `modelId`. DTO nie wymusza obecnie minimalnej długości — patrz `PLAN_IMPLEMENTACJI.md` Krok 5.4b."
           },
           "messages": {
             "type": "array",
-            "minItems": 1,
+            "description": "Lista wiadomości rozmowy. DTO nie wymusza obecnie minimalnej liczby elementów ani górnego limitu — patrz `PLAN_IMPLEMENTACJI.md` Krok 5.4b.",
             "items": { "$ref": "#/components/schemas/ChatMessage" }
           }
         }
@@ -252,8 +285,12 @@
         "properties": {
           "id": { "type": "string", "minLength": 1, "description": "Identyfikator odpowiedzi gateway (prefiks `gw_`)." },
           "provider": { "type": "string", "minLength": 1 },
-          "model": { "type": "string", "minLength": 1 },
-          "requestId": { "type": "string", "minLength": 1, "description": "Id korelacyjne (prefiks `req_`)." }
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias modelu z żądania (`modelAlias`) — ten sam identyfikator co w odpowiedzi `POST /chat`. Vendorowy `modelId` nie jest tutaj zwracany (`ChatService.executeStream`)."
+          },
+          "requestId": { "type": "string", "minLength": 1, "description": "Id korelacyjne (prefiks `req_` jeśli wygenerowane przez gateway; może być wartością z nagłówka `x-request-id` jeśli klient go podał)." }
         }
       },
       "SseDeltaPayload": {
@@ -267,7 +304,7 @@
       "SseDonePayload": {
         "type": "object",
         "additionalProperties": false,
-        "description": "Obecna implementacja emituje pusty obiekt.",
+        "description": "Obecna implementacja emituje pusty obiekt. Typ `SseDoneEvent` w kodzie deklaruje opcjonalne `usage`, ale runtime go nie wypełnia — `usage` w streamingu jest planowane.",
         "properties": {}
       },
       "ChatOutputText": {
@@ -298,7 +335,7 @@
           "model": {
             "type": "string",
             "minLength": 1,
-            "description": "Alias modelu z żądania (`modelAlias`). W odpowiedzi standardowej jest to ten sam identyfikator co w `POST /chat`; vendorowy `modelId` nie jest tutaj zwracany (w SSE `meta.model` jest rozwiązanym `modelId` — patrz `ChatService.executeStream`)."
+            "description": "Alias modelu z żądania (`modelAlias`). W odpowiedzi standardowej i w SSE (`meta.model`) jest to ten sam identyfikator. Vendorowy `modelId` nie jest tutaj zwracany."
           },
           "output": {
             "description": "Treść odpowiedzi (bieżąca wersja: wyłącznie tekst, `type: text`).",

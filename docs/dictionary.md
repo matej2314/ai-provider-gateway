@@ -49,7 +49,17 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | 403 | `GATEWAY_KEY_INVALID` |
 | 500 | `GATEWAY_KEY_NOT_CONFIGURED` |
 
-**Uwaga:** Tabela kodów opisuje **docelowy** kontrakt (Faza 5 — `PLAN_IMPLEMENTACJI.md`). Obecne odpowiedzi błędów są w formacie Nest (`NestHttpExceptionBody` w `openapi.json`); pole **`code`** jak poniżej pojawi się po wdrożeniu envelope.
+**Stan implementacji vs tabela docelowa:** odpowiedzi błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polem **`code`** (`GlobalExceptionFilter`). Aktualny mapping w filtrze jest minimalistyczny — emituje 5 wartości `code` w funkcji statusu HTTP:
+
+| Status HTTP | Aktualnie emitowany `code` |
+|-------------|----------------------------|
+| 400         | `VALIDATION_FAILED`        |
+| 429         | `PROVIDER_RATE_LIMITED`    |
+| 502         | `PROVIDER_UNAVAILABLE`     |
+| 504         | `PROVIDER_TIMEOUT`         |
+| inne        | `INTERNAL_SERVER_ERROR`    |
+
+Pozostałe wartości z tabeli powyżej (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_AUTH_FAILED`, `MODEL_NOT_ALLOWED`, `PROVIDER_UNSUPPORTED`, `GATEWAY_KEY_*`) wymagają rozszerzenia mappingu w `GlobalExceptionFilter` lub wprowadzenia dedykowanych wyjątków domenowych (`PLAN_IMPLEMENTACJI.md` Faza 5, Krok 5.1b).
 
 Powiązane: `openapi.json`, `architektura_api.md`, `dokumentacja_api.md`, `anty-patterny.md`.
 

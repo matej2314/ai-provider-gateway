@@ -13,7 +13,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 - zasady uwierzytelnienia na brzegu (gateway key),
 - zasady logowania (bez sekretów).
 
-**Stan implementacji (skrót):** **`openapi.json`** opisuje żądania, odpowiedzi sukcesu oraz błędy w **formacie NestJS** (`NestHttpExceptionBody`). Pełny **ErrorEnvelope** (pole `code`), nagłówek **`x-request-id`** oraz **gateway key** są zaplanowane w **Fazie 5** (`PLAN_IMPLEMENTACJI.md`).
+**Stan implementacji (skrót):** **`openapi.json`** opisuje żądania, odpowiedzi sukcesu oraz błędy w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`). **`GlobalExceptionFilter`** + **`RequestIdInterceptor`** są podpięte globalnie w `src/main.ts` — envelope (z `code`) i propagacja `requestId` z nagłówka żądania `x-request-id` są **aktywne**. Pozostałe pozycje Fazy 5 (gateway key `X-Gateway-Key`, body `params`, rozszerzenie mappingu kodów na docelowy słownik z `dictionary.md`, response header `x-request-id`) — `PLAN_IMPLEMENTACJI.md`.
 
 ## Użytkownicy i scenariusze
 
@@ -98,10 +98,10 @@ NFR-3. Domyślne zachowanie powinno być bezpieczne: bez dumpowania surowych wyj
 
 ## Kryteria akceptacji (checklista)
 
-- [ ] Wszystkie błędy mają envelope z `code` i `requestId`.
-- [ ] Nieznany `modelAlias` nie wykonuje żadnego wywołania do providerów.
-- [ ] Logi nie zawierają kluczy i nagłówków auth (weryfikacja przez test/manual).
-- [ ] `requestId` jest widoczny w odpowiedziach standard/stream.
+- [x] Wszystkie błędy mają envelope z `code` i `requestId` (`GlobalExceptionFilter`); rozszerzenie zestawu wartości `code` na pełny słownik z `dictionary.md` jest w **Fazie 5** (Krok 5.1b).
+- [x] Nieznany `modelAlias` nie wykonuje żadnego wywołania do providerów (`ProviderRegistryService.resolve` rzuca `BadRequestException` przed wywołaniem adaptera).
+- [ ] Logi nie zawierają kluczy i nagłówków auth (weryfikacja przez test/manual) — strukturalne logi z redakcją w **Fazie 6.1** (pino + redaction).
+- [x] `requestId` jest widoczny w odpowiedziach standard/stream (body sukcesu, envelope błędu, SSE `meta`); response header `x-request-id` — TBD.
 
 ## Poza zakresem (względem rdzenia MVP)
 

@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { AppModule } from './app.module';
+import { json } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,6 +22,8 @@ async function bootstrap() {
 
   app.useGlobalInterceptors(new RequestIdInterceptor());
   app.useGlobalFilters(new GlobalExceptionFilter());
+
+  app.use(json({ limit: '1mb' }));
 
   const PORT = process.env.PORT ?? 3000;
   await app.listen(PORT, () => {

@@ -59,13 +59,31 @@ function tryReadOptionalPrompts(absPath: string): string | undefined {
 
 export const GatewayConfigSchema = z.object({
   schemaVersion: z.number().int().min(1),
-  providers: z.record(
-    z.string(),
-    z.object({
-      type: z.enum(['anthropic', 'google']),
-      apiKeyRef: z.string(),
+  providers: z
+    .record(
+      z.string(),
+      z.object({
+        type: z.enum(['anthropic', 'google']),
+        apiKeyRef: z.string(),
+      }),
+    )
+    .superRefine((providers, ctx) => {
+      const byType = new Map<string, string[]>();
+      for (const [instanceName, config] of Object.entries(providers)) {
+        const list = byType.get(config.type) ?? [];
+        list.push(instanceName);
+        byType.set(config.type, list);
+      }
+      for (const [type, instances] of byType) {
+        if (instances.length > 1) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `Provider type ${type} is declared more than once (instances: ${instances.join(',')}). Only one instance per type is allowed.`,
+            path: ['providers', type],
+          });
+        }
+      }
     }),
-  ),
   models: z.record(
     z.string(),
     z.object({
@@ -195,7 +213,7 @@ export default () => {
       perModelByAlias[alias] = content;
     }
   }
-  
+
   const systemPromptsResolved: ResolvedSystemPrompts = {
     master,
     main,

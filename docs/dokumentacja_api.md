@@ -1,12 +1,12 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **0.6**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu, domyślne błędy NestJS).
+Wersja dokumentu: **0.7**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu, envelope błędów `ErrorEnvelope`).
 
 ## Źródła prawdy (kolejność)
 
 1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
 2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
-3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: envelope z polem `code`, `x-request-id`, `params` w body, skrypt `config:validate`; **Faza 6**: observability).
+3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: nagłówek `X-Gateway-Key`, `params` w body, skrypt `config:validate`, limity DTO/body — Krok 5.4b, rozszerzenie mappingu kodów — Krok 5.1b; **Faza 6**: observability — pino + readiness + graceful shutdown). Envelope błędów (`code` + `requestId`) oraz propagacja nagłówka `x-request-id` z requestu do `requestId` w body — **już zaimplementowane** (`GlobalExceptionFilter` + `RequestIdInterceptor` w `src/common/`).
 4. **`REDIS_IMPLEMENTATION_PLAN.md`** — opcjonalna warstwa cache / limitów / metryk (Redis jako adapter; start po zamknięciu Fazy 6).
 5. **`SYSTEM_PROMPTS_REFACTOR-READY.md`** — plan i status refaktoru system promptu (✅ wykonane w kodzie: DTO + `ChatService` + `configuration.ts` + `openapi.json` + dokumentacja); ewentualne usprawnienia poza rdzeniem MVP są opisane w tym dokumencie.
 6. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
@@ -31,19 +31,31 @@ Wersja dokumentu: **0.6**. Dokument jest wersjonowany razem z kodem. **`openapi.
 
 ---
 
-## Format błędów (dziś)
+## Format błędów
 
-Zgodnie z **`openapi.json`** (`NestHttpExceptionBody`): NestJS zwraca m.in.
+Wszystkie odpowiedzi błędów (4xx i 5xx) są w envelope **`ErrorEnvelope`** (`openapi.json`) emitowanym przez `GlobalExceptionFilter` (`src/common/filters/http-exception.filter.ts`, podpięty globalnie w `src/main.ts`):
 
 ```json
 {
   "statusCode": 400,
+  "code": "VALIDATION_FAILED",
   "message": "Model alias … not found in config",
-  "error": "Bad Request"
+  "requestId": "req_01H...",
+  "details": []
 }
 ```
 
-Przy walidacji `ValidationPipe` pole `message` bywa **tablicą** stringów.
+Pole `code` jest mapowane ze statusu HTTP w `mapHttpStatusToCode`:
+
+| HTTP | `code`                  |
+|------|-------------------------|
+| 400  | `VALIDATION_FAILED`     |
+| 429  | `PROVIDER_RATE_LIMITED` |
+| 502  | `PROVIDER_UNAVAILABLE`  |
+| 504  | `PROVIDER_TIMEOUT`      |
+| inne | `INTERNAL_SERVER_ERROR` |
+
+Przy walidacji `ValidationPipe` pole `message` bywa **tablicą** stringów (przekazywaną z `HttpException.getResponse().message`). Pełny słownik **docelowych** kodów (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_AUTH_FAILED`, …) — `dictionary.md`; rozszerzenie mappingu w filtrze jest planowane w **Fazie 5** (`PLAN_IMPLEMENTACJI.md` Krok 5.1b).
 
 ---
 
@@ -73,7 +85,7 @@ Zgodnie z DTO: **`modelAlias`**, **`messages`** — bez **`params`** (nadwyżkow
 
 `ChatService.executeChat`: `id`, `provider`, `model`, `output`, `usage` (opcjonalnie, zależnie od adaptera), `requestId`.
 
-Pole **`model`** w odpowiedzi standardowej to **alias** z żądania (`modelAlias`), nie rozwiązany vendorowy `modelId`. W **SSE** zdarzenie `meta` zawiera w polu `model` rozwiązany **`modelId`** z konfiguracji (zachowanie `executeStream` — patrz `openapi.json`).
+Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi standardowej, jak i w SSE (`meta.model`) — vendorowy `modelId` nie jest zwracany w żadnej odpowiedzi (`ChatService.executeChat` i `ChatService.executeStream` zwracają `requestBody.modelAlias`).
 
 ### Typowe kody
 
@@ -107,7 +119,7 @@ Liveness — `HealthService.check()` (`status`, `message`, `timestamp` ISO).
 
 ## Kody i słownik
 
-Stabilne kody maszynowe (`MODEL_ALIAS_NOT_FOUND`, itd.) — **`dictionary.md`**; wdrożenie w odpowiedziach HTTP przewidziane w **Fazie 5**. Obecnie klienci opierają się na **`statusCode`** oraz **`message`** z Nest.
+Stabilne kody maszynowe (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, …) — **`dictionary.md`** (kontrakt docelowy). Obecnie filtr emituje uproszczony zestaw 5 wartości `code` (mapping w sekcji "Format błędów" wyżej); rozszerzenie mappingu (rozróżnianie błędów typu `MODEL_ALIAS_NOT_FOUND` od ogólnego `VALIDATION_FAILED`) jest w **Fazie 5** (Krok 5.1b).
 
 ---
 

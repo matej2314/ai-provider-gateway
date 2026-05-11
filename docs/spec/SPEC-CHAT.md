@@ -42,7 +42,7 @@ F-4. Gateway musi dołączyć `provider` i resolved `model` do odpowiedzi.
 
 F-5. Gateway powinien dołączyć `usage`, jeśli provider/SDK udostępnia te dane.
 
-F-6. Nieznany `modelAlias` → `400` z `code=MODEL_ALIAS_NOT_FOUND` (**docelowy envelope**, Faza 5). Obecnie: `400` z komunikatem tekstowym Nest (`BadRequestException`) — zgodnie z `openapi.json`.
+F-6. Nieznany `modelAlias` → `400` z `code=MODEL_ALIAS_NOT_FOUND` (**docelowy** kod). Obecnie: `400` z envelope `ErrorEnvelope` (`code=VALIDATION_FAILED`) — `GlobalExceptionFilter` mapuje wszystkie 400 na `VALIDATION_FAILED`. Rozróżnienie `MODEL_ALIAS_NOT_FOUND` vs ogólny `VALIDATION_FAILED` wymaga rozszerzenia mappingu w filtrze (Faza 5, Krok 5.1b).
 
 F-7. Parametry poza allowlistą → `400` z `code=VALIDATION_FAILED` (lub dedykowanym kodem).
 
@@ -57,9 +57,9 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 ## Kryteria akceptacji
 
 - [x] Dla poprawnego requestu gateway zwraca `200` i spójny JSON (`ChatService.executeChat`).
-- [x] Dla nieznanego `modelAlias` gateway zwraca `400` bez wywołania providera (format Nest; pole `code` w **Fazie 5**).
+- [x] Dla nieznanego `modelAlias` gateway zwraca `400` bez wywołania providera (envelope `ErrorEnvelope` z `code: VALIDATION_FAILED`; rozróżnienie `MODEL_ALIAS_NOT_FOUND` w **Fazie 5**).
 - [ ] Parametry są walidowane (allowlista + bounds); DTO nie przyjmuje jeszcze `params`.
-- [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka `x-request-id` — **Faza 5** (`SPEC-PLATFORMA-I-KONTRAKTY`).
+- [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka żądania `x-request-id` jest **aktywna** (`RequestIdInterceptor` global). Response header `x-request-id` (poza body) nie jest jeszcze ustawiany.
 
 ## Poza zakresem (względem rdzenia MVP)
 

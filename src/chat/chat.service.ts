@@ -1,4 +1,5 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { ApiErrorCode } from '../common/errors/api-error.code';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import type { ResolvedSystemPrompts } from '../config/configuration';
@@ -98,12 +99,24 @@ export class ChatService {
       this.registry.resolve(requestBody.modelAlias);
 
     if (!capabilities?.streaming) {
-      throw new BadRequestException('Streaming not supported for this model');
+      throw new HttpException(
+        {
+          code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
+          message: 'Streaming not supported for this model.',
+          details: [],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     if (!provider.stream) {
-      throw new BadRequestException(
-        'Streaming adapter not implemented for this provider',
+      throw new HttpException(
+        {
+          code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
+          message: 'Streaming adapter not implemented for this provider.',
+          details: [],
+        },
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -118,7 +131,12 @@ export class ChatService {
 
     emit({
       name: 'meta',
-      data: { id, provider: providerName, model: modelId, requestId },
+      data: {
+        id,
+        provider: providerName,
+        model: requestBody.modelAlias,
+        requestId,
+      },
     });
 
     const textStream = provider.stream(providerInput, modelId, options);

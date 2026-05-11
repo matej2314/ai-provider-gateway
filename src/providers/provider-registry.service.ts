@@ -1,6 +1,7 @@
 import {
   Injectable,
-  BadRequestException,
+  HttpException,
+  HttpStatus,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +12,8 @@ import {
   GatewayCapabilitiesConfig,
   GatewayParamsConfig,
 } from '../config/configuration';
+import { ApiErrorCode } from '../common/errors/api-error.code';
+import { UnsupportedProviderException } from '../common/exceptions/unsupported-provider.exception';
 
 interface ResolvedProviderConfig {
   provider: AIProvider;
@@ -47,8 +50,13 @@ export class ProviderRegistryService {
     const modelConfig = gatewayConfig?.models[modelAlias];
 
     if (!modelConfig) {
-      throw new BadRequestException(
-        `Model alias ${modelAlias} not found in config`,
+      throw new HttpException(
+        {
+          code: ApiErrorCode.MODEL_ALIAS_NOT_FOUND,
+          message: `Model alias ${modelAlias} not found in config`,
+          details: [],
+        },
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -63,8 +71,13 @@ export class ProviderRegistryService {
       gatewayConfig.providers[modelConfig.providerInstance];
 
     if (!providerInstanceConfig) {
-      throw new BadRequestException(
-        `Provider instance ${modelConfig.providerInstance} not found in config`,
+      throw new HttpException(
+        {
+          code: ApiErrorCode.VALIDATION_FAILED,
+          message: `Provider instance ${modelConfig.providerInstance} not found`,
+          details: [],
+        },
+        HttpStatus.BAD_REQUEST,
       );
     }
 
@@ -73,7 +86,9 @@ export class ProviderRegistryService {
     const entry = this.providers.get(providerType);
 
     if (!entry) {
-      throw new BadRequestException(`Provider ${providerType} not registered`);
+      throw new UnsupportedProviderException(
+        `Provider ${providerType} not registered.`,
+      );
     }
 
     return entry;

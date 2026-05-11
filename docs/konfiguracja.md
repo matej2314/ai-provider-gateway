@@ -64,7 +64,8 @@ Uwagi:
 
 - `apiKeyRef` to **nazwa** zmiennej env, nie wartość.
 - Aliasy pod `models` są publicznym API (`modelAlias`).
-- **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując **wszystkie** wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic-main`) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach. **Uwaga:** jeśli zdefiniujesz **dwie instancje tego samego `type`** (np. dwa wpisy `anthropic`), do adaptera trafi **ostatnia** nadpisana wartość — wiele kluczy per ten sam vendor wymaga rozszerzenia modelu konfiguracji (poza zakresem rdzenia MVP / obecną konfiguracją).
+- **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic-main`) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach.
+- **Ograniczenie: jedna instancja per typ providera.** W `providers` może wystąpić **co najwyżej jeden** wpis o danym `type` (np. tylko jeden `type: anthropic`). Walidacja Zod (`GatewayConfigSchema.providers.superRefine` w `src/config/configuration.ts`) **odrzuca start** z czytelnym komunikatem przy duplikacie (komunikat wskazuje zduplikowany typ i nazwy zderzających się instancji). Różnice między środowiskami (dev/staging/prod) wyraża się **wartością** zmiennej środowiskowej wskazanej przez `apiKeyRef`, a nie przez deklarowanie wielu instancji tego samego typu w YAML.
 - Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane, ale **adaptery nie korzystają z nich w pełni** — część parametrów pochodzi ze stałych w kodzie adaptera lub wyłącznie z `policy.params.defaults` w `ChatService`; harmonogram dopięcia: `PLAN_IMPLEMENTACJI.md`.
 
 ## 3) Walidacja i fail-fast
@@ -72,6 +73,7 @@ Uwagi:
 Gateway kończy start m.in. gdy:
 
 - **`gateway.config.yaml`** nie istnieje lub nie przechodzi walidacji Zod,
+- w `providers` występują **dwa lub więcej** wpisy o tym samym `type` (jedna instancja per typ — patrz pkt 2),
 - w **production** nie ma co najmniej jednego klucza API (patrz wyżej).
 
 Docelowo (spec): dodatkowe reguły — brak env wskazanego przez `apiKeyRef` dla używanej instancji, niespójny `providerInstance`, zduplikowane aliasy — część z tego jest częściowo pokryta przez schema; szczegóły rozwoju w planie.

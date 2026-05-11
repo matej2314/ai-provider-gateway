@@ -34,12 +34,12 @@ Poniższy opis odpowiada **nagłówkowi** **`PLAN_IMPLEMENTACJI.md`** (definicja
 ### Stan realizacji (skrót)
 
 - **Endpoint czatu standardowego** `POST /api/v1/chat` — zaimplementowany.
-- **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; rozszerzenia kontraktu API (envelope, `params`, …) — **Faza 5** (plan).
+- **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; envelope błędów `ErrorEnvelope` — **wdrożony** (`GlobalExceptionFilter` global). Pozostałe rozszerzenia kontraktu API (`params` w body, gateway key `X-Gateway-Key`, rozszerzenie mappingu kodów) — **Faza 5** (plan).
 - **Providery** Anthropic i Google Gemini — adaptery i rejestr zaimplementowane.
 - **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie zaimplementowane (**Faza 3** w planie; wg nagłówka planu jest to część **v1**, nie rdzenia MVP).
 - Klucze API w `.env`; **w production** obowiązuje **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
 - Pełne odwzorowanie policy z YAML w adapterach — **stopniowo dopinane** (`PLAN_IMPLEMENTACJI.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego — działa.
-- Spójny format błędów (**envelope**) i pełna propagacja **`x-request-id`** — **Faza 5** (plan); część odpowiedzi sukcesu już zawiera `requestId` generowany w serwisie.
+- Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter` global). Propagacja nagłówka żądania **`x-request-id`** do `requestId` w body — **wdrożone** (`RequestIdInterceptor` global). Rozszerzenie mappingu kodów na pełny słownik (`dictionary.md`) i response header `x-request-id` — **Faza 5**.
 - Testy jednostkowe przy modułach (`*.spec.ts`).
 
 ## Poza zakresem (wybrane wykluczenia na start)

@@ -32,7 +32,7 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 
 - `id` — identyfikator odpowiedzi (gateway),
 - `provider` — nazwa providera użytego do wykonania,
-- `model` — w odpowiedzi **standardowej** jest to **alias** (`modelAlias`) z żądania; w zdarzeniu SSE **`meta`** pole `model` zawiera rozwiązany **vendorowy `modelId`** (patrz `ChatService` vs `openapi.json`),
+- `model` — **alias** (`modelAlias`) z żądania; ten sam identyfikator w odpowiedzi standardowej i w SSE **`meta`**. Vendorowy `modelId` nie jest zwracany w żadnej odpowiedzi (`ChatService.executeChat` i `ChatService.executeStream`),
 - `output` — treść odpowiedzi (tekst i/lub struktura),
 - `usage` — metadane tokenów (jeśli dostępne),
 - `requestId` — korelacja z logami.
@@ -48,11 +48,11 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Błędy HTTP
 
-**Dziś (`openapi.json`):** domyślny format NestJS (`statusCode`, `message` jako string lub tablica, opcjonalnie `error`).
+**Stan kodu (`openapi.json`):** wszystkie błędy są w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`) emitowanym przez `GlobalExceptionFilter` (global w `src/main.ts`). Pole `code` jest mapowane ze statusu HTTP w `mapHttpStatusToCode` (400→`VALIDATION_FAILED`, 429→`PROVIDER_RATE_LIMITED`, 502→`PROVIDER_UNAVAILABLE`, 504→`PROVIDER_TIMEOUT`, inne→`INTERNAL_SERVER_ERROR`). `requestId` pochodzi z `RequestIdInterceptor` (czyta nagłówek żądania `x-request-id` lub generuje `req_<uuid>`).
 
-## Docelowy envelope (Faza 5)
+## Rozszerzenia (Faza 5)
 
-Wymaganie produktowe (`spec/SPEC-PLATFORMA-I-KONTRAKTY`, `dictionary.md`): jednolity envelope z polem **`code`** i **`requestId`** w każdej odpowiedzi błędu JSON — wdrożenie zaplanowane w **`PLAN_IMPLEMENTACJI.md`**.
+Pełny słownik kodów (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_AUTH_FAILED`, …) — `dictionary.md`. Aktualny mapping w filtrze jest minimalistyczny (5 wartości `code`); rozszerzenie na pełny zestaw + dedykowane `code` per typ wyjątku domenowego — `PLAN_IMPLEMENTACJI.md` Krok 5.1b. Response header `x-request-id` (poza body) — również TBD.
 
 ## Walidacja
 

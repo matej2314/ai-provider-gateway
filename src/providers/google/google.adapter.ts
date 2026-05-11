@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
 import {
+  mapGoogleGenAiError,
+  toHttpException,
+} from '../../common/errors/provider-error.mapper';
+import {
   AIProvider,
   ProviderCallOptions,
   ProviderChatInput,
@@ -38,27 +42,30 @@ export class GoogleAdapter implements AIProvider {
     console.log(
       `[GoogleAdapter] Calling model: ${modelId} with ${input.messages.length} messages`,
     );
+    try {
+      const response = await this.client.models.generateContent({
+        model: modelId,
+        contents: this.prepareContents(input.messages),
+        config: {
+          ...(input.system?.trim() ? { systemInstruction: input.system } : {}),
+          temperature: options?.temperature ?? undefined,
+          maxOutputTokens: options?.maxOutputTokens ?? 1024,
+        },
+      });
 
-    const response = await this.client.models.generateContent({
-      model: modelId,
-      contents: this.prepareContents(input.messages),
-      config: {
-        ...(input.system?.trim() ? { systemInstruction: input.system } : {}),
-        temperature: options?.temperature ?? undefined,
-        maxOutputTokens: options?.maxOutputTokens ?? 1024,
-      },
-    });
-
-    return {
-      text: response.text ?? '',
-      model: modelId,
-      usage: response.usageMetadata
-        ? {
-            inputTokens: response.usageMetadata.promptTokenCount ?? 0,
-            outputTokens: response.usageMetadata.candidatesTokenCount ?? 0,
-          }
-        : undefined,
-    };
+      return {
+        text: response.text ?? '',
+        model: modelId,
+        usage: response.usageMetadata
+          ? {
+              inputTokens: response.usageMetadata.promptTokenCount ?? 0,
+              outputTokens: response.usageMetadata.candidatesTokenCount ?? 0,
+            }
+          : undefined,
+      };
+    } catch (error) {
+      throw toHttpException(mapGoogleGenAiError(error));
+    }
   }
 
   async *stream(
@@ -66,20 +73,24 @@ export class GoogleAdapter implements AIProvider {
     modelId: string,
     options?: ProviderCallOptions,
   ): AsyncIterable<string> {
-    const stream = await this.client.models.generateContentStream({
-      model: modelId,
-      contents: this.prepareContents(input.messages),
-      config: {
-        ...(input.system?.trim() ? { systemInstruction: input.system } : {}),
-        temperature: options?.temperature ?? undefined,
-        maxOutputTokens: options?.maxOutputTokens ?? 1024,
-      },
-    });
+    try {
+      const stream = await this.client.models.generateContentStream({
+        model: modelId,
+        contents: this.prepareContents(input.messages),
+        config: {
+          ...(input.system?.trim() ? { systemInstruction: input.system } : {}),
+          temperature: options?.temperature ?? undefined,
+          maxOutputTokens: options?.maxOutputTokens ?? 1024,
+        },
+      });
 
-    for await (const event of stream) {
-      if (event.text) {
-        yield event.text;
+      for await (const event of stream) {
+        if (event.text) {
+          yield event.text;
+        }
       }
+    } catch (error) {
+      throw toHttpException(mapGoogleGenAiError(error));
     }
   }
 }

@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **0.6**.  
-**OpenAPI:** `openapi.json` — zsynchronizowany z `src/`; w **Fazie 5** planowane m.in.: envelope z `code`, `x-request-id`, body `params`, skrypt `config:validate` (`PLAN_IMPLEMENTACJI.md`, `dokumentacja_api.md`). Opcjonalna warstwa cache / Redis (bez zmiany ścieżek REST na start) — `REDIS_IMPLEMENTATION_PLAN.md`.
+Wersja dokumentu: **0.7**.  
+**OpenAPI:** `openapi.json` — zsynchronizowany z `src/`. W kodzie już są: envelope błędów `ErrorEnvelope` (z `code` + `requestId`) — `GlobalExceptionFilter` + `RequestIdInterceptor` w `src/common/`. W **Fazie 5** planowane: nagłówek `X-Gateway-Key`, body `params`, skrypt `config:validate`, limity DTO/body (Krok 5.4b), rozszerzenie mappingu kodów (Krok 5.1b) — `PLAN_IMPLEMENTACJI.md`, `dokumentacja_api.md`. Opcjonalna warstwa cache / Redis (bez zmiany ścieżek REST na start) — `REDIS_IMPLEMENTATION_PLAN.md`.
 
 ## Konwencje globalne
 
@@ -10,7 +10,7 @@ Wersja dokumentu: **0.6**.
 | **Baza (przykład)** | `http://localhost:3000` |
 | **Prefiks ścieżek** | `/api/v1` (`src/main.ts`: `setGlobalPrefix('api/v1')`) |
 | **Format** | JSON (`application/json`) dla standard; SSE (`text/event-stream`) dla **`POST /api/v1/chat/stream`** |
-| **Błędy (JSON)** | Domyślny format NestJS — schema `NestHttpExceptionBody` w `openapi.json` |
+| **Błędy (JSON)** | Envelope `ErrorEnvelope` (`{statusCode, code, message, requestId, details?}`) — schema w `openapi.json`, implementacja w `src/common/filters/http-exception.filter.ts` |
 
 **Uruchomienie serwisu:** w **`NODE_ENV=production`** walidacja env wymaga **co najmniej jednego** niepustego klucza (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W development ten warunek **nie** jest egzekwowany (`src/config/env.validation.ts`).  
 Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod w `src/config/configuration.ts`); brak pliku lub błąd schema kończy start aplikacji.
@@ -47,7 +47,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.**
 | | |
 |--|--|
 | **200** | `text/event-stream` |
-| **400** | walidacja DTO / nieznany alias / brak wsparcia streamingu — format błędu Nest (`openapi.json`: `NestHttpExceptionBody`) |
+| **400** | walidacja DTO / nieznany alias / brak wsparcia streamingu — envelope `ErrorEnvelope` (`code: VALIDATION_FAILED`) |
 
 ---
 

@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import {
+  mapAnthropicSdkError,
+  toHttpException,
+} from '../../common/errors/provider-error.mapper';
+import {
   AIProvider,
   ProviderCallOptions,
   ProviderChatInput,
@@ -30,28 +34,32 @@ export class AnthropicAdapter implements AIProvider {
       `[AnthropicAdapter] Calling model: ${modelId} with ${input.messages.length} messages`,
     );
 
-    const response = await this.client.messages.create({
-      model: modelId,
-      max_tokens: options?.maxOutputTokens ?? 1024,
-      temperature: options?.temperature ?? undefined,
-      system: input.system,
-      messages: input.messages,
-    });
+    try {
+      const response = await this.client.messages.create({
+        model: modelId,
+        max_tokens: options?.maxOutputTokens ?? 1024,
+        temperature: options?.temperature ?? undefined,
+        system: input.system,
+        messages: input.messages,
+      });
 
-    let text = '';
+      let text = '';
 
-    for (const c of response.content) {
-      if (c.type === 'text') text += c.text;
+      for (const c of response.content) {
+        if (c.type === 'text') text += c.text;
+      }
+
+      return {
+        text,
+        model: response.model,
+        usage: {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+        },
+      };
+    } catch (error) {
+      throw toHttpException(mapAnthropicSdkError(error));
     }
-
-    return {
-      text,
-      model: response.model,
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      },
-    };
   }
 
   async *stream(
@@ -59,22 +67,26 @@ export class AnthropicAdapter implements AIProvider {
     modelId: string,
     options?: ProviderCallOptions,
   ): AsyncIterable<string> {
-    const stream = await this.client.messages.stream({
-      model: modelId,
-      max_tokens: options?.maxOutputTokens ?? 1024,
-      temperature: options?.temperature ?? undefined,
-      system: input.system,
-      messages: input.messages,
-      stream: true,
-    });
+    try {
+      const stream = await this.client.messages.stream({
+        model: modelId,
+        max_tokens: options?.maxOutputTokens ?? 1024,
+        temperature: options?.temperature ?? undefined,
+        system: input.system,
+        messages: input.messages,
+        stream: true,
+      });
 
-    for await (const event of stream) {
-      if (
-        event.type === 'content_block_delta' &&
-        event.delta.type === 'text_delta'
-      ) {
-        yield event.delta.text;
+      for await (const event of stream) {
+        if (
+          event.type === 'content_block_delta' &&
+          event.delta.type === 'text_delta'
+        ) {
+          yield event.delta.text;
+        }
       }
+    } catch (error) {
+      throw toHttpException(mapAnthropicSdkError(error));
     }
   }
 }
