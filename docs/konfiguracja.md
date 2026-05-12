@@ -25,6 +25,28 @@ W repo powinien istnieć `.env.example` bez wartości sekretów.
 - **Brak niepustego klucza master** → wyjątek przy ładowaniu konfiguracji (`[GatewayKey] Missing master key.`), proces się nie uruchomi.
 - Endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** wymagają nagłówka **`X-Gateway-Key`** z wartością obecną na allowliście; **`GET /api/v1/health`** nie.
 
+### Cache odpowiedzi i Redis (opcjonalnie)
+
+Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/config/env.validation.ts` (m.in. typy i wartości domyślne). Wartości używane w runtime składa też `configuration.ts` (`cache`, `redis` w obiekcie zwracanym przez `load`).
+
+| Zmienna | Domyślnie | Znaczenie |
+|---------|-----------|-----------|
+| `CACHE_ENABLED` | `false` | Gdy **`true`**, cache jest **włączony** w konfiguracji; faktyczny backend wybiera `CACHE_BACKEND` (patrz niżej). Gdy `false`, w konfiguracji wymuszany jest backend **`noop`** — brak odczytu/zapisu cache. |
+| `CACHE_BACKEND` | `noop` | Dozwolone wartości w walidatorze: `noop`, `redis`, `memory`, `other`. **W kodzie zarejestrowane są `noop` i `redis`.** Nieznany backend → ostrzeżenie w logu i fallback do **`noop`** (`CacheRegistryService.resolve`). |
+| `CACHE_TTL` | `3600` | TTL wpisów cache w **sekundach** (liczba całkowita ≥ 1). |
+| `CACHE_KEY_PREFIX` | `aigw:` | Prefiks kluczy zapisu odpowiedzi czatu (`ResponseCacheService`). |
+| `REDIS_HOST` | `localhost` | Host Redis (gdy ładowany moduł Redis). |
+| `REDIS_PORT` | `6379` | Port Redis. |
+| `REDIS_PASSWORD` | *(pusty)* | Hasło; puste → połączenie bez hasła. |
+| `REDIS_DB` | `0` | Numer bazy Redis. |
+| `REDIS_KEY_PREFIX` | `aigw:` | Prefiks konfiguracyjny Redis (osobny od `CACHE_KEY_PREFIX`; przy braku `cache.keyPrefix` w serwisie cache używany jest fallback). |
+
+**Ładowanie modułu Redis w Nest:** w `src/app.module.ts` stos Redis (`RedisCacheModule` wewnątrz `CacheModule.register`) jest importowany tylko gdy **`CACHE_ENABLED === 'true'`** oraz **`CACHE_BACKEND`** (po `toLowerCase()`) to **`redis`**. W przeciwnym razie działa wyłącznie backend **`noop`** (brak zależności od działającego Redis przy starcie).
+
+**Zachowanie:** `ChatService.executeChat` przed wywołaniem providera sprawdza cache (`ResponseCacheService`); przy trafieniu zwracana jest zapisana odpowiedź z polami **`cached: true`** i **`cachedAt`** (ISO 8601). Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z tej warstwy.
+
+Szablon zmiennych: `.env.example`. Szerszy plan (limity, metryki): `REDIS_IMPLEMENTATION_PLAN.md`.
+
 ## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
 
 **Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/configuration.ts`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).

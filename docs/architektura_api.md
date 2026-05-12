@@ -61,7 +61,7 @@ Pełny słownik kodów (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, …)
 
 ## Idempotencja i retry
 
-- Standardowy chat nie jest idempotentny (ten sam request może generować różną odpowiedź).
+- Standardowy chat nie jest idempotentny w sensie biznesowym (ten sam request może generować różną odpowiedź), **chyba że** zadziała warstwa cache dla **`POST /api/v1/chat`** — wtedy identyczny payload (włącznie z wpływem na klucz cache: `modelAlias`, `messages`, warstwy system promptu) może zwrócić wcześniejszą odpowiedź z **`cached: true`** (`ResponseCacheService`, `konfiguracja.md`).
 - Retry po stronie gateway jest ograniczony do błędów “bezpiecznych” (np. 429/5xx) i kontrolowany polityką w konfiguracji.
 
 ## CORS / Auth

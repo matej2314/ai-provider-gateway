@@ -13,7 +13,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 7. Dla pracy spec‑first: katalog `spec/`.
 8. Dla harmonogramu i faz rozwoju: `PLAN_IMPLEMENTACJI.md` (w katalogu głównym repo).
 9. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — wdrożone w kodzie; dokumentacja refaktoru: `SYSTEM_PROMPTS_REFACTOR-READY.md` (w katalogu głównym repo).
-10. Opcjonalna warstwa **cache / Redis** (port + adapter; start po Fazie 6): `REDIS_IMPLEMENTATION_PLAN.md` (w katalogu głównym repo).
+10. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`. Dalsze zastosowania Redis z planu: `REDIS_IMPLEMENTATION_PLAN.md`.
 
 ## Spis plików
 
@@ -23,7 +23,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.
 - `lista_endpointów.md` — szybka lista endpointów (standard + streaming).
 - `dokumentacja_api.md` — szczegółowy kontrakt endpointów, przykłady payloadów.
-- `konfiguracja.md` — env + `gateway.config.yaml` (wczytywanie przy starcie); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); skrypt `npm run config:validate` — wpis w `package.json`, implementacja w planie (Faza 5).
+- `konfiguracja.md` — env + `gateway.config.yaml` (wczytywanie przy starcie); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — wpis w `package.json`, implementacja w planie (Faza 5).
 - `mcp.md` — integracja MCP (konfiguracja i granice odpowiedzialności).
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.
 - `dictionary.md` — słownik pojęć i kody błędów.

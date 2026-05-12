@@ -48,7 +48,7 @@ Jeśli gateway ma w przyszłości wykonywać narzędzia:
 
 ## Klucze API a MCP
 
-Uruchomienie gateway zakłada m.in. poprawny **`gateway.config.yaml`** oraz — w **production** — spełnienie reguły **minimum jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`, `konfiguracja.md`).
+Uruchomienie gateway zakłada m.in. poprawny **`gateway.config.yaml`** oraz — w **production** — spełnienie reguły **minimum jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`, `konfiguracja.md`). Opcjonalnie zmienne **`CACHE_*`** / **`REDIS_*`** — ten sam dokument.
 
 ## Powiązane dokumenty
 

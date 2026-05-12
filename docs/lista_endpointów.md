@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **0.8**.  
-**OpenAPI:** `openapi.json` — zsynchronizowany z `src/`. Envelope błędów `ErrorEnvelope` (`GlobalExceptionFilter`) + `RequestIdInterceptor` w `src/common/`. **Uwierzytelnienie na brzegu:** nagłówek **`X-Gateway-Key`** jest **wymagany** dla czatu (`GatewayKeyGuard` na `ChatController` i `ChatStreamController`); allowlista z `gateway.config.yaml` + env (`docs/konfiguracja.md`). W **Fazie 5** m.in.: body `params`, skrypt `config:validate`, limity DTO/body (Krok 5.4b), rozszerzenie mappingu kodów (Krok 5.1b) — `PLAN_IMPLEMENTACJI.md`. Opcjonalna warstwa cache / Redis — `REDIS_IMPLEMENTATION_PLAN.md`.
+Wersja dokumentu: **0.9**.  
+**OpenAPI:** `openapi.json` — zsynchronizowany z `src/` (schemat sukcesu czatu; opcjonalne pola cache **`cached`** / **`cachedAt`** mogą nie być w OpenAPI — patrz `dokumentacja_api.md`). Envelope błędów `ErrorEnvelope` (`GlobalExceptionFilter`) + `RequestIdInterceptor` w `src/common/`. **Uwierzytelnienie na brzegu:** nagłówek **`X-Gateway-Key`** jest **wymagany** dla czatu (`GatewayKeyGuard` na `ChatController` i `ChatStreamController`); allowlista z `gateway.config.yaml` + env (`docs/konfiguracja.md`). W **Fazie 5** m.in.: body `params`, skrypt `config:validate`, limity DTO/body (Krok 5.4b), rozszerzenie mappingu kodów (Krok 5.1b) — `PLAN_IMPLEMENTACJI.md`. **Cache odpowiedzi** dla czatu standardowego: `src/cache/` + `konfiguracja.md`; dalsze elementy Redis (limity, observability) — `REDIS_IMPLEMENTATION_PLAN.md`.
 
 ## Konwencje globalne
 
@@ -35,7 +35,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Nagłówek **`X-Gatewa
 
 | | |
 |--|--|
-| **200** | odpowiedź gateway (patrz `dokumentacja_api.md`, schemas w `openapi.json`) |
+| **200** | odpowiedź gateway (patrz `dokumentacja_api.md`, schemas w `openapi.json`); przy trafieniu w cache mogą wystąpić dodatkowo **`cached: true`** i **`cachedAt`** (`ResponseCacheService` / `ChatService.executeChat`) |
 | **400** | walidacja DTO / nieznany `modelAlias` / dodatkowe pola w body (`ValidationPipe`: `forbidNonWhitelisted`) |
 | **401** | brak `X-Gateway-Key` — `code: GATEWAY_KEY_MISSING` |
 | **403** | niepoprawny klucz — `code: GATEWAY_KEY_INVALID` |

@@ -8,7 +8,7 @@ Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym for
 
 Gateway musi działać na poprawnie zwalidowanym środowisku: w **`NODE_ENV=production`** obowiązuje **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`), zgodnie z `src/config/env.validation.ts` i `docs/konfiguracja.md`. Ponadto wymagany jest poprawny `gateway.config.yaml` (fail‑fast przy starcie).
 
-**Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body **`params`** — zaplanowane (**Faza 5**); DTO i `openapi.json` przyjmują wyłącznie `modelAlias` i `messages`.
+**Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body **`params`** — zaplanowane (**Faza 5**); DTO i `openapi.json` przyjmują wyłącznie `modelAlias` i `messages`. **Cache odpowiedzi** dla czatu standardowego — **wdrożony** (`src/cache/`, `konfiguracja.md`).
 
 ## Użytkownicy i scenariusze
 
@@ -18,11 +18,11 @@ Gateway musi działać na poprawnie zwalidowanym środowisku: w **`NODE_ENV=prod
 2. Gateway wykonuje request do właściwego providera.
 3. Klient dostaje JSON z odpowiedzią i metadanymi (provider, model, usage).
 
-### Scenariusz B — kontrola parametrów
+### Scenariusz C — powtórzone zapytanie z cache
 
-1. Klient wysyła `params.temperature` i `params.maxOutputTokens`.
-2. Gateway waliduje allowlistę i bounds.
-3. Gateway mapuje parametry do pola SDK providera.
+1. Operator włącza cache (`CACHE_ENABLED`, ewentualnie Redis — `konfiguracja.md`).
+2. Klient wysyła `POST /api/v1/chat` z określonym `modelAlias` i `messages`.
+3. Przy drugim identycznym żądaniu (w granicach klucza cache — patrz implementacja `ResponseCacheService`) gateway może zwrócić odpowiedź z **`cached: true`** i **`cachedAt`** bez wywołania providera.
 
 ## Wymagania funkcjonalne
 
@@ -44,7 +44,7 @@ F-5. Gateway powinien dołączyć `usage`, jeśli provider/SDK udostępnia te da
 
 F-6. Nieznany `modelAlias` → `400` z `code=MODEL_ALIAS_NOT_FOUND` (**docelowy** kod). Obecnie: `400` z envelope `ErrorEnvelope` (`code=VALIDATION_FAILED`) — `GlobalExceptionFilter` mapuje wszystkie 400 na `VALIDATION_FAILED`. Rozróżnienie `MODEL_ALIAS_NOT_FOUND` vs ogólny `VALIDATION_FAILED` wymaga rozszerzenia mappingu w filtrze (Faza 5, Krok 5.1b).
 
-F-7. Parametry poza allowlistą → `400` z `code=VALIDATION_FAILED` (lub dedykowanym kodem).
+F-8. *(Opcjonalnie — cache odpowiedzi)* Gateway może zwracać zapisaną odpowiedź dla **`POST /api/v1/chat`** z polami **`cached: true`** i **`cachedAt`**, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Streaming nie podlega cache.
 
 ## Wymagania niefunkcjonalne
 
@@ -57,6 +57,7 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 ## Kryteria akceptacji
 
 - [x] Dla poprawnego requestu gateway zwraca `200` i spójny JSON (`ChatService.executeChat`).
+- [x] *(Cache)* Przy włączonym i dostępnym backendzie cache powtórzone identyczne żądanie `POST /api/v1/chat` może zwrócić odpowiedź z `cached: true` (szczegóły klucza: `ResponseCacheService`).
 - [x] Dla nieznanego `modelAlias` gateway zwraca `400` bez wywołania providera (envelope `ErrorEnvelope` z `code: VALIDATION_FAILED`; rozróżnienie `MODEL_ALIAS_NOT_FOUND` w **Fazie 5**).
 - [ ] Parametry są walidowane (allowlista + bounds); DTO nie przyjmuje jeszcze `params`.
 - [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka żądania `x-request-id` jest **aktywna** (`RequestIdInterceptor` global). Response header `x-request-id` (poza body) nie jest jeszcze ustawiany.

@@ -45,25 +45,40 @@ ai-provider-gateway/
 │   │   └── openai/ *(plan — poza rdzeniem MVP / v1+)*
 │   │
 │   ├── config/
-│   │   ├── configuration.ts       # load gateway.config.yaml + Zod
+│   │   ├── configuration.ts       # load gateway.config.yaml + Zod; cache/redis w obiekcie config
+│   │   ├── configuration.types.ts
+│   │   ├── configuration.helpers.ts
 │   │   ├── env.validation.ts
 │   │   └── system-prompt/        # MASTER / MAIN / models/<alias>.md — składanie system promptu (configuration.ts + ChatService)
 │   │
+│   ├── guards/
+│   │   └── gateway-key.guard.ts
 │   ├── health/
 │   │   ├── health.module.ts
 │   │   ├── health.controller.ts
 │   │   └── health.service.ts
 │   │
+│   ├── cache/                      # opcjonalny cache odpowiedzi (tylko POST …/chat standardowy)
+│   │   ├── cache.module.ts         # CacheModule.register({ includeRedisStack }) — globalny moduł dynamiczny
+│   │   ├── cache.tokens.ts
+│   │   ├── cache-registry.service.ts
+│   │   ├── response-cache.service.ts
+│   │   ├── interfaces/
+│   │   │   └── cache-backend-interface.ts
+│   │   └── adapters/
+│   │       ├── noop-cache/         # backend domyślny — brak zapisu/odczytu
+│   │       └── redis-cache/        # ioredis — ładowany gdy CACHE_ENABLED=true i CACHE_BACKEND=redis
+│   │
 │   ├── common/                     # współdzielone artefakty brzegowe
 │   │   ├── dtos/
 │   │   │   └── error-envelope.dto.ts
+│   │   ├── errors/                 # kody błędów API, DTO błędów, mapowanie provider → HTTP
 │   │   ├── filters/
 │   │   │   └── http-exception.filter.ts   # GlobalExceptionFilter (global)
-│   │   └── interceptors/
-│   │       └── request-id.interceptor.ts  # RequestIdInterceptor (global)
-│   │
-│   └── types/
-│       └── express.d.ts            # augmentacja: Request.requestId: string
+│   │   ├── interceptors/
+│   │   │   └── request-id.interceptor.ts  # RequestIdInterceptor (global)
+│   │   └── types/
+│   │       └── express.d.ts        # augmentacja: Request.requestId: string
 │
 ├── test/                           # e2e (gdy rozbudowane)
 ├── docs/
@@ -106,11 +121,12 @@ ai-provider-gateway/
 
 - **`src/chat/`**: HTTP dla czatu standardowego i streamingu (`chat-stream.controller.ts`, SSE). Orkiestracja przez `ChatService` i rejestr providerów; podkatalog `sse/` (serializer zdarzeń).
 - **`src/providers/`**: adaptery Anthropic / Google i `ProviderRegistryService`. Jedyna warstwa bezpośrednio używająca SDK vendorów.
-- **`src/config/`**: `configuration.ts` — wczytanie `gateway.config.yaml` i walidacja Zod; `env.validation.ts` — reguły env (m.in. klucze API w production).
+- **`src/config/`**: `configuration.ts` — wczytanie `gateway.config.yaml`, walidacja Zod, złożenie `gatewayKey`, `resolvedSystemPrompts`, `providers`, obiektów **`cache`** / **`redis`** z env; `configuration.types.ts` / `configuration.helpers.ts`; `env.validation.ts` — reguły env (klucze API w production, opcjonalnie **`CACHE_*`** / **`REDIS_*`**).
 - **`src/health/`**: liveness (`GET /api/v1/health`). Readiness jako osobny endpoint/service *(plan / rozszerzenie)*.
-- **`src/common/`**: współdzielone artefakty brzegowe — **`filters/http-exception.filter.ts`** (`GlobalExceptionFilter`), **`interceptors/request-id.interceptor.ts`** (`RequestIdInterceptor`), **`dtos/error-envelope.dto.ts`**. Podpięte globalnie w `src/main.ts`.
+- **`src/cache/`**: warstwa cache odpowiedzi dla **`POST /api/v1/chat`** (nie dotyczy streamingu). Rejestr backendów (`CacheRegistryService`), implementacje **`noop`** (zawsze) i **`redis`** (gdy `AppModule` załaduje stos Redis — patrz `konfiguracja.md`), `ResponseCacheService` używany w `ChatService`.
+- **`src/common/`**: współdzielone artefakty brzegowe — **`filters/http-exception.filter.ts`** (`GlobalExceptionFilter`), **`interceptors/request-id.interceptor.ts`** (`RequestIdInterceptor`), **`dtos/error-envelope.dto.ts`**, kody i mapowanie błędów w **`errors/`**. Podpięte globalnie w `src/main.ts` (filtry i interceptory).
 - **`src/guards/gateway-key.guard.ts`**: weryfikacja nagłówka **`X-Gateway-Key`** względem allowlisty z konfiguracji — używany na kontrolerach czatu (`@UseGuards(GatewayKeyGuard)`). Rozszerzenia mappingu kodów błędów dla wszystkich przypadków domenowych — **Faza 5** (`PLAN_IMPLEMENTACJI.md`).
-- **`src/types/`**: augmentacja typów innych pakietów; `express.d.ts` dodaje `requestId: string` do `Express.Request`, żeby `req.requestId` było typowane w kontrolerach i filtrach.
+- **`src/common/types/express.d.ts`**: augmentacja `Express.Request` o `requestId: string` dla kontrolerów i filtrów.
 - **Testy jednostkowe**: obok kodu, np. `src/**/*.spec.ts`.
 - **`docs/`**: dokumentacja oraz specyfikacje SDD.
 
@@ -121,7 +137,7 @@ ai-provider-gateway/
 Zamknięte lub częściowo zamknięte (śledź tabele statusów w `PLAN_IMPLEMENTACJI.md`):
 
 - Fundament: config z YAML, registry, adaptery Anthropic + Google.
-- Już w kodzie (poza zamknięciem MVP): error envelope `ErrorEnvelope` (`GlobalExceptionFilter` global) i propagacja `x-request-id` z requestu do `requestId` w body (`RequestIdInterceptor` global); refaktor promptów serwerowych — ✅ wg `SYSTEM_PROMPTS_REFACTOR-READY.md`.
-- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, działający `npm run config:validate`, rozszerzenie mappingu kodów i limity DTO/body (Faza 5); opcjonalny cache/Redis — `REDIS_IMPLEMENTATION_PLAN.md`.
+- Już w kodzie (poza zamknięciem MVP): error envelope `ErrorEnvelope` (`GlobalExceptionFilter` global) i propagacja `x-request-id` z requestu do `requestId` w body (`RequestIdInterceptor` global); refaktor promptów serwerowych — ✅ wg `SYSTEM_PROMPTS_REFACTOR-READY.md`; **cache odpowiedzi czatu standardowego** (`src/cache/`) — ✅ podstawowa implementacja (`noop` / `redis`).
+- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, działający `npm run config:validate`, rozszerzenie mappingu kodów i limity DTO/body (Faza 5). **Cache odpowiedzi** (`src/cache/`, Redis jako opcjonalny backend) jest częściowo wdrożony dla czatu standardowego; dalsze elementy z `REDIS_IMPLEMENTATION_PLAN.md` (limity, metryki itd.) — według planu.
 
 Powiązane: `PLAN_IMPLEMENTACJI.md`, `REDIS_IMPLEMENTATION_PLAN.md`, `openapi.json`, `docs/konfiguracja.md`.

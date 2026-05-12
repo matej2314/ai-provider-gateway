@@ -13,7 +13,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 - zasady uwierzytelnienia na brzegu (gateway key),
 - zasady logowania (bez sekretów).
 
-**Stan implementacji (skrót):** **`openapi.json`** opisuje żądania, odpowiedzi sukcesu, błędy w envelope **`ErrorEnvelope`** oraz **`securitySchemes.GatewayKeyAuth`** (`X-Gateway-Key`) dla **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`**. **`GlobalExceptionFilter`** + **`RequestIdInterceptor`** są podpięte globalnie w `src/main.ts`. **`GatewayKeyGuard`** jest podpięty do kontrolerów czatu — egzekucja klucza na brzegu jest **aktywna**. Pozostałe pozycje Fazy 5 (body `params`, rozszerzenie mappingu kodów na docelowy słownik z `dictionary.md`, response header `x-request-id`) — `PLAN_IMPLEMENTACJI.md`.
+**Stan implementacji (skrót):** **`openapi.json`** opisuje żądania, odpowiedzi sukcesu, błędy w envelope **`ErrorEnvelope`** oraz **`securitySchemes.GatewayKeyAuth`** (`X-Gateway-Key`) dla **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`**. Odpowiedź `200` z czatu standardowego może dodatkowo zawierać **`cached`** / **`cachedAt`** przy trafieniu w cache (`ResponseCacheService`) — pola te mogą nie być jeszcze uwzględnione w schemacie OpenAPI. **`GlobalExceptionFilter`** + **`RequestIdInterceptor`** są podpięte globalnie w `src/main.ts`. **`GatewayKeyGuard`** jest podpięty do kontrolerów czatu — egzekucja klucza na brzegu jest **aktywna**. Pozostałe pozycje Fazy 5 (body `params`, rozszerzenie mappingu kodów na docelowy słownik z `dictionary.md`, response header `x-request-id`) — `PLAN_IMPLEMENTACJI.md`.
 
 ## Użytkownicy i scenariusze
 

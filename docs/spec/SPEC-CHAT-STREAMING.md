@@ -8,7 +8,7 @@ Udostępnić endpoint streamingowy (SSE), który zwraca odpowiedź LLM w formie 
 
 Identycznie jak dla `POST /chat`: w **production** gateway wymaga **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`, `docs/konfiguracja.md`), oraz poprawnego `gateway.config.yaml`.
 
-**Stan implementacji:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream`, format SSE jak w **`openapi.json`**. Nagłówek **`X-Gateway-Key`** — jak dla czatu standardowego (`GatewayKeyGuard`).
+**Stan implementacji:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream`, format SSE jak w **`openapi.json`**. Nagłówek **`X-Gateway-Key`** — jak dla czatu standardowego (`GatewayKeyGuard`). **Cache odpowiedzi** (`ResponseCacheService`) **nie** dotyczy streamingu — każde wywołanie idzie do providera (o ile przejdzie walidację).
 
 ## Użytkownicy i scenariusze
 

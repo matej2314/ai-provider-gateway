@@ -33,7 +33,7 @@ Poniższy opis odpowiada **nagłówkowi** **`PLAN_IMPLEMENTACJI.md`** (definicja
 
 ### Stan realizacji (skrót)
 
-- **Endpoint czatu standardowego** `POST /api/v1/chat` — zaimplementowany.
+- **Endpoint czatu standardowego** `POST /api/v1/chat` — zaimplementowany; opcjonalnie **cache odpowiedzi** (`src/cache/`, env — `konfiguracja.md`).
 - **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; envelope błędów `ErrorEnvelope` — **wdrożony** (`GlobalExceptionFilter` global). **Gateway key** (`X-Gateway-Key` na endpointach czatu) — **wdrożony** (`GatewayKeyGuard`). Pozostałe rozszerzenia kontraktu API (`params` w body, rozszerzenie mappingu kodów, response header `x-request-id`) — **Faza 5** (plan).
 - **Providery** Anthropic i Google Gemini — adaptery i rejestr zaimplementowane.
 - **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie zaimplementowane (**Faza 3** w planie; wg nagłówka planu jest to część **v1**, nie rdzenia MVP).
@@ -82,7 +82,7 @@ Zamiast zmuszać klientów do podawania vendorowego `modelId`, gateway wspiera *
 ## Kierunek rozwoju (v1 i dalej)
 
 - **System prompt po stronie serwera** — **wdrożone**: pliki w `src/config/system-prompt/`, brak roli `system` w API; szczegóły w `konfiguracja.md`; dokumentacja decyzji i statusu refaktoru: **`SYSTEM_PROMPTS_REFACTOR-READY.md`**.
-- **Cache / Redis** (port + adapter, bez zmiany core czatu) — plan: **`REDIS_IMPLEMENTATION_PLAN.md`** (start po zamknięciu Fazy 6).
+- **Cache / Redis** — **odpowiedzi czatu standardowego:** moduł `src/cache/` (backend `noop` / `redis`, konfiguracja env w `konfiguracja.md`). Pozostałe cele planu (limity, metryki itd.): **`REDIS_IMPLEMENTATION_PLAN.md`**.
 - OpenAI jako trzeci provider (wymaga płatnego konta API).
 - Retry/circuit‑breaker i metryki per provider.
 - “Policy packs”: profile ustawień per środowisko (dev/prod) i per alias modelu.

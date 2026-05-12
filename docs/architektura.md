@@ -16,6 +16,7 @@ flowchart TB
   subgraph gw [AI Provider Gateway - NestJS]
     http[wejście HTTP: walidacja, requestId, logi]
     chat[Chat Module]
+    cache[Cache Module — opcjonalny backend odpowiedzi]
     providers[Providers Module]
     health[Health Module]
     config[Config Module]
@@ -28,6 +29,7 @@ flowchart TB
 
   clients --> http
   http --> chat
+  chat --> cache
   chat --> providers
   http --> health
   http --> config
@@ -39,14 +41,15 @@ flowchart TB
 
 | Moduł | Odpowiedzialność |
 |------|------------------|
-| **Chat** (`src/chat`) | Czat standardowy (`POST /api/v1/chat`) i streaming SSE (`POST /api/v1/chat/stream` — `ChatStreamController`). Orkiestracja wyboru modelu: składanie system promptu z plików (`MASTER` / `MAIN` / per alias), mapowanie `messages[]` na `user|assistant`, delegacja do adapterów. |
+| **Chat** (`src/chat`) | Czat standardowy (`POST /api/v1/chat`) i streaming SSE (`POST /api/v1/chat/stream` — `ChatStreamController`). Orkiestracja wyboru modelu: składanie system promptu z plików (`MASTER` / `MAIN` / per alias), mapowanie `messages[]` na `user|assistant`, delegacja do adapterów. Dla czatu standardowego: opcjonalny odczyt/zapis odpowiedzi przez `ResponseCacheService` (`src/cache`). |
+| **Cache** (`src/cache`) | Globalny moduł dynamiczny: rejestr backendów (`noop` zawsze, `redis` warunkowo), `ResponseCacheService` — cache wyłącznie dla **`POST /api/v1/chat`** (klucz m.in. z `modelAlias`, treści wiadomości i sygnatury warstw system promptu). Konfiguracja env: `docs/konfiguracja.md`. |
 | **Providers** (`src/providers`) | Adaptery providerów (Anthropic/Google Gemini) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
 | **Health** (`src/health`) | Liveness: `GET /api/v1/health` (JSON ze statusem i znacznikiem czasu). Osobny **readiness** (np. dependency check) — opcjonalnie w kolejnych iteracjach; walidacja konfiguracji następuje przy **starcie** procesu. |
 
 ## Warstwy wewnątrz modułów (konwencja NestJS)
 
-1. **Controller** — mapowanie HTTP, statusy, nagłówki; brak logiki biznesowej i brak bezpośrednich wywołań SDK providerów.
+1. **Controller** — mapowanie HTTP, statusy, nagłówki; brak logiki biznesowej i brak bezpośrednich wywołań SDK providerów. Limit rozmiaru body JSON: **`1mb`** (`express.json` w `src/main.ts`).
 2. **Service (use case)** — orkiestracja: wybór modelu/trybu, polityki (timeout/retry), mapowanie parametrów, normalizacja błędów.
 3. **Adapters (providers)** — tłumaczenie kontraktu gateway ↔ kontrakt SDK providera; obsługa błędów specyficznych dla SDK.
 4. **DTO + walidacja** — walidacja wejścia i konfiguracji jako brzeg systemu.
@@ -90,7 +93,7 @@ Szczegóły: `architektura_api.md` + `anty-patterny.md`.
 
 - **Request ID**: nadawany lub propagowany z nagłówka, zwracany w błędach.
 - Logi strukturalne na stdout (JSON preferowane).
-- Metryki (kierunek rozwoju v1+, m.in. observability / Redis wg planów): latency i błędy per provider, liczba tokenów.
+- Metryki (kierunek rozwoju v1+, m.in. observability wg planów): latency i błędy per provider, liczba tokenów; dodatkowe zastosowania Redis (np. limity) — `REDIS_IMPLEMENTATION_PLAN.md`.
 
 ## Struktura repo (orientacyjnie)
 

@@ -11,11 +11,12 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Adapter** | Implementacja kontraktu gateway dla danego providera. | Ukrywa SDK i szczegóły request/response. |
 | **Model ID** | Vendorowa nazwa modelu (np. `gpt-*`, `claude-*`). | Trafia do requestów providera. |
 | **Model alias** | Zwyczajowa / czytelna nazwa modelu używana w gateway (np. `claude-sonnet-4-5` lub `chat-default`). | Mapowana do provider+vendorowy modelId+policy (np. `claude-sonnet-4-5` → `claude-sonnet-4-5-20250929` w Anthropic). |
-| **Standard** | Tryb odpowiedzi: pełna odpowiedź JSON. | `POST /chat`. |
+| **Standard** | Tryb odpowiedzi: pełna odpowiedź JSON. | `POST /api/v1/chat`. |
 | **Streaming** | Tryb odpowiedzi: SSE. | `POST /api/v1/chat/stream` — patrz `openapi.json`, `dokumentacja_api.md`. |
 | **Request ID** | Identyfikator korelacyjny żądania. | W logach i w error envelope. |
 | **Policy** | Zestaw limitów i zasad (timeout, retry, allowlista parametrów). | Konfigurowalne per alias / per provider. |
-| **Walidacja env (klucze)** | Reguły na zmiennych środowiskowych przy starcie aplikacji. | Przy **`NODE_ENV=production`** wymagany jest **co najmniej jeden** niepusty klucz (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W innych środowiskach ta reguła nie blokuje startu (`src/config/env.validation.ts`). |
+| **Response cache** | Opcjonalna warstwa zapisu/odczytu odpowiedzi **`POST /api/v1/chat`** (backend `noop` lub `redis`). | Klucz m.in. z aliasu modelu, treści wiadomości i sygnatury warstw system promptu; streaming wyłączony z cache. |
+| **Walidacja env (klucze)** | Reguły na zmiennych środowiskowych przy starcie aplikacji. | Przy **`NODE_ENV=production`** wymagany jest **co najmniej jeden** niepusty klucz (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W innych środowiskach ta reguła nie blokuje startu (`src/config/env.validation.ts`). Dodatkowo walidowane są opcjonalne pola **`CACHE_*`** / **`REDIS_*`** (typy, wartości domyślne). |
 
 ## Kody błędów (stabilne)
 

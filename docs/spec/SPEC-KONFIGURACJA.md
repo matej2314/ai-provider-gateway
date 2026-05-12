@@ -28,6 +28,8 @@ F-1. Sekrety muszą być pobierane wyłącznie z env.
 
 F-1a. Przy starcie w **`NODE_ENV=production`** musi być spełniony warunek **„co najmniej jeden klucz API”** spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`). W przeciwnym razie serwis nie startuje. Implementacja: `hasAtLeastOneProviderKey` w `src/config/env.validation.ts` (po `validateSync` dla klasy `EnvironmentVariables`).
 
+F-1b. *(Opcjonalnie)* Zmienne env **`CACHE_*`** i **`REDIS_*`** mogą włączyć zapis/odczyt odpowiedzi czatu w Redis (`src/config/env.validation.ts`, `src/config/configuration.ts`, `src/app.module.ts`, `docs/konfiguracja.md`).
+
 F-2. Plik konfiguracyjny modeli musi wspierać:
 
 - definicję provider instances (`type`, `apiKeyRef`),

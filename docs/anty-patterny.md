@@ -106,3 +106,10 @@ Ten plik zbiera typowe pułapki w projektach “LLM gateway”.
 
 **Rób**: fail-fast w production przy starcie; lokalnie pamiętaj, że wywołanie adaptera i tak wymaga realnego klucza dla używanego providera (szczegóły: `docs/konfiguracja.md`).
 
+## 11) Cache odpowiedzi bez świadomości “świeżości”
+
+**Nie rób**: zakładania, że każda odpowiedź z **`POST /api/v1/chat`** jest “na żywo” z providera — przy włączonym cache możliwy jest zwrot z **`cached: true`**.
+
+**Nie rób**: oczekiwania, że **`requestId`** w odpowiedzi z cache zawsze odpowiada bieżącemu żądaniu — w implementacji zwracany jest identyfikator zapisany wraz z pierwszą odpowiedzią.
+
+**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); streaming jest ścieżką bez cache (`docs/spec/SPEC-CHAT-STREAMING.md`).
