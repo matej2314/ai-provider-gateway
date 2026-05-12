@@ -247,6 +247,23 @@ export default () => {
     };
   }
 
+  const cacheEnabled = process.env.CACHE_ENABLED === 'true';
+  const cacheBackendRaw = (process.env.CACHE_BACKEND || 'noop').toLowerCase();
+  const cacheConfig = {
+    enabled: cacheEnabled,
+    backend: cacheEnabled ? cacheBackendRaw : 'noop',
+    ttl: parseInt(process.env.CACHE_TTL || '3600', 10),
+    keyPrefix: process.env.CACHE_KEY_PREFIX || 'aigw:',
+  };
+
+  const redisConfig = {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    password: process.env.REDIS_PASSWORD || '',
+    db: parseInt(process.env.REDIS_DB || '0', 10),
+    keyPrefix: process.env.REDIS_KEY_PREFIX || 'aigw:',
+  };
+
   return {
     gateway: gatewayConfig,
     gatewayKey,
@@ -254,5 +271,7 @@ export default () => {
     nodeEnv: process.env.NODE_ENV || 'development',
     providers: providersByType,
     resolvedSystemPrompts: systemPromptsResolved,
+    cache: cacheConfig,
+    redis: redisConfig,
   };
 };

@@ -1,9 +1,14 @@
-import { plainToInstance } from 'class-transformer';
+import { plainToInstance, Transform } from 'class-transformer';
 import {
   IsNotEmpty,
   IsOptional,
   IsString,
   validateSync,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  Min,
+  Max,
 } from 'class-validator';
 
 const isProduction = (config: Record<string, unknown>): boolean => {
@@ -27,6 +32,49 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   GOOGLE_API_KEY?: string;
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  CACHE_ENABLED?: boolean = false;
+
+  @IsIn(['noop', 'redis', 'memory', 'other'])
+  @IsOptional()
+  CACHE_BACKEND?: string = 'noop';
+
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  CACHE_TTL?: number = 3600;
+
+  @IsString()
+  @IsOptional()
+  CACHE_KEY_PREFIX?: string = 'aigw:';
+
+  @IsString()
+  @IsOptional()
+  REDIS_HOST?: string = 'localhost';
+
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  REDIS_PORT?: number = 6379;
+
+  @IsString()
+  @IsOptional()
+  REDIS_PASSWORD?: string = '';
+
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  REDIS_DB?: number = 0;
+
+  @IsString()
+  @IsOptional()
+  REDIS_KEY_PREFIX?: string = 'aigw:';
 }
 
 export function validate(config: Record<string, unknown>) {
