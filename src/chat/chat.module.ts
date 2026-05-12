@@ -8,6 +8,6 @@ import { GatewayKeyGuard } from '../guards/gateway-key.guard';
 @Module({
   controllers: [ChatController, ChatStreamController],
   providers: [ChatService, GatewayKeyGuard],
-  imports: [ProvidersModule]
+  imports: [ProvidersModule],
 })
 export class ChatModule {}

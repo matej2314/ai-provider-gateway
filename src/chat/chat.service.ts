@@ -11,6 +11,7 @@ import type {
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
 import { SseEvent } from './sse/sse-event.type';
+import { ResponseCacheService } from '../cache/response-cache.service';
 
 const SYSTEM_PROMPT_SECTION_JOINER = '\n\n';
 
@@ -19,6 +20,7 @@ export class ChatService {
   constructor(
     private readonly registry: ProviderRegistryService,
     private readonly config: ConfigService,
+    private readonly cacheService: ResponseCacheService,
   ) {}
 
   private getResolvedPrompts(): ResolvedSystemPrompts {
@@ -64,6 +66,13 @@ export class ChatService {
   }
 
   async executeChat(requestBody: ChatRequestDto, requestId: string) {
+    const cachedResponse =
+      await this.cacheService.getCachedResponse(requestBody);
+
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
     const { provider, providerName, modelId, params } = this.registry.resolve(
       requestBody.modelAlias,
     );
@@ -77,7 +86,7 @@ export class ChatService {
 
     const response = await provider.complete(providerInput, modelId, options);
 
-    return {
+    const result = {
       id: `gw_${uuidv4()}`,
       provider: providerName,
       model: requestBody.modelAlias,
@@ -88,6 +97,9 @@ export class ChatService {
       usage: response.usage,
       requestId: requestId,
     };
+
+    await this.cacheService.setCachedResponse(requestBody, result);
+    return result;
   }
 
   async executeStream(

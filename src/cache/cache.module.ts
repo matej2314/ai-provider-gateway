@@ -1,0 +1,53 @@
+import { Module, DynamicModule } from '@nestjs/common';
+import { CacheRegistryService } from './cache-registry.service';
+import { NoopCacheModule } from './adapters/noop-cache/noop-cache.module';
+import { RedisCacheModule } from './adapters/redis-cache/redis-cache.module';
+import { CACHE_BACKEND } from './cache.tokens';
+import { ResponseCacheService } from './response-cache.service';
+
+export interface CacheModuleOptions {
+  includeRedisStack: boolean;
+}
+
+@Module({})
+export class CacheModule {
+  static register(options: CacheModuleOptions): DynamicModule {
+    const imports = [
+      NoopCacheModule,
+      ...(options.includeRedisStack ? [RedisCacheModule] : []),
+    ];
+
+    const exports: Array<
+      | typeof CACHE_BACKEND
+      | typeof CacheRegistryService
+      | typeof RedisCacheModule
+      | typeof ResponseCacheService
+    > = [CACHE_BACKEND, CacheRegistryService, ResponseCacheService];
+
+    if (options.includeRedisStack) {
+      exports.push(RedisCacheModule);
+    }
+
+    return {
+      module: CacheModule,
+      global: true,
+      imports,
+      providers: [
+        CacheRegistryService,
+        ResponseCacheService,
+        {
+          provide: CACHE_BACKEND,
+          useFactory: (reg: CacheRegistryService) => ({
+            isAvailable: () => reg.resolve().isAvailable(),
+            get: (key: string) => reg.resolve().get(key),
+            set: (key: string, value: string, ttl: number) =>
+              reg.resolve().set(key, value, ttl),
+            delete: (key: string) => reg.resolve().delete(key),
+          }),
+          inject: [CacheRegistryService],
+        },
+      ],
+      exports,
+    };
+  }
+}

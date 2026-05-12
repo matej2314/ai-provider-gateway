@@ -5,6 +5,12 @@ import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 import { HealthModule } from './health/health.module';
+import { CacheModule } from './cache/cache.module';
+
+const includeRedisCacheStack = (): boolean => {
+  if (process.env.CACHE_ENABLED !== 'true') return false;
+  return (process.env.CACHE_BACKEND || 'noop').toLowerCase() === 'redis';
+};
 
 @Module({
   imports: [
@@ -12,6 +18,9 @@ import { HealthModule } from './health/health.module';
       load: [configuration],
       isGlobal: true,
       validate,
+    }),
+    CacheModule.register({
+      includeRedisStack: includeRedisCacheStack(),
     }),
     ChatModule,
     ProvidersModule,
