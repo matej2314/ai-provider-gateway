@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ChatModule } from './chat/chat.module';
 import { ProvidersModule } from './providers/providers.module';
+import { ProviderRegistryModule } from './providers/provider-registry.module';
 import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
@@ -19,11 +20,12 @@ const includeRedisCacheStack = (): boolean => {
       isGlobal: true,
       validate,
     }),
+    ProviderRegistryModule,
     CacheModule.register({
       includeRedisStack: includeRedisCacheStack(),
     }),
     ChatModule,
-    ProvidersModule,
+    ProvidersModule.register(),
     HealthModule,
   ],
 })

@@ -5,10 +5,11 @@ providers:
   anthropic:
     type: anthropic
     apiKeyRef: ANTHROPIC_API_KEY
+    enabled: true
   google:
     type: google
     apiKeyRef: GOOGLE_API_KEY
-
+    enabled: true
 # Configuration for gateway clients
 
 clients:

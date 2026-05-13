@@ -1,25 +1,43 @@
-import { Module, OnModuleInit } from '@nestjs/common';
-import { ProviderRegistryService } from './provider-registry.service';
+import { DynamicModule, Module } from '@nestjs/common';
 import { AnthropicModule } from './anthropic/anthropic.module';
-import { AnthropicAdapter } from './anthropic/anthropic.adapter';
 import { GoogleModule } from './google/google.module';
-import { GoogleAdapter } from './google/google.adapter';
+import { loadGatewayConfigFromFile } from '../config/configuration';
+import type { GatewayConfig } from '../config/configuration';
 
-@Module({
-  providers: [ProviderRegistryService],
-  exports: [ProviderRegistryService],
-  imports: [AnthropicModule, GoogleModule],
-})
-export class ProvidersModule implements OnModuleInit {
-  constructor(
-    private registry: ProviderRegistryService,
-    private anthropicAdapter: AnthropicAdapter,
-    private googleAdapter: GoogleAdapter,
-  ) {}
+const PROVIDER_MODULES: Record<
+  GatewayConfig['providers'][string]['type'],
+  typeof AnthropicModule | typeof GoogleModule
+> = {
+  anthropic: AnthropicModule,
+  google: GoogleModule,
+};
 
-  onModuleInit() {
-    this.registry.register('anthropic', this.anthropicAdapter);
-    this.registry.register('google', this.googleAdapter);
-    console.log('[ProvidersModule] Providers registered:', this.registry.list());
+function importsFromGateway(gateway: GatewayConfig) {
+  const types = new Set(
+    Object.values(gateway.providers).map((row) => row.type),
+  );
+
+  const out: Array<typeof AnthropicModule | typeof GoogleModule> = [];
+  for (const type of types) {
+    const module = PROVIDER_MODULES[type];
+    if (!module)
+      throw new Error(`[ProvidersModule] Unsupported provider type: ${type}`);
+    out.push(module);
+  }
+
+  return out;
+}
+
+@Module({})
+export class ProvidersModule {
+  static register(): DynamicModule {
+    const gateway = loadGatewayConfigFromFile();
+
+    return {
+      module: ProvidersModule,
+      imports: importsFromGateway(gateway),
+      providers: [],
+      exports: [],
+    };
   }
 }

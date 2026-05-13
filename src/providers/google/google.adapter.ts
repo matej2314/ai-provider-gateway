@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
 import {
@@ -11,18 +11,26 @@ import {
   ProviderChatInput,
   ProviderChatResponse,
 } from '../interfaces/ai-provider.interface';
+import { ProviderRegistryService } from '../provider-registry.service';
 
 @Injectable()
-export class GoogleAdapter implements AIProvider {
+export class GoogleAdapter implements AIProvider, OnModuleInit {
   private client: GoogleGenAI;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private registry: ProviderRegistryService,
+  ) {
     const apiKey = this.configService.get<string>('providers.google.apiKey');
 
     if (!apiKey) throw new Error('[GoogleAdapter] API key not configured');
 
     this.client = new GoogleGenAI({ apiKey });
     console.log('[GoogleAdapter] Initialized');
+  }
+
+  onModuleInit() {
+    this.registry.register('google', this);
   }
 
   private prepareContents(messages: Record<string, string>[]) {

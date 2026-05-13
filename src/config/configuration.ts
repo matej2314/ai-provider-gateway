@@ -16,119 +16,137 @@ const MASTER_PROMPT = 'src/config/system-prompt/MASTER_SYSTEM_PROMPT.md';
 const MAIN_PROMPT = 'src/config/system-prompt/MAIN_SYSTEM_PROMPT.md';
 const MODEL_PROMPTS = 'src/config/system-prompt/models/';
 
-export const GatewayConfigSchema = z.object({
-  schemaVersion: z.number().int().min(1),
-  masterKeyRef: z.string().min(1),
-  providers: z
-    .record(
-      z.string(),
-      z.object({
-        type: z.enum(['anthropic', 'google']),
-        apiKeyRef: z.string(),
-      }),
-    )
-    .superRefine((providers, ctx) => {
-      const byType = new Map<string, string[]>();
-      for (const [instanceName, config] of Object.entries(providers)) {
-        const list = byType.get(config.type) ?? [];
-        list.push(instanceName);
-        byType.set(config.type, list);
-      }
-      for (const [type, instances] of byType) {
-        if (instances.length > 1) {
-          ctx.addIssue({
-            code: 'custom',
-            message: `Provider type ${type} is declared more than once (instances: ${instances.join(',')}). Only one instance per type is allowed.`,
-            path: ['providers', type],
-          });
+export const GatewayConfigSchema = z
+  .object({
+    schemaVersion: z.number().int().min(1),
+    masterKeyRef: z.string().min(1),
+    providers: z
+      .record(
+        z.string(),
+        z.object({
+          type: z.enum(['anthropic', 'google']),
+          apiKeyRef: z.string(),
+          enabled: z.boolean().optional().default(false),
+        }),
+      )
+      .superRefine((providers, ctx) => {
+        const byType = new Map<string, string[]>();
+        for (const [instanceName, config] of Object.entries(providers)) {
+          const list = byType.get(config.type) ?? [];
+          list.push(instanceName);
+          byType.set(config.type, list);
         }
-      }
-    }),
-  clients: z
-    .record(
+        for (const [type, instances] of byType) {
+          if (instances.length > 1) {
+            ctx.addIssue({
+              code: 'custom',
+              message: `Provider type ${type} is declared more than once (instances: ${instances.join(',')}). Only one instance per type is allowed.`,
+              path: ['providers', type],
+            });
+          }
+        }
+      }),
+    clients: z
+      .record(
+        z.string(),
+        z.object({
+          name: z.string().min(1),
+          type: z.enum([
+            'webapp',
+            'ide',
+            'cli',
+            'service',
+            'backend',
+            'automation',
+          ]),
+          gatewayKeyRef: z.string().min(1),
+        }),
+      )
+      .default({}),
+    models: z.record(
       z.string(),
       z.object({
-        name: z.string().min(1),
-        type: z.enum([
-          'webapp',
-          'ide',
-          'cli',
-          'service',
-          'backend',
-          'automation',
-        ]),
-        gatewayKeyRef: z.string().min(1),
-      }),
-    )
-    .default({}),
-  models: z.record(
-    z.string(),
-    z.object({
-      providerInstance: z.string(),
-      modelId: z.string(),
-      capabilities: z
-        .object({
-          streaming: z.boolean().optional(),
-        })
-        .optional()
-        .default({}),
-      policy: z
-        .object({
-          timeoutMs: z.number().int().min(1).optional(),
-          retry: z
-            .object({
-              maxAttempts: z.number().int().min(1).optional(),
-              onStatus: z.array(z.number().int().min(1)).optional(),
-            })
-            .optional()
-            .default({}),
-          params: z
-            .object({
-              defaults: z
-                .object({
-                  temperature: z.number().min(0).max(2).optional(),
-                  maxOutputTokens: z.number().int().min(1).optional(),
-                })
-                .optional()
-                .default({}),
-              allowOverrides: z.array(z.string()).optional().default([]),
-              bounds: z
-                .object({
-                  temperature: z
-                    .object({
-                      min: z.number().min(0),
-                      max: z.number().max(2),
-                    })
-                    .optional(),
-                  maxOutputTokens: z
-                    .object({
-                      min: z.number().min(1),
-                      max: z.number().max(8192),
-                    })
-                    .optional(),
-                })
-                .optional()
-                .default({}),
-            })
-            .optional()
-            .default({
+        providerInstance: z.string(),
+        modelId: z.string(),
+        capabilities: z
+          .object({
+            streaming: z.boolean().optional(),
+          })
+          .optional()
+          .default({}),
+        policy: z
+          .object({
+            timeoutMs: z.number().int().min(1).optional(),
+            retry: z
+              .object({
+                maxAttempts: z.number().int().min(1).optional(),
+                onStatus: z.array(z.number().int().min(1)).optional(),
+              })
+              .optional()
+              .default({}),
+            params: z
+              .object({
+                defaults: z
+                  .object({
+                    temperature: z.number().min(0).max(2).optional(),
+                    maxOutputTokens: z.number().int().min(1).optional(),
+                  })
+                  .optional()
+                  .default({}),
+                allowOverrides: z.array(z.string()).optional().default([]),
+                bounds: z
+                  .object({
+                    temperature: z
+                      .object({
+                        min: z.number().min(0),
+                        max: z.number().max(2),
+                      })
+                      .optional(),
+                    maxOutputTokens: z
+                      .object({
+                        min: z.number().min(1),
+                        max: z.number().max(8192),
+                      })
+                      .optional(),
+                  })
+                  .optional()
+                  .default({}),
+              })
+              .optional()
+              .default({
+                defaults: {},
+                allowOverrides: [],
+                bounds: {},
+              }),
+          })
+          .optional()
+          .default({
+            retry: {},
+            params: {
               defaults: {},
               allowOverrides: [],
               bounds: {},
-            }),
-        })
-        .optional()
-        .default({
-          retry: {},
-          params: {
-            defaults: {},
-            allowOverrides: [],
-            bounds: {},
-          },
-        }),
-    }),
-  ),
-});
+            },
+          }),
+      }),
+    ),
+  })
+  .superRefine((data, ctx) => {
+    for (const [alias, model] of Object.entries(data.models)) {
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          data.providers,
+          model.providerInstance,
+        )
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Model "${alias}" references unknown provider instance ${model.providerInstance} `,
+          path: ['models', alias, 'providerInstance'],
+        });
+      }
+    }
+  });
 
 export type GatewayConfig = z.infer<typeof GatewayConfigSchema>;
 export type GatewayClientConfig = GatewayConfig['clients'][string];
@@ -142,16 +160,16 @@ export type GatewayParamsBoundConfig =
   GatewayParamsConfig['bounds']['temperature'];
 
 function buildGatewayKeyRuntime(
-  gatewayConfig: GatewayConfig,
+  config: GatewayConfig,
 ): GatewayKeyRuntimeConfig {
-  const masterRaw = (process.env[gatewayConfig.masterKeyRef] ?? '').trim();
+  const masterRaw = (process.env[config.masterKeyRef] ?? '').trim();
 
   if (!masterRaw) {
-    throw new Error(`[GatewayKey] Missing master key.`);
+    throw new Error('[GatewayKey] Missing master key.');
   }
 
   const clients: ResolvedGatewayClient[] = [];
-  for (const [instanceId, row] of Object.entries(gatewayConfig.clients)) {
+  for (const [instanceId, row] of Object.entries(config.clients)) {
     const gatewayKey = (process.env[row.gatewayKeyRef] ?? '').trim();
     clients.push({
       instanceId,
@@ -180,13 +198,60 @@ function buildGatewayKeyRuntime(
   };
 }
 
-export default () => {
+function buildEffectiveGatewayConfig(
+  raw: z.infer<typeof GatewayConfigSchema>,
+): GatewayConfig {
+  const effectiveProviderEntries = Object.entries(raw.providers).filter(
+    ([, row]) => row.enabled !== false,
+  );
+  const effectiveProviders = Object.fromEntries(effectiveProviderEntries);
+
+  const effectiveModels: Record<string, GatewayModelConfig> = {};
+  for (const [alias, model] of Object.entries(raw.models)) {
+    const row = raw.providers[model.providerInstance];
+    if (!row) continue;
+
+    if (row.enabled === false) {
+      console.warn(
+        `[GatewayConfig] Skipping model "${alias}": provider instance "${model.providerInstance}" has enabled: false`,
+      );
+      continue;
+    }
+    effectiveModels[alias] = model;
+  }
+
+  if (Object.keys(effectiveModels).length === 0) {
+    throw new Error(
+      '[GatewayConfig] No active models after applying enabled flags; enable a provider used by your models or add models for an enabled provider.',
+    );
+  }
+
+  for (const [instanceId, row] of Object.entries(effectiveProviders)) {
+    const apiKey = (process.env[row.apiKeyRef] ?? '').trim();
+    if (!apiKey) {
+      throw new Error(
+        `[GatewayConfig] Missing API key for enabled provider instance "${instanceId}" (expected non-empty env ${row.apiKeyRef})`,
+      );
+    }
+  }
+
+  return {
+    ...raw,
+    providers: effectiveProviders,
+    models: effectiveModels,
+  };
+}
+
+let gatewayConfigCache: GatewayConfig | undefined;
+
+export function loadGatewayConfigFromFile(): GatewayConfig {
+  if (gatewayConfigCache) return gatewayConfigCache;
+
   const configPath = join(process.cwd(), 'gateway.config.yaml');
-  let gatewayConfig: GatewayConfig;
 
   try {
-    const fileContents = readFileSync(configPath, 'utf8');
-    const parsedYaml = yaml.load(fileContents);
+    const fileContent = readFileSync(configPath, 'utf-8');
+    const parsedYaml = yaml.load(fileContent);
 
     const validationResult = GatewayConfigSchema.safeParse(parsedYaml);
 
@@ -198,8 +263,8 @@ export default () => {
       throw new Error('Invalid configuration file');
     }
 
-    gatewayConfig = validationResult.data;
-    console.log('Config loaded successfully');
+    gatewayConfigCache = buildEffectiveGatewayConfig(validationResult.data);
+    return gatewayConfigCache;
   } catch (error) {
     if (
       error &&
@@ -208,11 +273,14 @@ export default () => {
       (error as NodeJS.ErrnoException).code === 'ENOENT'
     ) {
       console.error('Config file not found:', configPath);
-      throw new Error('Config file not found');
+      throw new Error('Configuration file not found.');
     }
     throw error;
   }
+}
 
+export default () => {
+  const gatewayConfig = loadGatewayConfigFromFile();
   const gatewayKey = buildGatewayKeyRuntime(gatewayConfig);
 
   const cwd = process.cwd();
@@ -228,9 +296,7 @@ export default () => {
     const perModelPath = join(cwd, MODEL_PROMPTS, `${alias}.md`);
     const content = tryReadOptionalPrompts(perModelPath);
 
-    if (content) {
-      perModelByAlias[alias] = content;
-    }
+    if (content) perModelByAlias[alias] = content;
   }
 
   const systemPromptsResolved: ResolvedSystemPrompts = {

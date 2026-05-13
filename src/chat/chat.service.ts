@@ -12,6 +12,7 @@ import { ChatRequestDto } from './dto/chat-request.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
 import { SseEvent } from './sse/sse-event.type';
 import { ResponseCacheService } from '../cache/response-cache.service';
+import type { GatewayConfig } from '../config/configuration';
 
 const SYSTEM_PROMPT_SECTION_JOINER = '\n\n';
 
@@ -65,11 +66,27 @@ export class ChatService {
     };
   }
 
+  private isCachedChatAllowedForModelAlias(modelAlias: string): boolean {
+    const gateway = this.config.get<GatewayConfig>('gateway');
+    if (!gateway) return false;
+
+    const model = gateway.models[modelAlias];
+    if (!model) return false;
+
+    const providerRow = gateway.providers[model.providerInstance];
+    if (!providerRow) return false;
+
+    return providerRow.enabled === true;
+  }
+
   async executeChat(requestBody: ChatRequestDto, requestId: string) {
     const cachedResponse =
       await this.cacheService.getCachedResponse(requestBody);
 
-    if (cachedResponse) {
+    if (
+      cachedResponse &&
+      this.isCachedChatAllowedForModelAlias(requestBody.modelAlias)
+    ) {
       return cachedResponse;
     }
 

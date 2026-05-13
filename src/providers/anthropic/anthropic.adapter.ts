@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import {
@@ -11,18 +11,26 @@ import {
   ProviderChatInput,
   ProviderChatResponse,
 } from '../interfaces/ai-provider.interface';
+import { ProviderRegistryService } from '../provider-registry.service';
 
 @Injectable()
-export class AnthropicAdapter implements AIProvider {
+export class AnthropicAdapter implements AIProvider, OnModuleInit {
   private client: Anthropic;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private registry: ProviderRegistryService,
+  ) {
     const apiKey = this.configService.get<string>('providers.anthropic.apiKey');
 
     if (!apiKey) throw new Error('[AnthropicAdapter] API key not configured');
 
     this.client = new Anthropic({ apiKey });
     console.log('[AnthropicAdapter] Initialized');
+  }
+
+  onModuleInit() {
+    this.registry.register('anthropic', this);
   }
 
   async complete(

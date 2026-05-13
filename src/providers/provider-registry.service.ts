@@ -3,6 +3,8 @@ import {
   HttpException,
   HttpStatus,
   InternalServerErrorException,
+  Logger,
+  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIProvider } from './interfaces/ai-provider.interface';
@@ -24,8 +26,9 @@ interface ResolvedProviderConfig {
 }
 
 @Injectable()
-export class ProviderRegistryService {
+export class ProviderRegistryService implements OnApplicationBootstrap {
   private providers = new Map<string, { provider: AIProvider; name: string }>();
+  private readonly logger = new Logger(ProviderRegistryService.name);
 
   constructor(private configService: ConfigService) {}
 
@@ -101,7 +104,7 @@ export class ProviderRegistryService {
 
     const providerEntry = this.resolveProviderEntry(gatewayConfig, modelConfig);
 
-    console.log(
+    this.logger.log(
       `[ProviderRegistry] Resolved alias '${modelAlias}' → provider '${providerEntry.name}', model '${modelConfig.modelId}'`,
     );
 
@@ -115,6 +118,10 @@ export class ProviderRegistryService {
   }
 
   list(): string[] {
-    return Array.from(this.providers.keys());
+    return Array.from(this.providers.entries()).map(([name, {provider}]) => `${name}: ${provider.constructor.name}`);
+  }
+
+  onApplicationBootstrap() {
+   this.logger.log('[ProviderRegistry] Registered providers:',JSON.stringify( this.list()));
   }
 }
