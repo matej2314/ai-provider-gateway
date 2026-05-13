@@ -6,9 +6,9 @@ Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.
 
 1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
 2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
-3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: `params` w body, skrypt `config:validate`, ewentualne dalsze limity / rozszerzenia mapowań; **Faza 6**: observability — pino + readiness + graceful shutdown). Envelope błędów (`code` + `requestId`), propagacja `x-request-id` oraz **`X-Gateway-Key`** na endpointach czatu — **wdrożone** (`GlobalExceptionFilter`, `RequestIdInterceptor`, `GatewayKeyGuard` w `src/`). Wybrane kody domenowe przy **400** (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED` w payloadzie wyjątku) są **zachowywane przez filtr** — patrz `ProviderRegistryService` i `ChatService.executeStream`.
-4. **`REDIS_IMPLEMENTATION_PLAN.md`** — dalsze cele (limity, metryki, observability na Redis). **Cache odpowiedzi** dla `POST /api/v1/chat` jest już częścią kodu (`src/cache/`, backend `noop` / `redis` — `docs/konfiguracja.md`).
-5. **`SYSTEM_PROMPTS_REFACTOR-READY.md`** — plan i status refaktoru system promptu (✅ wykonane w kodzie: DTO + `ChatService` + `configuration.ts` + `openapi.json` + dokumentacja); ewentualne usprawnienia poza rdzeniem MVP są opisane w tym dokumencie.
+3. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 i kierunek rozwoju (m.in. **Faza 5**: `params` w body, skrypt `config:validate`, dalsze limity / rozszerzenia mapowań; **Faza 6**: observability — structured logging, readiness, graceful shutdown). Envelope błędów (`code` + `requestId`), propagacja `x-request-id` oraz **`X-Gateway-Key`** na endpointach czatu — **wdrożone** (`GlobalExceptionFilter`, `RequestIdInterceptor`, `GatewayKeyGuard` w `src/`). Wybrane kody domenowe przy **400** (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED` w payloadzie wyjątku) są **zachowywane przez filtr** — patrz `ProviderRegistryService` i `ChatService.executeStream`.
+4. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
+5. **System prompt po stronie serwera** — wdrożony w kodzie (DTO + `ChatService` + `configuration.ts` + `openapi.json` + `konfiguracja.md` / `architektura.md`).
 6. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
 
 ## Podstawy
@@ -67,7 +67,7 @@ Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; *
 
 **Stan kodu:** w żądaniu HTTP dozwolone są wyłącznie role `user` i `assistant` (`ChatMessageDto`, walidacja `400` przy `role=system`). Instrukcja systemowa dla providera jest **składana po stronie serwera** w `ChatService.buildProviderInput`: `MASTER` + opcjonalnie `MAIN` + opcjonalnie treść z `src/config/system-prompt/models/<modelAlias>.md`, a następnie przekazywana adapterom jako `ProviderChatInput.system`. Nie ma już agregacji `system` z treści żądania.
 
-**Spójny opis warstw i ścieżek plików:** `konfiguracja.md`, dokumentacja refaktoru: `SYSTEM_PROMPTS_REFACTOR-READY.md`.
+**Spójny opis warstw i ścieżek plików:** `konfiguracja.md`, `architektura.md`.
 
 ---
 
@@ -75,7 +75,7 @@ Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; *
 
 Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRegistryService.resolve()`; adaptery: typy `anthropic`, `google` (`ProvidersModule`).
 
-Część pól policy (timeout, retry per YAML) nie jest jeszcze w pełni wykorzystywana w adapterach — szczegóły: `PLAN_IMPLEMENTACJI.md`.
+Część pól policy (timeout, retry per YAML) nie jest jeszcze w pełni wykorzystywana w adapterach — stan i kierunek: `dokumentacja_koncepcyjna.md`, `spec/SPEC-PROVIDERS.md`.
 
 ---
 
@@ -147,4 +147,4 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 6. Przy streamingu składaj tekst z kolejnych `delta`; `done` nie niesie metryk tokenów w obecnej wersji.
 7. **`usage`** może być niekompletne między providerami.
 
-Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `PLAN_IMPLEMENTACJI.md`.
+Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `dokumentacja_koncepcyjna.md`.

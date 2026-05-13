@@ -6,7 +6,7 @@ Cel: “plug&play” — użytkownik wypełnia env + pliki konfiguracyjne i uruc
 
 Zasada: **sekrety tylko w env**. Pliki konfiguracyjne nie zawierają wartości kluczy — jedynie **nazwy** zmiennych (`apiKeyRef`).
 
-Zmienne providerów (Anthropic + Google Gemini — providery rdzenia MVP wg `PLAN_IMPLEMENTACJI.md`):
+Zmienne providerów (Anthropic + Google Gemini — bieżący zestaw w repozytorium):
 
 - `ANTHROPIC_API_KEY`
 - `GOOGLE_API_KEY`
@@ -45,7 +45,7 @@ Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/con
 
 **Zachowanie:** `ChatService.executeChat` przed wywołaniem providera sprawdza cache (`ResponseCacheService`); przy trafieniu zwracana jest zapisana odpowiedź z polami **`cached: true`** i **`cachedAt`** (ISO 8601). Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z tej warstwy.
 
-Szablon zmiennych: `.env.example`. Szerszy plan (limity, metryki): `REDIS_IMPLEMENTATION_PLAN.md`.
+Szablon zmiennych: `.env.example`. Dalszy rozwój (limity, metryki): `dokumentacja_koncepcyjna.md`.
 
 ## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
 
@@ -105,7 +105,7 @@ Uwagi:
 - Aliasy pod `models` są publicznym API (`modelAlias`).
 - **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic-main`) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach.
 - **Ograniczenie: jedna instancja per typ providera.** W `providers` może wystąpić **co najwyżej jeden** wpis o danym `type` (np. tylko jeden `type: anthropic`). Walidacja Zod (`GatewayConfigSchema.providers.superRefine` w `src/config/configuration.ts`) **odrzuca start** z czytelnym komunikatem przy duplikacie (komunikat wskazuje zduplikowany typ i nazwy zderzających się instancji). Różnice między środowiskami (dev/staging/prod) wyraża się **wartością** zmiennej środowiskowej wskazanej przez `apiKeyRef`, a nie przez deklarowanie wielu instancji tego samego typu w YAML.
-- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane, ale **adaptery nie korzystają z nich w pełni** — część parametrów pochodzi ze stałych w kodzie adaptera lub wyłącznie z `policy.params.defaults` w `ChatService`; harmonogram dopięcia: `PLAN_IMPLEMENTACJI.md`.
+- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane, ale **adaptery nie korzystają z nich w pełni** — część parametrów pochodzi ze stałych w kodzie adaptera lub wyłącznie z `policy.params.defaults` w `ChatService`; kierunek dopięcia: `dokumentacja_koncepcyjna.md`, `spec/SPEC-PROVIDERS.md`.
 
 ## 3) Walidacja i fail-fast
 
@@ -119,7 +119,7 @@ Docelowo (spec): dodatkowe reguły — brak env wskazanego przez `apiKeyRef` dla
 
 ### Skrypt diagnostyczny `npm run config:validate`
 
-Wpis w `package.json` istnieje (`"config:validate": ""`), ale **komenda jest na razie pusta** — nie uruchamia walidacji. Docelowo (Faza 5, `PLAN_IMPLEMENTACJI.md`, krok 5.5): walidacja `gateway.config.yaml` + reguł env **bez** podnoszenia serwera HTTP, kod wyjścia ≠ 0 przy błędzie (CI).
+Wpis w `package.json` istnieje (`"config:validate": ""`), ale **komenda jest na razie pusta** — nie uruchamia walidacji. Docelowo: walidacja `gateway.config.yaml` + reguł env **bez** podnoszenia serwera HTTP, kod wyjścia ≠ 0 przy błędzie (CI) — opis w `dokumentacja_koncepcyjna.md` i `spec/SPEC-KONFIGURACJA.md` (NFR-3).
 
 ## 4) Nadpisywanie parametrów per request
 
@@ -148,4 +148,4 @@ Przy starcie `configuration.ts` wczytuje treści używane do złożenia instrukc
 
 Dla plików opcjonalnych komentarze HTML `<!-- ... -->` są usuwane przy ładowaniu — można umieścić w nich dokumentację bez wysyłania jej do modelu (`stripHtmlComments` w `configuration.ts`).
 
-Powiązane: `dokumentacja_api.md`, `SYSTEM_PROMPTS_REFACTOR-READY.md`.
+Powiązane: `dokumentacja_api.md`.

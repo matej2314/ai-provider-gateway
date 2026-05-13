@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
 Wersja dokumentu: **1.0**.  
-**OpenAPI:** `openapi.json` — zsynchronizowany z `src/` (m.in. limity DTO, pola cache w schemacie odpowiedzi, `MODEL_ALIAS_NOT_FOUND`, opis `flushHeaders` dla streamu). Envelope błędów `ErrorEnvelope` (`GlobalExceptionFilter`) + `RequestIdInterceptor` w `src/common/`. **Uwierzytelnienie na brzegu:** nagłówek **`X-Gateway-Key`** jest **wymagany** dla czatu (`GatewayKeyGuard` na `ChatController` i `ChatStreamController`); allowlista z `gateway.config.yaml` + env (`docs/konfiguracja.md`). W **Fazie 5** m.in.: body `params`, skrypt `config:validate`, dalsze usprawnienia kontraktu — `PLAN_IMPLEMENTACJI.md`. **Cache odpowiedzi** dla czatu standardowego: `src/cache/` + `konfiguracja.md`; dalsze elementy Redis (limity, observability) — `REDIS_IMPLEMENTATION_PLAN.md`.
+**OpenAPI:** `openapi.json` — zsynchronizowany z `src/` (m.in. limity DTO, pola cache w schemacie odpowiedzi, `MODEL_ALIAS_NOT_FOUND`, opis `flushHeaders` dla streamu). Envelope błędów `ErrorEnvelope` (`GlobalExceptionFilter`) + `RequestIdInterceptor` w `src/common/`. **Uwierzytelnienie na brzegu:** nagłówek **`X-Gateway-Key`** jest **wymagany** dla czatu (`GatewayKeyGuard` na `ChatController` i `ChatStreamController`); allowlista z `gateway.config.yaml` + env (`docs/konfiguracja.md`). **Faza 5** (m.in. body `params`, skrypt `config:validate`, dalsze usprawnienia kontraktu): `dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`. **Cache odpowiedzi** dla czatu standardowego: `src/cache/` + `konfiguracja.md`; dalszy rozwój Redis (limity, observability): `dokumentacja_koncepcyjna.md`.
 
 ## Konwencje globalne
 
@@ -63,5 +63,5 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Nagłówek **`X-Gatewa
 | POST | `/api/v1/chat` | standard (pełna odpowiedź) — działa |
 | POST | `/api/v1/chat/stream` | streaming SSE (`ChatStreamController`) |
 
-Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura_api.md`, `PLAN_IMPLEMENTACJI.md`.
+Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura_api.md`, `dokumentacja_koncepcyjna.md`.
 

@@ -69,7 +69,7 @@ W warstwie adaptera `system` z portu jest mapowany na natywne pole SDK providera
 - **Anthropic** (`@anthropic-ai/sdk`) — `messages.create({ system })`.
 - **Google Gemini** (`@google/genai` 1.52+) — `config.systemInstruction` przekazywane do `ai.chats.create({ config })` lub `ai.models.generateContent({ config })`. Adapter dodatkowo mapuje rolę `assistant` na `model` (wymóg SDK Gemini). Szczegóły mapowania: `spec/SPEC-PROVIDERS.md`.
 
-Szerszy kontekst decyzji: `SYSTEM_PROMPTS_REFACTOR-READY.md`, konfiguracja: `docs/konfiguracja.md`.
+Szerszy kontekst warstw promptu: `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` (tam, gdzie dotyczy plików promptu).
 
 ## Konfiguracja i sekrety
 
@@ -93,7 +93,7 @@ Szczegóły: `architektura_api.md` + `anty-patterny.md`.
 
 - **Request ID**: nadawany lub propagowany z nagłówka, zwracany w błędach.
 - Logi strukturalne na stdout (JSON preferowane).
-- Metryki (kierunek rozwoju v1+, m.in. observability wg planów): latency i błędy per provider, liczba tokenów; dodatkowe zastosowania Redis (np. limity) — `REDIS_IMPLEMENTATION_PLAN.md`.
+- Metryki (kierunek rozwoju v1+): latency i błędy per provider, liczba tokenów; dodatkowe zastosowania Redis (np. limity) — `dokumentacja_koncepcyjna.md`.
 
 ## Struktura repo (orientacyjnie)
 

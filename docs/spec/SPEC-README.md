@@ -3,7 +3,7 @@
 Ten katalog zawiera **specyfikacje obszarów** systemu (1 plik = 1 obszar). Pliki są pisane w duchu **Spec‑Driven Development**: skupiają się na **WHAT/WHY** (co system ma robić i po co), a nie na implementacji.
 
 **Kontrakt HTTP w repozytorium:** `openapi.json` (OpenAPI 3.1).  
-**Stan kodu vs te dokumenty:** zestawienie w `docs/dokumentacja_api.md`, harmonogram w `PLAN_IMPLEMENTACJI.md` (**Faza 4 SSE:** zamknięta w planie; **Faza 5:** m.in. `params` w body + `config:validate` + ewentualne dalsze usprawnienia; envelope `ErrorEnvelope`, propagacja `x-request-id`, **gateway key (`X-Gateway-Key`)**, limity DTO (`messages` 1–50, `content` max 3000) oraz kody **`MODEL_ALIAS_NOT_FOUND`** / **`STREAMING_NOT_SUPPORTED`** w payloadach — **wdrożone**; **Faza 6:** observability w toku), kontrakt promptów serwerowych — ✅ wg `SYSTEM_PROMPTS_REFACTOR-READY.md`. **Cache odpowiedzi** dla `POST /api/v1/chat` — wdrożony (`src/cache/`, `konfiguracja.md`); dalsze cele Redis — `REDIS_IMPLEMENTATION_PLAN.md`.
+**Stan kodu vs te dokumenty:** zestawienie w `docs/dokumentacja_api.md`. **Faza 4 SSE:** zamknięta w kodzie. **Faza 5:** m.in. `params` w body + `config:validate` + ewentualne dalsze usprawnienia; envelope `ErrorEnvelope`, propagacja `x-request-id`, **gateway key (`X-Gateway-Key`)**, limity DTO (`messages` 1–50, `content` max 3000) oraz kody **`MODEL_ALIAS_NOT_FOUND`** / **`STREAMING_NOT_SUPPORTED`** w payloadach — **wdrożone**; **Faza 6:** observability w toku — `dokumentacja_koncepcyjna.md`. **System prompt** składany po stronie serwera — wdrożony (`konfiguracja.md`, `architektura.md`). **Cache odpowiedzi** dla `POST /api/v1/chat` — wdrożony (`src/cache/`, `konfiguracja.md`); dalszy rozwój Redis: `dokumentacja_koncepcyjna.md`.
 
 ### Jak czytać te pliki
 
@@ -12,7 +12,7 @@ Ten katalog zawiera **specyfikacje obszarów** systemu (1 plik = 1 obszar). Plik
 - **Wymagania funkcjonalne**: testowalne, ponumerowane wymagania.
 - **Wymagania niefunkcjonalne**: bezpieczeństwo, prywatność, spójność kontraktów, limity.
 - **Kryteria akceptacji**: obserwowalne warunki spełnienia (checklista / Given‑When‑Then).
-- **Poza zakresem**: czego obszar nie obejmuje w **rdzeniu MVP** (Fazy 1–2, 4 — por. nagłówek `PLAN_IMPLEMENTACJI.md`).
+- **Poza zakresem**: czego obszar nie obejmuje w **rdzeniu MVP** (Fazy 1–2, 4 — por. `dokumentacja_koncepcyjna.md`).
 
 ### Obszary
 

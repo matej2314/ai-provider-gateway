@@ -20,9 +20,9 @@ Projekt powstaje jako ćwiczenie NestJS, architektury i wzorców projektowych, a
 | **Integrator / platform team** | Ustandaryzować integrację z LLM w organizacji, spiąć limity, logi, requestId, polityki retry i timeouts. |
 | **Operacje / DevOps** | Statyczne, proste wdrożenie; konfiguracja przez env + pliki; healthchecki; logi na stdout. |
 
-## Zakres produktu (nagłówek `PLAN_IMPLEMENTACJI.md`)
+## Zakres produktu (MVP i v1)
 
-Poniższy opis odpowiada **nagłówkowi** **`PLAN_IMPLEMENTACJI.md`** (definicja MVP / v1). Szczegółowe statusy faz i checklisty są w tym pliku; kontrakt HTTP w **`openapi.json`**.
+Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontrakt HTTP: **`openapi.json`** oraz `dokumentacja_api.md`.
 
 - **Status projektu:** Rdzeń **MVP** (routing + chat + streaming) domknięty w Fazach 1–2 oraz 4; Faza 0 zamknięta. Trwa **v1** (m.in. Fazy 3 oraz 5–7 według tabeli w planie).
 - **Providery (MVP):** Anthropic API + Google Gemini API
@@ -38,7 +38,7 @@ Poniższy opis odpowiada **nagłówkowi** **`PLAN_IMPLEMENTACJI.md`** (definicja
 - **Providery** Anthropic i Google Gemini — adaptery i rejestr zaimplementowane.
 - **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie zaimplementowane (**Faza 3** w planie; wg nagłówka planu jest to część **v1**, nie rdzenia MVP).
 - Klucze API w `.env`; **w production** obowiązuje **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
-- Pełne odwzorowanie policy z YAML w adapterach — **stopniowo dopinane** (`PLAN_IMPLEMENTACJI.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego — działa.
+- Pełne odwzorowanie policy z YAML w adapterach — **stopniowo dopinane** (`spec/SPEC-PROVIDERS.md`, `dokumentacja_api.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego — działa.
 - Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter` global). Propagacja nagłówka żądania **`x-request-id`** do `requestId` w body — **wdrożone** (`RequestIdInterceptor` global). Rozszerzenie mappingu kodów na pełny słownik (`dictionary.md`) oraz ustawianie response header `x-request-id` — **Faza 5**.
 - Testy jednostkowe przy modułach (`*.spec.ts`).
 
@@ -81,8 +81,8 @@ Zamiast zmuszać klientów do podawania vendorowego `modelId`, gateway wspiera *
 
 ## Kierunek rozwoju (v1 i dalej)
 
-- **System prompt po stronie serwera** — **wdrożone**: pliki w `src/config/system-prompt/`, brak roli `system` w API; szczegóły w `konfiguracja.md`; dokumentacja decyzji i statusu refaktoru: **`SYSTEM_PROMPTS_REFACTOR-READY.md`**.
-- **Cache / Redis** — **odpowiedzi czatu standardowego:** moduł `src/cache/` (backend `noop` / `redis`, konfiguracja env w `konfiguracja.md`). Pozostałe cele planu (limity, metryki itd.): **`REDIS_IMPLEMENTATION_PLAN.md`**.
+- **System prompt po stronie serwera** — **wdrożone**: pliki w `src/config/system-prompt/`, brak roli `system` w API; szczegóły w `konfiguracja.md` i `architektura.md`.
+- **Cache / Redis** — **odpowiedzi czatu standardowego:** moduł `src/cache/` (backend `noop` / `redis`, konfiguracja env w `konfiguracja.md`). Dalszy rozwój (limity, metryki itd.): ten dokument (sekcja „Kierunek rozwoju”) oraz `spec/SPEC-KONFIGURACJA.md` / `konfiguracja.md` tam, gdzie dotyczy env.
 - OpenAI jako trzeci provider (wymaga płatnego konta API).
 - Retry/circuit‑breaker i metryki per provider.
 - “Policy packs”: profile ustawień per środowisko (dev/prod) i per alias modelu.

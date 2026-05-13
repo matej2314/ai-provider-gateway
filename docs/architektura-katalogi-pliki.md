@@ -5,7 +5,7 @@ Ten dokument opisuje **strukturę katalogów i plików** projektu *AI Provider G
 Zasady:
 
 - Struktura jest **modułowa** (NestJS), a integracje providerów są w `src/providers/`.
-- Elementy oznaczone *(plan)* pochodzą z `PLAN_IMPLEMENTACJI.md` / specyfikacji i nie mają jeszcze pełnej implementacji.
+- Elementy oznaczone *(plan)* pochodzą ze specyfikacji w `docs/spec/` i mogą wyprzedzać pełną implementację.
 
 ---
 
@@ -108,9 +108,6 @@ ai-provider-gateway/
 ├── .env *(lokalnie, nie commitować)*
 ├── docker-compose.yml *(jeśli obecny)*
 ├── package.json
-├── PLAN_IMPLEMENTACJI.md
-├── SYSTEM_PROMPTS_REFACTOR-READY.md
-├── REDIS_IMPLEMENTATION_PLAN.md
 ├── README.md
 └── mcp.json *(plan — konfiguracja MCP użytkownika; patrz docs/mcp.md)*
 ```
@@ -125,19 +122,19 @@ ai-provider-gateway/
 - **`src/health/`**: liveness (`GET /api/v1/health`). Readiness jako osobny endpoint/service *(plan / rozszerzenie)*.
 - **`src/cache/`**: warstwa cache odpowiedzi dla **`POST /api/v1/chat`** (nie dotyczy streamingu). Rejestr backendów (`CacheRegistryService`), implementacje **`noop`** (zawsze) i **`redis`** (gdy `AppModule` załaduje stos Redis — patrz `konfiguracja.md`), `ResponseCacheService` używany w `ChatService`.
 - **`src/common/`**: współdzielone artefakty brzegowe — **`filters/http-exception.filter.ts`** (`GlobalExceptionFilter`), **`interceptors/request-id.interceptor.ts`** (`RequestIdInterceptor`), **`dtos/error-envelope.dto.ts`**, kody i mapowanie błędów w **`errors/`**. Podpięte globalnie w `src/main.ts` (filtry i interceptory).
-- **`src/guards/gateway-key.guard.ts`**: weryfikacja nagłówka **`X-Gateway-Key`** względem allowlisty z konfiguracji — używany na kontrolerach czatu (`@UseGuards(GatewayKeyGuard)`). Rozszerzenia mappingu kodów błędów dla wszystkich przypadków domenowych — **Faza 5** (`PLAN_IMPLEMENTACJI.md`).
+- **`src/guards/gateway-key.guard.ts`**: weryfikacja nagłówka **`X-Gateway-Key`** względem allowlisty z konfiguracji — używany na kontrolerach czatu (`@UseGuards(GatewayKeyGuard)`). Rozszerzenia mappingu kodów błędów dla wszystkich przypadków domenowych — **Faza 5** (`dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`).
 - **`src/common/types/express.d.ts`**: augmentacja `Express.Request` o `requestId: string` dla kontrolerów i filtrów.
 - **Testy jednostkowe**: obok kodu, np. `src/**/*.spec.ts`.
 - **`docs/`**: dokumentacja oraz specyfikacje SDD.
 
 ---
 
-## 3) Powiązanie z planem implementacji
+## 3) Stan wdrożenia vs dokumentacja
 
-Zamknięte lub częściowo zamknięte (śledź tabele statusów w `PLAN_IMPLEMENTACJI.md`):
+**Zamknięte lub częściowo zamknięte** (porównuj z kodem i `openapi.json`):
 
 - Fundament: config z YAML, registry, adaptery Anthropic + Google.
-- Już w kodzie (poza zamknięciem MVP): error envelope `ErrorEnvelope` (`GlobalExceptionFilter` global) i propagacja `x-request-id` z requestu do `requestId` w body (`RequestIdInterceptor` global); refaktor promptów serwerowych — ✅ wg `SYSTEM_PROMPTS_REFACTOR-READY.md`; **cache odpowiedzi czatu standardowego** (`src/cache/`) — ✅ podstawowa implementacja (`noop` / `redis`).
-- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, działający `npm run config:validate`, rozszerzenie mappingu kodów i limity DTO/body (Faza 5). **Cache odpowiedzi** (`src/cache/`, Redis jako opcjonalny backend) jest częściowo wdrożony dla czatu standardowego; dalsze elementy z `REDIS_IMPLEMENTATION_PLAN.md` (limity, metryki itd.) — według planu.
+- Error envelope `ErrorEnvelope` (`GlobalExceptionFilter` global) i propagacja `x-request-id` z requestu do `requestId` w body (`RequestIdInterceptor` global); system prompt składany z plików w `src/config/system-prompt/`; **cache odpowiedzi czatu standardowego** (`src/cache/`) — podstawowa implementacja (`noop` / `redis`).
+- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, działający `npm run config:validate`, rozszerzenie mappingu kodów i limity DTO/body (**Faza 5** — `dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`). **Cache odpowiedzi** jest wdrożony dla czatu standardowego; dalsze elementy (limity, metryki na Redis itd.) — `dokumentacja_koncepcyjna.md`.
 
-Powiązane: `PLAN_IMPLEMENTACJI.md`, `REDIS_IMPLEMENTATION_PLAN.md`, `openapi.json`, `docs/konfiguracja.md`.
+Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

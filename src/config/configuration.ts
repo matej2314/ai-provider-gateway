@@ -11,6 +11,7 @@ import {
   readRequiredPrompt,
   tryReadOptionalPrompts,
 } from './configuration.helpers';
+import { PROVIDER_TYPES } from './provider-types';
 
 const MASTER_PROMPT = 'src/config/system-prompt/MASTER_SYSTEM_PROMPT.md';
 const MAIN_PROMPT = 'src/config/system-prompt/MAIN_SYSTEM_PROMPT.md';
@@ -24,7 +25,7 @@ export const GatewayConfigSchema = z
       .record(
         z.string(),
         z.object({
-          type: z.enum(['anthropic', 'google']),
+          type: z.enum(PROVIDER_TYPES),
           apiKeyRef: z.string(),
           enabled: z.boolean().optional().default(false),
         }),

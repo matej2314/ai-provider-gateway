@@ -51,7 +51,7 @@ NFR-1. Konfiguracja powinna być wersjonowana (`schemaVersion`).
 
 NFR-2. Dokumentacja configu musi być spójna z implementacją.
 
-NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`; obecnie **placeholder** bez komendy), który docelowo waliduje `gateway.config.yaml` oraz reguły env **bez uruchamiania serwera**, z niezerowym kodem wyjścia przy błędzie (np. dla CI). Szczegóły planu: `PLAN_IMPLEMENTACJI.md`, Faza 5, krok 5.5. Opis użytkowy: `docs/konfiguracja.md`.
+NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`; obecnie **placeholder** bez komendy), który docelowo waliduje `gateway.config.yaml` oraz reguły env **bez uruchamiania serwera**, z niezerowym kodem wyjścia przy błędzie (np. dla CI). Opis użytkowy i status: `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.
 
 ## Kryteria akceptacji
 

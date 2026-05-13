@@ -52,7 +52,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Rozszerzenia (Faza 5 i dalsze)
 
-Parametry **`params`** w body, skrypt `npm run config:validate`, nagłówek odpowiedzi `x-request-id` oraz pełniejsze wykorzystanie policy w adapterach — `PLAN_IMPLEMENTACJI.md`. Słownik kodów (`dictionary.md`) obejmuje też kody na przyszłe scenariusze (np. `MODEL_NOT_ALLOWED`).
+Parametry **`params`** w body, skrypt `npm run config:validate`, nagłówek odpowiedzi `x-request-id` oraz pełniejsze wykorzystanie policy w adapterach — `dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`. Słownik kodów (`dictionary.md`) obejmuje też kody na przyszłe scenariusze (np. `MODEL_NOT_ALLOWED`).
 
 **Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED` są już emitowane w payloadach wyjątków i zachowywane przez `GlobalExceptionFilter`.
 

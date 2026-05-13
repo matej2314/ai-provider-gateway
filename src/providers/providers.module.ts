@@ -1,28 +1,33 @@
-import { DynamicModule, Module } from '@nestjs/common';
+import { DynamicModule, Module, Type } from '@nestjs/common';
 import { AnthropicModule } from './anthropic/anthropic.module';
 import { GoogleModule } from './google/google.module';
 import { loadGatewayConfigFromFile } from '../config/configuration';
 import type { GatewayConfig } from '../config/configuration';
+import type { GatewayProviderType } from '../config/provider-types';
 
-const PROVIDER_MODULES: Record<
-  GatewayConfig['providers'][string]['type'],
-  typeof AnthropicModule | typeof GoogleModule
-> = {
+function providerModuleByType(
+  map: Record<GatewayProviderType, Type<unknown>>,
+): Record<GatewayProviderType, Type<unknown>> {
+  return map;
+}
+
+const PROVIDER_MODULES = providerModuleByType({
   anthropic: AnthropicModule,
   google: GoogleModule,
-};
+});
 
-function importsFromGateway(gateway: GatewayConfig) {
+function importsFromGateway(gateway: GatewayConfig): Type<unknown>[] {
   const types = new Set(
     Object.values(gateway.providers).map((row) => row.type),
   );
 
-  const out: Array<typeof AnthropicModule | typeof GoogleModule> = [];
+  const out: Type<unknown>[] = [];
   for (const type of types) {
-    const module = PROVIDER_MODULES[type];
-    if (!module)
+    const mod = PROVIDER_MODULES[type as GatewayProviderType];
+    if (!mod) {
       throw new Error(`[ProvidersModule] Unsupported provider type: ${type}`);
-    out.push(module);
+    }
+    out.push(mod);
   }
 
   return out;

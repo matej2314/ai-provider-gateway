@@ -139,4 +139,4 @@ sequenceDiagram
 
 ---
 
-Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura.md`, `PLAN_IMPLEMENTACJI.md`, `REDIS_IMPLEMENTATION_PLAN.md` (cache odpowiedzi — częściowo w kodzie; pozostałe cele planu).
+Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura.md`, `dokumentacja_koncepcyjna.md` (cache odpowiedzi w kodzie; dalszy rozwój warstwy Redis).

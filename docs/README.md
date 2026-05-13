@@ -11,19 +11,18 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 5. Dla przepływów: `data_flow.md`.
 6. Dla ryzyk: `anty-patterny.md`.
 7. Dla pracy spec‑first: katalog `spec/`.
-8. Dla harmonogramu i faz rozwoju: `PLAN_IMPLEMENTACJI.md` (w katalogu głównym repo).
-9. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — wdrożone w kodzie; dokumentacja refaktoru: `SYSTEM_PROMPTS_REFACTOR-READY.md` (w katalogu głównym repo).
-10. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`. Dalsze zastosowania Redis z planu: `REDIS_IMPLEMENTATION_PLAN.md`.
+8. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — opis warstw i ścieżek: `konfiguracja.md`, `architektura.md`, `dokumentacja_api.md`.
+9. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`. Dalszy rozwój (limity, metryki, observability): `dokumentacja_koncepcyjna.md` (kierunek v1).
 
 ## Spis plików
 
 - `../openapi.json` *(w katalogu głównym repo)* — OpenAPI 3.1: kontrakt REST zsynchronizowany z kodem (czat + `securitySchemes.GatewayKeyAuth`, streaming SSE, health, envelope `ErrorEnvelope`).
-- `dokumentacja_koncepcyjna.md` — cel produktu, zakres produktu (nagłówek `PLAN_IMPLEMENTACJI.md`: MVP / v1), założenia.
+- `dokumentacja_koncepcyjna.md` — cel produktu, zakres (MVP / v1), założenia.
 - `architektura.md` — widok logiczny, moduły, warstwy, integracje providerów.
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.
 - `lista_endpointów.md` — szybka lista endpointów (standard + streaming).
 - `dokumentacja_api.md` — szczegółowy kontrakt endpointów, przykłady payloadów.
-- `konfiguracja.md` — env + `gateway.config.yaml` (wczytywanie przy starcie); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — wpis w `package.json`, implementacja w planie (Faza 5).
+- `konfiguracja.md` — env + `gateway.config.yaml` (wczytywanie przy starcie); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — wpis w `package.json` (obecnie placeholder; docelowo walidacja offline — `konfiguracja.md`).
 - `mcp.md` — integracja MCP (konfiguracja i granice odpowiedzialności).
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.
 - `dictionary.md` — słownik pojęć i kody błędów.
