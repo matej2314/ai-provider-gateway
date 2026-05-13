@@ -75,6 +75,23 @@ class EnvironmentVariables {
   @IsString()
   @IsOptional()
   REDIS_KEY_PREFIX?: string = 'aigw:';
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  RATE_LIMIT_ENABLED?: boolean = true;
+
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(1000)
+  @IsOptional()
+  RATE_LIMIT_TTL?: number = 60000;
+
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  RATE_LIMIT_MAX?: number = 100;
 }
 
 export function validate(config: Record<string, unknown>) {
