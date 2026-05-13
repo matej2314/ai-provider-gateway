@@ -58,7 +58,7 @@ const includeRedisCacheStack = (): boolean => {
 
         if (useRedis && redis?.isReady()) {
           const client = redis.getClient();
-          if (client && redis.isReady()) {
+          if (client) {
             storage = new ThrottlerStorageRedisService(client);
           }
         }
