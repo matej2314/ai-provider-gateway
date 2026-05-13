@@ -50,14 +50,17 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 **Stan kodu (`openapi.json`):** wszystkie błędy są w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`) emitowanym przez `GlobalExceptionFilter` (global w `src/main.ts`). Pole **`code`** pochodzi z payloadu wyjątku, jeśli jest ustawione (np. **`GATEWAY_KEY_*`**), w przeciwnym razie z domyślnego mapowania statusu (`src/common/errors/api-error.code.ts`). `requestId` pochodzi z `RequestIdInterceptor` lub jest ustawiane przy obsłudze błędów auth w guardzie.
 
-## Rozszerzenia (Faza 5)
+## Rozszerzenia (Faza 5 i dalsze)
 
-Pełny słownik kodów (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, …) — `dictionary.md`. Doprecyzowanie mappingu dla wszystkich przypadków 400 (rozróżnienie aliasu vs walidacji ogólnej) — `PLAN_IMPLEMENTACJI.md` Krok 5.1b. Response header `x-request-id` (poza body) — TBD.
+Parametry **`params`** w body, skrypt `npm run config:validate`, nagłówek odpowiedzi `x-request-id` oraz pełniejsze wykorzystanie policy w adapterach — `PLAN_IMPLEMENTACJI.md`. Słownik kodów (`dictionary.md`) obejmuje też kody na przyszłe scenariusze (np. `MODEL_NOT_ALLOWED`).
+
+**Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED` są już emitowane w payloadach wyjątków i zachowywane przez `GlobalExceptionFilter`.
 
 ## Walidacja
 
-- Walidacja DTO na brzegu (`ValidationPipe`).
-- Walidacja konfiguracji przy starcie (fail‑fast) i w runtime (np. unknown `modelAlias` → błąd deterministyczny).
+- Walidacja DTO na brzegu (`ValidationPipe`: m.in. `messages` 1–50, `content` max 3000 znaków, `forbidNonWhitelisted`).
+- Limit rozmiaru JSON body: **1 MB** (`express.json` w `main.ts`).
+- Walidacja konfiguracji przy starcie (fail‑fast) i w runtime (np. unknown `modelAlias` → błąd deterministyczny z kodem `MODEL_ALIAS_NOT_FOUND` przy `POST /chat`).
 
 ## Idempotencja i retry
 

@@ -1,12 +1,12 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **0.9**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu, envelope błędów `ErrorEnvelope`, security `X-Gateway-Key` dla czatu). Odpowiedź z cache może zawierać pola **`cached`** / **`cachedAt`** — patrz sekcja czatu poniżej (schema OpenAPI może ich jeszcze nie listować).
+Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu w tym opcjonalne pola cache, envelope błędów `ErrorEnvelope`, security `X-Gateway-Key` dla czatu).
 
 ## Źródła prawdy (kolejność)
 
 1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
 2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
-3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: `params` w body, skrypt `config:validate`, limity DTO/body — Krok 5.4b, rozszerzenie mappingu kodów — Krok 5.1b; **Faza 6**: observability — pino + readiness + graceful shutdown). Envelope błędów (`code` + `requestId`), propagacja `x-request-id` oraz **`X-Gateway-Key`** na endpointach czatu — **wdrożone** (`GlobalExceptionFilter`, `RequestIdInterceptor`, `GatewayKeyGuard` w `src/`).
+3. **`PLAN_IMPLEMENTACJI.md`** — kolejne fazy (m.in. **Faza 5**: `params` w body, skrypt `config:validate`, ewentualne dalsze limity / rozszerzenia mapowań; **Faza 6**: observability — pino + readiness + graceful shutdown). Envelope błędów (`code` + `requestId`), propagacja `x-request-id` oraz **`X-Gateway-Key`** na endpointach czatu — **wdrożone** (`GlobalExceptionFilter`, `RequestIdInterceptor`, `GatewayKeyGuard` w `src/`). Wybrane kody domenowe przy **400** (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED` w payloadzie wyjątku) są **zachowywane przez filtr** — patrz `ProviderRegistryService` i `ChatService.executeStream`.
 4. **`REDIS_IMPLEMENTATION_PLAN.md`** — dalsze cele (limity, metryki, observability na Redis). **Cache odpowiedzi** dla `POST /api/v1/chat` jest już częścią kodu (`src/cache/`, backend `noop` / `redis` — `docs/konfiguracja.md`).
 5. **`SYSTEM_PROMPTS_REFACTOR-READY.md`** — plan i status refaktoru system promptu (✅ wykonane w kodzie: DTO + `ChatService` + `configuration.ts` + `openapi.json` + dokumentacja); ewentualne usprawnienia poza rdzeniem MVP są opisane w tym dokumencie.
 6. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
@@ -33,23 +33,23 @@ Wersja dokumentu: **0.9**. Dokument jest wersjonowany razem z kodem. **`openapi.
 
 ## Format błędów
 
-Wszystkie odpowiedzi błędów (4xx i 5xx) są w envelope **`ErrorEnvelope`** (`openapi.json`) emitowanym przez `GlobalExceptionFilter` (`src/common/filters/http-exception.filter.ts`, podpięty globalnie w `src/main.ts`):
+Wszystkie odpowiedzi błędów obsłużone przez `GlobalExceptionFilter` jako JSON są w envelope **`ErrorEnvelope`** (`openapi.json`) — patrz `src/common/filters/http-exception.filter.ts` (globalnie w `src/main.ts`). **Uwaga:** przy `POST /api/v1/chat/stream` część błędów może powstać **po** `flushHeaders` (patrz sekcja streamingu) — wtedy klient może nie otrzymać poprawnego JSON.
 
 ```json
 {
   "statusCode": 400,
-  "code": "VALIDATION_FAILED",
-  "message": "Model alias … not found in config",
+  "code": "MODEL_ALIAS_NOT_FOUND",
+  "message": "Model alias unknown-alias not found in config",
   "requestId": "req_01H...",
   "details": []
 }
 ```
 
-Jeśli wyjątek przekazuje w obiekcie odpowiedzi pole **`code`** (np. `GatewayKeyGuard`), **`GlobalExceptionFilter`** zachowuje je (`GATEWAY_KEY_MISSING`, `GATEWAY_KEY_INVALID`, `GATEWAY_KEY_NOT_CONFIGURED`). W przeciwnym razie **`code`** pochodzi z domyślnego mapowania statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE` w `src/common/errors/api-error.code.ts`), m.in.:
+Jeśli wyjątek przekazuje w obiekcie odpowiedzi pole **`code`** (np. `GatewayKeyGuard`, `ProviderRegistryService`, `ChatService.executeStream`), **`GlobalExceptionFilter`** zachowuje je (`GATEWAY_KEY_MISSING`, `GATEWAY_KEY_INVALID`, `GATEWAY_KEY_NOT_CONFIGURED`, `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, …). W przeciwnym razie **`code`** pochodzi z domyślnego mapowania statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE` w `src/common/errors/api-error.code.ts`), m.in.:
 
 | HTTP | `code` (domyślnie)       |
 |------|--------------------------|
-| 400  | `VALIDATION_FAILED`      |
+| 400  | `VALIDATION_FAILED` *(gdy wyjątek nie nadpisuje `code`; inaczej np. `MODEL_ALIAS_NOT_FOUND`)* |
 | 401  | `PROVIDER_AUTH_FAILED`*    |
 | 403  | `GATEWAY_KEY_INVALID`*     |
 | 429  | `PROVIDER_RATE_LIMITED`    |
@@ -59,7 +59,7 @@ Jeśli wyjątek przekazuje w obiekcie odpowiedzi pole **`code`** (np. `GatewayKe
 
 \* Przy guardzie klucza i jawnych kodach w payloadzie wyjątku używane są **`GATEWAY_KEY_MISSING`** / **`GATEWAY_KEY_INVALID`**, nie wartości z tej tabeli.
 
-Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; **w JSON odpowiedzi** filtr zwykle emituje **`message` jako jeden string** (łączenie tablic). Pełny słownik **docelowych** kodów — `dictionary.md`; doprecyzowanie mappingu dla pozostałych przypadków (np. rozróżnienie `MODEL_ALIAS_NOT_FOUND`) — **Faza 5** (`PLAN_IMPLEMENTACJI.md` Krok 5.1b).
+Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; **`GlobalExceptionFilter`** emituje **`message` jako jeden string** (`array.join('; ')`). Pełny słownik kodów — `dictionary.md`.
 
 ---
 
@@ -83,7 +83,7 @@ Część pól policy (timeout, retry per YAML) nie jest jeszcze w pełni wykorzy
 
 ### Request body
 
-Zgodnie z DTO: **`modelAlias`**, **`messages`** — bez **`params`** (nadwyżkowe pola odrzuca `ValidationPipe`: `forbidNonWhitelisted`).
+Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 50** wiadomości), każda wiadomość: **`role`** ∈ `{user, assistant}`, **`content`** string **do 3000** znaków (`src/chat/dto/chat-request.dto.ts`, `chat-message.dto.ts`). Bez **`params`** (nadwyżkowe pola odrzuca `ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Maksymalny rozmiar JSON body: **1 MB** (`express.json` w `src/main.ts`).
 
 ### Response (`200`)
 
@@ -98,16 +98,17 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 | HTTP | Kiedy |
 |------|--------|
 | 200 | Sukces |
-| 400 | Walidacja / nieznany alias lub konfiguracja providera |
+| 400 | Walidacja DTO; nieznany `modelAlias` → zwykle `code: MODEL_ALIAS_NOT_FOUND` (`ProviderRegistryService`); inne `BadRequestException` mogą nadpisać `code` (np. `VALIDATION_FAILED`) |
 | 401 | Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`) |
 | 403 | Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`) |
+| 502 | M.in. `PROVIDER_UNSUPPORTED` gdy typ providera z YAML nie ma adaptera w runtime (`UnsupportedProviderException`); inne błędy upstream — `provider-error.mapper.ts` |
 | 500 | Nieobsłużony błąd (np. SDK); wyjątkowo brak allowlisty kluczy (`GATEWAY_KEY_NOT_CONFIGURED`) |
 
 ---
 
 ## `POST /api/v1/chat/stream` — SSE
 
-**Kontroler:** `ChatStreamController`. Nagłówki SSE, potem `ChatService.executeStream`.
+**Kontroler:** `ChatStreamController`. Ustawiane są nagłówki `200` + `text/event-stream`, następnie wywoływane jest **`flushHeaders()`**, a potem `ChatService.executeStream` (zapis zdarzeń przez callback).
 
 **Zdarzenia:**
 
@@ -115,7 +116,12 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 2. `delta` — `{ text }`
 3. `done` — `{}` (pusty obiekt)
 
-**Błędy:** jeśli żądanie nie przechodzi walidacji lub pada wczesny `BadRequestException` **przed** `flushHeaders`, odpowiedź jest JSON jak przy czacie standardowym. Po rozpoczęciu strumienia błąd zwykle **zamyka połączenie**.
+**Błędy i JSON `ErrorEnvelope`:**
+
+- **Pewny JSON** (jak przy czacie standardowym): odrzucenie przez **`ValidationPipe`** (np. zła rola, za długi `content`, >50 wiadomości) oraz błędy **`GatewayKeyGuard`** — zachodzą **przed** wejściem w metodę zapisującą nagłówki SSE.
+- **Po `flushHeaders`:** błędy z **`executeStream`** (m.in. nieznany alias → `MODEL_ALIAS_NOT_FOUND`, brak streamingu → `STREAMING_NOT_SUPPORTED`, problemy z `resolve`) powstają **po** rozpoczęciu odpowiedzi `text/event-stream`. W takiej sytuacji klient **nie powinien** zakładać poprawnego JSON `ErrorEnvelope` — zachowanie zależy od częściowego zapisu i obsługi wyjątku po nagłówkach.
+
+Kody **`STREAMING_NOT_SUPPORTED`** i komunikaty są zwracane w payloadzie `HttpException` z `ChatService.executeStream` — patrz `src/chat/chat.service.ts`.
 
 ---
 
@@ -127,7 +133,7 @@ Liveness — `HealthService.check()` (`status`, `message`, `timestamp` ISO).
 
 ## Kody i słownik
 
-Stabilne kody maszynowe (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, …) — **`dictionary.md`** (kontrakt docelowy). **`GlobalExceptionFilter`** zachowuje **`code`** z payloadu wyjątku (m.in. `GATEWAY_KEY_*`) lub mapuje ze statusu HTTP (sekcja „Format błędów”). Rozszerzenie rozróżnień (np. `MODEL_ALIAS_NOT_FOUND` vs `VALIDATION_FAILED` przy każdym 400) jest w **Fazie 5** (Krok 5.1b).
+Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zachowuje **`code`** z obiektowego payloadu wyjątku (m.in. `GATEWAY_KEY_*`, `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`), w przeciwnym razie stosuje mapowanie ze statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE`).
 
 ---
 

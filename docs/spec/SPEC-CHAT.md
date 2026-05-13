@@ -42,7 +42,9 @@ F-4. Gateway musi dołączyć `provider` i resolved `model` do odpowiedzi.
 
 F-5. Gateway powinien dołączyć `usage`, jeśli provider/SDK udostępnia te dane.
 
-F-6. Nieznany `modelAlias` → `400` z `code=MODEL_ALIAS_NOT_FOUND` (**docelowy** kod). Obecnie: `400` z envelope `ErrorEnvelope` (`code=VALIDATION_FAILED`) — `GlobalExceptionFilter` mapuje wszystkie 400 na `VALIDATION_FAILED`. Rozróżnienie `MODEL_ALIAS_NOT_FOUND` vs ogólny `VALIDATION_FAILED` wymaga rozszerzenia mappingu w filtrze (Faza 5, Krok 5.1b).
+F-6. Nieznany `modelAlias` → `400` z `code=MODEL_ALIAS_NOT_FOUND` (`ProviderRegistryService.resolveModelAlias`, payload zachowywany przez `GlobalExceptionFilter`).
+
+F-7. Limity DTO: `messages` — **1..50** elementów; `content` — max **3000** znaków na wiadomość (`chat-request.dto.ts`, `chat-message.dto.ts`). Nadwyżkowe pola w body → `400` (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`).
 
 F-8. *(Opcjonalnie — cache odpowiedzi)* Gateway może zwracać zapisaną odpowiedź dla **`POST /api/v1/chat`** z polami **`cached: true`** i **`cachedAt`**, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Streaming nie podlega cache.
 
@@ -58,7 +60,7 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 
 - [x] Dla poprawnego requestu gateway zwraca `200` i spójny JSON (`ChatService.executeChat`).
 - [x] *(Cache)* Przy włączonym i dostępnym backendzie cache powtórzone identyczne żądanie `POST /api/v1/chat` może zwrócić odpowiedź z `cached: true` (szczegóły klucza: `ResponseCacheService`).
-- [x] Dla nieznanego `modelAlias` gateway zwraca `400` bez wywołania providera (envelope `ErrorEnvelope` z `code: VALIDATION_FAILED`; rozróżnienie `MODEL_ALIAS_NOT_FOUND` w **Fazie 5**).
+- [x] Dla nieznanego `modelAlias` gateway zwraca `400` z `code: MODEL_ALIAS_NOT_FOUND` (bez wywołania providera).
 - [ ] Parametry są walidowane (allowlista + bounds); DTO nie przyjmuje jeszcze `params`.
 - [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka żądania `x-request-id` jest **aktywna** (`RequestIdInterceptor` global). Response header `x-request-id` (poza body) nie jest jeszcze ustawiany.
 

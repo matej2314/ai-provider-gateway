@@ -50,9 +50,7 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | 403 | `GATEWAY_KEY_INVALID` |
 | 500 | `GATEWAY_KEY_NOT_CONFIGURED` |
 
-**Stan implementacji:** odpowiedzi błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polem **`code`**. Jeśli wyjątek ma obiektowy response z polem **`code`**, `GlobalExceptionFilter` je **zachowuje** (m.in. **`GATEWAY_KEY_*`** z `GatewayKeyGuard`). Gdy **`code`** nie został przekazany, filtr stosuje mapowanie domyślne ze statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE` w `src/common/errors/api-error.code.ts`). W JSON odpowiedzi pole **`message`** jest zwykle **pojedynczym stringiem** (filtr łączy tablice walidacji).
-
-Wartości takie jak `MODEL_ALIAS_NOT_FOUND` czy `STREAMING_NOT_SUPPORTED` przy **dedykowanych** komunikatach błędów — częściowo nadal do dopięcia (**Faza 5**, Krok 5.1b): dziś wiele przypadków kończy się ogólnym **`VALIDATION_FAILED`** przy statusie 400.
+**Stan implementacji:** odpowiedzi błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polem **`code`**. Jeśli wyjątek ma obiektowy response z polem **`code`**, `GlobalExceptionFilter` je **zachowuje** (m.in. **`GATEWAY_KEY_*`** z `GatewayKeyGuard`, **`MODEL_ALIAS_NOT_FOUND`** z `ProviderRegistryService`, **`STREAMING_NOT_SUPPORTED`** z `ChatService.executeStream`, **`PROVIDER_UNSUPPORTED`** z `UnsupportedProviderException`). Gdy **`code`** nie został przekazany, filtr stosuje mapowanie domyślne ze statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE` w `src/common/errors/api-error.code.ts`). W JSON odpowiedzi pole **`message`** jest **stringiem** (tablice walidacji są sklejane separatorem **`; `**).
 
 Powiązane: `openapi.json`, `architektura_api.md`, `dokumentacja_api.md`, `anty-patterny.md`.
 

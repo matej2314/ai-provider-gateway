@@ -35,7 +35,7 @@ F-4. Gateway musi wysyłać `event: delta` dla kolejnych fragmentów tekstu.
 
 F-5. Gateway musi wysłać `event: done` na końcu strumienia. Obecna implementacja: `data` dla `done` to pusty obiekt `{}`; **usage** w `done` może zostać dodane w kolejnej iteracji.
 
-F-6. Jeśli `modelAlias` nie wspiera streamingu → `400` (**docelowy** `code=STREAMING_NOT_SUPPORTED`). Obecnie: `BadRequestException` opakowany w envelope `ErrorEnvelope` (`code: VALIDATION_FAILED` — wszystkie 400 są tak mapowane przez `GlobalExceptionFilter`). Dedykowany kod `STREAMING_NOT_SUPPORTED` wymaga rozszerzenia mappingu lub wprowadzenia osobnego wyjątku domenowego — Faza 5 (Krok 5.1b).
+F-6. Jeśli `modelAlias` nie wspiera streamingu lub adapter nie implementuje `stream` → payload z `code=STREAMING_NOT_SUPPORTED` (`ChatService.executeStream`). **Uwaga:** `ChatStreamController` wywołuje `flushHeaders()` przed `executeStream`; błąd ten powstaje **po** rozpoczęciu odpowiedzi SSE — klient może nie otrzymać poprawnego JSON `ErrorEnvelope` (patrz `docs/dokumentacja_api.md`).
 
 F-7. W przypadku błędu po rozpoczęciu streamingu zachowanie musi być spójne:
 
@@ -55,7 +55,7 @@ NFR-3. Gateway nie może emitować surowych payloadów SDK providerów jako SSE.
 - [x] `meta` pojawia się raz i zawiera `requestId`, `provider`, `model` (oraz `id` gateway).
 - [ ] `delta` składa się w finalny tekst zgodny ze standardową odpowiedzią (na ile to możliwe) — do weryfikacji testami kontraktu.
 - [x] `done` kończy stream (`data: {}` w obecnym kontrakcie).
-- [x] Dla modelu bez streamingu zwracany jest deterministyczny `400` w envelope `ErrorEnvelope` (`code: VALIDATION_FAILED`); rozróżnienie `STREAMING_NOT_SUPPORTED` — Faza 5.
+- [x] Dla modelu bez streamingu zwracany jest `HttpException` z `code: STREAMING_NOT_SUPPORTED` w payloadzie (`ChatService.executeStream`); ze względu na `flushHeaders` przed `executeStream` odpowiedź JSON nie jest gwarantowana — patrz `docs/dokumentacja_api.md`.
 
 ## Poza zakresem (względem rdzenia MVP)
 
