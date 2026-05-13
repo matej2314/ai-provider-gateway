@@ -13,6 +13,7 @@ import { ChatMessageDto } from './dto/chat-message.dto';
 import { SseEvent } from './sse/sse-event.type';
 import { ResponseCacheService } from '../cache/response-cache.service';
 import type { GatewayConfig } from '../config/configuration';
+import { resolve } from 'path';
 
 const SYSTEM_PROMPT_SECTION_JOINER = '\n\n';
 
@@ -117,6 +118,30 @@ export class ChatService {
 
     await this.cacheService.setCachedResponse(requestBody, result);
     return result;
+  }
+
+  validateForStreaming(modelAlias: string) {
+    const resolved = this.registry.resolve(modelAlias);
+    if (!resolved.capabilities?.streaming) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
+          message: 'Streaming not supported for this model.',
+          details: [],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (!resolved.provider.stream) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
+          message: 'Streaming adapter not implemented for this provider.',
+          details: [],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   async executeStream(

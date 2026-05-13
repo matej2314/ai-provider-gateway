@@ -9,6 +9,6 @@ export class UnsupportedProviderException extends HttpException {
       message,
       details: [],
     };
-    super(body, HttpStatus.BAD_GATEWAY);
+    super(body, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 }

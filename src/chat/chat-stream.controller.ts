@@ -18,6 +18,10 @@ export class ChatStreamController {
     @Body() requestBody: ChatRequestDto,
     @Res() res: Response,
   ) {
+    const resolved = this.chatService.validateForStreaming(
+      requestBody.modelAlias,
+    );
+
     res.status(200);
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
