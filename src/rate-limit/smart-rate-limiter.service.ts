@@ -27,7 +27,7 @@ export class SmartRateLimiterService {
       };
     }
 
-    const rps = this.config.get<number>('RATELIMIT_RPS_PER_KEY', 10);
+    const rps = this.config.get<number>('RATE_LIMIT_RPS_PER_KEY', 10);
     const burst = this.config.get<number>('RATE_LIMIT_BURST_PER_KEY', 20);
 
     const key = `rateLimit:key:${gatewayKey}`;
@@ -95,7 +95,7 @@ export class SmartRateLimiterService {
           allowed: true,
           remaining: Math.floor(remaining),
           resetAt: new Date(lastRefill + windowMs),
-          reason: 'Rate limit exceeed for gateway key',
+          reason: 'Rate limit exceeded for gateway key',
         };
       }
     } catch (error) {

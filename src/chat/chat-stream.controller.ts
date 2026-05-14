@@ -1,9 +1,17 @@
-import { Controller, Body, Post, Res, Req } from '@nestjs/common';
+import {
+  Controller,
+  Body,
+  Post,
+  Res,
+  Req,
+  UseInterceptors,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseSerializer } from './sse/sse.serializer';
 import { ChatService } from './chat.service';
 import { GatewayKeyAndSmartRateLimit } from 'src/common/decorators/gateway-key-and-smart-rate-limit.decorator';
+import { StreamCleanupInterceptor } from 'src/common/interceptors/stream-cleanup.interceptor';
 
 @Controller('/chat')
 @GatewayKeyAndSmartRateLimit()
@@ -13,6 +21,7 @@ export class ChatStreamController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post('stream')
+  @UseInterceptors(StreamCleanupInterceptor)
   async streamChat(
     @Req() req: Request,
     @Body() requestBody: ChatRequestDto,

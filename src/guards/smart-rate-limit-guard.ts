@@ -4,29 +4,57 @@ import {
   ExecutionContext,
   HttpException,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { SmartRateLimiterService } from 'src/rate-limit/smart-rate-limiter.service';
 import { readGatewayKeyHeader } from 'src/common/readGatewayKeyHeader';
+import { ApiErrorCode } from 'src/common/errors/api-error.code';
 
 @Injectable()
 export class SmartRateLimitGuard implements CanActivate {
-  constructor(private readonly rateLimiter: SmartRateLimiterService) {}
+  constructor(
+    private readonly smartRateLimiter: SmartRateLimiterService,
+    private readonly config: ConfigService,
+  ) {}
+
+  private requireGatewayKey(req: Request): string {
+    const gatewayKey = readGatewayKeyHeader(req);
+
+    if (!gatewayKey) {
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: ApiErrorCode.GATEWAY_KEY_MISSING,
+        message: 'Missing X-Gateway-Key header value.',
+        requestId: req.requestId,
+        details: [],
+      });
+    }
+    return gatewayKey;
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
 
     const path = req.url?.split('?')[0] ?? '';
-    if (path === '/api/v1/health' || path.endsWith('/health')) {
+    if (path === '/api/v1/health') {
       return true;
     }
 
-    const gatewayKey = readGatewayKeyHeader(req);
-    const isStreaming = path.includes('/stream');
-
-    const rateLimitResult = await this.rateLimiter.checkRateLimit(
-      gatewayKey as string,
+    const smartEnabled = this.config.get<boolean>(
+      'RATE_LIMIT_SMART_ENABLED',
+      false,
     );
+    if (!smartEnabled) {
+      return true;
+    }
+
+    const gatewayKey = this.requireGatewayKey(req);
+    const isStreaming = path.endsWith('/stream');
+
+    const rateLimitResult =
+      await this.smartRateLimiter.checkRateLimit(gatewayKey);
 
     if (!rateLimitResult.allowed) {
       throw new HttpException(
@@ -42,9 +70,8 @@ export class SmartRateLimitGuard implements CanActivate {
     }
 
     if (isStreaming) {
-      const streamsResult = await this.rateLimiter.checkConcurrentStreams(
-        gatewayKey as string,
-      );
+      const streamsResult =
+        await this.smartRateLimiter.checkConcurrentStreams(gatewayKey);
 
       if (!streamsResult.allowed) {
         throw new HttpException(
@@ -60,6 +87,7 @@ export class SmartRateLimitGuard implements CanActivate {
         );
       }
     }
+
     return true;
   }
 }

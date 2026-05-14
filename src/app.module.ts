@@ -17,6 +17,7 @@ import { CacheModule } from './cache/cache.module';
 import { RedisConnectionService } from './cache/adapters/redis-cache/redis-connection.service';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { MetricsModule } from './metrics/metrics.module';
 
 const includeRedisCacheStack = (): boolean => {
   if (process.env.CACHE_ENABLED !== 'true') return false;
@@ -84,12 +85,13 @@ const includeRedisCacheStack = (): boolean => {
     ProvidersModule.register(),
     HealthModule,
     RateLimitModule,
+    MetricsModule,
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(RequestIdMiddleware).forRoutes({
-      path: '*',
+      path: '{*splat}',
       method: RequestMethod.ALL,
     });
   }
