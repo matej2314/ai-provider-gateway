@@ -4,9 +4,10 @@ import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseSerializer } from './sse/sse.serializer';
 import { ChatService } from './chat.service';
 import { GatewayKeyGuard } from '../guards/gateway-key.guard';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 @Controller('/chat')
-@UseGuards(GatewayKeyGuard)
+@UseGuards(GatewayKeyGuard, ThrottlerGuard)
 export class ChatStreamController {
   private readonly sse = new SseSerializer();
 
