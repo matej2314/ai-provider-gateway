@@ -1,13 +1,12 @@
-import { Controller, Body, Post, Res, Req, UseGuards } from '@nestjs/common';
+import { Controller, Body, Post, Res, Req } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseSerializer } from './sse/sse.serializer';
 import { ChatService } from './chat.service';
-import { GatewayKeyGuard } from '../guards/gateway-key.guard';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { GatewayKeyAndSmartRateLimit } from 'src/common/decorators/gateway-key-and-smart-rate-limit.decorator';
 
 @Controller('/chat')
-@UseGuards(GatewayKeyGuard, ThrottlerGuard)
+@GatewayKeyAndSmartRateLimit()
 export class ChatStreamController {
   private readonly sse = new SseSerializer();
 

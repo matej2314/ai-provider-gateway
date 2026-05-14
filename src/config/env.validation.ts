@@ -92,6 +92,34 @@ class EnvironmentVariables {
   @Min(1)
   @IsOptional()
   RATE_LIMIT_MAX?: number = 100;
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  RATE_LIMIT_SMART_ENABLED?: boolean = false;
+
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  RATE_LIMIT_RPS_PER_KEY?: number = 10;
+
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  RATE_LIMIT_BURST_PER_KEY?: number = 20;
+
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @IsOptional()
+  RATE_LIMIT_STREAMS_CONCURRENT?: number = 3;
+
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  RATE_LIMIT_COOLDOWN_AFTER_429?: number = 60;
 }
 
 export function validate(config: Record<string, unknown>) {

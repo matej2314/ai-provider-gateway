@@ -2,7 +2,6 @@ import 'dotenv/config';
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { AppModule } from './app.module';
 import { json } from 'express';
@@ -22,7 +21,6 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(new RequestIdInterceptor());
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   app.use(json({ limit: '1mb' }));

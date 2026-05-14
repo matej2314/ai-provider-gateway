@@ -1,4 +1,9 @@
-import { Module } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { ChatModule } from './chat/chat.module';
 import { ProvidersModule } from './providers/providers.module';
 import { ProviderRegistryModule } from './providers/provider-registry.module';
@@ -10,6 +15,8 @@ import { validate } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { CacheModule } from './cache/cache.module';
 import { RedisConnectionService } from './cache/adapters/redis-cache/redis-connection.service';
+import { RateLimitModule } from './rate-limit/rate-limit.module';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 const includeRedisCacheStack = (): boolean => {
   if (process.env.CACHE_ENABLED !== 'true') return false;
@@ -17,6 +24,7 @@ const includeRedisCacheStack = (): boolean => {
 };
 
 @Module({
+  providers: [RequestIdMiddleware],
   imports: [
     ConfigModule.forRoot({
       load: [configuration],
@@ -75,6 +83,14 @@ const includeRedisCacheStack = (): boolean => {
     ChatModule,
     ProvidersModule.register(),
     HealthModule,
+    RateLimitModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes({
+      path: '*',
+      method: RequestMethod.ALL,
+    });
+  }
+}

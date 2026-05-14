@@ -1,6 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { ConfigService } from '@nestjs/config';
+import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.service';
 import { v4 as uuidv4 } from 'uuid';
 import type { ResolvedSystemPrompts } from '../config/configuration.types';
 import { ProviderRegistryService } from '../providers/provider-registry.service';
@@ -13,7 +14,6 @@ import { ChatMessageDto } from './dto/chat-message.dto';
 import { SseEvent } from './sse/sse-event.type';
 import { ResponseCacheService } from '../cache/response-cache.service';
 import type { GatewayConfig } from '../config/configuration';
-import { resolve } from 'path';
 
 const SYSTEM_PROMPT_SECTION_JOINER = '\n\n';
 
@@ -23,6 +23,7 @@ export class ChatService {
     private readonly registry: ProviderRegistryService,
     private readonly config: ConfigService,
     private readonly cacheService: ResponseCacheService,
+    private readonly rateLimiter: SmartRateLimiterService,
   ) {}
 
   private getResolvedPrompts(): ResolvedSystemPrompts {
@@ -80,7 +81,11 @@ export class ChatService {
     return providerRow.enabled === true;
   }
 
-  async executeChat(requestBody: ChatRequestDto, requestId: string) {
+  async executeChat(
+    requestBody: ChatRequestDto,
+    requestId: string,
+    gatewayKey: string,
+  ) {
     const cachedResponse =
       await this.cacheService.getCachedResponse(requestBody);
 
@@ -95,6 +100,26 @@ export class ChatService {
       requestBody.modelAlias,
     );
 
+    if (gatewayKey) {
+      const cooldownResult = await this.rateLimiter.checkCooldown(
+        gatewayKey,
+        providerName,
+      );
+
+      if (!cooldownResult.allowed) {
+        throw new HttpException(
+          {
+            statusCode: 429,
+            code: 'RATE_LIMITED',
+            message: cooldownResult.reason || 'Rate limit exceeded',
+            requestId: requestId,
+            details: [],
+          },
+          429,
+        );
+      }
+    }
+
     const providerInput = this.buildProviderInput(requestBody);
 
     const options: ProviderCallOptions = {
@@ -102,22 +127,33 @@ export class ChatService {
       maxOutputTokens: params?.defaults?.maxOutputTokens ?? undefined,
     };
 
-    const response = await provider.complete(providerInput, modelId, options);
+    try {
+      const response = await provider.complete(providerInput, modelId, options);
 
-    const result = {
-      id: `gw_${uuidv4()}`,
-      provider: providerName,
-      model: requestBody.modelAlias,
-      output: {
-        type: 'text',
-        text: response.text,
-      },
-      usage: response.usage,
-      requestId: requestId,
-    };
+      const result = {
+        id: `gw_${uuidv4()}`,
+        provider: providerName,
+        model: requestBody.modelAlias,
+        output: {
+          type: 'text',
+          text: response.text,
+        },
+        usage: response.usage,
+        requestId: requestId,
+      };
 
-    await this.cacheService.setCachedResponse(requestBody, result);
-    return result;
+      await this.cacheService.setCachedResponse(requestBody, result);
+      return result;
+    } catch (error) {
+      if (
+        gatewayKey &&
+        error instanceof HttpException &&
+        error.getStatus() === 429
+      ) {
+        await this.rateLimiter.setCooldown(gatewayKey, providerName);
+      }
+      throw error;
+    }
   }
 
   validateForStreaming(modelAlias: string) {

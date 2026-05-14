@@ -1,17 +1,18 @@
-import { Controller, Post, Body, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { ChatService } from './chat.service';
 import { ChatRequestDto } from './dto/chat-request.dto';
-import { GatewayKeyGuard } from '../guards/gateway-key.guard';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { GatewayKeyAndSmartRateLimit } from 'src/common/decorators/gateway-key-and-smart-rate-limit.decorator';
+import { readGatewayKeyHeader } from 'src/common/readGatewayKeyHeader';
 
 @Controller('chat')
-@UseGuards(GatewayKeyGuard, ThrottlerGuard)
+@GatewayKeyAndSmartRateLimit()
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post()
   async chat(@Req() req: Request, @Body() requestBody: ChatRequestDto) {
-    return this.chatService.executeChat(requestBody, req.requestId);
+    const gatewayKey = readGatewayKeyHeader(req);
+    return this.chatService.executeChat(requestBody, req.requestId, gatewayKey);
   }
 }
