@@ -17,6 +17,7 @@ import { CacheModule } from './cache/cache.module';
 import { RedisConnectionService } from './cache/adapters/redis-cache/redis-connection.service';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { LoggingModule } from './logging/logging.module';
 import { MetricsModule } from './metrics/metrics.module';
 
 const includeRedisCacheStack = (): boolean => {
@@ -85,6 +86,7 @@ const includeRedisCacheStack = (): boolean => {
     ProvidersModule.register(),
     HealthModule,
     RateLimitModule,
+    LoggingModule,
     MetricsModule,
   ],
 })
