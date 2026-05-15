@@ -42,7 +42,7 @@ export class RedisCacheAdapter implements CacheBackend, OnModuleInit {
 
     try {
       if (ttl > 0) {
-        await client.set(key, value, 'EX', ttl);
+        await client.setex(key, ttl, value);
       } else {
         await client.set(key, value);
       }

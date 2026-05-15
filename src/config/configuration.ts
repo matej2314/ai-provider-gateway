@@ -61,6 +61,13 @@ export const GatewayConfigSchema = z
             'automation',
           ]),
           gatewayKeyRef: z.string().min(1),
+          rateLimit: z
+            .object({
+              rps: z.number().int().min(1),
+              burst: z.number().int().min(1),
+              maxConcurrentStreams: z.number().int().min(1),
+            })
+            .optional(),
         }),
       )
       .default({}),
@@ -178,6 +185,7 @@ function buildGatewayKeyRuntime(
       type: row.type,
       gatewayKeyRef: row.gatewayKeyRef,
       gatewayKey,
+      rateLimit: row.rateLimit,
     });
   }
 

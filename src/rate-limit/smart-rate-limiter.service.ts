@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisConnectionService } from 'src/cache/adapters/redis-cache/redis-connection.service';
+import {
+  GatewayKeyRuntimeConfig,
+  ResolvedGatewayClient,
+} from 'src/config/configuration.types';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -12,11 +16,41 @@ export interface RateLimitResult {
 @Injectable()
 export class SmartRateLimiterService {
   private readonly logger = new Logger(SmartRateLimiterService.name);
+  private readonly clientsMap: Map<string, ResolvedGatewayClient>;
 
   constructor(
     private readonly config: ConfigService,
     private readonly redisConnection: RedisConnectionService,
-  ) {}
+  ) {
+    const gatewayKeyConfig =
+      this.config.get<GatewayKeyRuntimeConfig>('gatewayKey');
+    this.clientsMap = new Map(
+      gatewayKeyConfig?.clients
+        .filter((client) => client.gatewayKey)
+        .map((client) => [client.gatewayKey, client]) ?? [],
+    );
+  }
+
+  private getLimitsForClient(gatewayKey: string) {
+    const client = this.clientsMap.get(gatewayKey);
+
+    if (client?.rateLimit) {
+      return {
+        rps: client.rateLimit.rps,
+        burst: client.rateLimit.burst,
+        maxConcurrentStreams: client.rateLimit.maxConcurrentStreams,
+      };
+    }
+
+    return {
+      rps: this.config.get<number>('RATE_LIMIT_RPS_PER_KEY', 10),
+      burst: this.config.get<number>('RATE_LIMIT_BURST_PER_KEY', 20),
+      maxConcurrentStreams: this.config.get<number>(
+        'RATE_LIMIT_STREAMS_CONCURRENT',
+        3,
+      ),
+    };
+  }
 
   async checkRateLimit(gatewayKey: string): Promise<RateLimitResult> {
     if (!this.redisConnection.isReady()) {
@@ -27,8 +61,8 @@ export class SmartRateLimiterService {
       };
     }
 
-    const rps = this.config.get<number>('RATE_LIMIT_RPS_PER_KEY', 10);
-    const burst = this.config.get<number>('RATE_LIMIT_BURST_PER_KEY', 20);
+    const limits = this.getLimitsForClient(gatewayKey);
+    const { rps, burst } = limits;
 
     const key = `rateLimit:key:${gatewayKey}`;
     const now = Date.now();
@@ -119,10 +153,8 @@ export class SmartRateLimiterService {
       return { allowed: true, remaining: 999, resetAt: new Date() };
     }
 
-    const maxConcurrent = this.config.get<number>(
-      'RATE_LIMIT_STREAMS_CONCURRENT',
-      3,
-    );
+    const limits = this.getLimitsForClient(gatewayKey);
+    const { maxConcurrentStreams: maxConcurrent } = limits;
 
     const key = `rateLimit:streams:${gatewayKey}`;
 

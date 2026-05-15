@@ -17,6 +17,10 @@ clients:
     name: My web app
     type: webapp
     gatewayKeyRef: GATEWAY_KEY_WEBAPP
+    rateLimit:
+      rps: 10
+      burst: 10
+      maxConcurrentStreams: 3
   ide-plugin:
     name: IDE INTEGRATION
     type: ide
