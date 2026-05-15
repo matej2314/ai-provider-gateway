@@ -3,12 +3,15 @@ import {
   Logger,
   OnModuleInit,
   OnModuleDestroy,
+  OnApplicationShutdown,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
 @Injectable()
-export class RedisConnectionService implements OnModuleInit, OnModuleDestroy {
+export class RedisConnectionService
+  implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown
+{
   private readonly logger = new Logger(RedisConnectionService.name);
   private client: Redis | null = null;
 
@@ -68,6 +71,13 @@ export class RedisConnectionService implements OnModuleInit, OnModuleDestroy {
     } finally {
       this.client = null;
     }
+  }
+
+  async onApplicationShutdown(signal?: string) {
+    console.log(
+      `Redis connection shutdown triggered by ${signal || 'unknown signal'}.`,
+    );
+    await this.onModuleDestroy();
   }
 
   getClient(): Redis | null {
