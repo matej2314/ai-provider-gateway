@@ -6,8 +6,14 @@ import { SkipThrottle } from '@nestjs/throttler';
 @SkipThrottle()
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
+
   @Get()
-  checkHealth() {
-    return this.healthService.check();
+  getLiveness() {
+    return this.healthService.getLiveness();
+  }
+
+  @Get('ready')
+  getReadiness() {
+    return this.healthService.getReadiness();
   }
 }
