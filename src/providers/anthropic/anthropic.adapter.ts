@@ -12,21 +12,25 @@ import {
   ProviderChatResponse,
 } from '../interfaces/ai-provider.interface';
 import { ProviderRegistryService } from '../provider-registry.service';
+import { LoggingService } from 'src/logging/logging.service';
 
 @Injectable()
 export class AnthropicAdapter implements AIProvider, OnModuleInit {
   private client: Anthropic;
+  private readonly logger: LoggingService;
 
   constructor(
-    private configService: ConfigService,
-    private registry: ProviderRegistryService,
+    private readonly configService: ConfigService,
+    private readonly registry: ProviderRegistryService,
+    loggingService: LoggingService,
   ) {
+    this.logger = loggingService.child({ module: 'AnthropicAdapter' });
     const apiKey = this.configService.get<string>('providers.anthropic.apiKey');
 
     if (!apiKey) throw new Error('[AnthropicAdapter] API key not configured');
 
     this.client = new Anthropic({ apiKey });
-    console.log('[AnthropicAdapter] Initialized');
+    this.logger.info('Anthropic adapter initialized');
   }
 
   onModuleInit() {
@@ -38,9 +42,9 @@ export class AnthropicAdapter implements AIProvider, OnModuleInit {
     modelId: string,
     options?: ProviderCallOptions,
   ): Promise<ProviderChatResponse> {
-    console.log(
-      `[AnthropicAdapter] Calling model: ${modelId} with ${input.messages.length} messages`,
-    );
+    this.logger.debug('Calling model', {
+      model: modelId,
+    });
 
     try {
       const response = await this.client.messages.create({
@@ -66,6 +70,10 @@ export class AnthropicAdapter implements AIProvider, OnModuleInit {
         },
       };
     } catch (error) {
+      this.logger.warn('Error completing', {
+        message: error instanceof Error ? error.message : String(error),
+        model: modelId,
+      });
       throw toHttpException(mapAnthropicSdkError(error));
     }
   }
@@ -76,6 +84,10 @@ export class AnthropicAdapter implements AIProvider, OnModuleInit {
     options?: ProviderCallOptions,
   ): AsyncIterable<string> {
     try {
+      this.logger.debug('Streaming', {
+        model: modelId,
+      });
+
       const stream = await this.client.messages.stream({
         model: modelId,
         max_tokens: options?.maxOutputTokens ?? 1024,
@@ -94,6 +106,10 @@ export class AnthropicAdapter implements AIProvider, OnModuleInit {
         }
       }
     } catch (error) {
+      this.logger.warn('Error streaming', {
+        message: error instanceof Error ? error.message : String(error),
+        model: modelId,
+      });
       throw toHttpException(mapAnthropicSdkError(error));
     }
   }

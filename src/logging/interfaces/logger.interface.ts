@@ -14,12 +14,8 @@ export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
 export interface LoggerOptions {
   level: LogLevel;
-  logsDir?: string;
-  rotationDays?: number;
-  maxSize?: string;
   appVersion?: string;
   environment?: string;
-  prettyPrint?: boolean;
 }
 
 export interface LoggerBackend {
@@ -34,4 +30,10 @@ export interface LoggerBackend {
   fatal(message: string, error?: Error, context?: LogContext): void;
 
   flush(): Promise<void>;
+}
+
+export interface ErrorReportingBackend {
+  isEnabled(): boolean;
+  captureException(error: Error, context?: LogContext): void;
+  flush?(timeoutMs?: number): Promise<void>;
 }

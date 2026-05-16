@@ -120,6 +120,24 @@ class EnvironmentVariables {
   @Min(0)
   @IsOptional()
   RATE_LIMIT_COOLDOWN_AFTER_429?: number = 60;
+
+  @IsString()
+  @IsOptional()
+  SENTRY_DSN?: string = '';
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  SENTRY_ENABLED?: boolean = false;
+
+  @IsString()
+  @IsOptional()
+  SENTRY_ENVIRONMENT?: string = 'development';
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  LOG_PRETTY?: boolean = false;
 }
 
 export function validate(config: Record<string, unknown>) {

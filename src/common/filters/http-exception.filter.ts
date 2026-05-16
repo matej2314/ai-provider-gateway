@@ -4,14 +4,19 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
+  Injectable,
 } from '@nestjs/common';
 import {
   ApiErrorCode,
   DEFAULT_HTTP_STATUS_TO_CODE,
 } from '../errors/api-error.code';
+import { LoggingService } from '../../logging/logging.service';
 
 @Catch()
+@Injectable()
 export class GlobalExceptionFilter implements ExceptionFilter {
+  constructor(private readonly loggingService: LoggingService) {}
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
@@ -54,10 +59,31 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const requestId =
       (typeof request.requestId === 'string' && request.requestId) || 'unknown';
 
+    const normalizedMessage = Array.isArray(message)
+      ? message.join('; ')
+      : message;
+
+    if (status >= 500 || !(exception instanceof HttpException)) {
+      const err =
+        exception instanceof Error
+          ? exception
+          : new Error(
+              typeof exception === 'string'
+                ? exception
+                : 'Unhandled exception',
+            );
+      this.loggingService.error(normalizedMessage, err, {
+        requestId,
+        code,
+        status,
+        module: 'GlobalExceptionFilter',
+      });
+    }
+
     response.status(status).json({
       statusCode: status,
       code,
-      message: Array.isArray(message) ? message.join('; ') : message,
+      message: normalizedMessage,
       requestId,
       details,
     });

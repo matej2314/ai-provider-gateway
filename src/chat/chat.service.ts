@@ -1,6 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { ConfigService } from '@nestjs/config';
+import { LoggingService } from '../logging/logging.service';
 import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.service';
 import { v4 as uuidv4 } from 'uuid';
 import type { ResolvedSystemPrompts } from '../config/configuration.types';
@@ -24,6 +25,7 @@ export class ChatService {
     private readonly config: ConfigService,
     private readonly cacheService: ResponseCacheService,
     private readonly rateLimiter: SmartRateLimiterService,
+    private readonly loggingService: LoggingService,
   ) {}
 
   private getResolvedPrompts(): ResolvedSystemPrompts {
@@ -81,11 +83,57 @@ export class ChatService {
     return providerRow.enabled === true;
   }
 
+  private async handleProviderError(
+    log: LoggingService,
+    error: unknown,
+    providerName: string,
+    gatewayKey?: string,
+  ): Promise<void> {
+    if (
+      gatewayKey &&
+      error instanceof HttpException &&
+      error.getStatus() === 429
+    ) {
+      await this.rateLimiter.setCooldown(gatewayKey, providerName);
+    }
+
+    if (error instanceof HttpException) {
+      const status = error.getStatus();
+      const body = error.getResponse();
+      const ctx: Record<string, unknown> = {
+        provider: providerName,
+        status,
+      };
+      if (body && typeof body === 'object' && !Array.isArray(body)) {
+        const o = body as Record<string, unknown>;
+        if (typeof o.code === 'string') ctx.code = o.code;
+      }
+      if (status === 429) {
+        log.warn('Chat provider rate limited', ctx);
+      } else if (status < 500) {
+        log.warn('Chat provider request failed', ctx);
+      }
+      return;
+    }
+
+    if (error instanceof Error) {
+      log.warn('Chat provider call failed', {
+        provider: providerName,
+        message: error.message,
+      });
+    }
+  }
+
   async executeChat(
     requestBody: ChatRequestDto,
     requestId: string,
     gatewayKey: string,
   ) {
+    const log = this.loggingService.child({
+      module: 'ChatService',
+      requestId,
+      modelAlias: requestBody.modelAlias,
+    });
     const cachedResponse =
       await this.cacheService.getCachedResponse(requestBody);
 
@@ -93,6 +141,7 @@ export class ChatService {
       cachedResponse &&
       this.isCachedChatAllowedForModelAlias(requestBody.modelAlias)
     ) {
+      log.info('Chat cache hit');
       return cachedResponse;
     }
 
@@ -107,6 +156,12 @@ export class ChatService {
       );
 
       if (!cooldownResult.allowed) {
+        log.warn('Rate limit exceeded', {
+          provider: providerName,
+          status: 429,
+          code: 'RATE_LIMITED',
+        });
+
         throw new HttpException(
           {
             statusCode: 429,
@@ -128,6 +183,7 @@ export class ChatService {
     };
 
     try {
+      const startedAt = Date.now();
       const response = await provider.complete(providerInput, modelId, options);
 
       const result = {
@@ -141,24 +197,40 @@ export class ChatService {
         usage: response.usage,
         requestId: requestId,
       };
+      const latency = Date.now() - startedAt;
 
       await this.cacheService.setCachedResponse(requestBody, result);
+      log.info('Chat completed successfully', {
+        provider: providerName,
+        modelId,
+        latency,
+        tokensUsed:
+          response.usage?.inputTokens != null
+            ? response.usage.inputTokens
+            : undefined,
+        tokensOutput:
+          response.usage?.outputTokens != null
+            ? response.usage.outputTokens
+            : undefined,
+      });
       return result;
     } catch (error) {
-      if (
-        gatewayKey &&
-        error instanceof HttpException &&
-        error.getStatus() === 429
-      ) {
-        await this.rateLimiter.setCooldown(gatewayKey, providerName);
-      }
+      await this.handleProviderError(log, error, providerName, gatewayKey);
       throw error;
     }
   }
 
   validateForStreaming(modelAlias: string) {
+    const log = this.loggingService.child({
+      module: 'ChatService',
+      modelAlias: modelAlias,
+    });
     const resolved = this.registry.resolve(modelAlias);
     if (!resolved.capabilities?.streaming) {
+      log.warn('Streaming not supported for this model', {
+        provider: resolved.providerName,
+        code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
+      });
       throw new HttpException(
         {
           code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
@@ -169,6 +241,10 @@ export class ChatService {
       );
     }
     if (!resolved.provider.stream) {
+      log.warn('Streaming adapter not implemented for this provider', {
+        provider: resolved.providerName,
+        code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
+      });
       throw new HttpException(
         {
           code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
@@ -185,10 +261,19 @@ export class ChatService {
     requestId: string,
     emit: (event: SseEvent) => void,
   ): Promise<void> {
+    const log = this.loggingService.child({
+      module: 'ChatService',
+      requestId,
+      modelAlias: requestBody.modelAlias,
+    });
     const { provider, providerName, modelId, capabilities, params } =
       this.registry.resolve(requestBody.modelAlias);
 
     if (!capabilities?.streaming) {
+      log.warn('Streaming not supported for this model', {
+        provider: providerName,
+        code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
+      });
       throw new HttpException(
         {
           code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
@@ -200,6 +285,10 @@ export class ChatService {
     }
 
     if (!provider.stream) {
+      log.warn('Streaming adapter not implemented for this provider', {
+        provider: providerName,
+        code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
+      });
       throw new HttpException(
         {
           code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
@@ -229,12 +318,24 @@ export class ChatService {
       },
     });
 
-    const textStream = provider.stream(providerInput, modelId, options);
+    try {
+      const startedAt = Date.now();
+      const textStream = provider.stream(providerInput, modelId, options);
 
-    for await (const textChunk of textStream) {
-      emit({ name: 'delta', data: { text: textChunk } });
+      for await (const textChunk of textStream) {
+        emit({ name: 'delta', data: { text: textChunk } });
+      }
+
+      emit({ name: 'done', data: {} });
+
+      log.info('Chat stream completed', {
+        provider: providerName,
+        modelId,
+        latency: Date.now() - startedAt,
+      });
+    } catch (error) {
+      await this.handleProviderError(log, error, providerName);
+      throw error;
     }
-
-    emit({ name: 'done', data: {} });
   }
 }

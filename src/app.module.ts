@@ -4,6 +4,8 @@ import {
   NestModule,
   RequestMethod,
 } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { ChatModule } from './chat/chat.module';
 import { ProvidersModule } from './providers/providers.module';
 import { ProviderRegistryModule } from './providers/provider-registry.module';
@@ -26,7 +28,10 @@ const includeRedisCacheStack = (): boolean => {
 };
 
 @Module({
-  providers: [RequestIdMiddleware],
+  providers: [
+    RequestIdMiddleware,
+    { provide: APP_FILTER, useClass: GlobalExceptionFilter },
+  ],
   imports: [
     ConfigModule.forRoot({
       load: [configuration],
@@ -78,6 +83,7 @@ const includeRedisCacheStack = (): boolean => {
         };
       },
     }),
+    LoggingModule,
     ProviderRegistryModule,
     CacheModule.register({
       includeRedisStack: includeRedisCacheStack(),
@@ -86,7 +92,6 @@ const includeRedisCacheStack = (): boolean => {
     ProvidersModule.register(),
     HealthModule,
     RateLimitModule,
-    LoggingModule,
     MetricsModule,
   ],
 })

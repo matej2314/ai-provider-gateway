@@ -3,7 +3,6 @@ import {
   HttpException,
   HttpStatus,
   InternalServerErrorException,
-  Logger,
   OnApplicationBootstrap,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -16,6 +15,7 @@ import {
 } from '../config/configuration';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { UnsupportedProviderException } from '../common/exceptions/unsupported-provider.exception';
+import { LoggingService } from '../logging/logging.service';
 
 interface ResolvedProviderConfig {
   provider: AIProvider;
@@ -28,18 +28,31 @@ interface ResolvedProviderConfig {
 @Injectable()
 export class ProviderRegistryService implements OnApplicationBootstrap {
   private providers = new Map<string, { provider: AIProvider; name: string }>();
-  private readonly logger = new Logger(ProviderRegistryService.name);
+  private readonly logger: LoggingService;
 
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    loggingService: LoggingService,
+  ) {
+    this.logger = loggingService.child({ module: 'ProviderRegistryService' });
+  }
 
   register(providerName: string, provider: AIProvider) {
     this.providers.set(providerName, { provider, name: providerName });
+    this.logger.debug('Registered provider:', {
+      provider: providerName,
+      adapter: provider.constructor.name,
+    });
   }
 
   private getGatewayConfig(): GatewayConfig {
     const config = this.configService.get<GatewayConfig>('gateway');
 
     if (!config) {
+      this.logger.error(
+        'Gateway config not found.',
+        new Error('Gateway config not found'),
+      );
       throw new InternalServerErrorException('Gateway config not found');
     }
 
@@ -53,6 +66,7 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
     const modelConfig = gatewayConfig?.models[modelAlias];
 
     if (!modelConfig) {
+      this.logger.warn('Model alias not found in config:', { modelAlias });
       throw new HttpException(
         {
           code: ApiErrorCode.MODEL_ALIAS_NOT_FOUND,
@@ -74,6 +88,9 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
       gatewayConfig.providers[modelConfig.providerInstance];
 
     if (!providerInstanceConfig) {
+      this.logger.warn('Provider instance not found in config:', {
+        providerInstance: modelConfig.providerInstance,
+      });
       throw new HttpException(
         {
           code: ApiErrorCode.VALIDATION_FAILED,
@@ -89,6 +106,7 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
     const entry = this.providers.get(providerType);
 
     if (!entry) {
+      this.logger.warn('Provider not registered:', { provider: providerType });
       throw new UnsupportedProviderException(
         `Provider ${providerType} not registered.`,
       );
@@ -104,10 +122,6 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
 
     const providerEntry = this.resolveProviderEntry(gatewayConfig, modelConfig);
 
-    this.logger.log(
-      `[ProviderRegistry] Resolved alias '${modelAlias}' → provider '${providerEntry.name}', model '${modelConfig.modelId}'`,
-    );
-
     return {
       provider: providerEntry.provider,
       providerName: providerEntry.name,
@@ -118,10 +132,14 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
   }
 
   list(): string[] {
-    return Array.from(this.providers.entries()).map(([name, {provider}]) => `${name}: ${provider.constructor.name}`);
+    return Array.from(this.providers.entries()).map(
+      ([name, { provider }]) => `${name}: ${provider.constructor.name}`,
+    );
   }
 
   onApplicationBootstrap() {
-   this.logger.log('[ProviderRegistry] Registered providers:',JSON.stringify( this.list()));
+    this.logger.info('Registered providers:', {
+      providers: this.list(),
+    });
   }
 }

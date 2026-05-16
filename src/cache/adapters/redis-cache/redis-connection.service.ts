@@ -1,21 +1,26 @@
 import {
   Injectable,
-  Logger,
   OnModuleInit,
   OnModuleDestroy,
   OnApplicationShutdown,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LoggingService } from '../../../logging/logging.service';
 import Redis from 'ioredis';
 
 @Injectable()
 export class RedisConnectionService
   implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown
 {
-  private readonly logger = new Logger(RedisConnectionService.name);
   private client: Redis | null = null;
+  private readonly logger: LoggingService;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    loggingService: LoggingService,
+  ) {
+    this.logger = loggingService.child({ module: 'RedisConnectionService' });
+  }
 
   async onModuleInit(): Promise<void> {
     const redis = this.config.get<{
@@ -49,12 +54,31 @@ export class RedisConnectionService
       });
 
       await this.client.ping();
-      this.logger.log(
-        `Redis connected at ${this.client.options.host}:${this.client.options.port}`,
-      );
+      this.logger.info('Redis connected.', {
+        host: redis.host,
+        port: redis.port,
+        db: redis.db,
+      });
+
+      this.client.on('error', (err) => {
+        this.logger.warn('Redis client error', {
+          message: err.message,
+        });
+      });
+
+      this.client.on('reconnecting', () => {
+        this.logger.warn('Redis client reconnecting...', {
+          host: this.client?.options.host,
+          port: this.client?.options.port,
+        });
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Redis connection failed: ${message}`);
+      this.logger.warn('Redis connection failed', {
+        host: redis.host,
+        port: redis.port,
+        message,
+      });
       if (this.client) {
         this.client.disconnect();
         this.client = null;
@@ -67,16 +91,21 @@ export class RedisConnectionService
     try {
       await this.client.quit();
     } catch {
+      this.logger.debug('Redis client disconnected.', {
+        host: this.client.options.host,
+        port: this.client.options.port,
+      });
       this.client.disconnect();
     } finally {
+      this.client.removeAllListeners();
       this.client = null;
     }
   }
 
   async onApplicationShutdown(signal?: string) {
-    console.log(
-      `Redis connection shutdown triggered by ${signal || 'unknown signal'}.`,
-    );
+    this.logger.info(`Redis connection shutting down`, {
+      signal: signal ?? 'unknown signal',
+    });
     await this.onModuleDestroy();
   }
 

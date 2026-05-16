@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
+import { LoggingService } from 'src/logging/logging.service';
 import {
   mapGoogleGenAiError,
   toHttpException,
@@ -16,17 +17,20 @@ import { ProviderRegistryService } from '../provider-registry.service';
 @Injectable()
 export class GoogleAdapter implements AIProvider, OnModuleInit {
   private client: GoogleGenAI;
+  private readonly logger: LoggingService;
 
   constructor(
-    private configService: ConfigService,
-    private registry: ProviderRegistryService,
+    private readonly configService: ConfigService,
+    private readonly registry: ProviderRegistryService,
+    loggingService: LoggingService,
   ) {
+    this.logger = loggingService.child({ module: 'GoogleAdapter' });
     const apiKey = this.configService.get<string>('providers.google.apiKey');
 
     if (!apiKey) throw new Error('[GoogleAdapter] API key not configured');
 
     this.client = new GoogleGenAI({ apiKey });
-    console.log('[GoogleAdapter] Initialized');
+    this.logger.info('Google adapter initialized');
   }
 
   onModuleInit() {
@@ -47,9 +51,11 @@ export class GoogleAdapter implements AIProvider, OnModuleInit {
     modelId: string,
     options?: ProviderCallOptions,
   ): Promise<ProviderChatResponse> {
-    console.log(
-      `[GoogleAdapter] Calling model: ${modelId} with ${input.messages.length} messages`,
-    );
+    this.logger.debug('Calling model', {
+      model: modelId,
+      messagesCount: input.messages.length,
+    });
+
     try {
       const response = await this.client.models.generateContent({
         model: modelId,
@@ -72,6 +78,10 @@ export class GoogleAdapter implements AIProvider, OnModuleInit {
           : undefined,
       };
     } catch (error) {
+      this.logger.warn('Error completing', {
+        message: error instanceof Error ? error.message : String(error),
+        model: modelId,
+      });
       throw toHttpException(mapGoogleGenAiError(error));
     }
   }
@@ -82,6 +92,11 @@ export class GoogleAdapter implements AIProvider, OnModuleInit {
     options?: ProviderCallOptions,
   ): AsyncIterable<string> {
     try {
+      this.logger.debug('Streaming', {
+        model: modelId,
+        messagesCount: input.messages.length,
+      });
+
       const stream = await this.client.models.generateContentStream({
         model: modelId,
         contents: this.prepareContents(input.messages),
@@ -98,6 +113,10 @@ export class GoogleAdapter implements AIProvider, OnModuleInit {
         }
       }
     } catch (error) {
+      this.logger.warn('Error streaming', {
+        message: error instanceof Error ? error.message : String(error),
+        model: modelId,
+      });
       throw toHttpException(mapGoogleGenAiError(error));
     }
   }

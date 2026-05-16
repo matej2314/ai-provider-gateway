@@ -1,14 +1,15 @@
 import 'dotenv/config';
+import './instrument';
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { AppModule } from './app.module';
 import { json } from 'express';
+import { LoggingService } from './logging/logging.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
+  const logger = app.get(LoggingService);
   app.setGlobalPrefix('api/v1');
 
   app.getHttpAdapter().getInstance().disable('x-powered-by');
@@ -21,24 +22,22 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalFilters(new GlobalExceptionFilter());
-
   app.use(json({ limit: '1mb' }));
 
   app.enableShutdownHooks();
 
   const PORT = process.env.PORT ?? 3000;
   await app.listen(PORT, () => {
-    console.log(`[Bootstrap] Gateway listening on http://localhost:${PORT}`);
+    logger.info(`[Bootstrap] Gateway listening on http://localhost:${PORT}`);
   });
 
   let isShuttingDown = false;
 
   const shutdown = async (signal: string) => {
-    console.log(`Received ${signal}. Shutting down...`);
+    logger.info(`Received ${signal}. Shutting down...`);
 
     if (isShuttingDown) {
-      console.log('Already shutting down. Ignoring signal.');
+      logger.info('Already shutting down. Ignoring signal.');
       return;
     }
 
@@ -46,10 +45,10 @@ async function bootstrap() {
 
     try {
       await app.close();
-      console.log('Graceful shutdown completed.');
+      logger.info('Graceful shutdown completed.');
       process.exit(0);
     } catch (error) {
-      console.error(`Error during graceful shutdown: ${error}`);
+      logger.error(`Error during graceful shutdown: ${error}`);
       process.exit(1);
     }
   };
@@ -58,19 +57,19 @@ async function bootstrap() {
   process.on('SIGINT', () => shutdown('SIGINT'));
 
   process.on('uncaughtException', (error: Error) => {
-    console.error('Uncaught exception:', error);
+    logger.error('Uncaught exception:', error);
     shutdown('uncaughtException');
   });
 
   process.on(
     'unhandledRejection',
     (reason: unknown, promise: Promise<unknown>) => {
-      console.error('Unhandled rejection:', reason);
+      logger.error(`Unhandled rejection: ${reason}`);
       shutdown('unhandledRejection');
     },
   );
 }
 bootstrap().catch((error) => {
-  console.error('Fatal error during startup:', error);
+  console.error(`Fatal error during startup: ${error}`);
   process.exit(1);
 });
