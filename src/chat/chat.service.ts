@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { ConfigService } from '@nestjs/config';
 import { LoggingService } from '../logging/logging.service';
+import { MetricsService } from '../metrics/metrics.service';
 import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.service';
 import { v4 as uuidv4 } from 'uuid';
 import type { ResolvedSystemPrompts } from '../config/configuration.types';
@@ -26,6 +27,7 @@ export class ChatService {
     private readonly cacheService: ResponseCacheService,
     private readonly rateLimiter: SmartRateLimiterService,
     private readonly loggingService: LoggingService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   private getResolvedPrompts(): ResolvedSystemPrompts {
@@ -184,7 +186,38 @@ export class ChatService {
 
     try {
       const startedAt = Date.now();
-      const response = await provider.complete(providerInput, modelId, options);
+      // const response = await provider.complete(providerInput, modelId, options);
+
+      // const result = {
+      //   id: `gw_${uuidv4()}`,
+      //   provider: providerName,
+      //   model: requestBody.modelAlias,
+      //   output: {
+      //     type: 'text',
+      //     text: response.text,
+      //   },
+      //   usage: response.usage,
+      //   requestId: requestId,
+      // };
+
+      const response = await this.metricsService.observeLlmCall(
+        {
+          provider: providerName,
+          modelAlias: requestBody.modelAlias,
+          modelId,
+          requestId,
+        },
+        () => provider.complete(providerInput, modelId, options),
+        (res) => ({
+          responseModel: res.model,
+          usage: res.usage
+            ? {
+                inputTokens: res.usage.inputTokens,
+                outputTokens: res.usage.outputTokens,
+              }
+            : undefined,
+        }),
+      );
 
       const result = {
         id: `gw_${uuidv4()}`,
@@ -197,6 +230,8 @@ export class ChatService {
         usage: response.usage,
         requestId: requestId,
       };
+      
+
       const latency = Date.now() - startedAt;
 
       await this.cacheService.setCachedResponse(requestBody, result);

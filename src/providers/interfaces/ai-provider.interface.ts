@@ -10,7 +10,7 @@ export interface ProviderChatInput {
 
 export interface ProviderChatResponse {
   text: string;
-  model: string;
+  model?: string;
   usage?: {
     inputTokens: number;
     outputTokens: number;

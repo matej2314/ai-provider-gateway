@@ -69,7 +69,7 @@ export class GoogleAdapter implements AIProvider, OnModuleInit {
 
       return {
         text: response.text ?? '',
-        model: modelId,
+        model: response.modelVersion ?? modelId,
         usage: response.usageMetadata
           ? {
               inputTokens: response.usageMetadata.promptTokenCount ?? 0,

@@ -9,6 +9,7 @@ import {
   IsInt,
   Min,
   Max,
+  IsNumber,
 } from 'class-validator';
 
 const isProduction = (config: Record<string, unknown>): boolean => {
@@ -134,10 +135,23 @@ class EnvironmentVariables {
   @IsOptional()
   SENTRY_ENVIRONMENT?: string = 'development';
 
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @IsOptional()
+  SENTRY_TRACES_SAMPLE_RATE?: number = 0.1;
+
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   @IsOptional()
   LOG_PRETTY?: boolean = false;
+
+  @IsString()
+  @IsOptional()
+  ERROR_REPORTING_ADAPTER?: string = 'noop';
+
+  @IsString()
+  @IsOptional()
+  METRICS_BACKEND?: string = 'noop';
 }
 
 export function validate(config: Record<string, unknown>) {
