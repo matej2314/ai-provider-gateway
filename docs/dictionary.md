@@ -14,7 +14,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Standard** | Tryb odpowiedzi: pełna odpowiedź JSON. | `POST /api/v1/chat`. |
 | **Streaming** | Tryb odpowiedzi: SSE. | `POST /api/v1/chat/stream` — patrz `openapi.json`, `dokumentacja_api.md`. |
 | **Request ID** | Identyfikator korelacyjny żądania. | W logach i w error envelope. |
-| **Conversation ID** (`conversationId`) | Opcjonalny identyfikator rozmowy w żądaniu czatu; grupowanie metryk LLM w Sentry. | Gateway zwraca użyte ID w `ChatResponse` / SSE `meta` (echo lub `conv_<uuid>`). Nie jest persistowany w gateway. Patrz `conversation-tracking.md`. |
+| **Conversation ID** (`conversationId`) | Opcjonalny identyfikator w body czatu. W **request** włącza `gen_ai.conversation.id` w Sentry; w **response** zawsze echo lub `conv_<uuid>`. Historia = `messages[]` od klienta. Patrz `conversation-tracking.md`. |
 | **Policy** | Zestaw limitów i zasad (timeout, retry, allowlista parametrów). | Konfigurowalne per alias / per provider. |
 | **Response cache** | Opcjonalna warstwa zapisu/odczytu odpowiedzi **`POST /api/v1/chat`** (backend `noop` lub `redis`). | Klucz m.in. z aliasu modelu, treści wiadomości i sygnatury warstw system promptu; streaming wyłączony z cache. |
 | **Walidacja env (klucze)** | Reguły na zmiennych środowiskowych przy starcie aplikacji. | Przy **`NODE_ENV=production`** wymagany jest **co najmniej jeden** niepusty klucz (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W innych środowiskach ta reguła nie blokuje startu (`src/config/env.validation.ts`). Dodatkowo walidowane są opcjonalne pola **`CACHE_*`** / **`REDIS_*`** (typy, wartości domyślne). |

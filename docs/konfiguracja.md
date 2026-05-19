@@ -73,6 +73,7 @@ Gdy Redis niedostępny, `SmartRateLimiterService` **przepuszcza** żądania (gra
 | `SENTRY_DSN`, `SENTRY_ENABLED`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE` | Sentry (`src/instrument.ts`, opcjonalnie metrics/errors). |
 | `ERROR_REPORTING_ADAPTER` | `sentry` \| `noop`. |
 | `METRICS_BACKEND` | `sentry` \| `noop` — spany LLM w `MetricsService`. |
+| `SENTRY_INCLUDE_PROMPTS` | `true` — `gen_ai.input.messages` / `gen_ai.output.messages` na spanach (wymagane m.in. dla widoku Conversations). |
 | `APP_VERSION` | Wersja w readiness. |
 
 ## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
@@ -151,7 +152,7 @@ Wpis w `package.json` istnieje (`"config:validate": ""`), ale **komenda jest na 
 
 ## 4) Nadpisywanie parametrów per request
 
-**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–50** elementów, `content` do **3000** znaków na wiadomość) oraz opcjonalne **`conversationId`** (metryki Sentry + echo w odpowiedzi — `conversation-tracking.md`). Domyślne **temperature** / **maxOutputTokens** dla wywołania pochodzą z **`policy.params.defaults`** w YAML (użycie w `ChatService`). Opcjonalne **`params` w body** jest zaplanowane (**Faza 5**): allowlista, bounds, mapowanie na SDK.
+**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–50** elementów, `content` do **3000** znaków na wiadomość) oraz opcjonalne **`conversationId`**: w **response** zawsze echo lub `conv_*`; w **request** włącza `gen_ai.conversation.id` w Sentry (konwersacja od drugiej tury — pełna historia w `messages[]`) — `conversation-tracking.md`. Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`. Domyślne **temperature** / **maxOutputTokens** dla wywołania pochodzą z **`policy.params.defaults`** w YAML (użycie w `ChatService`). Opcjonalne **`params` w body** jest zaplanowane (**Faza 5**): allowlista, bounds, mapowanie na SDK.
 
 Szczegóły: `dokumentacja_api.md`, `openapi.json`.
 

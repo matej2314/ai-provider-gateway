@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
+import type { Span } from '@sentry/core';
 import type {
   MetricsBackend,
   LlmCallContext,
   LlmCallObservation,
   llmStreamSpanController,
+  LlmCallMessage,
 } from '../interfaces/metrics-backend.interface';
 
 function toGenAiProviderName(provider: string): string {
@@ -13,6 +15,58 @@ function toGenAiProviderName(provider: string): string {
     google: 'gcp.gen_ai',
   };
   return map[provider.toLowerCase()] ?? provider;
+}
+
+function toGenAiInputMessages(messages: LlmCallMessage[]): string {
+  return JSON.stringify(
+    messages.map((m) => ({
+      role: m.role,
+      parts: [{ type: 'text', content: m.content }],
+    })),
+  );
+}
+
+function toGenAiOutputMessages(text: string): string {
+  return JSON.stringify([
+    {
+      role: 'assistant',
+      parts: [{ type: 'text', content: text }],
+    },
+  ]);
+}
+
+function shouldRecordPrompts(): boolean {
+  return process.env.SENTRY_INCLUDE_PROMPTS === 'true';
+}
+
+/** Single-turn span content (always, when prompts recording is enabled). */
+function applyGenAiMessagesToSpan(
+  span: Span,
+  context: LlmCallContext,
+  options?: { outputText?: string },
+): void {
+  if (!shouldRecordPrompts()) {
+    return;
+  }
+
+  if (context.messages?.length) {
+    span.setAttribute(
+      'gen_ai.input.messages',
+      toGenAiInputMessages(context.messages),
+    );
+  }
+
+  if (options?.outputText) {
+    span.setAttribute(
+      'gen_ai.output.messages',
+      toGenAiOutputMessages(options.outputText),
+    );
+  }
+}
+
+/** Multi-turn grouping — only when the client sent conversationId. */
+function applyGenAiConversationIdToSpan(span: Span, conversationId: string): void {
+  span.setAttribute('gen_ai.conversation.id', conversationId);
 }
 
 @Injectable()
@@ -40,6 +94,11 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
           },
         },
         async (span) => {
+          applyGenAiMessagesToSpan(span, context);
+          if (context.conversationId) {
+            applyGenAiConversationIdToSpan(span, context.conversationId);
+          }
+
           const result = await fn();
           const obs = mapResult?.(result);
           if (!obs) return result;
@@ -47,6 +106,10 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
           if (obs.responseModel) {
             span.setAttribute('gen_ai.response.model', obs.responseModel);
           }
+
+          applyGenAiMessagesToSpan(span, context, {
+            outputText: obs.outputText,
+          });
 
           const input = obs.usage?.inputTokens;
           const output = obs.usage?.outputTokens;
@@ -90,11 +153,20 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
       },
     });
 
+    applyGenAiMessagesToSpan(span, context);
+    if (context.conversationId) {
+      applyGenAiConversationIdToSpan(span, context.conversationId);
+    }
+
     return {
       end: (observation: LlmCallObservation) => {
         if (observation.responseModel) {
           span.setAttribute('gen_ai.response.model', observation.responseModel);
         }
+
+        applyGenAiMessagesToSpan(span, context, {
+          outputText: observation.outputText,
+        });
 
         const input = observation.usage?.inputTokens;
         const output = observation.usage?.outputTokens;

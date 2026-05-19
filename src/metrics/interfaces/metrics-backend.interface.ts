@@ -1,13 +1,20 @@
+export interface LlmCallMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface LlmCallContext {
   provider: string;
   modelAlias: string;
   modelId: string;
   requestId: string;
   conversationId?: string;
+  messages?: LlmCallMessage[];
 }
 
 export interface LlmCallObservation {
   responseModel?: string;
+  outputText?: string;
   usage?: {
     inputTokens?: number;
     outputTokens?: number;

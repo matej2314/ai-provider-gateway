@@ -16,6 +16,10 @@ import { ChatMessageDto } from './dto/chat-message.dto';
 import { SseEvent } from './sse/sse-event.type';
 import { ResponseCacheService } from '../cache/response-cache.service';
 import type { GatewayConfig } from '../config/configuration';
+import type {
+  LlmCallContext,
+  LlmCallMessage,
+} from '../metrics/interfaces/metrics-backend.interface';
 
 const SYSTEM_PROMPT_SECTION_JOINER = '\n\n';
 
@@ -30,13 +34,40 @@ export class ChatService {
     private readonly metricsService: MetricsService,
   ) {}
 
-  private getOrCreateConversationId(requestBody: ChatRequestDto): string {
-    if (requestBody.conversationId) {
-      return requestBody.conversationId;
-    }
+  /** ID from the client — used only for Sentry conversation grouping. */
+  private getClientConversationId(
+    requestBody: ChatRequestDto,
+  ): string | undefined {
+    const id = requestBody.conversationId?.trim();
+    return id || undefined;
+  }
 
-    const conversationId = `conv_${uuidv4()}`;
-    return conversationId;
+  /** ID returned to the client (echo or new conv_* for adoption on the next turn). */
+  private getOrCreateConversationIdForResponse(
+    requestBody: ChatRequestDto,
+  ): string {
+    return this.getClientConversationId(requestBody) ?? `conv_${uuidv4()}`;
+  }
+
+  private toMetricsMessages(messages: ChatMessageDto[]): LlmCallMessage[] {
+    return messages.map((m) => ({ role: m.role, content: m.content }));
+  }
+
+  private buildLlmMetricsContext(
+    requestBody: ChatRequestDto,
+    provider: string,
+    modelAlias: string,
+    modelId: string,
+    requestId: string,
+  ): LlmCallContext {
+    return {
+      provider,
+      modelAlias,
+      modelId,
+      requestId,
+      conversationId: this.getClientConversationId(requestBody),
+      messages: this.toMetricsMessages(requestBody.messages),
+    };
   }
 
   private getResolvedPrompts(): ResolvedSystemPrompts {
@@ -146,7 +177,8 @@ export class ChatService {
       modelAlias: requestBody.modelAlias,
     });
 
-    const conversationId = this.getOrCreateConversationId(requestBody);
+    const responseConversationId =
+      this.getOrCreateConversationIdForResponse(requestBody);
 
     const cachedResponse =
       await this.cacheService.getCachedResponse(requestBody);
@@ -200,16 +232,17 @@ export class ChatService {
       const startedAt = Date.now();
 
       const response = await this.metricsService.observeLlmCall(
-        {
-          provider: providerName,
-          modelAlias: requestBody.modelAlias,
+        this.buildLlmMetricsContext(
+          requestBody,
+          providerName,
+          requestBody.modelAlias,
           modelId,
           requestId,
-          conversationId,
-        },
+        ),
         () => provider.complete(providerInput, modelId, options),
         (res) => ({
           responseModel: res.model,
+          outputText: res.text,
           usage: res.usage
             ? {
                 inputTokens: res.usage.inputTokens,
@@ -229,7 +262,7 @@ export class ChatService {
         },
         usage: response.usage,
         requestId: requestId,
-        conversationId,
+        conversationId: responseConversationId,
       };
 
       const latency = Date.now() - startedAt;
@@ -247,7 +280,7 @@ export class ChatService {
           response.usage?.outputTokens != null
             ? response.usage.outputTokens
             : undefined,
-        conversationId,
+        conversationId: responseConversationId,
       });
       return result;
     } catch (error) {
@@ -303,7 +336,8 @@ export class ChatService {
       modelAlias: requestBody.modelAlias,
     });
 
-    const conversationId = this.getOrCreateConversationId(requestBody);
+    const responseConversationId =
+      this.getOrCreateConversationIdForResponse(requestBody);
 
     const { provider, providerName, modelId, capabilities, params } =
       this.registry.resolve(requestBody.modelAlias);
@@ -354,24 +388,28 @@ export class ChatService {
         provider: providerName,
         model: requestBody.modelAlias,
         requestId,
-        conversationId,
+        conversationId: responseConversationId,
       },
     });
 
-    const spanController = this.metricsService.observeLlmStream({
-      provider: providerName,
-      modelAlias: requestBody.modelAlias,
-      modelId,
-      requestId,
-      conversationId,
-    });
+    const spanController = this.metricsService.observeLlmStream(
+      this.buildLlmMetricsContext(
+        requestBody,
+        providerName,
+        requestBody.modelAlias,
+        modelId,
+        requestId,
+      ),
+    );
 
     try {
       const startedAt = Date.now();
 
       const streamResult = provider.stream(providerInput, modelId, options);
+      let assembledText = '';
 
       for await (const textChunk of streamResult.textStream) {
+        assembledText += textChunk;
         emit({ name: 'delta', data: { text: textChunk } });
       }
 
@@ -381,11 +419,12 @@ export class ChatService {
         provider: providerName,
         modelId,
         latency: Date.now() - startedAt,
-        conversationId,
+        conversationId: responseConversationId,
       });
 
       const usageMetadata = await streamResult.getUsageMetadata();
       spanController.end({
+        outputText: assembledText || undefined,
         usage: usageMetadata
           ? {
               inputTokens: usageMetadata.inputTokens,

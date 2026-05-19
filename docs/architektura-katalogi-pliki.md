@@ -139,7 +139,7 @@ ai-provider-gateway/
 - **`src/config/`**: `configuration.ts` — wczytanie `gateway.config.yaml`, walidacja Zod, złożenie `gatewayKey`, `resolvedSystemPrompts`, `providers`, obiektów **`cache`** / **`redis`** z env; `configuration.types.ts` / `configuration.helpers.ts`; `env.validation.ts` — reguły env (klucze API w production, opcjonalnie **`CACHE_*`** / **`REDIS_*`**).
 - **`src/health/`**: liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready`).
 - **`src/rate-limit/`**: smart rate limiting per klucz gateway (Redis token bucket, równoległe streamy, cooldown po 429).
-- **`src/logging/`**, **`src/metrics/`**: structured logging (Pino) i metryki/spany LLM (Sentry lub noop); opcjonalne **`conversationId`** z `ChatRequestDto` → `Sentry.setConversationId` (`conversation-tracking.md`).
+- **`src/logging/`**, **`src/metrics/`**: Pino + spany LLM (Sentry/noop). `conversationId` z body → `gen_ai.conversation.id`; `messages[]` → input/output messages (gdy `SENTRY_INCLUDE_PROMPTS`). Response: echo lub `conv_*` (`conversation-tracking.md`).
 - **`src/cache/`**: warstwa cache odpowiedzi dla **`POST /api/v1/chat`** (nie dotyczy streamingu). Rejestr backendów (`CacheRegistryService`), implementacje **`noop`** (zawsze) i **`redis`** (gdy `AppModule` załaduje stos Redis — patrz `konfiguracja.md`), `ResponseCacheService` używany w `ChatService`.
 - **`src/common/`**: `GlobalExceptionFilter` (APP_FILTER w `AppModule`), **`RequestIdMiddleware`** (wszystkie trasy), `StreamCleanupInterceptor` (streaming), `provider-error.mapper.ts`, dekorator **`@GatewayKeyAndSmartRateLimit()`**.
 - **`src/guards/`**: `GatewayKeyGuard` (allowlista kluczy), `SmartRateLimitGuard` (limity per klucz gdy `RATE_LIMIT_SMART_ENABLED`).

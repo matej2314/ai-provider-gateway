@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Provider Gateway API",
-    "version": "0.8.2",
-    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają dekoratora **`@GatewayKeyAndSmartRateLimit()`** (`src/common/decorators/gateway-key-and-smart-rate-limit.decorator.ts`): kolejno **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek klucza: `x-gateway-key` (wysyłany jako `X-Gateway-Key`); allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** nie wymagają klucza. Błędy klucza: brak → **401** (`GATEWAY_KEY_MISSING`); odrzucony → **403** (`GATEWAY_KEY_INVALID`); pusta allowlista → **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`RATE_LIMIT_SMART_ENABLED=true`, Redis gotowy): token bucket per klucz (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY` lub `clients[].rateLimit` w YAML), limit równoległych streamów, cooldown po **429** od providera (`RATE_LIMIT_COOLDOWN_AFTER_429`) — kod **`RATE_LIMITED`** (**429**). Gdy Redis niedostępny, smart limiter degraduje się (przepuszcza). Szczegóły: `docs/konfiguracja.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** z **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`). Jawne **`code`** w payloadzie wyjątku są zachowywane; inaczej mapowanie z `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). Błędy SDK providerów mapuje `provider-error.mapper.ts`. Walidacja: komunikaty sklejane separatorem **`; `**. Słownik: `docs/dictionary.md`.\n\n**`requestId`:** **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`) — nagłówek **`x-request-id`** jeśli niepusty, inaczej `req_<uuid>`. Response header `x-request-id` nie jest ustawiany.\n\n**Cache (`POST /api/v1/chat`):** backend `noop` lub `redis` — pola **`cached`**, **`cachedAt`** przy trafieniu. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–50, `content` max 3000 znaków, opcjonalne **`conversationId`** (niepusty string) w body — grupowanie metryk LLM w Sentry; gateway **zwraca** użyte ID w odpowiedzi JSON (`ChatResponse`) i w SSE `meta`. Bez pola w żądaniu generowane jest `conv_<uuid>` per wywołanie providera. `ValidationPipe` z `forbidNonWhitelisted`, limit JSON **1 MB**. Szczegóły: `docs/conversation-tracking.md`.\n\n**Planowane (Faza 5):** body `params`, response header `x-request-id` — `docs/dokumentacja_koncepcyjna.md`."
+    "version": "0.8.3",
+    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają dekoratora **`@GatewayKeyAndSmartRateLimit()`** (`src/common/decorators/gateway-key-and-smart-rate-limit.decorator.ts`): kolejno **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek klucza: `x-gateway-key` (wysyłany jako `X-Gateway-Key`); allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** nie wymagają klucza. Błędy klucza: brak → **401** (`GATEWAY_KEY_MISSING`); odrzucony → **403** (`GATEWAY_KEY_INVALID`); pusta allowlista → **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`RATE_LIMIT_SMART_ENABLED=true`, Redis gotowy): token bucket per klucz (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY` lub `clients[].rateLimit` w YAML), limit równoległych streamów, cooldown po **429** od providera (`RATE_LIMIT_COOLDOWN_AFTER_429`) — kod **`RATE_LIMITED`** (**429**). Gdy Redis niedostępny, smart limiter degraduje się (przepuszcza). Szczegóły: `docs/konfiguracja.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** z **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`). Jawne **`code`** w payloadzie wyjątku są zachowywane; inaczej mapowanie z `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). Błędy SDK providerów mapuje `provider-error.mapper.ts`. Walidacja: komunikaty sklejane separatorem **`; `**. Słownik: `docs/dictionary.md`.\n\n**`requestId`:** **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`) — nagłówek **`x-request-id`** jeśli niepusty, inaczej `req_<uuid>`. Response header `x-request-id` nie jest ustawiany.\n\n**Cache (`POST /api/v1/chat`):** backend `noop` lub `redis` — pola **`cached`**, **`cachedAt`** przy trafieniu. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–50, `content` max 3000 znaków, opcjonalne **`conversationId`**. **Response:** zawsze `conversationId` (echo lub `conv_<uuid>`). **Sentry:** `gen_ai.conversation.id` tylko gdy klient poda `conversationId` w request (konwersacja); bez niego — span pojedynczej wiadomości. Od tury 2 z ID klient wysyła pełną historię w `messages[]`. `SENTRY_INCLUDE_PROMPTS=true` dla treści w spanach. Szczegóły: `docs/conversation-tracking.md`. `ValidationPipe` z `forbidNonWhitelisted`, limit JSON **1 MB**.\n\n**Planowane (Faza 5):** body `params`, response header `x-request-id` — `docs/dokumentacja_koncepcyjna.md`."
   },
   "servers": [
     {
@@ -80,7 +80,7 @@
         "tags": ["Chat"],
         "operationId": "postChat",
         "summary": "Chat (standard)",
-        "description": "Pełna odpowiedź JSON. `requestId` z `RequestIdMiddleware` (nagłówek `x-request-id` lub `req_<uuid>`). Parametry wywołania (`temperature`, `maxOutputTokens`) z `policy.params.defaults` w YAML, nie z body. Pole `model` w odpowiedzi = alias `modelAlias`. **`conversationId`** w body (opcjonalne) jest echem w odpowiedzi — to samo ID co klient podał, albo `conv_<uuid>` wygenerowane przez gateway; użyj go w kolejnych turach (`docs/conversation-tracking.md`). Przed wywołaniem providera: opcjonalny cache; przy włączonym smart rate limit — cooldown po 429 od providera (`RATE_LIMITED`).",
+        "description": "Pełna odpowiedź JSON. `requestId` z `RequestIdMiddleware`. Parametry wywołania (`temperature`, `maxOutputTokens`) z YAML. Pole `model` = alias `modelAlias`.\n\n**`conversationId`:** w odpowiedzi zawsze (echo lub `conv_<uuid>`). W **request** opcjonalne — włącza grupowanie Sentry (`gen_ai.conversation.id`). Zalecany przepływ: tura 1 bez `conversationId` (span pojedynczej wiadomości); tura 2+ z `conversationId` z odpowiedzi tury 1 oraz **pełną** tablicą `messages[]` (user + assistant z poprzednich tur). Szczegóły: `docs/conversation-tracking.md`.\n\nOpcjonalny cache; smart rate limit / cooldown (`RATE_LIMITED`).",
         "requestBody": {
           "required": true,
           "content": {
@@ -103,11 +103,23 @@
                     ]
                   }
                 },
-                "withConversationId": {
+                "firstTurnNoConversationId": {
+                  "summary": "Tura 1 — bez conversationId w request (Sentry: pojedynczy span)",
                   "value": {
                     "modelAlias": "chat-default",
-                    "messages": [{ "role": "user", "content": "Kontynuuj wątek." }],
-                    "conversationId": "conv_123e4567-e89b-12d3-a456-426614174000"
+                    "messages": [{ "role": "user", "content": "Wypisz 2 fakty o Polsce." }]
+                  }
+                },
+                "secondTurnWithConversation": {
+                  "summary": "Tura 2+ — conversationId + pełna historia w messages[]",
+                  "value": {
+                    "modelAlias": "chat-default",
+                    "conversationId": "conv_123e4567-e89b-12d3-a456-426614174000",
+                    "messages": [
+                      { "role": "user", "content": "Wypisz 2 fakty o Polsce." },
+                      { "role": "assistant", "content": "Polska leży w Europie Środkowej..." },
+                      { "role": "user", "content": "A o Warszawie?" }
+                    ]
                   }
                 }
               }
@@ -277,7 +289,7 @@
         "tags": ["Chat"],
         "operationId": "postChatStream",
         "summary": "Chat (streaming)",
-        "description": "SSE (`text/event-stream`): `meta` → `delta`* → `done` (pusty `{}`).\n\nTen sam body co `POST /api/v1/chat`, w tym opcjonalne **`conversationId`**. W zdarzeniu **`meta`** gateway zwraca użyte `conversationId` (echo lub `conv_<uuid>` — `docs/conversation-tracking.md`).\n\n**JSON `ErrorEnvelope` przed `flushHeaders`:** `ValidationPipe`, guardy klucza i smart rate limit, oraz **`ChatService.validateForStreaming`** (m.in. `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`).\n\n**Po `flushHeaders`:** błędy z **`executeStream`** (provider, sieć) — klient może otrzymać częściowy strumień SSE zamiast JSON. **`StreamCleanupInterceptor`** zwalnia slot równoległego streamu w `finalize`.",
+        "description": "SSE (`text/event-stream`): `meta` → `delta`* → `done` (pusty `{}`).\n\nTen sam body i kontrakt **`conversationId`** co `POST /api/v1/chat` (Sentry: konwersacja tylko przy ID w request; pełna historia w `messages[]` od tury 2). W **`meta`** zawsze zwracane `conversationId` (echo lub `conv_<uuid>`).\n\n**JSON `ErrorEnvelope` przed `flushHeaders`:** walidacja, guardy, **`validateForStreaming`**. **Po `flushHeaders`:** błędy providera — częściowy SSE. **`StreamCleanupInterceptor`** w `finalize`. Patrz `docs/conversation-tracking.md`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -473,7 +485,7 @@
           "conversationId": {
             "type": "string",
             "minLength": 1,
-            "description": "Opcjonalny identyfikator rozmowy do grupowania metryk LLM w Sentry (`gen_ai.conversation.id`). Ten sam ID we wszystkich żądaniach jednej rozmowy. Gdy pominięte, gateway generuje `conv_<uuid>` i zwraca je w odpowiedzi (`ChatResponse` / SSE `meta`).",
+            "description": "Opcjonalny identyfikator sesji. **W request:** gdy podany, spany LLM w Sentry dostają `gen_ai.conversation.id` i grupują się w Explore → Conversations; wymaga powtarzania tego samego ID oraz pełnej historii w `messages[]` (w tym wcześniejsze tury user/assistant). **Gdy pominięty w request:** Sentry loguje pojedynczą wiadomość (bez conversation.id); gateway i tak zwraca nowe `conv_<uuid>` w odpowiedzi do adopcji od następnej tury. Zob. `docs/conversation-tracking.md`.",
             "example": "conv_123e4567-e89b-12d3-a456-426614174000"
           }
         }
@@ -490,7 +502,7 @@
           "conversationId": {
             "type": "string",
             "minLength": 1,
-            "description": "ID rozmowy użyte dla tego streamu (echo z body lub `conv_<uuid>` wygenerowane przez gateway)."
+            "description": "ID sesji zwrócone klientowi (echo `conversationId` z body lub `conv_<uuid>` gdy brak w request). Nie oznacza automatycznie grupowania Sentry — to zależy od tego, czy klient podał `conversationId` w body żądania streamu."
           }
         }
       },
@@ -542,7 +554,7 @@
           "conversationId": {
             "type": "string",
             "minLength": 1,
-            "description": "ID rozmowy dla tego wywołania (echo z body lub `conv_<uuid>` wygenerowane przez gateway)."
+            "description": "ID sesji zwrócone klientowi (echo `conversationId` z body lub `conv_<uuid>` gdy brak w request). Grupowanie w Sentry (`gen_ai.conversation.id`) wymaga podania tego samego ID w body **kolejnych** żądań — patrz `docs/conversation-tracking.md`."
           },
           "cached": { "type": "boolean", "const": true },
           "cachedAt": { "type": "string", "format": "date-time" }

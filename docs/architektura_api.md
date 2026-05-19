@@ -60,8 +60,8 @@ Parametry **`params`** w body, skrypt `npm run config:validate`, nagłówek odpo
 ## Opcjonalne śledzenie rozmowy (`conversationId`)
 
 - Pole opcjonalne w body **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`**.
-- Służy grupowaniu metryk LLM w Sentry (`gen_ai.conversation.id`) oraz jest **zwracane** do klienta: w JSON (`ChatResponse`) i w SSE **`meta`**.
-- Bez pola w żądaniu gateway generuje `conv_<uuid>` i oddaje je klientowi (front może użyć w kolejnych turach).
+- **Response:** zawsze `conversationId` (echo lub nowe `conv_<uuid>`) — JSON / SSE `meta`.
+- **Sentry Conversations:** `gen_ai.conversation.id` **tylko**, gdy klient **podaje** `conversationId` w request; bez niego — span pojedynczej wiadomości. Od tury 2 klient wysyła pełną historię w `messages[]` (w tym pierwszą odpowiedź assistenta).
 - Szczegóły: `conversation-tracking.md`, schema `ChatRequest` w `openapi.json`.
 
 ## Walidacja

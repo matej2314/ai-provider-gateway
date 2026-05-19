@@ -25,7 +25,7 @@ Identycznie jak dla `POST /chat`: w **production** gateway wymaga **co najmniej 
 
 ## Wymagania funkcjonalne
 
-F-1. Endpoint przyjmuje taki sam request jak `POST /chat` (standard), w tym opcjonalne **`conversationId`** (`ChatRequestDto`, `docs/conversation-tracking.md`).
+F-1. Endpoint przyjmuje taki sam request jak `POST /chat` (standard), w tym opcjonalne **`conversationId`** — ten sam kontrakt Sentry co standard (konwersacja w request; pełna historia w `messages[]` od tury 2) — `docs/conversation-tracking.md`.
 
 F-2. Odpowiedź jest `text/event-stream` (SSE).
 

@@ -15,7 +15,7 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **Provider** | Adapter Anthropic / Google. |
 | **LLM API** | Zewnętrzny serwis providera. |
 | **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha treści + warstw system promptu); brak wpływu na streaming. |
-| **Metrics** | `MetricsService` + adapter Sentry/noop — spany LLM; opcjonalne **`conversationId`** z body (`conversation-tracking.md`). |
+| **Metrics** | `MetricsService` + Sentry/noop — span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId`; `messages[]` → atrybuty input/output przy `SENTRY_INCLUDE_PROMPTS` (`conversation-tracking.md`). |
 
 ---
 
@@ -63,7 +63,7 @@ sequenceDiagram
   K->>+H: POST /api/v1/chat (modelAlias, messages, conversationId?)
   H->>H: walidacja DTO
   H->>+S: executeChat
-  S->>S: getOrCreateConversationId
+  S->>S: conversationId response (echo/conv_*) + metrics ID tylko z body
   S->>C: getCachedResponse
   alt trafienie w cache
     C-->>S: JSON (z cached/cachedAt)
@@ -73,7 +73,7 @@ sequenceDiagram
     S->>S: composeSystemPrompt + toProviderTurns
     S->>+R: resolve(modelAlias)
     R-->>-S: adapter + providerName + modelId
-    S->>+M: observeLlmCall (context.conversationId)
+    S->>+M: observeLlmCall (conversationId? + messages[])
     M->>+P: complete(input, modelId)
     P->>+A: request do providera
     A-->>-P: response
@@ -132,10 +132,10 @@ sequenceDiagram
   H->>H: nagłówki SSE + flushHeaders
   H-->>K: SSE: event meta (z conversationId)
   H->>+S: executeStream
-  S->>S: getOrCreateConversationId
+  S->>S: conversationId response + metrics ID tylko z body
   S->>+R: resolve
   R-->>-S: adapter + modelId + capabilities
-  S->>M: observeLlmStream (context.conversationId)
+  S->>M: observeLlmStream (conversationId? + messages[])
   S->>+P: stream(...)
   P->>+A: streaming request
   loop fragmenty

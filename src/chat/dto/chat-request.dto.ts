@@ -12,7 +12,7 @@ import { Type } from 'class-transformer';
 
 import { ChatMessageDto } from './chat-message.dto';
 
-const MAX_MESSAGES = 50;
+const MAX_MESSAGES = 150;
 
 export class ChatRequestDto {
   @ApiProperty({
@@ -26,7 +26,7 @@ export class ChatRequestDto {
 
   @ApiProperty({
     description:
-      'Array of messages to send in the request. Each message must have a role and content. Maximum 50 messages.',
+      'Array of messages to send in the request. Each message must have a role and content. Maximum 150 messages.',
     required: true,
     example: [{ role: 'user', content: 'Hello, how are you?' }],
   })

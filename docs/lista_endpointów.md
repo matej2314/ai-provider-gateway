@@ -37,7 +37,7 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod w 
 
 ### `POST /api/v1/chat`
 
-Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAndSmartRateLimit()` (`gateway-key.guard.ts`, `smart-rate-limit-guard.ts`). Body: `modelAlias`, `messages`, opcjonalnie **`conversationId`** (`conversation-tracking.md`).
+Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAndSmartRateLimit()`. Body: `modelAlias`, `messages`, opcjonalnie **`conversationId`** (Sentry: konwersacja tylko w request; response zawsze z ID — `conversation-tracking.md`).
 
 | | |
 |--|--|
