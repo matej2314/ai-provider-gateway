@@ -132,14 +132,12 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
   }
 
   list(): string[] {
-    return Array.from(this.providers.entries()).map(
-      ([name, { provider }]) => `${name}: ${provider.constructor.name}`,
-    );
+    return Array.from(this.providers.keys());
   }
 
   onApplicationBootstrap() {
-    this.logger.info('Registered providers:', {
-      providers: this.list(),
-    });
+    this.logger.info(
+      `Registered providers: ${this.list().join(', ') || '(none)'}`,
+    );
   }
 }
