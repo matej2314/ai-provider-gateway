@@ -25,11 +25,11 @@ Identycznie jak dla `POST /chat`: w **production** gateway wymaga **co najmniej 
 
 ## Wymagania funkcjonalne
 
-F-1. Endpoint przyjmuje taki sam request jak `POST /chat` (standard).
+F-1. Endpoint przyjmuje taki sam request jak `POST /chat` (standard), w tym opcjonalne **`conversationId`** (`ChatRequestDto`, `docs/conversation-tracking.md`).
 
 F-2. Odpowiedź jest `text/event-stream` (SSE).
 
-F-3. Gateway musi wysłać `event: meta` na początku strumienia.
+F-3. Gateway musi wysłać `event: meta` na początku strumienia (w tym **`conversationId`** — echo lub `conv_<uuid>`).
 
 F-4. Gateway musi wysyłać `event: delta` dla kolejnych fragmentów tekstu.
 
@@ -52,7 +52,7 @@ NFR-3. Gateway nie może emitować surowych payloadów SDK providerów jako SSE.
 
 ## Kryteria akceptacji
 
-- [x] `meta` pojawia się raz i zawiera `requestId`, `provider`, `model` (oraz `id` gateway).
+- [x] `meta` pojawia się raz i zawiera `requestId`, `provider`, `model`, `conversationId` (oraz `id` gateway).
 - [ ] `delta` składa się w finalny tekst zgodny ze standardową odpowiedzią (na ile to możliwe) — do weryfikacji testami kontraktu.
 - [x] `done` kończy stream (`data: {}` w obecnym kontrakcie).
 - [x] Dla modelu bez streamingu zwracany jest JSON z `code: STREAMING_NOT_SUPPORTED` (`validateForStreaming`, przed SSE).

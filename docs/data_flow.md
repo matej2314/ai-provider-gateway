@@ -15,6 +15,7 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **Provider** | Adapter Anthropic / Google. |
 | **LLM API** | Zewnętrzny serwis providera. |
 | **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha treści + warstw system promptu); brak wpływu na streaming. |
+| **Metrics** | `MetricsService` + adapter Sentry/noop — spany LLM; opcjonalne **`conversationId`** z body (`conversation-tracking.md`). |
 
 ---
 
@@ -55,12 +56,14 @@ sequenceDiagram
   participant S as ChatService
   participant C as ResponseCache
   participant R as ProviderRegistry
+  participant M as MetricsService
   participant P as Provider Adapter
   participant A as LLM API
 
-  K->>+H: POST /api/v1/chat (modelAlias, messages)
+  K->>+H: POST /api/v1/chat (modelAlias, messages, conversationId?)
   H->>H: walidacja DTO
   H->>+S: executeChat
+  S->>S: getOrCreateConversationId
   S->>C: getCachedResponse
   alt trafienie w cache
     C-->>S: JSON (z cached/cachedAt)
@@ -70,14 +73,16 @@ sequenceDiagram
     S->>S: composeSystemPrompt + toProviderTurns
     S->>+R: resolve(modelAlias)
     R-->>-S: adapter + providerName + modelId
-    S->>+P: complete(input, modelId)
+    S->>+M: observeLlmCall (context.conversationId)
+    M->>+P: complete(input, modelId)
     P->>+A: request do providera
     A-->>-P: response
-    P-->>-S: ProviderChatResponse
+    P-->>-M: ProviderChatResponse
+    M-->>-S: wynik + span Sentry
     S->>C: setCachedResponse
-    S-->>-H: ChatResponse (id, usage, requestId, …)
+    S-->>-H: ChatResponse (id, usage, requestId, conversationId, …)
   end
-  H-->>-K: 200 JSON
+  H-->>-K: 200 JSON (+ conversationId)
 ```
 
 **Uwagi:** body **`params`** nie jest częścią DTO — wartości wyjścia pochodzą z konfiguracji aliasu (`gateway.config.yaml`). Odpowiedź z cache zawiera **`cached: true`** i **`cachedAt`**; pole **`requestId`** pochodzi z żądania zapisanej w cache (nie jest nadpisywane na nowe ID per request).
@@ -118,16 +123,19 @@ sequenceDiagram
   participant H as HTTP (ChatStreamController)
   participant S as ChatService
   participant R as ProviderRegistry
+  participant M as MetricsService
   participant P as Provider Adapter
   participant A as LLM API
 
   K->>+H: POST /api/v1/chat/stream
   H->>H: walidacja DTO + validateForStreaming
   H->>H: nagłówki SSE + flushHeaders
-  H-->>K: SSE: event meta
+  H-->>K: SSE: event meta (z conversationId)
   H->>+S: executeStream
+  S->>S: getOrCreateConversationId
   S->>+R: resolve
   R-->>-S: adapter + modelId + capabilities
+  S->>M: observeLlmStream (context.conversationId)
   S->>+P: stream(...)
   P->>+A: streaming request
   loop fragmenty

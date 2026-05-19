@@ -36,6 +36,7 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 - `output` — treść odpowiedzi (tekst i/lub struktura),
 - `usage` — metadane tokenów (jeśli dostępne),
 - `requestId` — korelacja z logami.
+- `conversationId` — ID rozmowy (echo lub `conv_<uuid>` z gateway) — tylko czat; szczegóły: `conversation-tracking.md`.
 
 ## Streaming (SSE)
 
@@ -56,9 +57,16 @@ Parametry **`params`** w body, skrypt `npm run config:validate`, nagłówek odpo
 
 **Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED` są już emitowane w payloadach wyjątków i zachowywane przez `GlobalExceptionFilter`.
 
+## Opcjonalne śledzenie rozmowy (`conversationId`)
+
+- Pole opcjonalne w body **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`**.
+- Służy grupowaniu metryk LLM w Sentry (`gen_ai.conversation.id`) oraz jest **zwracane** do klienta: w JSON (`ChatResponse`) i w SSE **`meta`**.
+- Bez pola w żądaniu gateway generuje `conv_<uuid>` i oddaje je klientowi (front może użyć w kolejnych turach).
+- Szczegóły: `conversation-tracking.md`, schema `ChatRequest` w `openapi.json`.
+
 ## Walidacja
 
-- Walidacja DTO na brzegu (`ValidationPipe`: m.in. `messages` 1–50, `content` max 3000 znaków, `forbidNonWhitelisted`).
+- Walidacja DTO na brzegu (`ValidationPipe`: m.in. `messages` 1–50, `content` max 3000 znaków, opcjonalne `conversationId` min. 1 znak, `forbidNonWhitelisted`).
 - Limit rozmiaru JSON body: **1 MB** (`express.json` w `main.ts`).
 - Walidacja konfiguracji przy starcie (fail‑fast) i w runtime (np. unknown `modelAlias` → błąd deterministyczny z kodem `MODEL_ALIAS_NOT_FOUND` przy `POST /chat`).
 
@@ -80,6 +88,7 @@ W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** 
 ## Powiązane dokumenty
 
 - Kontrakt endpointów: `dokumentacja_api.md`
+- Śledzenie rozmów (metryki): `conversation-tracking.md`
 - Lista ścieżek: `lista_endpointów.md`
 - Konfiguracja i aliasy: `konfiguracja.md`
 - Streaming i format zdarzeń: `dokumentacja_api.md`

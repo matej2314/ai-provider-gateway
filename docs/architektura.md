@@ -95,7 +95,7 @@ Szczegóły: `architektura_api.md` + `anty-patterny.md`.
 
 - **Request ID**: `RequestIdMiddleware` — nagłówek `x-request-id` lub `req_<uuid>`; w envelope błędów i logach.
 - **Logging**: `LoggingModule` (domyślnie Pino); opcjonalnie raportowanie błędów do Sentry.
-- **Metryki LLM**: `MetricsService` + backend Sentry lub noop (latency, tokeny przy wywołaniach providera).
+- **Metryki LLM**: `MetricsService` + backend Sentry lub noop (latency, tokeny przy wywołaniach providera). Opcjonalne **`conversationId`** w żądaniu czatu grupuje spany w Sentry (`gen_ai.conversation.id`) — `docs/conversation-tracking.md`.
 - **Graceful shutdown**: `SIGTERM` / `SIGINT` w `main.ts` (`app.close()`).
 
 ## Struktura repo (orientacyjnie)

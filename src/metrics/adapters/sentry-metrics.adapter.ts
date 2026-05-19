@@ -22,48 +22,62 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
     fn: () => Promise<T>,
     mapResult?: (result: T) => LlmCallObservation,
   ): Promise<T> {
-    return Sentry.startSpan(
-      {
-        op: 'gen_ai.chat',
-        name: `chat ${context.modelId}`,
-        attributes: {
-          'gen_ai.operation.name': 'chat',
-          'gen_ai.request.model': context.modelId,
-          'gen_ai.provider.name': toGenAiProviderName(context.provider),
-          requestId: context.requestId,
-          modelAlias: context.modelAlias,
+    if (context.conversationId) {
+      Sentry.setConversationId(context.conversationId);
+    }
+
+    try {
+      return Sentry.startSpan(
+        {
+          op: 'gen_ai.chat',
+          name: `chat ${context.modelId}`,
+          attributes: {
+            'gen_ai.operation.name': 'chat',
+            'gen_ai.request.model': context.modelId,
+            'gen_ai.provider.name': toGenAiProviderName(context.provider),
+            requestId: context.requestId,
+            modelAlias: context.modelAlias,
+          },
         },
-      },
-      async (span) => {
-        const result = await fn();
-        const obs = mapResult?.(result);
-        if (!obs) return result;
+        async (span) => {
+          const result = await fn();
+          const obs = mapResult?.(result);
+          if (!obs) return result;
 
-        if (obs.responseModel) {
-          span.setAttribute('gen_ai.response.model', obs.responseModel);
-        }
+          if (obs.responseModel) {
+            span.setAttribute('gen_ai.response.model', obs.responseModel);
+          }
 
-        const input = obs.usage?.inputTokens;
-        const output = obs.usage?.outputTokens;
-        if (input != null) {
-          span.setAttribute('gen_ai.usage.input_tokens', input);
-        }
+          const input = obs.usage?.inputTokens;
+          const output = obs.usage?.outputTokens;
+          if (input != null) {
+            span.setAttribute('gen_ai.usage.input_tokens', input);
+          }
 
-        if (output != null) {
-          span.setAttribute('gen_ai.usage.output_tokens', output);
-        }
-        if (input != null && output != null) {
-          span.setAttribute('gen_ai.usage.total_tokens', input + output);
-        }
-        if (obs.costUsd != null) {
-          span.setAttribute('gen_ai.cost.total_tokens', obs.costUsd);
-        }
-        return result;
-      },
-    );
+          if (output != null) {
+            span.setAttribute('gen_ai.usage.output_tokens', output);
+          }
+          if (input != null && output != null) {
+            span.setAttribute('gen_ai.usage.total_tokens', input + output);
+          }
+          if (obs.costUsd != null) {
+            span.setAttribute('gen_ai.cost.total_tokens', obs.costUsd);
+          }
+          return result;
+        },
+      );
+    } finally {
+      if (context.conversationId) {
+        Sentry.setConversationId(null);
+      }
+    }
   }
 
   observeLlmStream(context: LlmCallContext): llmStreamSpanController {
+    if (context.conversationId) {
+      Sentry.setConversationId(context.conversationId);
+    }
+
     const span = Sentry.startInactiveSpan({
       op: 'gen_ai.chat',
       name: `chat ${context.modelId}`,
@@ -98,6 +112,10 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
           span.setAttribute('gen_ai.cost.total_tokens', observation.costUsd);
         }
         span.end();
+
+        if (context.conversationId) {
+          Sentry.setConversationId(null);
+        }
       },
     };
   }

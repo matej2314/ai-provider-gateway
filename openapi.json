@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Provider Gateway API",
-    "version": "0.8.0",
-    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają dekoratora **`@GatewayKeyAndSmartRateLimit()`** (`src/common/decorators/gateway-key-and-smart-rate-limit.decorator.ts`): kolejno **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek klucza: `x-gateway-key` (wysyłany jako `X-Gateway-Key`); allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** nie wymagają klucza. Błędy klucza: brak → **401** (`GATEWAY_KEY_MISSING`); odrzucony → **403** (`GATEWAY_KEY_INVALID`); pusta allowlista → **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`RATE_LIMIT_SMART_ENABLED=true`, Redis gotowy): token bucket per klucz (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY` lub `clients[].rateLimit` w YAML), limit równoległych streamów, cooldown po **429** od providera (`RATE_LIMIT_COOLDOWN_AFTER_429`) — kod **`RATE_LIMITED`** (**429**). Gdy Redis niedostępny, smart limiter degraduje się (przepuszcza). Szczegóły: `docs/konfiguracja.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** z **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`). Jawne **`code`** w payloadzie wyjątku są zachowywane; inaczej mapowanie z `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). Błędy SDK providerów mapuje `provider-error.mapper.ts`. Walidacja: komunikaty sklejane separatorem **`; `**. Słownik: `docs/dictionary.md`.\n\n**`requestId`:** **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`) — nagłówek **`x-request-id`** jeśli niepusty, inaczej `req_<uuid>`. Response header `x-request-id` nie jest ustawiany.\n\n**Cache (`POST /api/v1/chat`):** backend `noop` lub `redis` — pola **`cached`**, **`cachedAt`** przy trafieniu. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–50, `content` max 3000 znaków, `ValidationPipe` z `forbidNonWhitelisted`, limit JSON **1 MB**.\n\n**Planowane (Faza 5):** body `params`, response header `x-request-id` — `docs/dokumentacja_koncepcyjna.md`."
+    "version": "0.8.2",
+    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają dekoratora **`@GatewayKeyAndSmartRateLimit()`** (`src/common/decorators/gateway-key-and-smart-rate-limit.decorator.ts`): kolejno **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek klucza: `x-gateway-key` (wysyłany jako `X-Gateway-Key`); allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** nie wymagają klucza. Błędy klucza: brak → **401** (`GATEWAY_KEY_MISSING`); odrzucony → **403** (`GATEWAY_KEY_INVALID`); pusta allowlista → **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`RATE_LIMIT_SMART_ENABLED=true`, Redis gotowy): token bucket per klucz (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY` lub `clients[].rateLimit` w YAML), limit równoległych streamów, cooldown po **429** od providera (`RATE_LIMIT_COOLDOWN_AFTER_429`) — kod **`RATE_LIMITED`** (**429**). Gdy Redis niedostępny, smart limiter degraduje się (przepuszcza). Szczegóły: `docs/konfiguracja.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** z **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`). Jawne **`code`** w payloadzie wyjątku są zachowywane; inaczej mapowanie z `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). Błędy SDK providerów mapuje `provider-error.mapper.ts`. Walidacja: komunikaty sklejane separatorem **`; `**. Słownik: `docs/dictionary.md`.\n\n**`requestId`:** **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`) — nagłówek **`x-request-id`** jeśli niepusty, inaczej `req_<uuid>`. Response header `x-request-id` nie jest ustawiany.\n\n**Cache (`POST /api/v1/chat`):** backend `noop` lub `redis` — pola **`cached`**, **`cachedAt`** przy trafieniu. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–50, `content` max 3000 znaków, opcjonalne **`conversationId`** (niepusty string) w body — grupowanie metryk LLM w Sentry; gateway **zwraca** użyte ID w odpowiedzi JSON (`ChatResponse`) i w SSE `meta`. Bez pola w żądaniu generowane jest `conv_<uuid>` per wywołanie providera. `ValidationPipe` z `forbidNonWhitelisted`, limit JSON **1 MB**. Szczegóły: `docs/conversation-tracking.md`.\n\n**Planowane (Faza 5):** body `params`, response header `x-request-id` — `docs/dokumentacja_koncepcyjna.md`."
   },
   "servers": [
     {
@@ -80,7 +80,7 @@
         "tags": ["Chat"],
         "operationId": "postChat",
         "summary": "Chat (standard)",
-        "description": "Pełna odpowiedź JSON. `requestId` z `RequestIdMiddleware` (nagłówek `x-request-id` lub `req_<uuid>`). Parametry wywołania (`temperature`, `maxOutputTokens`) z `policy.params.defaults` w YAML, nie z body. Pole `model` w odpowiedzi = alias `modelAlias`. Przed wywołaniem providera: opcjonalny cache; przy włączonym smart rate limit — cooldown po 429 od providera (`RATE_LIMITED`).",
+        "description": "Pełna odpowiedź JSON. `requestId` z `RequestIdMiddleware` (nagłówek `x-request-id` lub `req_<uuid>`). Parametry wywołania (`temperature`, `maxOutputTokens`) z `policy.params.defaults` w YAML, nie z body. Pole `model` w odpowiedzi = alias `modelAlias`. **`conversationId`** w body (opcjonalne) jest echem w odpowiedzi — to samo ID co klient podał, albo `conv_<uuid>` wygenerowane przez gateway; użyj go w kolejnych turach (`docs/conversation-tracking.md`). Przed wywołaniem providera: opcjonalny cache; przy włączonym smart rate limit — cooldown po 429 od providera (`RATE_LIMITED`).",
         "requestBody": {
           "required": true,
           "content": {
@@ -102,6 +102,13 @@
                       { "role": "user", "content": "Podsumuj w jednym zdaniu." }
                     ]
                   }
+                },
+                "withConversationId": {
+                  "value": {
+                    "modelAlias": "chat-default",
+                    "messages": [{ "role": "user", "content": "Kontynuuj wątek." }],
+                    "conversationId": "conv_123e4567-e89b-12d3-a456-426614174000"
+                  }
                 }
               }
             }
@@ -121,7 +128,8 @@
                       "model": "chat-default",
                       "output": { "type": "text", "text": "..." },
                       "usage": { "inputTokens": 123, "outputTokens": 456 },
-                      "requestId": "req_..."
+                      "requestId": "req_...",
+                      "conversationId": "conv_123e4567-e89b-12d3-a456-426614174000"
                     }
                   }
                 }
@@ -148,6 +156,15 @@
                       "statusCode": 400,
                       "code": "MODEL_ALIAS_NOT_FOUND",
                       "message": "Model alias unknown-alias not found in config",
+                      "requestId": "req_01H...",
+                      "details": []
+                    }
+                  },
+                  "invalidConversationId": {
+                    "value": {
+                      "statusCode": 400,
+                      "code": "VALIDATION_FAILED",
+                      "message": "conversationId must be longer than or equal to 1 characters",
                       "requestId": "req_01H...",
                       "details": []
                     }
@@ -260,7 +277,7 @@
         "tags": ["Chat"],
         "operationId": "postChatStream",
         "summary": "Chat (streaming)",
-        "description": "SSE (`text/event-stream`): `meta` → `delta`* → `done` (pusty `{}`).\n\n**JSON `ErrorEnvelope` przed `flushHeaders`:** `ValidationPipe`, guardy klucza i smart rate limit, oraz **`ChatService.validateForStreaming`** (m.in. `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`).\n\n**Po `flushHeaders`:** błędy z **`executeStream`** (provider, sieć) — klient może otrzymać częściowy strumień SSE zamiast JSON. **`StreamCleanupInterceptor`** zwalnia slot równoległego streamu w `finalize`.",
+        "description": "SSE (`text/event-stream`): `meta` → `delta`* → `done` (pusty `{}`).\n\nTen sam body co `POST /api/v1/chat`, w tym opcjonalne **`conversationId`**. W zdarzeniu **`meta`** gateway zwraca użyte `conversationId` (echo lub `conv_<uuid>` — `docs/conversation-tracking.md`).\n\n**JSON `ErrorEnvelope` przed `flushHeaders`:** `ValidationPipe`, guardy klucza i smart rate limit, oraz **`ChatService.validateForStreaming`** (m.in. `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`).\n\n**Po `flushHeaders`:** błędy z **`executeStream`** (provider, sieć) — klient może otrzymać częściowy strumień SSE zamiast JSON. **`StreamCleanupInterceptor`** zwalnia slot równoległego streamu w `finalize`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -271,6 +288,13 @@
                   "value": {
                     "modelAlias": "chat-default",
                     "messages": [{ "role": "user", "content": "Powiedz coś krótko." }]
+                  }
+                },
+                "withConversationId": {
+                  "value": {
+                    "modelAlias": "chat-default",
+                    "messages": [{ "role": "user", "content": "Powiedz coś krótko." }],
+                    "conversationId": "conv_stream_abc123"
                   }
                 }
               }
@@ -285,7 +309,7 @@
                 "schema": { "type": "string", "description": "Strumień SSE. Każde zdarzenie: `event: <name>\\ndata: <json>\\n\\n`." },
                 "examples": {
                   "sse": {
-                    "value": "event: meta\ndata: {\"id\":\"gw_01H...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\"}\n\nevent: delta\ndata: {\"text\":\"Cześć\"}\n\nevent: delta\ndata: {\"text\":\"!\"}\n\nevent: done\ndata: {}\n"
+                    "value": "event: meta\ndata: {\"id\":\"gw_01H...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\",\"conversationId\":\"conv_stream_abc123\"}\n\nevent: delta\ndata: {\"text\":\"Cześć\"}\n\nevent: delta\ndata: {\"text\":\"!\"}\n\nevent: done\ndata: {}\n"
                   }
                 }
               }
@@ -445,18 +469,29 @@
             "minItems": 1,
             "maxItems": 50,
             "items": { "$ref": "#/components/schemas/ChatMessage" }
+          },
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Opcjonalny identyfikator rozmowy do grupowania metryk LLM w Sentry (`gen_ai.conversation.id`). Ten sam ID we wszystkich żądaniach jednej rozmowy. Gdy pominięte, gateway generuje `conv_<uuid>` i zwraca je w odpowiedzi (`ChatResponse` / SSE `meta`).",
+            "example": "conv_123e4567-e89b-12d3-a456-426614174000"
           }
         }
       },
       "SseMetaPayload": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "provider", "model", "requestId"],
+        "required": ["id", "provider", "model", "requestId", "conversationId"],
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "provider": { "type": "string", "minLength": 1 },
           "model": { "type": "string", "minLength": 1 },
-          "requestId": { "type": "string", "minLength": 1 }
+          "requestId": { "type": "string", "minLength": 1 },
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "ID rozmowy użyte dla tego streamu (echo z body lub `conv_<uuid>` wygenerowane przez gateway)."
+          }
         }
       },
       "SseDeltaPayload": {
@@ -504,6 +539,11 @@
           },
           "usage": { "$ref": "#/components/schemas/ChatUsage" },
           "requestId": { "type": "string", "minLength": 1 },
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "ID rozmowy dla tego wywołania (echo z body lub `conv_<uuid>` wygenerowane przez gateway)."
+          },
           "cached": { "type": "boolean", "const": true },
           "cachedAt": { "type": "string", "format": "date-time" }
         }

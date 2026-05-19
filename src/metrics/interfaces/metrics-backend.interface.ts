@@ -3,6 +3,7 @@ export interface LlmCallContext {
   modelAlias: string;
   modelId: string;
   requestId: string;
+  conversationId?: string;
 }
 
 export interface LlmCallObservation {

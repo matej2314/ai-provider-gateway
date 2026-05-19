@@ -83,11 +83,11 @@ Część pól policy (timeout, retry per YAML) nie jest jeszcze w pełni wykorzy
 
 ### Request body
 
-Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 50** wiadomości), każda wiadomość: **`role`** ∈ `{user, assistant}`, **`content`** string **do 3000** znaków (`src/chat/dto/chat-request.dto.ts`, `chat-message.dto.ts`). Bez **`params`** (nadwyżkowe pola odrzuca `ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Maksymalny rozmiar JSON body: **1 MB** (`express.json` w `src/main.ts`).
+Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 50** wiadomości), każda wiadomość: **`role`** ∈ `{user, assistant}`, **`content`** string **do 3000** znaków (`src/chat/dto/chat-request.dto.ts`, `chat-message.dto.ts`). Opcjonalnie **`conversationId`** (niepusty string) — grupowanie metryk LLM w Sentry; szczegóły: **`conversation-tracking.md`**. Bez **`params`** (nadwyżkowe pola odrzuca `ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Maksymalny rozmiar JSON body: **1 MB** (`express.json` w `src/main.ts`).
 
 ### Response (`200`)
 
-`ChatService.executeChat`: `id`, `provider`, `model`, `output`, `usage` (opcjonalnie, zależnie od adaptera), `requestId`.
+`ChatService.executeChat`: `id`, `provider`, `model`, `output`, `usage` (opcjonalnie, zależnie od adaptera), `requestId`, **`conversationId`** (echo z body lub `conv_<uuid>` wygenerowane przez gateway — `conversation-tracking.md`).
 
 **Cache (opcjonalny):** gdy backend cache jest dostępny (`ResponseCacheService` + `CACHE_ENABLED` / `CACHE_BACKEND` — `konfiguracja.md`), przed wywołaniem providera wykonywany jest lookup; przy trafieniu zwracany jest zapisany JSON z **`cached: true`** oraz **`cachedAt`** (timestamp ISO). W przeciwnym razie po udanym wywołaniu providera odpowiedź jest zapisywana pod kluczem zależnym m.in. od `modelAlias`, treści `messages` i sygnatury warstw system promptu (SHA-256). **Streaming nie jest cache’owany.**
 
@@ -98,7 +98,7 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 | HTTP | Kiedy |
 |------|--------|
 | 200 | Sukces |
-| 400 | Walidacja DTO; nieznany `modelAlias` → zwykle `code: MODEL_ALIAS_NOT_FOUND` (`ProviderRegistryService`); inne `BadRequestException` mogą nadpisać `code` (np. `VALIDATION_FAILED`) |
+| 400 | Walidacja DTO (m.in. pusty `conversationId` → `VALIDATION_FAILED`); nieznany `modelAlias` → zwykle `code: MODEL_ALIAS_NOT_FOUND` (`ProviderRegistryService`); inne `BadRequestException` mogą nadpisać `code` |
 | 401 | Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`) |
 | 403 | Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`) |
 | 429 | Smart rate limit / cooldown (`RATE_LIMITED`) lub limit providera (`PROVIDER_RATE_LIMITED`) |
@@ -111,9 +111,9 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 **Kontroler:** `ChatStreamController` + `StreamCleanupInterceptor` (zwolnienie slotu streamu w `finalize`).
 
-Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`.
+Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation-tracking.md`).
 
-**Zdarzenia:** `meta` → `delta`* → `done` (`{}`).
+**Zdarzenia:** `meta` → `delta`* → `done` (`{}`). W **`meta`**: `id`, `provider`, `model`, `requestId`, **`conversationId`** (jak w odpowiedzi standardowej).
 
 **Błędy i JSON `ErrorEnvelope`:**
 
@@ -149,5 +149,6 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 5. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator gateway w plikach `src/config/system-prompt/`.
 6. Przy streamingu składaj tekst z kolejnych `delta`; `done` nie niesie metryk tokenów w obecnej wersji.
 7. **`usage`** może być niekompletne między providerami.
+8. **`conversationId`**: opcjonalne w żądaniu; gateway **zwraca** użyte ID w JSON (`200`) lub w SSE `meta`. Możesz generować ID na froncie albo wziąć z pierwszej odpowiedzi i powtarzać w kolejnych turach (`conversation-tracking.md`).
 
-Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `dokumentacja_koncepcyjna.md`.
+Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `conversation-tracking.md`, `dokumentacja_koncepcyjna.md`.

@@ -3,6 +3,7 @@ export type SseMetaEvent = {
   provider: string;
   model: string;
   requestId: string;
+  conversationId?: string;
 };
 
 export type SseDeltaEvent = {

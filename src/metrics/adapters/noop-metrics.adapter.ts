@@ -16,8 +16,12 @@ export class NoopAiMetricsAdapter implements MetricsBackend {
     return fn();
   }
 
-  observeLlmStream(context: LlmCallContext): llmStreamSpanController {
+  observeLlmStream(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    context: LlmCallContext,
+  ): llmStreamSpanController {
     return {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       end: (observation: LlmCallObservation) => {
         return;
       },

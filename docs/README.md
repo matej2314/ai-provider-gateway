@@ -14,6 +14,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 8. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — opis warstw i ścieżek: `konfiguracja.md`, `architektura.md`, `dokumentacja_api.md`.
 9. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`.
 10. **Smart rate limiting**, **readiness**, **logging/metrics** — wdrożone; szczegóły: `konfiguracja.md`, `architektura.md`.
+11. **Śledzenie rozmów (`conversationId`)** — opcjonalne w body, zwracane w odpowiedzi (JSON / SSE `meta`); metryki Sentry; szczegóły: `conversation-tracking.md`.
 
 ## Spis plików
 
@@ -23,6 +24,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.
 - `lista_endpointów.md` — szybka lista endpointów (standard + streaming).
 - `dokumentacja_api.md` — szczegółowy kontrakt endpointów, przykłady payloadów.
+- `conversation-tracking.md` — `conversationId` (request + echo w odpowiedzi), Sentry, przykłady frontu.
 - `konfiguracja.md` — env + `gateway.config.yaml` (wczytywanie przy starcie); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — wpis w `package.json` (obecnie placeholder; docelowo walidacja offline — `konfiguracja.md`).
 - `mcp.md` — integracja MCP (konfiguracja i granice odpowiedzialności).
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.

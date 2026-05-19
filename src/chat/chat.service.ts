@@ -30,6 +30,15 @@ export class ChatService {
     private readonly metricsService: MetricsService,
   ) {}
 
+  private getOrCreateConversationId(requestBody: ChatRequestDto): string {
+    if (requestBody.conversationId) {
+      return requestBody.conversationId;
+    }
+
+    const conversationId = `conv_${uuidv4()}`;
+    return conversationId;
+  }
+
   private getResolvedPrompts(): ResolvedSystemPrompts {
     const resolved = this.config.get<ResolvedSystemPrompts>(
       'resolvedSystemPrompts',
@@ -136,6 +145,9 @@ export class ChatService {
       requestId,
       modelAlias: requestBody.modelAlias,
     });
+
+    const conversationId = this.getOrCreateConversationId(requestBody);
+
     const cachedResponse =
       await this.cacheService.getCachedResponse(requestBody);
 
@@ -193,6 +205,7 @@ export class ChatService {
           modelAlias: requestBody.modelAlias,
           modelId,
           requestId,
+          conversationId,
         },
         () => provider.complete(providerInput, modelId, options),
         (res) => ({
@@ -216,6 +229,7 @@ export class ChatService {
         },
         usage: response.usage,
         requestId: requestId,
+        conversationId,
       };
 
       const latency = Date.now() - startedAt;
@@ -233,6 +247,7 @@ export class ChatService {
           response.usage?.outputTokens != null
             ? response.usage.outputTokens
             : undefined,
+        conversationId,
       });
       return result;
     } catch (error) {
@@ -287,6 +302,9 @@ export class ChatService {
       requestId,
       modelAlias: requestBody.modelAlias,
     });
+
+    const conversationId = this.getOrCreateConversationId(requestBody);
+
     const { provider, providerName, modelId, capabilities, params } =
       this.registry.resolve(requestBody.modelAlias);
 
@@ -336,6 +354,7 @@ export class ChatService {
         provider: providerName,
         model: requestBody.modelAlias,
         requestId,
+        conversationId,
       },
     });
 
@@ -344,6 +363,7 @@ export class ChatService {
       modelAlias: requestBody.modelAlias,
       modelId,
       requestId,
+      conversationId,
     });
 
     try {
@@ -361,6 +381,7 @@ export class ChatService {
         provider: providerName,
         modelId,
         latency: Date.now() - startedAt,
+        conversationId,
       });
 
       const usageMetadata = await streamResult.getUsageMetadata();
