@@ -30,7 +30,7 @@ sequenceDiagram
 
   K->>+H: POST /api/v1/chat (JSON)
   H->>H: ValidationPipe (DTO)
-  Note over H: RequestIdInterceptor (x-request-id); GatewayKeyGuard (X-Gateway-Key) na czacie; stream: ChatStreamController
+  Note over H: RequestIdMiddleware; GatewayKeyGuard + SmartRateLimitGuard na czacie
   H->>+S: executeChat(request)
   S->>C: get (opcjonalnie)
   alt cache HIT
@@ -66,7 +66,8 @@ sequenceDiagram
     C-->>S: JSON (z cached/cachedAt)
     S-->>H: odpowiedź
   else brak wpisu
-    S->>S: composeSystemPrompt + toProviderTurns (ConfigService)
+    S->>S: checkCooldown (opcjonalnie, smart limit)
+    S->>S: composeSystemPrompt + toProviderTurns
     S->>+R: resolve(modelAlias)
     R-->>-S: adapter + providerName + modelId
     S->>+P: complete(input, modelId)
@@ -121,7 +122,8 @@ sequenceDiagram
   participant A as LLM API
 
   K->>+H: POST /api/v1/chat/stream
-  H->>H: walidacja DTO + nagłówki SSE
+  H->>H: walidacja DTO + validateForStreaming
+  H->>H: nagłówki SSE + flushHeaders
   H-->>K: SSE: event meta
   H->>+S: executeStream
   S->>+R: resolve

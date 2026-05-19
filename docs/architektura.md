@@ -45,7 +45,9 @@ flowchart TB
 | **Cache** (`src/cache`) | Globalny moduł dynamiczny: rejestr backendów (`noop` zawsze, `redis` warunkowo), `ResponseCacheService` — cache wyłącznie dla **`POST /api/v1/chat`** (klucz m.in. z `modelAlias`, treści wiadomości i sygnatury warstw system promptu). Konfiguracja env: `docs/konfiguracja.md`. |
 | **Providers** (`src/providers`) | Adaptery providerów (Anthropic/Google Gemini) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
-| **Health** (`src/health`) | Liveness: `GET /api/v1/health` (JSON ze statusem i znacznikiem czasu). Osobny **readiness** (np. dependency check) — opcjonalnie w kolejnych iteracjach; walidacja konfiguracji następuje przy **starcie** procesu. |
+| **Health** (`src/health`) | Liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready` — config, Redis). Walidacja konfiguracji przy **starcie** procesu. |
+| **Rate limit** (`src/rate-limit`) | Smart limiting per `X-Gateway-Key` (Redis): RPS/burst, równoległe streamy, cooldown po 429 od providera. |
+| **Logging / Metrics** | Structured logging (Pino), opcjonalnie Sentry (błędy + spany LLM). |
 
 ## Warstwy wewnątrz modułów (konwencja NestJS)
 
@@ -91,9 +93,10 @@ Szczegóły: `architektura_api.md` + `anty-patterny.md`.
 
 ## Observability
 
-- **Request ID**: nadawany lub propagowany z nagłówka, zwracany w błędach.
-- Logi strukturalne na stdout (JSON preferowane).
-- Metryki (kierunek rozwoju v1+): latency i błędy per provider, liczba tokenów; dodatkowe zastosowania Redis (np. limity) — `dokumentacja_koncepcyjna.md`.
+- **Request ID**: `RequestIdMiddleware` — nagłówek `x-request-id` lub `req_<uuid>`; w envelope błędów i logach.
+- **Logging**: `LoggingModule` (domyślnie Pino); opcjonalnie raportowanie błędów do Sentry.
+- **Metryki LLM**: `MetricsService` + backend Sentry lub noop (latency, tokeny przy wywołaniach providera).
+- **Graceful shutdown**: `SIGTERM` / `SIGINT` w `main.ts` (`app.close()`).
 
 ## Struktura repo (orientacyjnie)
 

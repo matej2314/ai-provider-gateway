@@ -52,7 +52,20 @@ ai-provider-gateway/
 │   │   └── system-prompt/        # MASTER / MAIN / models/<alias>.md — składanie system promptu (configuration.ts + ChatService)
 │   │
 │   ├── guards/
-│   │   └── gateway-key.guard.ts
+│   │   ├── gateway-key.guard.ts
+│   │   └── smart-rate-limit-guard.ts
+│   ├── rate-limit/
+│   │   ├── rate-limit.module.ts
+│   │   └── smart-rate-limiter.service.ts
+│   ├── logging/
+│   │   ├── logging.module.ts
+│   │   ├── logging.service.ts
+│   │   └── adapters/          # pino, console, sentry error reporting
+│   ├── metrics/
+│   │   ├── metrics.module.ts
+│   │   ├── metrics.service.ts
+│   │   └── adapters/          # sentry, noop
+│   ├── instrument.ts            # inicjalizacja Sentry (import w main.ts)
 │   ├── health/
 │   │   ├── health.module.ts
 │   │   ├── health.controller.ts
@@ -69,16 +82,21 @@ ai-provider-gateway/
 │   │       ├── noop-cache/         # backend domyślny — brak zapisu/odczytu
 │   │       └── redis-cache/        # ioredis — ładowany gdy CACHE_ENABLED=true i CACHE_BACKEND=redis
 │   │
-│   ├── common/                     # współdzielone artefakty brzegowe
+│   ├── common/
 │   │   ├── dtos/
 │   │   │   └── error-envelope.dto.ts
-│   │   ├── errors/                 # kody błędów API, DTO błędów, mapowanie provider → HTTP
+│   │   ├── decorators/
+│   │   │   └── gateway-key-and-smart-rate-limit.decorator.ts
+│   │   ├── errors/                 # api-error.code, provider-error.mapper
 │   │   ├── filters/
-│   │   │   └── http-exception.filter.ts   # GlobalExceptionFilter (global)
+│   │   │   └── http-exception.filter.ts   # GlobalExceptionFilter (APP_FILTER)
 │   │   ├── interceptors/
-│   │   │   └── request-id.interceptor.ts  # RequestIdInterceptor (global)
+│   │   │   └── stream-cleanup.interceptor.ts
+│   │   ├── middleware/
+│   │   │   └── request-id.middleware.ts
+│   │   ├── readGatewayKeyHeader.ts
 │   │   └── types/
-│   │       └── express.d.ts        # augmentacja: Request.requestId: string
+│   │       └── express.d.ts
 │
 ├── test/                           # e2e (gdy rozbudowane)
 ├── docs/
@@ -119,10 +137,12 @@ ai-provider-gateway/
 - **`src/chat/`**: HTTP dla czatu standardowego i streamingu (`chat-stream.controller.ts`, SSE). Orkiestracja przez `ChatService` i rejestr providerów; podkatalog `sse/` (serializer zdarzeń).
 - **`src/providers/`**: adaptery Anthropic / Google i `ProviderRegistryService`. Jedyna warstwa bezpośrednio używająca SDK vendorów.
 - **`src/config/`**: `configuration.ts` — wczytanie `gateway.config.yaml`, walidacja Zod, złożenie `gatewayKey`, `resolvedSystemPrompts`, `providers`, obiektów **`cache`** / **`redis`** z env; `configuration.types.ts` / `configuration.helpers.ts`; `env.validation.ts` — reguły env (klucze API w production, opcjonalnie **`CACHE_*`** / **`REDIS_*`**).
-- **`src/health/`**: liveness (`GET /api/v1/health`). Readiness jako osobny endpoint/service *(plan / rozszerzenie)*.
+- **`src/health/`**: liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready`).
+- **`src/rate-limit/`**: smart rate limiting per klucz gateway (Redis token bucket, równoległe streamy, cooldown po 429).
+- **`src/logging/`**, **`src/metrics/`**: structured logging (Pino) i metryki/spany LLM (Sentry lub noop).
 - **`src/cache/`**: warstwa cache odpowiedzi dla **`POST /api/v1/chat`** (nie dotyczy streamingu). Rejestr backendów (`CacheRegistryService`), implementacje **`noop`** (zawsze) i **`redis`** (gdy `AppModule` załaduje stos Redis — patrz `konfiguracja.md`), `ResponseCacheService` używany w `ChatService`.
-- **`src/common/`**: współdzielone artefakty brzegowe — **`filters/http-exception.filter.ts`** (`GlobalExceptionFilter`), **`interceptors/request-id.interceptor.ts`** (`RequestIdInterceptor`), **`dtos/error-envelope.dto.ts`**, kody i mapowanie błędów w **`errors/`**. Podpięte globalnie w `src/main.ts` (filtry i interceptory).
-- **`src/guards/gateway-key.guard.ts`**: weryfikacja nagłówka **`X-Gateway-Key`** względem allowlisty z konfiguracji — używany na kontrolerach czatu (`@UseGuards(GatewayKeyGuard)`). Rozszerzenia mappingu kodów błędów dla wszystkich przypadków domenowych — **Faza 5** (`dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`).
+- **`src/common/`**: `GlobalExceptionFilter` (APP_FILTER w `AppModule`), **`RequestIdMiddleware`** (wszystkie trasy), `StreamCleanupInterceptor` (streaming), `provider-error.mapper.ts`, dekorator **`@GatewayKeyAndSmartRateLimit()`**.
+- **`src/guards/`**: `GatewayKeyGuard` (allowlista kluczy), `SmartRateLimitGuard` (limity per klucz gdy `RATE_LIMIT_SMART_ENABLED`).
 - **`src/common/types/express.d.ts`**: augmentacja `Express.Request` o `requestId: string` dla kontrolerów i filtrów.
 - **Testy jednostkowe**: obok kodu, np. `src/**/*.spec.ts`.
 - **`docs/`**: dokumentacja oraz specyfikacje SDD.
@@ -134,7 +154,7 @@ ai-provider-gateway/
 **Zamknięte lub częściowo zamknięte** (porównuj z kodem i `openapi.json`):
 
 - Fundament: config z YAML, registry, adaptery Anthropic + Google.
-- Error envelope `ErrorEnvelope` (`GlobalExceptionFilter` global) i propagacja `x-request-id` z requestu do `requestId` w body (`RequestIdInterceptor` global); system prompt składany z plików w `src/config/system-prompt/`; **cache odpowiedzi czatu standardowego** (`src/cache/`) — podstawowa implementacja (`noop` / `redis`).
-- W toku / kolejne fazy: pełne wykorzystanie policy z YAML w adapterach, działający `npm run config:validate`, rozszerzenie mappingu kodów i limity DTO/body (**Faza 5** — `dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`). **Cache odpowiedzi** jest wdrożony dla czatu standardowego; dalsze elementy (limity, metryki na Redis itd.) — `dokumentacja_koncepcyjna.md`.
+- Error envelope, `RequestIdMiddleware`, gateway key + smart rate limit, mapowanie błędów SDK, system prompt z plików, cache (`noop`/`redis`), logging/metrics, readiness, graceful shutdown (`main.ts`).
+- W toku (**Faza 5+**): `params` w body, `npm run config:validate`, pełne policy timeout/retry w adapterach, response header `x-request-id`.
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

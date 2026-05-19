@@ -34,12 +34,12 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 ### Stan realizacji (skrót)
 
 - **Endpoint czatu standardowego** `POST /api/v1/chat` — zaimplementowany; opcjonalnie **cache odpowiedzi** (`src/cache/`, env — `konfiguracja.md`).
-- **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; envelope błędów `ErrorEnvelope` — **wdrożony** (`GlobalExceptionFilter` global). **Gateway key** (`X-Gateway-Key` na endpointach czatu) — **wdrożony** (`GatewayKeyGuard`). Pozostałe rozszerzenia kontraktu API (`params` w body, rozszerzenie mappingu kodów, response header `x-request-id`) — **Faza 5** (plan).
+- **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; envelope `ErrorEnvelope` — **wdrożony**. **Gateway key** + opcjonalny **smart rate limit** — **wdrożony** (`@GatewayKeyAndSmartRateLimit()`). **Readiness** (`GET /api/v1/health/ready`), **logging/metrics** (Pino, Sentry), **graceful shutdown** — **wdrożone**. Faza 5: `params` w body, response header `x-request-id`, pełniejsze policy w adapterach.
 - **Providery** Anthropic i Google Gemini — adaptery i rejestr zaimplementowane.
 - **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie zaimplementowane (**Faza 3** w planie; wg nagłówka planu jest to część **v1**, nie rdzenia MVP).
 - Klucze API w `.env`; **w production** obowiązuje **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
 - Pełne odwzorowanie policy z YAML w adapterach — **stopniowo dopinane** (`spec/SPEC-PROVIDERS.md`, `dokumentacja_api.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego — działa.
-- Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter` global). Propagacja nagłówka żądania **`x-request-id`** do `requestId` w body — **wdrożone** (`RequestIdInterceptor` global). Rozszerzenie mappingu kodów na pełny słownik (`dictionary.md`) oraz ustawianie response header `x-request-id` — **Faza 5**.
+- Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter`). Propagacja **`x-request-id`** — **wdrożone** (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) — **wdrożone** dla Anthropic/Google. Response header `x-request-id` — **Faza 5**.
 - Testy jednostkowe przy modułach (`*.spec.ts`).
 
 ## Poza zakresem (wybrane wykluczenia na start)

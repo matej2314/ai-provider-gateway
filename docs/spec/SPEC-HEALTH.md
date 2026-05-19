@@ -16,19 +16,20 @@ Orchestrator odpyta health endpointy, aby zdecydować, czy instancja jest gotowa
 
 ## Wymagania funkcjonalne
 
-F-1. `GET /api/v1/health` zwraca `200` i lekki JSON:
+F-1. `GET /api/v1/health` zwraca `200` i lekki JSON (liveness):
 
 ```json
 {
-  "status": "ok",
-  "message": "Gateway is running",
-  "timestamp": "2026-05-07T13:54:00.000Z"
+  "status": "healthy",
+  "timestamp": "5/19/2026"
 }
 ```
 
 Uwagi:
-- `timestamp` jest w formacie ISO 8601 (UTC) i ma charakter informacyjny (liveness).
-- Endpoint nie wymaga `X-Gateway-Key` (ma działać dla orchestratorów i liveness probes).
+- `timestamp` pochodzi z `toLocaleDateString()` w `HealthService.getLiveness` (format zależny od locale serwera).
+- Endpoint nie wymaga `X-Gateway-Key`.
+
+F-1b. `GET /api/v1/health/ready` zwraca readiness (`status`: `ready` | `not_ready`, `checks.config`, `checks.redis`, `version`, `uptime`) — implementacja w `HealthService.getReadiness`.
 
 F-2. Gateway musi być w stanie jednoznacznie określić “gotowość” do obsługi żądań LLM:
 
@@ -45,9 +46,9 @@ NFR-2. Health endpoint ma działać szybko (p95 < 50ms lokalnie).
 
 ## Kryteria akceptacji
 
-- [ ] `GET /api/v1/health` zawsze działa, gdy proces działa.
-- [ ] Odpowiedź ma pola `status`, `message`, `timestamp` (bez ujawniania sekretów).
-- [ ] Readiness (jeśli dodana) odróżnia konfigurację poprawną od błędnej.
+- [x] `GET /api/v1/health` działa, gdy proces działa.
+- [x] Liveness zwraca `status: healthy` (bez sekretów).
+- [x] Readiness (`GET /api/v1/health/ready`) raportuje config i Redis.
 
 ## Poza zakresem (względem rdzenia MVP)
 

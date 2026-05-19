@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Provider Gateway API",
-    "version": "0.7.0",
-    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Auth na brzegu (`X-Gateway-Key`):** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** są chronione przez **`GatewayKeyGuard`** (`src/guards/gateway-key.guard.ts`). Nagłówek HTTP jest odczytywany jako `x-gateway-key` (w praktyce wysyłany jako `X-Gateway-Key`). Wartość musi być na allowliście zbudowanej przy starcie z klucza master (`masterKeyRef` w `gateway.config.yaml` → env, np. `MASTER_KEY`) oraz z niepustych wartości env dla `clients[].gatewayKeyRef`. **`GET /api/v1/health`** nie wymaga klucza. Błędy: brak nagłówka → **401** (`GATEWAY_KEY_MISSING`); odrzucona wartość → **403** (`GATEWAY_KEY_INVALID`); pusta allowlista w runtime → **500** (`GATEWAY_KEY_NOT_CONFIGURED`). Szczegóły: `docs/konfiguracja.md`, `docs/dokumentacja_api.md`.\n\n**Format błędów:** odpowiedzi 4xx/5xx w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`) z **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`). Jeśli wyjątek ma obiektowy response z polem **`code`**, filtr je zachowuje (m.in. `GATEWAY_KEY_*`, `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`); w przeciwnym razie **`code`** pochodzi z `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). Przy `ValidationPipe` tablica komunikatów walidacji jest **sklejana w jeden string** z separatorem **`; `** (średnik + spacja). Słownik kodów: `docs/dictionary.md`.\n\n**`requestId`:** z `RequestIdInterceptor`: nagłówek żądania **`x-request-id`** jeśli jest niepusty, w przeciwnym razie `req_<uuid>`. Przy błędach z guarda klucza `requestId` ustawia guard przed wyjątkiem. **Response header** `x-request-id` nie jest ustawiany.\n\n**Cache odpowiedzi (`POST /api/v1/chat`):** opcjonalnie `src/cache/` — backend `noop` lub `redis` (`CACHE_*`, `REDIS_*` w `docs/konfiguracja.md`). Przy trafieniu w cache odpowiedź zawiera **`cached: true`** i **`cachedAt`**. Streaming nie używa cache. Dalszy rozwój Redis (limity, observability): `docs/dokumentacja_koncepcyjna.md`.\n\n**Walidacja DTO / body:** `ChatRequestDto`: `modelAlias` (string), `messages` — **od 1 do 50** elementów (`ArrayMinSize` / `ArrayMaxSize` w `src/chat/dto/chat-request.dto.ts`). `ChatMessageDto`: `role ∈ {user, assistant}`, `content` — string **do 3000** znaków (`MaxLength`). `ValidationPipe`: `whitelist`, `forbidNonWhitelisted` — nadwyżkowe pola w body → **400**. Limit rozmiaru JSON body: **1 MB** (`express.json` w `src/main.ts`).\n\n**Planowane:** dodatkowe pola body (`params`) — Faza 5; opis: `docs/dokumentacja_koncepcyjna.md`, `docs/dokumentacja_api.md`.\n\nOpis ludzki: katalog `docs/` w repozytorium."
+    "version": "0.8.0",
+    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają dekoratora **`@GatewayKeyAndSmartRateLimit()`** (`src/common/decorators/gateway-key-and-smart-rate-limit.decorator.ts`): kolejno **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek klucza: `x-gateway-key` (wysyłany jako `X-Gateway-Key`); allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** nie wymagają klucza. Błędy klucza: brak → **401** (`GATEWAY_KEY_MISSING`); odrzucony → **403** (`GATEWAY_KEY_INVALID`); pusta allowlista → **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`RATE_LIMIT_SMART_ENABLED=true`, Redis gotowy): token bucket per klucz (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY` lub `clients[].rateLimit` w YAML), limit równoległych streamów, cooldown po **429** od providera (`RATE_LIMIT_COOLDOWN_AFTER_429`) — kod **`RATE_LIMITED`** (**429**). Gdy Redis niedostępny, smart limiter degraduje się (przepuszcza). Szczegóły: `docs/konfiguracja.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** z **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`). Jawne **`code`** w payloadzie wyjątku są zachowywane; inaczej mapowanie z `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). Błędy SDK providerów mapuje `provider-error.mapper.ts`. Walidacja: komunikaty sklejane separatorem **`; `**. Słownik: `docs/dictionary.md`.\n\n**`requestId`:** **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`) — nagłówek **`x-request-id`** jeśli niepusty, inaczej `req_<uuid>`. Response header `x-request-id` nie jest ustawiany.\n\n**Cache (`POST /api/v1/chat`):** backend `noop` lub `redis` — pola **`cached`**, **`cachedAt`** przy trafieniu. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–50, `content` max 3000 znaków, `ValidationPipe` z `forbidNonWhitelisted`, limit JSON **1 MB**.\n\n**Planowane (Faza 5):** body `params`, response header `x-request-id` — `docs/dokumentacja_koncepcyjna.md`."
   },
   "servers": [
     {
@@ -12,7 +12,7 @@
     }
   ],
   "tags": [
-    { "name": "Health", "description": "Liveness/readiness" },
+    { "name": "Health", "description": "Liveness i readiness" },
     { "name": "Chat", "description": "Chat completions (standard + streaming)" }
   ],
   "paths": {
@@ -20,19 +20,51 @@
       "get": {
         "tags": ["Health"],
         "operationId": "getHealth",
-        "summary": "Healthcheck (liveness)",
+        "summary": "Liveness",
+        "description": "Lekki probe procesu (`HealthService.getLiveness`). Nie wymaga `X-Gateway-Key`.",
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Proces działa",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthResponse" },
+                "schema": { "$ref": "#/components/schemas/HealthLivenessResponse" },
                 "examples": {
                   "ok": {
                     "value": {
-                      "status": "ok",
-                      "message": "Gateway is running",
-                      "timestamp": "2026-05-07T13:54:00.000Z"
+                      "status": "healthy",
+                      "timestamp": "5/19/2026"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "tags": ["Health"],
+        "operationId": "getHealthReady",
+        "summary": "Readiness",
+        "description": "Gotowość do obsługi ruchu (`HealthService.getReadiness`): konfiguracja gateway, opcjonalnie Redis (degraded gdy cache/redis wyłączony lub niedostępny). Nie wymaga `X-Gateway-Key`.",
+        "responses": {
+          "200": {
+            "description": "Wynik probe readiness (status `ready` lub `not_ready`)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthReadinessResponse" },
+                "examples": {
+                  "ready": {
+                    "value": {
+                      "status": "ready",
+                      "timestamp": "5/19/2026",
+                      "version": "1.0.0",
+                      "uptime": 42,
+                      "checks": {
+                        "config": { "status": "healthy", "message": "Config is loaded" },
+                        "redis": { "status": "degraded", "message": "Redis unavailable (graceful degradation)" }
+                      }
                     }
                   }
                 }
@@ -48,7 +80,7 @@
         "tags": ["Chat"],
         "operationId": "postChat",
         "summary": "Chat (standard)",
-        "description": "Pełna odpowiedź JSON. `requestId` w odpowiedzi pochodzi z `RequestIdInterceptor`: jeśli klient wysłał nagłówek **`x-request-id`**, użyta jest jego wartość; w przeciwnym razie generowany jest identyfikator z prefiksem `req_`. Parametry wyjścia (`temperature`, `maxOutputTokens`) pochodzą obecnie z domyślnych wartości w konfiguracji aliasu (`gateway.config.yaml`), nie z body żądania. Pole `model` w odpowiedzi to ten sam alias co `modelAlias` z żądania (nie vendorowy `modelId`).",
+        "description": "Pełna odpowiedź JSON. `requestId` z `RequestIdMiddleware` (nagłówek `x-request-id` lub `req_<uuid>`). Parametry wywołania (`temperature`, `maxOutputTokens`) z `policy.params.defaults` w YAML, nie z body. Pole `model` w odpowiedzi = alias `modelAlias`. Przed wywołaniem providera: opcjonalny cache; przy włączonym smart rate limit — cooldown po 429 od providera (`RATE_LIMITED`).",
         "requestBody": {
           "required": true,
           "content": {
@@ -97,7 +129,7 @@
             }
           },
           "400": {
-            "description": "Walidacja DTO (`ValidationPipe`), nieznany `modelAlias` (`code: MODEL_ALIAS_NOT_FOUND`), błąd konfiguracji instancji providera lub inny `BadRequestException` z jawnych payloadów (np. `VALIDATION_FAILED`). Envelope `ErrorEnvelope`.",
+            "description": "Walidacja DTO, nieznany `modelAlias` (`MODEL_ALIAS_NOT_FOUND`), `STREAMING_NOT_SUPPORTED` (nie dotyczy tego endpointu) lub inny `400` z jawnym `code`.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
@@ -125,7 +157,7 @@
             }
           },
           "401": {
-            "description": "Brak nagłówka `X-Gateway-Key`. Envelope `ErrorEnvelope` z `code: GATEWAY_KEY_MISSING`.",
+            "description": "Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`).",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
@@ -144,7 +176,7 @@
             }
           },
           "403": {
-            "description": "Wartość `X-Gateway-Key` spoza allowlisty. Envelope `ErrorEnvelope` z `code: GATEWAY_KEY_INVALID`.",
+            "description": "Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`).",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
@@ -162,8 +194,27 @@
               }
             }
           },
+          "429": {
+            "description": "Limit gateway: smart rate limit per klucz (`RATE_LIMITED`) lub mapowanie 429 od providera (`PROVIDER_RATE_LIMITED`).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
+                "examples": {
+                  "rateLimited": {
+                    "value": {
+                      "statusCode": 429,
+                      "code": "RATE_LIMITED",
+                      "message": "Rate limit exceeded",
+                      "requestId": "req_01H...",
+                      "details": []
+                    }
+                  }
+                }
+              }
+            }
+          },
           "502": {
-            "description": "Błąd mapowany na 502 przez gateway, np. typ providera bez zarejestrowanego adaptera (`code: PROVIDER_UNSUPPORTED`, `UnsupportedProviderException`). Inne błędy upstream mogą kończyć się `PROVIDER_UNAVAILABLE` — patrz `provider-error.mapper.ts`.",
+            "description": "M.in. `PROVIDER_UNSUPPORTED` lub `PROVIDER_UNAVAILABLE` (mapper SDK).",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
@@ -182,7 +233,7 @@
             }
           },
           "500": {
-            "description": "Nieobsłużony wyjątek (np. błąd SDK providera) lub brak skonfigurowanej allowlisty kluczy gateway (`code: GATEWAY_KEY_NOT_CONFIGURED`). W typowym starcie z poprawnym `gateway.config.yaml` i env ten ostatni przypadek nie występuje.",
+            "description": "Nieobsłużony wyjątek lub `GATEWAY_KEY_NOT_CONFIGURED`.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
@@ -209,7 +260,7 @@
         "tags": ["Chat"],
         "operationId": "postChatStream",
         "summary": "Chat (streaming)",
-        "description": "Streaming jako Server-Sent Events (`text/event-stream`). Sekwencja zdarzeń w treści odpowiedzi: `meta` (1×), `delta` (0..n), `done` (1×). Pole **`model`** w `meta` to **alias** z żądania (`modelAlias`). Pole `data` dla `done` to obecnie **pusty obiekt** `{}` (`ChatService.executeStream`).\n\n**Kolejność nagłówków a błędy:** `ChatStreamController` wywołuje **`flushHeaders()`** zanim uruchomi `executeStream`. Dlatego błędy powstałe **wewnątrz** `executeStream` (m.in. nieznany `modelAlias` → `MODEL_ALIAS_NOT_FOUND`, brak streamingu → `STREAMING_NOT_SUPPORTED`, błędy providera z `resolve`) występują **po** wysłaniu nagłówków `200` + `text/event-stream` — klient **nie** powinien zakładać, że dostanie w tych przypadkach poprawny JSON `ErrorEnvelope` (zachowanie zależy od runtime / filtra po częściowym zapisie odpowiedzi).\n\n**Pewny JSON `ErrorEnvelope`:** walidacja DTO (`ValidationPipe`) oraz odpowiedzi guarda **`X-Gateway-Key`** są obsługiwane **przed** wejściem w ciało metody zapisującej SSE — typowo **400** (walidacja), **401** / **403** (klucz).",
+        "description": "SSE (`text/event-stream`): `meta` → `delta`* → `done` (pusty `{}`).\n\n**JSON `ErrorEnvelope` przed `flushHeaders`:** `ValidationPipe`, guardy klucza i smart rate limit, oraz **`ChatService.validateForStreaming`** (m.in. `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`).\n\n**Po `flushHeaders`:** błędy z **`executeStream`** (provider, sieć) — klient może otrzymać częściowy strumień SSE zamiast JSON. **`StreamCleanupInterceptor`** zwalnia slot równoległego streamu w `finalize`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -231,7 +282,7 @@
             "description": "SSE stream",
             "content": {
               "text/event-stream": {
-                "schema": { "type": "string", "description": "Strumień SSE (tekst). Każde zdarzenie kończy się podwójnym znakiem nowej linii." },
+                "schema": { "type": "string", "description": "Strumień SSE. Każde zdarzenie: `event: <name>\\ndata: <json>\\n\\n`." },
                 "examples": {
                   "sse": {
                     "value": "event: meta\ndata: {\"id\":\"gw_01H...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\"}\n\nevent: delta\ndata: {\"text\":\"Cześć\"}\n\nevent: delta\ndata: {\"text\":\"!\"}\n\nevent: done\ndata: {}\n"
@@ -241,7 +292,7 @@
             }
           },
           "400": {
-            "description": "Tylko gdy **`ValidationPipe`** odrzuci body **przed** uruchomieniem zapisu SSE — JSON `ErrorEnvelope` (np. `code: VALIDATION_FAILED`). Błędy domenowe z `executeStream` (alias, streaming, provider) występują po `flushHeaders` — patrz opis operacji.",
+            "description": "Walidacja DTO lub błąd domenowy z `validateForStreaming` (przed SSE) — JSON `ErrorEnvelope`.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
@@ -254,13 +305,22 @@
                       "requestId": "req_01H...",
                       "details": []
                     }
+                  },
+                  "streamingNotSupported": {
+                    "value": {
+                      "statusCode": 400,
+                      "code": "STREAMING_NOT_SUPPORTED",
+                      "message": "Streaming not supported for this model.",
+                      "requestId": "req_01H...",
+                      "details": []
+                    }
                   }
                 }
               }
             }
           },
           "401": {
-            "description": "Brak nagłówka `X-Gateway-Key` (przed `flushHeaders` SSE). Envelope `ErrorEnvelope` z `code: GATEWAY_KEY_MISSING`.",
+            "description": "Brak `X-Gateway-Key` (przed SSE).",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
@@ -268,7 +328,15 @@
             }
           },
           "403": {
-            "description": "Niepoprawny `X-Gateway-Key` (przed `flushHeaders` SSE). Envelope `ErrorEnvelope` z `code: GATEWAY_KEY_INVALID`.",
+            "description": "Niepoprawny `X-Gateway-Key` (przed SSE).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              }
+            }
+          },
+          "429": {
+            "description": "Smart rate limit (`RATE_LIMITED`) — przed SSE.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
@@ -285,42 +353,69 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-Gateway-Key",
-        "description": "Klucz klienta gateway. Allowlista jest budowana przy starcie z wartości env wskazanej przez `masterKeyRef` oraz z niepustych wartości env dla `clients[].gatewayKeyRef` w `gateway.config.yaml` — patrz `docs/konfiguracja.md`."
+        "description": "Klucz klienta gateway (allowlista z `gateway.config.yaml` + env). Chronione endpointy używają `@GatewayKeyAndSmartRateLimit()`."
       }
     },
     "schemas": {
-      "HealthResponse": {
+      "HealthLivenessResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["status", "message", "timestamp"],
+        "required": ["status", "timestamp"],
         "properties": {
-          "status": { "type": "string", "const": "ok" },
-          "message": { "type": "string", "minLength": 1 },
-          "timestamp": { "type": "string", "format": "date-time" }
+          "status": { "type": "string", "const": "healthy" },
+          "timestamp": {
+            "type": "string",
+            "description": "Znacznik czasu z `toLocaleDateString()` w `HealthService.getLiveness` (format zależny od locale serwera, nie ISO 8601)."
+          }
+        }
+      },
+      "HealthCheckItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "message"],
+        "properties": {
+          "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy"] },
+          "message": { "type": "string" }
+        }
+      },
+      "HealthReadinessResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "timestamp", "version", "uptime", "checks"],
+        "properties": {
+          "status": { "type": "string", "enum": ["ready", "not_ready"] },
+          "timestamp": { "type": "string" },
+          "version": { "type": "string" },
+          "uptime": { "type": "integer", "minimum": 0, "description": "Czas działania procesu w sekundach (`process.uptime()`)." },
+          "checks": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "config": { "$ref": "#/components/schemas/HealthCheckItem" },
+              "redis": { "$ref": "#/components/schemas/HealthCheckItem" }
+            }
+          }
         }
       },
       "ErrorEnvelope": {
         "type": "object",
         "additionalProperties": false,
         "required": ["statusCode", "code", "message", "requestId"],
-        "description": "Standardowy envelope błędów emitowany przez `GlobalExceptionFilter` (`src/common/filters/http-exception.filter.ts`). Stosowany dla błędów (4xx i 5xx), które filtr zapisuje jako JSON po stronie HTTP. Pole `message` w JSON jest **zawsze stringiem** (tablice walidacji są sklejane separatorem **`; `**).",
+        "description": "Envelope błędów z `GlobalExceptionFilter`. Pole `message` jest zawsze stringiem (walidacja: `join('; ')`).",
         "properties": {
           "statusCode": { "type": "integer", "minimum": 400, "maximum": 599 },
           "code": {
             "type": "string",
-            "description": "Stabilny kod maszynowy: jeśli wyjątek dostarcza `code` w obiekcie odpowiedzi (np. `GatewayKeyGuard`), filtr przepuszcza tę wartość; w przeciwnym razie mapowanie ze statusu HTTP (`src/common/errors/api-error.code.ts`). Pełny słownik docelowych kodów: `docs/dictionary.md`."
+            "description": "Kod maszynowy z payloadu wyjątku lub `DEFAULT_HTTP_STATUS_TO_CODE`. Słownik: `docs/dictionary.md`."
           },
-          "message": {
-            "type": "string",
-            "description": "Komunikat z wyjątku. Przy `ValidationPipe` źródłowo bywa tablicą stringów — `GlobalExceptionFilter` emituje jeden string (`join('; ')`)."
-          },
+          "message": { "type": "string" },
           "requestId": {
             "type": "string",
-            "description": "Korelacja z requestem. Wartość pochodzi z `RequestIdInterceptor`: nagłówek `x-request-id` z requestu jeśli klient go podał, w przeciwnym razie wygenerowany `req_<uuid>`."
+            "description": "Z `RequestIdMiddleware` lub z payloadu wyjątku (guardy)."
           },
           "details": {
             "type": "array",
-            "description": "Lista dodatkowych informacji diagnostycznych. Obecna implementacja zawsze emituje pustą tablicę.",
+            "description": "Obecna implementacja zawsze emituje pustą tablicę.",
             "items": {}
           }
         }
@@ -328,7 +423,7 @@
       "ChatRole": {
         "type": "string",
         "enum": ["user", "assistant"],
-        "description": "Zgodnie z `ChatMessageDto`: rola `system` w API jest zablokowana — system prompt ustala gateway z plików (`src/config/system-prompt/`)."
+        "description": "Rola `system` w API jest zablokowana — system prompt z plików w `src/config/system-prompt/`."
       },
       "ChatMessage": {
         "type": "object",
@@ -336,11 +431,7 @@
         "required": ["role", "content"],
         "properties": {
           "role": { "$ref": "#/components/schemas/ChatRole" },
-          "content": {
-            "type": "string",
-            "maxLength": 3000,
-            "description": "Treść wiadomości; maks. 3000 znaków (`ChatMessageDto`, `MaxLength`)."
-          }
+          "content": { "type": "string", "maxLength": 3000 }
         }
       },
       "ChatRequest": {
@@ -348,15 +439,11 @@
         "additionalProperties": false,
         "required": ["modelAlias", "messages"],
         "properties": {
-          "modelAlias": {
-            "type": "string",
-            "description": "Alias modelu z `gateway.config.yaml`. Mapowany na providera i vendorowy `modelId`."
-          },
+          "modelAlias": { "type": "string" },
           "messages": {
             "type": "array",
             "minItems": 1,
             "maxItems": 50,
-            "description": "Lista wiadomości rozmowy: od 1 do 50 elementów (`ArrayMinSize` / `ArrayMaxSize` w `ChatRequestDto`).",
             "items": { "$ref": "#/components/schemas/ChatMessage" }
           }
         }
@@ -366,14 +453,10 @@
         "additionalProperties": false,
         "required": ["id", "provider", "model", "requestId"],
         "properties": {
-          "id": { "type": "string", "minLength": 1, "description": "Identyfikator odpowiedzi gateway (prefiks `gw_`)." },
+          "id": { "type": "string", "minLength": 1 },
           "provider": { "type": "string", "minLength": 1 },
-          "model": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Alias modelu z żądania (`modelAlias`) — ten sam identyfikator co w odpowiedzi `POST /chat`. Vendorowy `modelId` nie jest tutaj zwracany (`ChatService.executeStream`)."
-          },
-          "requestId": { "type": "string", "minLength": 1, "description": "Id korelacyjne (prefiks `req_` jeśli wygenerowane przez gateway; może być wartością z nagłówka `x-request-id` jeśli klient go podał)." }
+          "model": { "type": "string", "minLength": 1 },
+          "requestId": { "type": "string", "minLength": 1 }
         }
       },
       "SseDeltaPayload": {
@@ -387,7 +470,7 @@
       "SseDonePayload": {
         "type": "object",
         "additionalProperties": false,
-        "description": "Obecna implementacja emituje pusty obiekt. Typ `SseDoneEvent` w kodzie deklaruje opcjonalne `usage`, ale runtime go nie wypełnia — `usage` w streamingu jest planowane.",
+        "description": "Runtime emituje pusty obiekt; `usage` w streamingu planowane.",
         "properties": {}
       },
       "ChatOutputText": {
@@ -415,27 +498,14 @@
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "provider": { "type": "string", "minLength": 1 },
-          "model": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Alias modelu z żądania (`modelAlias`). W odpowiedzi standardowej i w SSE (`meta.model`) jest to ten sam identyfikator. Vendorowy `modelId` nie jest tutaj zwracany."
-          },
+          "model": { "type": "string", "minLength": 1 },
           "output": {
-            "description": "Treść odpowiedzi (bieżąca wersja: wyłącznie tekst, `type: text`).",
             "oneOf": [{ "$ref": "#/components/schemas/ChatOutputText" }]
           },
           "usage": { "$ref": "#/components/schemas/ChatUsage" },
           "requestId": { "type": "string", "minLength": 1 },
-          "cached": {
-            "type": "boolean",
-            "const": true,
-            "description": "Obecne wyłącznie przy trafieniu w cache (`ResponseCacheService`); brak pola = świeża odpowiedź z providera."
-          },
-          "cachedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Znacznik czasu zapisu w cache (ISO 8601), gdy `cached: true`."
-          }
+          "cached": { "type": "boolean", "const": true },
+          "cachedAt": { "type": "string", "format": "date-time" }
         }
       }
     }

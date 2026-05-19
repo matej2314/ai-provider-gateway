@@ -23,7 +23,7 @@ W repo powinien istnieć `.env.example` bez wartości sekretów.
 - W **`gateway.config.yaml`**: pole **`masterKeyRef`** (nazwa zmiennej env dla klucza master, np. `MASTER_KEY`) oraz opcjonalna sekcja **`clients`** — każdy klient ma **`gatewayKeyRef`** wskazujący nazwę zmiennej env z kluczem tego klienta (np. `GATEWAY_KEY_WEBAPP`).
 - Przy starcie **`buildGatewayKeyRuntime`** (`src/config/configuration.ts`) wczytuje wartość master z env, iteruje klientów i buduje **`allowList`**: master + wszystkie **niepuste** wartości kluczy klientów. Ta lista jest dostępna w aplikacji jako konfiguracja **`gatewayKey`** i jest używana przez **`GatewayKeyGuard`**.
 - **Brak niepustego klucza master** → wyjątek przy ładowaniu konfiguracji (`[GatewayKey] Missing master key.`), proces się nie uruchomi.
-- Endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** wymagają nagłówka **`X-Gateway-Key`** z wartością obecną na allowliście; **`GET /api/v1/health`** nie.
+- Endpointy czatu wymagają **`X-Gateway-Key`** na allowliście (`@GatewayKeyAndSmartRateLimit()`); **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** nie.
 
 ### Cache odpowiedzi i Redis (opcjonalnie)
 
@@ -45,7 +45,35 @@ Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/con
 
 **Zachowanie:** `ChatService.executeChat` przed wywołaniem providera sprawdza cache (`ResponseCacheService`); przy trafieniu zwracana jest zapisana odpowiedź z polami **`cached: true`** i **`cachedAt`** (ISO 8601). Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z tej warstwy.
 
-Szablon zmiennych: `.env.example`. Dalszy rozwój (limity, metryki): `dokumentacja_koncepcyjna.md`.
+Szablon zmiennych: `.env.example`.
+
+### Smart rate limiting i Throttler (opcjonalnie)
+
+| Zmienna | Domyślnie | Znaczenie |
+|---------|-----------|-----------|
+| `RATE_LIMIT_ENABLED` | `true` | Rejestracja `ThrottlerModule` w `AppModule` (storage Redis gdy cache+redis gotowy). **Uwaga:** globalny `ThrottlerGuard` nie jest podpięty — limit HTTP opiera się na smart limiterze poniżej. |
+| `RATE_LIMIT_TTL` | `60000` | Okno Throttler (ms). |
+| `RATE_LIMIT_MAX` | `100` | Limit żądań w oknie Throttler. |
+| `RATE_LIMIT_SMART_ENABLED` | `false` | Gdy **`true`**, `SmartRateLimitGuard` egzekwuje limity per `X-Gateway-Key` (wymaga gotowego Redis). |
+| `RATE_LIMIT_RPS_PER_KEY` | `10` | Domyślny RPS (token bucket) gdy klient nie ma `rateLimit` w YAML. |
+| `RATE_LIMIT_BURST_PER_KEY` | `20` | Domyślny burst. |
+| `RATE_LIMIT_STREAMS_CONCURRENT` | `3` | Maks. równoległych streamów per klucz. |
+| `RATE_LIMIT_COOLDOWN_AFTER_429` | `60` | Sekundy blokady per klucz+provider po 429 od upstream (`ChatService.setCooldown`). |
+
+W **`gateway.config.yaml`** sekcja **`clients[].rateLimit`** nadpisuje `rps`, `burst`, `maxConcurrentStreams` dla danego klucza (przykład: `webapp` w repozytoryjnym pliku).
+
+Gdy Redis niedostępny, `SmartRateLimiterService` **przepuszcza** żądania (graceful degradation). Kod błędu limitu gateway: **`RATE_LIMITED`** (HTTP 429).
+
+### Observability (env)
+
+| Zmienna | Znaczenie |
+|---------|-----------|
+| `LOG_LEVEL`, `LOG_ADAPTER` | Poziom i backend logów (`pino` / `console`) — `LoggingModule`. |
+| `LOG_PRETTY` | Czytelny output Pino (dev). |
+| `SENTRY_DSN`, `SENTRY_ENABLED`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE` | Sentry (`src/instrument.ts`, opcjonalnie metrics/errors). |
+| `ERROR_REPORTING_ADAPTER` | `sentry` \| `noop`. |
+| `METRICS_BACKEND` | `sentry` \| `noop` — spany LLM w `MetricsService`. |
+| `APP_VERSION` | Wersja w readiness. |
 
 ## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
 

@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
 Wersja dokumentu: **1.0**.  
-**OpenAPI:** `openapi.json` — zsynchronizowany z `src/` (m.in. limity DTO, pola cache w schemacie odpowiedzi, `MODEL_ALIAS_NOT_FOUND`, opis `flushHeaders` dla streamu). Envelope błędów `ErrorEnvelope` (`GlobalExceptionFilter`) + `RequestIdInterceptor` w `src/common/`. **Uwierzytelnienie na brzegu:** nagłówek **`X-Gateway-Key`** jest **wymagany** dla czatu (`GatewayKeyGuard` na `ChatController` i `ChatStreamController`); allowlista z `gateway.config.yaml` + env (`docs/konfiguracja.md`). **Faza 5** (m.in. body `params`, skrypt `config:validate`, dalsze usprawnienia kontraktu): `dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`. **Cache odpowiedzi** dla czatu standardowego: `src/cache/` + `konfiguracja.md`; dalszy rozwój Redis (limity, observability): `dokumentacja_koncepcyjna.md`.
+**OpenAPI:** `openapi.json` (v0.8.0) — zsynchronizowany z `src/` (health liveness/readiness, smart rate limit, limity DTO, cache, SSE). Envelope `ErrorEnvelope` (`GlobalExceptionFilter`) + **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`). **Czat:** `@GatewayKeyAndSmartRateLimit()` → `GatewayKeyGuard` + `SmartRateLimitGuard` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). Opcjonalny smart rate limit: `RATE_LIMIT_SMART_ENABLED`, Redis — `konfiguracja.md`. **Faza 5** (body `params`, `config:validate`): `dokumentacja_koncepcyjna.md`. **Cache:** `src/cache/` — tylko `POST /chat` standardowy.
 
 ## Konwencje globalne
 
@@ -23,7 +23,13 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod w 
 
 | | |
 |--|--|
-| **200** | JSON: `status`, `message`, `timestamp` (ISO 8601) — zgodnie z `openapi.json` i `HealthService` |
+| **200** | Liveness: `status: "healthy"`, `timestamp` (locale string z `HealthService.getLiveness`) — `openapi.json` |
+
+### `GET /api/v1/health/ready`
+
+| | |
+|--|--|
+| **200** | Readiness: `status` (`ready` \| `not_ready`), `version`, `uptime`, `checks.config`, `checks.redis` — `HealthService.getReadiness` |
 
 ---
 
@@ -31,16 +37,17 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod w 
 
 ### `POST /api/v1/chat`
 
-Standardowa odpowiedź (pełna) — **zaimplementowane.** Nagłówek **`X-Gateway-Key`** musi być na allowliście (`src/guards/gateway-key.guard.ts`).
+Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAndSmartRateLimit()` (`gateway-key.guard.ts`, `smart-rate-limit-guard.ts`).
 
 | | |
 |--|--|
-| **200** | odpowiedź gateway (patrz `dokumentacja_api.md`, schemas w `openapi.json`); przy trafieniu w cache mogą wystąpić dodatkowo **`cached: true`** i **`cachedAt`** (`ResponseCacheService` / `ChatService.executeChat`) |
-| **400** | walidacja DTO / nieznany `modelAlias` (`MODEL_ALIAS_NOT_FOUND`) / inne `400` z jawnego `code` w payloadzie; nadwyżkowe pola w body (`ValidationPipe`) |
-| **401** | brak `X-Gateway-Key` — `code: GATEWAY_KEY_MISSING` |
-| **403** | niepoprawny klucz — `code: GATEWAY_KEY_INVALID` |
-| **502** | m.in. `PROVIDER_UNSUPPORTED` (brak adaptera dla typu z YAML) — patrz `dokumentacja_api.md` |
-| **500** | m.in. nieobsłużone wyjątki (np. SDK) lub skrajnie rzadko `GATEWAY_KEY_NOT_CONFIGURED` |
+| **200** | odpowiedź gateway (`dokumentacja_api.md`); opcjonalnie **`cached: true`**, **`cachedAt`** |
+| **400** | walidacja DTO; `MODEL_ALIAS_NOT_FOUND`; inne jawne `code` |
+| **401** | brak `X-Gateway-Key` — `GATEWAY_KEY_MISSING` |
+| **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |
+| **429** | `RATE_LIMITED` (smart limit / cooldown) lub `PROVIDER_RATE_LIMITED` (upstream) |
+| **502** | m.in. `PROVIDER_UNSUPPORTED`, `PROVIDER_UNAVAILABLE` (`provider-error.mapper.ts`) |
+| **500** | nieobsłużony wyjątek; rzadko `GATEWAY_KEY_NOT_CONFIGURED` |
 
 ### `POST /api/v1/chat/stream`
 
@@ -50,8 +57,9 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Nagłówek **`X-Gatewa
 | | |
 |--|--|
 | **200** | `text/event-stream` |
-| **400** | wyłącznie gdy **`ValidationPipe`** odrzuci body **przed** `flushHeaders` — JSON `ErrorEnvelope`. Błędy z `executeStream` (m.in. brak streamingu → `STREAMING_NOT_SUPPORTED`, nieznany alias) występują **po** `flushHeaders` — patrz `dokumentacja_api.md` / `openapi.json`. |
-| **401** / **403** | jak przy `POST /chat`, o ile guard zadziała **przed** `flushHeaders` |
+| **400** | JSON `ErrorEnvelope` **przed** SSE: walidacja DTO, `validateForStreaming` (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`) |
+| **401** / **403** / **429** | guardy klucza i smart rate limit — przed `flushHeaders` |
+| *(po SSE)* | błędy providera w `executeStream` — patrz `dokumentacja_api.md` |
 
 ---
 
@@ -60,7 +68,8 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Nagłówek **`X-Gatewa
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | GET | `/api/v1/health` | liveness |
-| POST | `/api/v1/chat` | standard (pełna odpowiedź) — działa |
+| GET | `/api/v1/health/ready` | readiness (config, redis) |
+| POST | `/api/v1/chat` | standard (pełna odpowiedź) |
 | POST | `/api/v1/chat/stream` | streaming SSE (`ChatStreamController`) |
 
 Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura_api.md`, `dokumentacja_koncepcyjna.md`.

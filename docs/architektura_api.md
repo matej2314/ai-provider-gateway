@@ -48,7 +48,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Błędy HTTP
 
-**Stan kodu (`openapi.json`):** wszystkie błędy są w envelope **`ErrorEnvelope`** (`{statusCode, code, message, requestId, details?}`) emitowanym przez `GlobalExceptionFilter` (global w `src/main.ts`). Pole **`code`** pochodzi z payloadu wyjątku, jeśli jest ustawione (np. **`GATEWAY_KEY_*`**), w przeciwnym razie z domyślnego mapowania statusu (`src/common/errors/api-error.code.ts`). `requestId` pochodzi z `RequestIdInterceptor` lub jest ustawiane przy obsłudze błędów auth w guardzie.
+**Stan kodu (`openapi.json`):** envelope **`ErrorEnvelope`** z `GlobalExceptionFilter` (`APP_FILTER` w `AppModule`). Jawne **`code`** z payloadu wyjątku (guardy, `RATE_LIMITED`, kody z `provider-error.mapper.ts`); inaczej `DEFAULT_HTTP_STATUS_TO_CODE`. `requestId` z **`RequestIdMiddleware`** lub z payloadu wyjątku.
 
 ## Rozszerzenia (Faza 5 i dalsze)
 
@@ -69,7 +69,7 @@ Parametry **`params`** w body, skrypt `npm run config:validate`, nagłówek odpo
 
 ## CORS / Auth
 
-Endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** wymagają nagłówka **`X-Gateway-Key`** (`GatewayKeyGuard`). **`GET /api/v1/health`** jest publiczny (np. dla orchestratorów).
+Endpointy czatu wymagają **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()`). Opcjonalny smart rate limit per klucz (`RATE_LIMIT_SMART_ENABLED`, Redis). Health: **`GET /api/v1/health`**, **`GET /api/v1/health/ready`** — publiczne.
 
 W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** nie zastępuje izolacji sieciowej ani obrony przed nadużyciami na dużą skalę.
 

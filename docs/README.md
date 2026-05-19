@@ -12,7 +12,8 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 6. Dla ryzyk: `anty-patterny.md`.
 7. Dla pracy spec‑first: katalog `spec/`.
 8. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — opis warstw i ścieżek: `konfiguracja.md`, `architektura.md`, `dokumentacja_api.md`.
-9. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`. Dalszy rozwój (limity, metryki, observability): `dokumentacja_koncepcyjna.md` (kierunek v1).
+9. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`.
+10. **Smart rate limiting**, **readiness**, **logging/metrics** — wdrożone; szczegóły: `konfiguracja.md`, `architektura.md`.
 
 ## Spis plików
 

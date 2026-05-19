@@ -29,7 +29,8 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | `MODEL_NOT_ALLOWED` | Model lub tryb (np. streaming) nie jest dozwolony przez policy. |
 | `PROVIDER_UNSUPPORTED` | Provider wskazany w konfiguracji nie ma adaptera w kodzie. |
 | `PROVIDER_AUTH_FAILED` | Błąd uwierzytelnienia do providera (np. zły klucz). |
-| `PROVIDER_RATE_LIMITED` | Provider zwrócił limit (429) lub gateway nałożył limit lokalny. |
+| `PROVIDER_RATE_LIMITED` | Provider zwrócił limit (429) — mapowanie SDK w `provider-error.mapper.ts`. |
+| `RATE_LIMITED` | Limit nałożony przez gateway: smart rate limit per `X-Gateway-Key` (`SmartRateLimitGuard`, `ChatService` cooldown po 429 od providera). HTTP **429**. |
 | `PROVIDER_TIMEOUT` | Przekroczono timeout dla wywołania providera. |
 | `PROVIDER_UNAVAILABLE` | Provider zwrócił błąd 5xx lub jest niedostępny. |
 | `STREAMING_NOT_SUPPORTED` | Wybrany model/provider nie wspiera streamingu. |
@@ -43,14 +44,14 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 |------|---------------------|
 | 400 | `VALIDATION_FAILED`, `MODEL_ALIAS_NOT_FOUND`, `MODEL_NOT_ALLOWED` |
 | 401 | `PROVIDER_AUTH_FAILED` *(jeśli mapujesz 401 od providera jako 502/401 zależnie od polityki)* |
-| 429 | `PROVIDER_RATE_LIMITED` |
+| 429 | `RATE_LIMITED`, `PROVIDER_RATE_LIMITED` |
 | 502 | `PROVIDER_UNAVAILABLE` |
 | 504 | `PROVIDER_TIMEOUT` |
 | 401 | `GATEWAY_KEY_MISSING` |
 | 403 | `GATEWAY_KEY_INVALID` |
 | 500 | `GATEWAY_KEY_NOT_CONFIGURED` |
 
-**Stan implementacji:** odpowiedzi błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polem **`code`**. Jeśli wyjątek ma obiektowy response z polem **`code`**, `GlobalExceptionFilter` je **zachowuje** (m.in. **`GATEWAY_KEY_*`** z `GatewayKeyGuard`, **`MODEL_ALIAS_NOT_FOUND`** z `ProviderRegistryService`, **`STREAMING_NOT_SUPPORTED`** z `ChatService.executeStream`, **`PROVIDER_UNSUPPORTED`** z `UnsupportedProviderException`). Gdy **`code`** nie został przekazany, filtr stosuje mapowanie domyślne ze statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE` w `src/common/errors/api-error.code.ts`). W JSON odpowiedzi pole **`message`** jest **stringiem** (tablice walidacji są sklejane separatorem **`; `**).
+**Stan implementacji:** odpowiedzi błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polem **`code`**. `GlobalExceptionFilter` **zachowuje** jawne kody z payloadu wyjątku (m.in. **`GATEWAY_KEY_*`**, **`RATE_LIMITED`**, **`MODEL_ALIAS_NOT_FOUND`**, **`STREAMING_NOT_SUPPORTED`**, **`PROVIDER_*`** z `provider-error.mapper.ts`). W przeciwnym razie: `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). **`requestId`**: `RequestIdMiddleware` + ewentualnie nadpisanie z payloadu wyjątku. Pole **`message`**: string (`join('; ')` przy walidacji).
 
 Powiązane: `openapi.json`, `architektura_api.md`, `dokumentacja_api.md`, `anty-patterny.md`.
 

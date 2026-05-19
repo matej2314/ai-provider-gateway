@@ -6,7 +6,7 @@ Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.
 
 1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
 2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
-3. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 i kierunek rozwoju (m.in. **Faza 5**: `params` w body, skrypt `config:validate`, dalsze limity / rozszerzenia mapowań; **Faza 6**: observability — structured logging, readiness, graceful shutdown). Envelope błędów (`code` + `requestId`), propagacja `x-request-id` oraz **`X-Gateway-Key`** na endpointach czatu — **wdrożone** (`GlobalExceptionFilter`, `RequestIdInterceptor`, `GatewayKeyGuard` w `src/`). Wybrane kody domenowe przy **400** (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED` w payloadzie wyjątku) są **zachowywane przez filtr** — patrz `ProviderRegistryService` i `ChatService.executeStream`.
+3. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 (Faza 5: `params` w body, `config:validate`; dalsze rozszerzenia kontraktu). **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`**, **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`), logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). Kody domenowe w payloadzie wyjątku są zachowywane przez filtr.
 4. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
 5. **System prompt po stronie serwera** — wdrożony w kodzie (DTO + `ChatService` + `configuration.ts` + `openapi.json` + `konfiguracja.md` / `architektura.md`).
 6. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
@@ -27,7 +27,7 @@ Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.
 - **Pliki system promptu** — `MASTER_SYSTEM_PROMPT.md` (wymagany), opcjonalnie `MAIN_SYSTEM_PROMPT.md` oraz `models/<modelAlias>.md` dla aliasów z YAML; treść składana w `ChatService` (`MASTER` + `MAIN?` + warstwa per model). Szczegóły: `konfiguracja.md`.
 - **Env** — w **`NODE_ENV=production`** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`). Opcjonalnie zmienne **`CACHE_*`** / **`REDIS_*`** — `konfiguracja.md`.
 
-**Nagłówek `X-Gateway-Key`:** **wymagany** dla **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** (`@UseGuards(GatewayKeyGuard)`). Wartość musi znajdować się na allowliście zbudowanej przy starcie z env wskazanego przez `masterKeyRef` oraz z niepustych wartości env dla wpisów `clients` w `gateway.config.yaml` (`src/config/configuration.ts`, funkcja `buildGatewayKeyRuntime`). **`GET /api/v1/health`** pozostaje bez tego nagłówka.
+**Nagłówek `X-Gateway-Key`:** **wymagany** dla czatu (`@GatewayKeyAndSmartRateLimit()` na kontrolerach). Allowlista: `buildGatewayKeyRuntime` w `configuration.ts`. Przy `RATE_LIMIT_SMART_ENABLED=true` i gotowym Redis — dodatkowo limity per klucz (`SmartRateLimitGuard`, `SmartRateLimiterService`; szczegóły `konfiguracja.md`). **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** — bez klucza.
 
 ---
 
@@ -52,7 +52,7 @@ Jeśli wyjątek przekazuje w obiekcie odpowiedzi pole **`code`** (np. `GatewayKe
 | 400  | `VALIDATION_FAILED` *(gdy wyjątek nie nadpisuje `code`; inaczej np. `MODEL_ALIAS_NOT_FOUND`)* |
 | 401  | `PROVIDER_AUTH_FAILED`*    |
 | 403  | `GATEWAY_KEY_INVALID`*     |
-| 429  | `PROVIDER_RATE_LIMITED`    |
+| 429  | `RATE_LIMITED` (gateway), `PROVIDER_RATE_LIMITED` (upstream) |
 | 502  | `PROVIDER_UNAVAILABLE`     |
 | 504  | `PROVIDER_TIMEOUT`         |
 | inne | `INTERNAL_SERVER_ERROR`    |
@@ -101,33 +101,36 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 | 400 | Walidacja DTO; nieznany `modelAlias` → zwykle `code: MODEL_ALIAS_NOT_FOUND` (`ProviderRegistryService`); inne `BadRequestException` mogą nadpisać `code` (np. `VALIDATION_FAILED`) |
 | 401 | Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`) |
 | 403 | Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`) |
-| 502 | M.in. `PROVIDER_UNSUPPORTED` gdy typ providera z YAML nie ma adaptera w runtime (`UnsupportedProviderException`); inne błędy upstream — `provider-error.mapper.ts` |
+| 429 | Smart rate limit / cooldown (`RATE_LIMITED`) lub limit providera (`PROVIDER_RATE_LIMITED`) |
+| 502 | M.in. `PROVIDER_UNSUPPORTED`, `PROVIDER_UNAVAILABLE` — `provider-error.mapper.ts` |
 | 500 | Nieobsłużony błąd (np. SDK); wyjątkowo brak allowlisty kluczy (`GATEWAY_KEY_NOT_CONFIGURED`) |
 
 ---
 
 ## `POST /api/v1/chat/stream` — SSE
 
-**Kontroler:** `ChatStreamController`. Ustawiane są nagłówki `200` + `text/event-stream`, następnie wywoływane jest **`flushHeaders()`**, a potem `ChatService.executeStream` (zapis zdarzeń przez callback).
+**Kontroler:** `ChatStreamController` + `StreamCleanupInterceptor` (zwolnienie slotu streamu w `finalize`).
 
-**Zdarzenia:**
+Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`.
 
-1. `meta` — `{ id, provider, model, requestId }`
-2. `delta` — `{ text }`
-3. `done` — `{}` (pusty obiekt)
+**Zdarzenia:** `meta` → `delta`* → `done` (`{}`).
 
 **Błędy i JSON `ErrorEnvelope`:**
 
-- **Pewny JSON** (jak przy czacie standardowym): odrzucenie przez **`ValidationPipe`** (np. zła rola, za długi `content`, >50 wiadomości) oraz błędy **`GatewayKeyGuard`** — zachodzą **przed** wejściem w metodę zapisującą nagłówki SSE.
-- **Po `flushHeaders`:** błędy z **`executeStream`** (m.in. nieznany alias → `MODEL_ALIAS_NOT_FOUND`, brak streamingu → `STREAMING_NOT_SUPPORTED`, problemy z `resolve`) powstają **po** rozpoczęciu odpowiedzi `text/event-stream`. W takiej sytuacji klient **nie powinien** zakładać poprawnego JSON `ErrorEnvelope` — zachowanie zależy od częściowego zapisu i obsługi wyjątku po nagłówkach.
+- **Przed SSE (pewny JSON):** `ValidationPipe`, guardy (`GatewayKeyGuard`, `SmartRateLimitGuard`), **`validateForStreaming`** — m.in. `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`.
+- **Po `flushHeaders`:** błędy z **`executeStream`** (provider, sieć) — klient może dostać częściowy strumień zamiast JSON.
 
-Kody **`STREAMING_NOT_SUPPORTED`** i komunikaty są zwracane w payloadzie `HttpException` z `ChatService.executeStream` — patrz `src/chat/chat.service.ts`.
+Patrz: `src/chat/chat-stream.controller.ts`, `src/chat/chat.service.ts`.
 
 ---
 
 ## `GET /api/v1/health`
 
-Liveness — `HealthService.check()` (`status`, `message`, `timestamp` ISO).
+Liveness — `HealthService.getLiveness()`: `{ status: "healthy", timestamp }` (`timestamp` — locale string serwera).
+
+## `GET /api/v1/health/ready`
+
+Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `version`, `uptime`, `checks` (`config`, `redis`). Redis w stanie `degraded` gdy niedostępny — nie blokuje `ready` sam w sobie (logika w serwisie).
 
 ---
 

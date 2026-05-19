@@ -55,7 +55,7 @@ F-4. Adapter mapuje błędy SDK na błędy gateway:
 - timeout → `PROVIDER_TIMEOUT`
 - 5xx → `PROVIDER_UNAVAILABLE`
 
-**Stan implementacji (F-4):** adaptery rzucają obecnie standardowe `HttpException` (Nest), a `GlobalExceptionFilter` mapuje status HTTP → `code` (400→`VALIDATION_FAILED`, 429→`PROVIDER_RATE_LIMITED`, 502→`PROVIDER_UNAVAILABLE`, 504→`PROVIDER_TIMEOUT`, inne→`INTERNAL_SERVER_ERROR`). Dedykowany kod **`PROVIDER_AUTH_FAILED`** dla 401 oraz pełne mapowanie błędów SDK (np. odczyt status code z `error.response`) wymagają rozszerzenia w **Fazie 5** — `docs/dokumentacja_koncepcyjna.md`, `docs/dokumentacja_api.md`.
+**Stan implementacji (F-4):** adaptery używają `mapAnthropicSdkError` / `mapGoogleGenAiError` (`provider-error.mapper.ts`) → `HttpException` z kodami m.in. **`PROVIDER_AUTH_FAILED`**, **`PROVIDER_RATE_LIMITED`**, **`PROVIDER_TIMEOUT`**, **`PROVIDER_UNAVAILABLE`**. `GlobalExceptionFilter` zachowuje `code` z payloadu.
 
 F-5. Adapter nie loguje sekretów.
 

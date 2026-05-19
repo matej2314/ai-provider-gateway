@@ -8,7 +8,7 @@ Udostępnić endpoint streamingowy (SSE), który zwraca odpowiedź LLM w formie 
 
 Identycznie jak dla `POST /chat`: w **production** gateway wymaga **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`, `docs/konfiguracja.md`), oraz poprawnego `gateway.config.yaml`.
 
-**Stan implementacji:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream`, format SSE jak w **`openapi.json`**. Nagłówek **`X-Gateway-Key`** — jak dla czatu standardowego (`GatewayKeyGuard`). **Cache odpowiedzi** (`ResponseCacheService`) **nie** dotyczy streamingu — każde wywołanie idzie do providera (o ile przejdzie walidację).
+**Stan implementacji:** `POST /api/v1/chat/stream` — `ChatStreamController`, `validateForStreaming` + `executeStream`, `StreamCleanupInterceptor`. Auth/limity: `@GatewayKeyAndSmartRateLimit()`. Cache **nie** dotyczy streamingu.
 
 ## Użytkownicy i scenariusze
 
@@ -35,7 +35,7 @@ F-4. Gateway musi wysyłać `event: delta` dla kolejnych fragmentów tekstu.
 
 F-5. Gateway musi wysłać `event: done` na końcu strumienia. Obecna implementacja: `data` dla `done` to pusty obiekt `{}`; **usage** w `done` może zostać dodane w kolejnej iteracji.
 
-F-6. Jeśli `modelAlias` nie wspiera streamingu lub adapter nie implementuje `stream` → payload z `code=STREAMING_NOT_SUPPORTED` (`ChatService.executeStream`). **Uwaga:** `ChatStreamController` wywołuje `flushHeaders()` przed `executeStream`; błąd ten powstaje **po** rozpoczęciu odpowiedzi SSE — klient może nie otrzymać poprawnego JSON `ErrorEnvelope` (patrz `docs/dokumentacja_api.md`).
+F-6. Jeśli `modelAlias` nie wspiera streamingu lub adapter nie implementuje `stream` → `STREAMING_NOT_SUPPORTED` / `MODEL_ALIAS_NOT_FOUND` z **`validateForStreaming`** (**przed** `flushHeaders`) — JSON `ErrorEnvelope`. Błędy providera w **`executeStream`** mogą powstać **po** rozpoczęciu SSE.
 
 F-7. W przypadku błędu po rozpoczęciu streamingu zachowanie musi być spójne:
 
@@ -55,7 +55,7 @@ NFR-3. Gateway nie może emitować surowych payloadów SDK providerów jako SSE.
 - [x] `meta` pojawia się raz i zawiera `requestId`, `provider`, `model` (oraz `id` gateway).
 - [ ] `delta` składa się w finalny tekst zgodny ze standardową odpowiedzią (na ile to możliwe) — do weryfikacji testami kontraktu.
 - [x] `done` kończy stream (`data: {}` w obecnym kontrakcie).
-- [x] Dla modelu bez streamingu zwracany jest `HttpException` z `code: STREAMING_NOT_SUPPORTED` w payloadzie (`ChatService.executeStream`); ze względu na `flushHeaders` przed `executeStream` odpowiedź JSON nie jest gwarantowana — patrz `docs/dokumentacja_api.md`.
+- [x] Dla modelu bez streamingu zwracany jest JSON z `code: STREAMING_NOT_SUPPORTED` (`validateForStreaming`, przed SSE).
 
 ## Poza zakresem (względem rdzenia MVP)
 

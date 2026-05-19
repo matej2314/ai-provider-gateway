@@ -62,7 +62,7 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [x] *(Cache)* Przy włączonym i dostępnym backendzie cache powtórzone identyczne żądanie `POST /api/v1/chat` może zwrócić odpowiedź z `cached: true` (szczegóły klucza: `ResponseCacheService`).
 - [x] Dla nieznanego `modelAlias` gateway zwraca `400` z `code: MODEL_ALIAS_NOT_FOUND` (bez wywołania providera).
 - [ ] Parametry są walidowane (allowlista + bounds); DTO nie przyjmuje jeszcze `params`.
-- [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka żądania `x-request-id` jest **aktywna** (`RequestIdInterceptor` global). Response header `x-request-id` (poza body) nie jest jeszcze ustawiany.
+- [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka `x-request-id` jest **aktywna** (`RequestIdMiddleware`). Response header `x-request-id` (poza body) nie jest jeszcze ustawiany.
 
 ## Poza zakresem (względem rdzenia MVP)
 
