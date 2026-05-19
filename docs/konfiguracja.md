@@ -134,17 +134,36 @@ Uwagi:
 - Aliasy pod `models` są publicznym API (`modelAlias`).
 - **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic-main`) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach.
 - **Ograniczenie: jedna instancja per typ providera.** W `providers` może wystąpić **co najwyżej jeden** wpis o danym `type` (np. tylko jeden `type: anthropic`). Walidacja Zod (`GatewayConfigSchema.providers.superRefine` w `src/config/configuration.ts`) **odrzuca start** z czytelnym komunikatem przy duplikacie (komunikat wskazuje zduplikowany typ i nazwy zderzających się instancji). Różnice między środowiskami (dev/staging/prod) wyraża się **wartością** zmiennej środowiskowej wskazanej przez `apiKeyRef`, a nie przez deklarowanie wielu instancji tego samego typu w YAML.
+- **Spójność grafu `providers` ↔ `models` (fail-fast przy starcie):**
+  - sekcja `models` **nie może być pusta**;
+  - każdy wpis w `models` musi wskazywać **istniejący** klucz w `providers` (`providerInstance`);
+  - każda instancja providera z **`enabled !== false`** (w praktyce w YAML ustaw **`enabled: true`** dla providerów używanych w runtime; pominięte `enabled` → po parsowaniu Zod domyślnie **`false`**, wtedy instancja jest wyłączona) musi mieć **co najmniej jeden** alias w `models` z tym samym `providerInstance`;
+  - po filtrze `enabled` funkcja `buildEffectiveGatewayConfig` ponownie wymusza, że każdy **aktywny** provider ma ≥1 **aktywny** model (modele powiązane z providerem `enabled: false` są pomijane z ostrzeżeniem w logu).
+  - Instancja z **`enabled: false`** **nie wymaga** wpisów w `models` (może pozostać w YAML jako wyłączona rezerwa).
 - Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane, ale **adaptery nie korzystają z nich w pełni** — część parametrów pochodzi ze stałych w kodzie adaptera lub wyłącznie z `policy.params.defaults` w `ChatService`; kierunek dopięcia: `dokumentacja_koncepcyjna.md`, `spec/SPEC-PROVIDERS.md`.
 
 ## 3) Walidacja i fail-fast
 
 Gateway kończy start m.in. gdy:
 
-- **`gateway.config.yaml`** nie istnieje lub nie przechodzi walidacji Zod,
+- **`gateway.config.yaml`** nie istnieje lub nie przechodzi walidacji Zod (`GatewayConfigSchema` + `buildEffectiveGatewayConfig` w `src/config/configuration.ts`),
 - w `providers` występują **dwa lub więcej** wpisy o tym samym `type` (jedna instancja per typ — patrz pkt 2),
-- w **production** nie ma co najmniej jednego klucza API (patrz wyżej).
+- sekcja **`models` jest pusta**,
+- alias w `models` wskazuje **nieznany** `providerInstance`,
+- **włączony** provider (`enabled !== false`) **nie ma** żadnego aliasu w `models` z tym `providerInstance`,
+- po zastosowaniu flag `enabled` **nie ma żadnego aktywnego modelu** albo **aktywny** provider nie ma przypisanego aktywnego modelu,
+- dla **aktywnego** providera brakuje niepustego env wskazanego przez `apiKeyRef` (`[GatewayConfig] Missing API key…`),
+- brakuje niepustego klucza **master** (`[GatewayKey] Missing master key.`),
+- w **production** nie ma co najmniej jednego klucza API providera w env (patrz sekcja 1).
 
-Docelowo (spec): dodatkowe reguły — brak env wskazanego przez `apiKeyRef` dla używanej instancji, niespójny `providerInstance`, zduplikowane aliasy — część z tego jest częściowo pokryta przez schema; szczegóły rozwoju w planie.
+**Warstwy walidacji YAML:**
+
+| Warstwa | Gdzie | Przykładowe reguły |
+|---------|--------|-------------------|
+| Zod (surowy YAML) | `GatewayConfigSchema` | duplikat `type`; puste `models`; model → provider; provider (aktywny) → ≥1 model |
+| Efektywna konfiguracja | `buildEffectiveGatewayConfig` | filtr `enabled`; ≥1 aktywny model globalnie; aktywny provider → aktywny model; klucz API dla aktywnych providerów |
+
+**Poza zakresem obecnej implementacji (plan — krok 5.6, część pozostała):** pełny katalog aliasów wszystkich modeli API Anthropic/Google, aliasy intencjonalne oraz ta sama walidacja w `npm run config:validate` (krok 5.5 — skrypt nadal placeholder).
 
 ### Skrypt diagnostyczny `npm run config:validate`
 

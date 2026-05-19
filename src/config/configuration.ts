@@ -154,6 +154,34 @@ export const GatewayConfigSchema = z
         });
       }
     }
+
+    if (Object.keys(data.models).length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Models section must contain at least one model alias.',
+        path: ['models'],
+      });
+      return;
+    }
+
+    const aliasesByProvider = new Map<string, string[]>();
+    for (const [alias, model] of Object.entries(data.models)) {
+      const list = aliasesByProvider.get(model.providerInstance) ?? [];
+      list.push(alias);
+      aliasesByProvider.set(model.providerInstance, list);
+    }
+
+    for (const [instanceId, row] of Object.entries(data.providers)) {
+      if (row.enabled === false) continue;
+
+      if (!aliasesByProvider.has(instanceId)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Provider instance ${instanceId} is declared but has no model aliases.`,
+          path: ['providers', instanceId],
+        });
+      }
+    }
   });
 
 export type GatewayConfig = z.infer<typeof GatewayConfigSchema>;
@@ -233,6 +261,18 @@ function buildEffectiveGatewayConfig(
     throw new Error(
       '[GatewayConfig] No active models after applying enabled flags; enable a provider used by your models or add models for an enabled provider.',
     );
+  }
+
+  for (const instanceId of Object.keys(effectiveProviders)) {
+    const hasActiveModel = Object.values(effectiveModels).some(
+      (model) => model.providerInstance === instanceId,
+    );
+    if (!hasActiveModel) {
+      throw new Error(
+        `[GatewayConfig] Enabled provider instance "${instanceId}" has no active model aliases. ` +
+          `Add a model with providerInstance: ${instanceId} or set enabled: false on the provider.`,
+      );
+    }
   }
 
   for (const [instanceId, row] of Object.entries(effectiveProviders)) {

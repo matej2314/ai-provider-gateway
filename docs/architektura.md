@@ -80,6 +80,7 @@ Szerszy kontekst warstw promptu: `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` 
 - Pliki konfiguracyjne opisują **modele, aliasy, limity i polityki** (bez wartości sekretów).
 - Gateway uruchamia się w trybie “plug&play”: jeśli konfiguracja jest błędna → proces kończy się na starcie z czytelną informacją.
 - **Ograniczenie konstrukcyjne — jedna instancja per typ providera.** W `gateway.config.yaml` w sekcji `providers` każdy `type` (`anthropic`, `google`, …) może wystąpić **co najwyżej raz**. Reguła egzekwowana fail-fast przy starcie przez `GatewayConfigSchema.providers.superRefine` w `src/config/configuration.ts`. Różnice między środowiskami (dev/staging/prod) wyrażamy **wartością** zmiennej środowiskowej wskazanej przez `apiKeyRef`, a nie przez deklarowanie wielu instancji tego samego typu w YAML.
+- **Spójność `providers` ↔ `models`.** Przy starcie wymuszany jest dwukierunkowy graf konfiguracji: niepuste `models`, każdy alias → istniejący `providerInstance`, każdy **włączony** provider → co najmniej jeden alias (Zod + `buildEffectiveGatewayConfig`). Szczegóły i wyjątki (`enabled: false`): `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` (F-3b, F-3c).
 
 Szczegóły: `konfiguracja.md`.
 

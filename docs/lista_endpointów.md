@@ -13,7 +13,7 @@ Wersja dokumentu: **1.0**.
 | **Błędy (JSON)** | Envelope `ErrorEnvelope` (`{statusCode, code, message, requestId, details?}`) — schema w `openapi.json`, implementacja w `src/common/filters/http-exception.filter.ts` |
 
 **Uruchomienie serwisu:** w **`NODE_ENV=production`** walidacja env wymaga **co najmniej jednego** niepustego klucza (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W development ten warunek **nie** jest egzekwowany (`src/config/env.validation.ts`).  
-Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod w `src/config/configuration.ts`); brak pliku lub błąd schema kończy start aplikacji.
+Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + reguły efektywnej konfiguracji w `src/config/configuration.ts` — m.in. puste `models`, nieznany `providerInstance`, włączony provider bez modeli); brak pliku lub błąd walidacji kończy start aplikacji (`konfiguracja.md`).
 
 ---
 

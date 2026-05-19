@@ -25,7 +25,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `lista_endpointów.md` — szybka lista endpointów (standard + streaming).
 - `dokumentacja_api.md` — szczegółowy kontrakt endpointów, przykłady payloadów.
 - `conversation-tracking.md` — `conversationId`, tryby Sentry (pojedyncza wiadomość vs konwersacja), przepływ tura 1→2, obowiązki klienta.
-- `konfiguracja.md` — env + `gateway.config.yaml` (wczytywanie przy starcie); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — wpis w `package.json` (obecnie placeholder; docelowo walidacja offline — `konfiguracja.md`).
+- `konfiguracja.md` — env + `gateway.config.yaml` (wczytywanie przy starcie, walidacja Zod i spójność `providers` ↔ `models`); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — wpis w `package.json` (obecnie placeholder; docelowo walidacja offline).
 - `mcp.md` — integracja MCP (konfiguracja i granice odpowiedzialności).
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.
 - `dictionary.md` — słownik pojęć i kody błędów.
