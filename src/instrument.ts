@@ -29,5 +29,6 @@ if (dsn && (isSentryMetricsEnabled() || isSentryErrorReportingEnabled())) {
       ? tracesSampleRate
       : 1.0,
     streamGenAiSpans: isSentryMetricsEnabled(),
+    defaultIntegrations: false,
   });
 }

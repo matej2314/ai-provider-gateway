@@ -4,6 +4,7 @@ import type {
   MetricsBackend,
   LlmCallContext,
   LlmCallObservation,
+  llmStreamSpanController,
 } from '../interfaces/metrics-backend.interface';
 
 function toGenAiProviderName(provider: string): string {
@@ -60,5 +61,44 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
         return result;
       },
     );
+  }
+
+  observeLlmStream(context: LlmCallContext): llmStreamSpanController {
+    const span = Sentry.startInactiveSpan({
+      op: 'gen_ai.chat',
+      name: `chat ${context.modelId}`,
+      attributes: {
+        'gen_ai.operation.name': 'chat',
+        'gen_ai.request.model': context.modelId,
+        'gen_ai.provider.name': toGenAiProviderName(context.provider),
+        requestId: context.requestId,
+        modelAlias: context.modelAlias,
+      },
+    });
+
+    return {
+      end: (observation: LlmCallObservation) => {
+        if (observation.responseModel) {
+          span.setAttribute('gen_ai.response.model', observation.responseModel);
+        }
+
+        const input = observation.usage?.inputTokens;
+        const output = observation.usage?.outputTokens;
+        if (input != null) {
+          span.setAttribute('gen_ai.usage.input_tokens', input);
+        }
+
+        if (output != null) {
+          span.setAttribute('gen_ai.usage.output_tokens', output);
+        }
+        if (input != null && output != null) {
+          span.setAttribute('gen_ai.usage.total_tokens', input + output);
+        }
+        if (observation.costUsd != null) {
+          span.setAttribute('gen_ai.cost.total_tokens', observation.costUsd);
+        }
+        span.end();
+      },
+    };
   }
 }

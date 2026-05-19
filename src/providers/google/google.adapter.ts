@@ -11,6 +11,7 @@ import {
   ProviderCallOptions,
   ProviderChatInput,
   ProviderChatResponse,
+  StreamResult,
 } from '../interfaces/ai-provider.interface';
 import { ProviderRegistryService } from '../provider-registry.service';
 
@@ -86,38 +87,67 @@ export class GoogleAdapter implements AIProvider, OnModuleInit {
     }
   }
 
-  async *stream(
+  stream(
     input: ProviderChatInput,
     modelId: string,
     options?: ProviderCallOptions,
-  ): AsyncIterable<string> {
-    try {
-      this.logger.debug('Streaming', {
-        model: modelId,
-        messagesCount: input.messages.length,
-      });
+  ): StreamResult {
+    const self = this;
+    let lastChunk: Awaited<
+      ReturnType<typeof self.client.models.generateContentStream>
+    > extends AsyncIterable<infer T>
+      ? T
+      : never;
 
-      const stream = await this.client.models.generateContentStream({
-        model: modelId,
-        contents: this.prepareContents(input.messages),
-        config: {
-          ...(input.system?.trim() ? { systemInstruction: input.system } : {}),
-          temperature: options?.temperature ?? undefined,
-          maxOutputTokens: options?.maxOutputTokens ?? 1024,
-        },
-      });
+    async function* textStream(): AsyncIterable<string> {
+      try {
+        self.logger.debug('Streaming', {
+          model: modelId,
+          messagesCount: input.messages.length,
+        });
 
-      for await (const event of stream) {
-        if (event.text) {
-          yield event.text;
+        const stream = await self.client.models.generateContentStream({
+          model: modelId,
+          contents: self.prepareContents(input.messages),
+          config: {
+            ...(input.system?.trim()
+              ? { systemInstruction: input.system }
+              : {}),
+            temperature: options?.temperature ?? undefined,
+            maxOutputTokens: options?.maxOutputTokens ?? 1024,
+          },
+        });
+
+        for await (const event of stream) {
+          lastChunk = event;
+          if (event.text) {
+            yield event.text;
+          }
         }
+      } catch (error) {
+        self.logger.warn('Error streaming', {
+          message: error instanceof Error ? error.message : String(error),
+          model: modelId,
+        });
+        throw toHttpException(mapGoogleGenAiError(error));
       }
-    } catch (error) {
-      this.logger.warn('Error streaming', {
-        message: error instanceof Error ? error.message : String(error),
-        model: modelId,
-      });
-      throw toHttpException(mapGoogleGenAiError(error));
     }
+
+    async function getUsageMetadata() {
+      if (!lastChunk) return undefined;
+
+      const metadata = lastChunk.usageMetadata;
+      if (!metadata) return undefined;
+
+      return {
+        inputTokens: metadata.promptTokenCount ?? 0,
+        outputTokens: metadata.candidatesTokenCount ?? 0,
+        model: lastChunk.modelVersion ?? modelId,
+      };
+    }
+    return {
+      textStream: textStream(),
+      getUsageMetadata,
+    };
   }
 }

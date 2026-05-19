@@ -17,6 +17,18 @@ export interface ProviderChatResponse {
   };
 }
 
+export interface StreamResult {
+  textStream: AsyncIterable<string>;
+  getUsageMetadata: () => Promise<
+    | {
+        inputTokens: number;
+        outputTokens: number;
+        model?: string;
+      }
+    | undefined
+  >;
+}
+
 export interface ProviderCallOptions {
   temperature?: number;
   maxOutputTokens?: number;
@@ -33,6 +45,5 @@ export interface AIProvider {
     input: ProviderChatInput,
     modelId: string,
     options?: ProviderCallOptions,
-  ): AsyncIterable<string>;
+  ):StreamResult;
 }
-

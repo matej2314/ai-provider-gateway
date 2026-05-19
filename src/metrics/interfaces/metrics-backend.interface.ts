@@ -14,12 +14,16 @@ export interface LlmCallObservation {
   costUsd?: number;
 }
 
+export interface llmStreamSpanController {
+  end(observation: LlmCallObservation): void;
+}
+
 export interface MetricsBackend {
   observeLlmCall<T>(
     context: LlmCallContext,
     fn: () => Promise<T>,
     mapResult?: (result: T) => LlmCallObservation,
   ): Promise<T>;
+
+  observeLlmStream(context: LlmCallContext): llmStreamSpanController;
 }
-
-

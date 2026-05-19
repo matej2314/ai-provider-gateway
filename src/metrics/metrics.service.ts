@@ -4,6 +4,7 @@ import type {
   MetricsBackend,
   LlmCallContext,
   LlmCallObservation,
+  llmStreamSpanController,
 } from './interfaces/metrics-backend.interface';
 
 @Injectable()
@@ -18,5 +19,9 @@ export class MetricsService {
     mapResult?: (result: T) => LlmCallObservation,
   ): Promise<T> {
     return this.metricsBackend.observeLlmCall(context, fn, mapResult);
+  }
+
+  observeLlmStream(context: LlmCallContext): llmStreamSpanController {
+    return this.metricsBackend.observeLlmStream(context);
   }
 }

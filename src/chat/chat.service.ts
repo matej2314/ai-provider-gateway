@@ -186,19 +186,6 @@ export class ChatService {
 
     try {
       const startedAt = Date.now();
-      // const response = await provider.complete(providerInput, modelId, options);
-
-      // const result = {
-      //   id: `gw_${uuidv4()}`,
-      //   provider: providerName,
-      //   model: requestBody.modelAlias,
-      //   output: {
-      //     type: 'text',
-      //     text: response.text,
-      //   },
-      //   usage: response.usage,
-      //   requestId: requestId,
-      // };
 
       const response = await this.metricsService.observeLlmCall(
         {
@@ -230,7 +217,6 @@ export class ChatService {
         usage: response.usage,
         requestId: requestId,
       };
-      
 
       const latency = Date.now() - startedAt;
 
@@ -353,11 +339,19 @@ export class ChatService {
       },
     });
 
+    const spanController = this.metricsService.observeLlmStream({
+      provider: providerName,
+      modelAlias: requestBody.modelAlias,
+      modelId,
+      requestId,
+    });
+
     try {
       const startedAt = Date.now();
-      const textStream = provider.stream(providerInput, modelId, options);
 
-      for await (const textChunk of textStream) {
+      const streamResult = provider.stream(providerInput, modelId, options);
+
+      for await (const textChunk of streamResult.textStream) {
         emit({ name: 'delta', data: { text: textChunk } });
       }
 
@@ -368,7 +362,18 @@ export class ChatService {
         modelId,
         latency: Date.now() - startedAt,
       });
+
+      const usageMetadata = await streamResult.getUsageMetadata();
+      spanController.end({
+        usage: usageMetadata
+          ? {
+              inputTokens: usageMetadata.inputTokens,
+              outputTokens: usageMetadata.outputTokens,
+            }
+          : undefined,
+      });
     } catch (error) {
+      spanController.end({});
       await this.handleProviderError(log, error, providerName);
       throw error;
     }
