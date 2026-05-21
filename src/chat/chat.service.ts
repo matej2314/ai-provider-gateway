@@ -15,11 +15,9 @@ import { ChatMessageDto } from './dto/chat-message.dto';
 import { SseEvent } from './sse/sse-event.type';
 import { ResponseCacheService } from '../cache/response-cache.service';
 import type { GatewayConfig } from '../config/configuration';
-import type {
-  LlmCallContext,
-  LlmCallMessage,
-} from '../metrics/interfaces/metrics-backend.interface';
 import { RETRY_POLICY_DEFAULTS } from 'src/common/retry-policy-defaults';
+import { getOrCreateConversationIdForResponse } from './helpers/conversation-id';
+import { buildLlmMetricsContext } from './helpers/metrics';
 
 const SYSTEM_PROMPT_SECTION_JOINER = '\n\n';
 
@@ -34,40 +32,6 @@ export class ChatService {
     private readonly metricsService: MetricsService,
     private readonly resilientExecutor: ResilientExecutor,
   ) {}
-
-  private getClientConversationId(
-    requestBody: ChatRequestDto,
-  ): string | undefined {
-    const id = requestBody.conversationId?.trim();
-    return id || undefined;
-  }
-
-  private getOrCreateConversationIdForResponse(
-    requestBody: ChatRequestDto,
-  ): string {
-    return this.getClientConversationId(requestBody) ?? `conv_${uuidv4()}`;
-  }
-
-  private toMetricsMessages(messages: ChatMessageDto[]): LlmCallMessage[] {
-    return messages.map((m) => ({ role: m.role, content: m.content }));
-  }
-
-  private buildLlmMetricsContext(
-    requestBody: ChatRequestDto,
-    provider: string,
-    modelAlias: string,
-    modelId: string,
-    requestId: string,
-  ): LlmCallContext {
-    return {
-      provider,
-      modelAlias,
-      modelId,
-      requestId,
-      conversationId: this.getClientConversationId(requestBody),
-      messages: this.toMetricsMessages(requestBody.messages),
-    };
-  }
 
   private getResolvedPrompts(): ResolvedSystemPrompts {
     const resolved = this.config.get<ResolvedSystemPrompts>(
@@ -107,14 +71,6 @@ export class ChatService {
     const resolved = this.getResolvedPrompts();
     return {
       system: this.composeSystemPrompt(resolved, alias),
-      messages: this.toProviderTurns(request.messages),
-    };
-  }
-
-  private buildProviderInput(request: ChatRequestDto) {
-    const resolved = this.getResolvedPrompts();
-    return {
-      system: this.composeSystemPrompt(resolved, request.modelAlias),
       messages: this.toProviderTurns(request.messages),
     };
   }
@@ -185,7 +141,7 @@ export class ChatService {
     });
 
     const responseConversationId =
-      this.getOrCreateConversationIdForResponse(requestBody);
+      getOrCreateConversationIdForResponse(requestBody);
 
     const primaryResolved = this.registry.resolve(requestBody.modelAlias);
 
@@ -243,7 +199,7 @@ export class ChatService {
       );
       const providerInput = this.buildProviderInputForAlias(requestBody, alias);
 
-      const metricsCtx = this.buildLlmMetricsContext(
+      const metricsCtx = buildLlmMetricsContext(
         requestBody,
         resolved.providerName,
         alias,
@@ -393,7 +349,7 @@ export class ChatService {
     });
 
     const responseConversationId =
-      this.getOrCreateConversationIdForResponse(requestBody);
+      getOrCreateConversationIdForResponse(requestBody);
 
     const primaryResolved = this.registry.resolve(requestBody.modelAlias);
 
@@ -451,7 +407,7 @@ export class ChatService {
       );
       const providerInput = this.buildProviderInputForAlias(requestBody, alias);
 
-      const metricsCtx = this.buildLlmMetricsContext(
+      const metricsCtx = buildLlmMetricsContext(
         requestBody,
         resolved.providerName,
         alias,
