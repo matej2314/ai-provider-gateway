@@ -53,6 +53,7 @@ models:
   claude-sonnet:
     providerInstance: anthropic
     modelId: claude-sonnet-4-5-20250929
+    fallback: chat-default
     capabilities:
       streaming: true
     policy:
@@ -75,6 +76,7 @@ models:
   gemini-flash:
     providerInstance: google
     modelId: gemini-2.5-flash
+    fallback: chat-default
     capabilities:
       streaming: true
     policy:

@@ -141,7 +141,8 @@ ai-provider-gateway/
 - **`src/rate-limit/`**: smart rate limiting per klucz gateway (Redis token bucket, równoległe streamy, cooldown po 429).
 - **`src/logging/`**, **`src/metrics/`**: Pino + spany LLM (Sentry/noop). `conversationId` z body → `gen_ai.conversation.id`; `messages[]` → input/output messages (gdy `SENTRY_INCLUDE_PROMPTS`). Response: echo lub `conv_*` (`conversation-tracking.md`).
 - **`src/cache/`**: warstwa cache odpowiedzi dla **`POST /api/v1/chat`** (nie dotyczy streamingu). Rejestr backendów (`CacheRegistryService`), implementacje **`noop`** (zawsze) i **`redis`** (gdy `AppModule` załaduje stos Redis — patrz `konfiguracja.md`), `ResponseCacheService` używany w `ChatService`.
-- **`src/common/`**: `GlobalExceptionFilter` (APP_FILTER w `AppModule`), **`RequestIdMiddleware`** (wszystkie trasy), `StreamCleanupInterceptor` (streaming), `provider-error.mapper.ts`, dekorator **`@GatewayKeyAndSmartRateLimit()`**.
+- **`src/common/resilience/`**: `ResilientExecutor` (retry, timeout, fallback chain), `fallback-chain.ts`, `is-retryable-http-error.ts`, `retry-policy-defaults.ts` — używane w `ChatService`.
+- **`src/common/`**: `GlobalExceptionFilter` (APP_FILTER w `AppModule`), **`RequestIdMiddleware`** (wszystkie trasy), `StreamCleanupInterceptor` (streaming), `provider-error.mapper.ts`, dekorator **`@GatewayKeyAndSmartRateLimit()``.
 - **`src/guards/`**: `GatewayKeyGuard` (allowlista kluczy), `SmartRateLimitGuard` (limity per klucz gdy `RATE_LIMIT_SMART_ENABLED`).
 - **`src/common/types/express.d.ts`**: augmentacja `Express.Request` o `requestId: string` dla kontrolerów i filtrów.
 - **Testy jednostkowe**: obok kodu, np. `src/**/*.spec.ts`.
@@ -155,7 +156,8 @@ ai-provider-gateway/
 
 - Fundament: config z YAML, registry, adaptery Anthropic + Google.
 - Error envelope, `RequestIdMiddleware`, gateway key + smart rate limit, mapowanie błędów SDK, system prompt z plików, cache (`noop`/`redis`), logging/metrics (w tym `conversationId` → Sentry), readiness, graceful shutdown (`main.ts`).
-- W toku (**Faza 5+**): `npm run config:validate`, pełny katalog aliasów modeli (dokończenie 5.6), pełne policy timeout/retry w adapterach, response header `x-request-id`.
+- Odporność: `ResilientExecutor` — retry/timeout/fallback z YAML (`effectiveModelAlias` w odpowiedzi).
+- W toku (**Faza 5+**): `npm run config:validate`, pełny katalog aliasów modeli (dokończenie 5.6), response header `x-request-id`.
 - **Wdrożone (params):** `src/chat/dto/chat-params.dto.ts`, `src/chat/helpers/resolve-provider-call-options.ts`, merge w `ChatService` + klucz cache w `ResponseCacheService`.
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

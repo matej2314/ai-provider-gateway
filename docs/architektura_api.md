@@ -37,6 +37,7 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 - `usage` — metadane tokenów (jeśli dostępne),
 - `requestId` — korelacja z logami.
 - `conversationId` — ID rozmowy (echo lub `conv_<uuid>` z gateway) — tylko czat; szczegóły: `conversation-tracking.md`.
+- `effectiveModelAlias` — opcjonalnie, gdy `ResilientExecutor` obsłużył żądanie na aliasie `fallback` z YAML (pole `model` = żądany alias).
 
 ## Streaming (SSE)
 
@@ -57,7 +58,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Rozszerzenia (Faza 5 i dalsze)
 
-Skrypt `npm run config:validate`, nagłówek odpowiedzi `x-request-id` oraz pełniejsze wykorzystanie policy (`timeoutMs`, `retry`) w adapterach — `dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`.
+Skrypt `npm run config:validate` oraz nagłówek odpowiedzi `x-request-id` — `dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`.
 
 **Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED` są już emitowane w payloadach wyjątków i zachowywane przez `GlobalExceptionFilter`.
 
@@ -70,14 +71,14 @@ Skrypt `npm run config:validate`, nagłówek odpowiedzi `x-request-id` oraz peł
 
 ## Walidacja
 
-- Walidacja DTO na brzegu (`ValidationPipe`: m.in. `messages` 1–150, `content` max 3000 znaków, opcjonalne `conversationId` min. 1 znak, opcjonalne zagnieżdżone `params`, `forbidNonWhitelisted`).
+- Walidacja DTO na brzegu (`ValidationPipe`: m.in. `messages` 1–150, `content` max 3000 znaków, opcjonalne `conversationId` w formacie `conv_<uuid>`, opcjonalne zagnieżdżone `params`, `forbidNonWhitelisted`).
 - Limit rozmiaru JSON body: **1 MB** (`express.json` w `main.ts`).
 - Walidacja konfiguracji przy starcie (fail‑fast) i w runtime (np. unknown `modelAlias` → błąd deterministyczny z kodem `MODEL_ALIAS_NOT_FOUND` przy `POST /chat`).
 
-## Idempotencja i retry
+## Idempotencja, retry i fallback
 
-- Standardowy chat nie jest idempotentny w sensie biznesowym (ten sam request może generować różną odpowiedź), **chyba że** zadziała warstwa cache dla **`POST /api/v1/chat`** — wtedy identyczny payload (klucz cache: `modelAlias`, `messages`, sygnatura system promptu, efektywne `temperature` / `maxOutputTokens`) może zwrócić wcześniejszą odpowiedź z **`cached: true`** (`ResponseCacheService`, `konfiguracja.md`).
-- Retry po stronie gateway jest ograniczony do błędów “bezpiecznych” (np. 429/5xx) i kontrolowany polityką w konfiguracji.
+- Standardowy chat nie jest idempotentny w sensie biznesowym (ten sam request może generować różną odpowiedź), **chyba że** zadziała warstwa cache dla **`POST /api/v1/chat`** — wtedy identyczny payload może zwrócić wcześniejszą odpowiedź z **`cached: true`** (`ResponseCacheService`, `konfiguracja.md`).
+- **`ResilientExecutor`** (`src/common/resilience/`): dla aliasu z żądania stosuje `policy.retry` (max prób, lista `onStatus`) i `policy.timeoutMs` z YAML (domyślnie `RETRY_POLICY_DEFAULTS`). Retry tylko dla `HttpException` ze statusem z `onStatus`. Po wyczerpaniu prób — opcjonalnie wywołanie aliasu z **`models[].fallback`** (ta sama polityka retry co alias pierwszy). Timeout → **504** / `PROVIDER_TIMEOUT`. Szczegóły: `konfiguracja.md`, `dokumentacja_api.md`.
 
 ## CORS / Auth
 

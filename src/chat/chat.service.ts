@@ -8,10 +8,8 @@ import { v4 as uuidv4 } from 'uuid';
 import type { ResolvedSystemPrompts } from '../config/configuration.types';
 import { ProviderRegistryService } from '../providers/provider-registry.service';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
-import type {
-  ProviderCallOptions,
-  ProviderChatTurn,
-} from '../providers/interfaces/ai-provider.interface';
+import { ResilientExecutor } from 'src/common/resilience/resilient-executor';
+import type { ProviderChatTurn } from '../providers/interfaces/ai-provider.interface';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
 import { SseEvent } from './sse/sse-event.type';
@@ -21,6 +19,7 @@ import type {
   LlmCallContext,
   LlmCallMessage,
 } from '../metrics/interfaces/metrics-backend.interface';
+import { RETRY_POLICY_DEFAULTS } from 'src/common/retry-policy-defaults';
 
 const SYSTEM_PROMPT_SECTION_JOINER = '\n\n';
 
@@ -33,9 +32,9 @@ export class ChatService {
     private readonly rateLimiter: SmartRateLimiterService,
     private readonly loggingService: LoggingService,
     private readonly metricsService: MetricsService,
+    private readonly resilientExecutor: ResilientExecutor,
   ) {}
 
-  /** ID from the client — used only for Sentry conversation grouping. */
   private getClientConversationId(
     requestBody: ChatRequestDto,
   ): string | undefined {
@@ -43,7 +42,6 @@ export class ChatService {
     return id || undefined;
   }
 
-  /** ID returned to the client (echo or new conv_* for adoption on the next turn). */
   private getOrCreateConversationIdForResponse(
     requestBody: ChatRequestDto,
   ): string {
@@ -103,6 +101,14 @@ export class ChatService {
           m.role === 'user' || m.role === 'assistant',
       )
       .map((m) => ({ role: m.role, content: m.content }));
+  }
+
+  private buildProviderInputForAlias(request: ChatRequestDto, alias: string) {
+    const resolved = this.getResolvedPrompts();
+    return {
+      system: this.composeSystemPrompt(resolved, alias),
+      messages: this.toProviderTurns(request.messages),
+    };
   }
 
   private buildProviderInput(request: ChatRequestDto) {
@@ -181,21 +187,22 @@ export class ChatService {
     const responseConversationId =
       this.getOrCreateConversationIdForResponse(requestBody);
 
-    const { provider, providerName, modelId, params } = this.registry.resolve(
-      requestBody.modelAlias,
-    );
+    const primaryResolved = this.registry.resolve(requestBody.modelAlias);
 
-    const options = resolveProviderCallOptions(params, requestBody.params);
+    const options = resolveProviderCallOptions(
+      primaryResolved.params,
+      requestBody.params,
+    );
 
     if (gatewayKey) {
       const cooldownResult = await this.rateLimiter.checkCooldown(
         gatewayKey,
-        providerName,
+        primaryResolved.providerName,
       );
 
       if (!cooldownResult.allowed) {
         log.warn('Rate limit exceeded', {
-          provider: providerName,
+          provider: primaryResolved.providerName,
           status: 429,
           code: 'RATE_LIMITED',
         });
@@ -226,20 +233,32 @@ export class ChatService {
       }
     }
 
-    const providerInput = this.buildProviderInput(requestBody);
+    const startedAt = Date.now();
 
-    try {
-      const startedAt = Date.now();
+    const runOnce = async (alias: string, attemptNo: number) => {
+      const resolved = this.registry.resolve(alias);
+      const aliasOptions = resolveProviderCallOptions(
+        resolved.params,
+        requestBody.params,
+      );
+      const providerInput = this.buildProviderInputForAlias(requestBody, alias);
+
+      const metricsCtx = this.buildLlmMetricsContext(
+        requestBody,
+        resolved.providerName,
+        alias,
+        resolved.modelId,
+        requestId,
+      );
 
       const response = await this.metricsService.observeLlmCall(
-        this.buildLlmMetricsContext(
-          requestBody,
-          providerName,
-          requestBody.modelAlias,
-          modelId,
-          requestId,
-        ),
-        () => provider.complete(providerInput, modelId, options),
+        metricsCtx,
+        () =>
+          resolved.provider.complete(
+            providerInput,
+            resolved.modelId,
+            aliasOptions,
+          ),
         (res) => ({
           responseModel: res.model,
           outputText: res.text,
@@ -252,10 +271,37 @@ export class ChatService {
         }),
       );
 
-      const result = {
+      return { response, resolved };
+    };
+
+    try {
+      const result = await this.resilientExecutor.executeWithRetryAndFallback({
+        primaryAlias: requestBody.modelAlias,
+        fallbackAlias: primaryResolved.fallbackAlias,
+        retry: {
+          maxAttempts:
+            primaryResolved.policy?.retry?.maxAttempts ??
+            RETRY_POLICY_DEFAULTS.maxAttempts,
+          onStatus:
+            primaryResolved.policy?.retry?.onStatus ??
+            RETRY_POLICY_DEFAULTS.onStatus,
+          timeoutMs:
+            primaryResolved.policy?.timeoutMs ??
+            RETRY_POLICY_DEFAULTS.timeoutMs,
+        },
+        runOnce,
+        requestId,
+      });
+
+      const { response, resolved } = result.value;
+      const usedAlias = result.usedAlias;
+      const didFallback = result.didFallback;
+
+      const chatResult = {
         id: `gw_${uuidv4()}`,
-        provider: providerName,
+        provider: resolved.providerName,
         model: requestBody.modelAlias,
+        ...(didFallback && { effectiveModelAlias: usedAlias }),
         output: {
           type: 'text',
           text: response.text,
@@ -267,10 +313,14 @@ export class ChatService {
 
       const latency = Date.now() - startedAt;
 
-      await this.cacheService.setCachedResponse(requestBody, result, options);
+      await this.cacheService.setCachedResponse(
+        requestBody,
+        chatResult,
+        options,
+      );
       log.info('Chat completed successfully', {
-        provider: providerName,
-        modelId,
+        provider: resolved.providerName,
+        modelId: resolved.modelId,
         latency,
         tokensUsed:
           response.usage?.inputTokens != null
@@ -281,10 +331,16 @@ export class ChatService {
             ? response.usage.outputTokens
             : undefined,
         conversationId: responseConversationId,
+        ...(didFallback && { effectiveModelAlias: usedAlias }),
       });
-      return result;
+      return chatResult;
     } catch (error) {
-      await this.handleProviderError(log, error, providerName, gatewayKey);
+      await this.handleProviderError(
+        log,
+        error,
+        primaryResolved.providerName,
+        gatewayKey,
+      );
       throw error;
     }
   }
@@ -339,12 +395,11 @@ export class ChatService {
     const responseConversationId =
       this.getOrCreateConversationIdForResponse(requestBody);
 
-    const { provider, providerName, modelId, capabilities, params } =
-      this.registry.resolve(requestBody.modelAlias);
+    const primaryResolved = this.registry.resolve(requestBody.modelAlias);
 
-    if (!capabilities?.streaming) {
+    if (!primaryResolved.capabilities?.streaming) {
       log.warn('Streaming not supported for this model', {
-        provider: providerName,
+        provider: primaryResolved.providerName,
         code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
       });
       throw new HttpException(
@@ -357,9 +412,9 @@ export class ChatService {
       );
     }
 
-    if (!provider.stream) {
+    if (!primaryResolved.provider.stream) {
       log.warn('Streaming adapter not implemented for this provider', {
-        provider: providerName,
+        provider: primaryResolved.providerName,
         code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
       });
       throw new HttpException(
@@ -372,55 +427,69 @@ export class ChatService {
       );
     }
 
-    const providerInput = this.buildProviderInput(requestBody);
-
-    const options: ProviderCallOptions = resolveProviderCallOptions(
-      params,
-      requestBody.params,
-    );
-
+    const startedAt = Date.now();
     const id = `gw_${uuidv4()}`;
+    let metaEmitted = false;
 
-    emit({
-      name: 'meta',
-      data: {
-        id,
-        provider: providerName,
-        model: requestBody.modelAlias,
-        requestId,
-        conversationId: responseConversationId,
-      },
-    });
+    const runOnce = async (alias: string, attemptNo: number) => {
+      const resolved = this.registry.resolve(alias);
 
-    const spanController = this.metricsService.observeLlmStream(
-      this.buildLlmMetricsContext(
+      if (!resolved.capabilities?.streaming || !resolved.provider.stream) {
+        throw new HttpException(
+          {
+            code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
+            message: `Streaming not supported for alias ${alias}`,
+            details: [],
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const aliasOptions = resolveProviderCallOptions(
+        resolved.params,
+        requestBody.params,
+      );
+      const providerInput = this.buildProviderInputForAlias(requestBody, alias);
+
+      const metricsCtx = this.buildLlmMetricsContext(
         requestBody,
-        providerName,
-        requestBody.modelAlias,
-        modelId,
+        resolved.providerName,
+        alias,
+        resolved.modelId,
         requestId,
-      ),
-    );
+      );
 
-    try {
-      const startedAt = Date.now();
+      const spanController = this.metricsService.observeLlmStream(metricsCtx);
 
-      const streamResult = provider.stream(providerInput, modelId, options);
+      const streamResult = resolved.provider.stream(
+        providerInput,
+        resolved.modelId,
+        aliasOptions,
+      );
+
+      if (!metaEmitted) {
+        emit({
+          name: 'meta',
+          data: {
+            id,
+            provider: resolved.providerName,
+            model: requestBody.modelAlias,
+            ...(alias !== requestBody.modelAlias && {
+              effectiveModelAlias: alias,
+            }),
+            requestId,
+            conversationId: responseConversationId,
+          },
+        });
+        metaEmitted = true;
+      }
+
       let assembledText = '';
 
       for await (const textChunk of streamResult.textStream) {
         assembledText += textChunk;
         emit({ name: 'delta', data: { text: textChunk } });
       }
-
-      emit({ name: 'done', data: {} });
-
-      log.info('Chat stream completed', {
-        provider: providerName,
-        modelId,
-        latency: Date.now() - startedAt,
-        conversationId: responseConversationId,
-      });
 
       const usageMetadata = await streamResult.getUsageMetadata();
       spanController.end({
@@ -432,9 +501,46 @@ export class ChatService {
             }
           : undefined,
       });
+
+      return { resolved, assembledText, usageMetadata };
+    };
+
+    try {
+      const result = await this.resilientExecutor.executeWithRetryAndFallback({
+        primaryAlias: requestBody.modelAlias,
+        fallbackAlias: primaryResolved.fallbackAlias,
+        retry: {
+          maxAttempts:
+            primaryResolved.policy?.retry?.maxAttempts ??
+            RETRY_POLICY_DEFAULTS.maxAttempts,
+          onStatus:
+            primaryResolved.policy?.retry?.onStatus ??
+            RETRY_POLICY_DEFAULTS.onStatus,
+          timeoutMs:
+            primaryResolved.policy?.timeoutMs ??
+            RETRY_POLICY_DEFAULTS.timeoutMs,
+        },
+        runOnce,
+        requestId,
+      });
+
+      const { resolved } = result.value;
+      const usedAlias = result.usedAlias;
+      const didFallback = result.didFallback;
+
+      emit({ name: 'done', data: {} });
+
+      const latency = Date.now() - startedAt;
+
+      log.info('Chat stream completed', {
+        provider: resolved.providerName,
+        modelId: resolved.modelId,
+        latency,
+        conversationId: responseConversationId,
+        ...(didFallback && { effectiveModelAlias: usedAlias }),
+      });
     } catch (error) {
-      spanController.end({});
-      await this.handleProviderError(log, error, providerName);
+      await this.handleProviderError(log, error, primaryResolved.providerName);
       throw error;
     }
   }

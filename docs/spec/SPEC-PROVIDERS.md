@@ -78,8 +78,10 @@ Mapowanie `system` na pierwszą wiadomość `user` jest dopuszczalne **tylko** j
 
 ## Poza zakresem (względem rdzenia MVP)
 
-- Zaawansowany routing (fallback, hedging, multi-provider).
+- Zaawansowany routing (hedging, multi-hop fallback chains, routing po intencji).
 - Automatyczne wykrywanie dostępnych modeli po API providerów.
+
+**Uwaga:** prosty **fallback jednego hopu** (`models[].fallback` + `ResilientExecutor`) jest wdrożony na warstwie gateway — patrz `konfiguracja.md`, `SPEC-CHAT.md` (F-10).
 
 ## Notatki implementacyjne — mapowanie SDK
 

@@ -16,12 +16,22 @@ import {
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { UnsupportedProviderException } from '../common/exceptions/unsupported-provider.exception';
 import { LoggingService } from '../logging/logging.service';
+import { RETRY_POLICY_DEFAULTS } from 'src/common/retry-policy-defaults';
 
 interface ResolvedProviderConfig {
   provider: AIProvider;
   providerName: string;
   modelId: string;
+  modelAlias: string;
+  fallbackAlias?: string;
   capabilities: GatewayCapabilitiesConfig;
+  policy?: {
+    timeoutMs?: number;
+    retry?: {
+      maxAttempts?: number;
+      onStatus?: number[];
+    };
+  };
   params?: GatewayParamsConfig;
 }
 
@@ -122,11 +132,43 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
 
     const providerEntry = this.resolveProviderEntry(gatewayConfig, modelConfig);
 
+    let fallbackAlias: string | undefined = undefined;
+    if (modelConfig.fallback) {
+      if (!gatewayConfig.models[modelConfig.fallback]) {
+        this.logger.warn('Fallback alias not found in config:', {
+          modelAlias,
+          fallback: modelConfig.fallback,
+        });
+      } else {
+        fallbackAlias = modelConfig.fallback;
+      }
+    }
+
+    const policy = modelConfig.policy
+      ? {
+          timeoutMs:
+            modelConfig.policy.timeoutMs ?? RETRY_POLICY_DEFAULTS.timeoutMs,
+          retry: modelConfig.policy.retry
+            ? {
+                maxAttempts:
+                  modelConfig.policy.retry.maxAttempts ??
+                  RETRY_POLICY_DEFAULTS.maxAttempts,
+                onStatus:
+                  modelConfig.policy.retry.onStatus ??
+                  RETRY_POLICY_DEFAULTS.onStatus,
+              }
+            : undefined,
+        }
+      : undefined;
+
     return {
       provider: providerEntry.provider,
       providerName: providerEntry.name,
       modelId: modelConfig.modelId,
-      capabilities: modelConfig.capabilities ?? undefined,
+      modelAlias,
+      fallbackAlias,
+      capabilities: modelConfig.capabilities ?? {},
+      policy,
       params: modelConfig.policy?.params ?? undefined,
     };
   }

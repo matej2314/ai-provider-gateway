@@ -4,7 +4,8 @@ Gateway HTTP dla LLM, który **ukrywa SDK providerów** i wystawia spójny kontr
 
 - standardowego czatu (`POST /api/v1/chat`) — **działa**,
 - streamingu SSE (`POST /api/v1/chat/stream`) — **działa**, kontrakt w `openapi.json`,
-- healthchecka (`GET /api/v1/health`) — **działa**.
+- healthchecka (`GET /api/v1/health`) — **działa**,
+- odporności (retry, timeout, opcjonalny fallback aliasu z `gateway.config.yaml`) — **`ResilientExecutor`**.
 
 Aktualnie wspierani providerzy (rdzeń produktu — Anthropic + Google Gemini):
 

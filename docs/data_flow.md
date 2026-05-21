@@ -10,7 +10,8 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 |-------|-----------|
 | **Klient** | Dowolny klient HTTP (aplikacja, serwis, BFF). |
 | **HTTP** | Kontroler + walidacja DTO + odpowiedź. |
-| **ChatService** | Resolve aliasu, `resolveProviderCallOptions` (YAML + opcjonalne `params` z body), składanie system promptu z konfiguracji, mapowanie `messages[]` na `user|assistant`, wywołanie adaptera. |
+| **ChatService** | Resolve aliasu, `resolveProviderCallOptions`, składanie system promptu, mapowanie `messages[]`, orkiestracja przez **`ResilientExecutor`** (retry, timeout, opcjonalny fallback). |
+| **ResilientExecutor** | Retry na aliasie żądanym (`policy.retry`, `policy.timeoutMs`), potem opcjonalnie alias `fallback` z YAML. |
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na adapter + `modelId`. |
 | **Provider** | Adapter Anthropic / Google. |
 | **LLM API** | Zewnętrzny serwis providera. |
@@ -74,6 +75,7 @@ sequenceDiagram
   else brak wpisu
     S->>S: checkCooldown (opcjonalnie, smart limit)
     S->>S: composeSystemPrompt + toProviderTurns
+    S->>S: ResilientExecutor (retry / fallback / timeout)
     S->>+M: observeLlmCall (conversationId? + messages[])
     M->>+P: complete(input, modelId, options)
     P->>+A: request do providera
@@ -81,7 +83,7 @@ sequenceDiagram
     P-->>-M: ProviderChatResponse
     M-->>-S: wynik + span Sentry
     S->>C: setCachedResponse
-    S-->>-H: ChatResponse (id, usage, requestId, conversationId, …)
+    S-->>-H: ChatResponse (id, usage, requestId, conversationId, effectiveModelAlias?, …)
   end
   H-->>-K: 200 JSON (+ conversationId)
 ```
@@ -136,6 +138,7 @@ sequenceDiagram
   S->>S: conversationId response + metrics ID tylko z body
   S->>+R: resolve
   R-->>-S: adapter + modelId + capabilities
+  S->>S: ResilientExecutor (retry / fallback / timeout)
   S->>M: observeLlmStream (conversationId? + messages[])
   S->>+P: stream(...)
   P->>+A: streaming request

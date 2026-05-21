@@ -92,36 +92,80 @@ masterKeyRef: MASTER_KEY
 
 clients:
   webapp:
-    name: Web Application
+    name: My web app
     type: webapp
     gatewayKeyRef: GATEWAY_KEY_WEBAPP
+    rateLimit:
+      rps: 10
+      burst: 10
+      maxConcurrentStreams: 3
 
 providers:
-  anthropic-main:
+  anthropic:
     type: anthropic
     apiKeyRef: ANTHROPIC_API_KEY
-  google-main:
+    enabled: true
+  google:
     type: google
     apiKeyRef: GOOGLE_API_KEY
+    enabled: true
 
 models:
   chat-default:
-    providerInstance: anthropic-main
+    providerInstance: anthropic
     modelId: claude-sonnet-4-5-20250929
     capabilities:
       streaming: true
     policy:
       timeoutMs: 30000
       retry:
-        maxAttempts: 2
+        maxAttempts: 3
         onStatus: [429, 500, 502, 503, 504]
       params:
         defaults:
-          temperature: 0.7
+          temperature: 0.4
+          maxOutputTokens: 500
+        allowOverrides: [temperature, maxOutputTokens]
+        bounds:
+          temperature: { min: 0, max: 2 }
+          maxOutputTokens: { min: 1, max: 8192 }
+
+  claude-sonnet:
+    providerInstance: anthropic
+    modelId: claude-sonnet-4-5-20250929
+    fallback: chat-default
+    capabilities:
+      streaming: true
+    policy:
+      timeoutMs: 30000
+      retry:
+        maxAttempts: 3
+        onStatus: [429, 500, 502, 503, 504]
+      params:
+        defaults:
+          temperature: 0.4
           maxOutputTokens: 1024
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
+        allowOverrides: [temperature, maxOutputTokens]
+        bounds:
+          temperature: { min: 0, max: 2 }
+          maxOutputTokens: { min: 1, max: 8192 }
+
+  gemini-flash:
+    providerInstance: google
+    modelId: gemini-2.5-flash
+    fallback: chat-default
+    capabilities:
+      streaming: true
+    policy:
+      timeoutMs: 30000
+      retry:
+        maxAttempts: 3
+        onStatus: [429, 500, 502, 503, 504]
+      params:
+        defaults:
+          temperature: 0.4
+          maxOutputTokens: 1024
+        allowOverrides: [temperature, maxOutputTokens]
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
@@ -132,7 +176,8 @@ Uwagi:
 - `apiKeyRef` to **nazwa** zmiennej env, nie wartość.
 - `masterKeyRef` oraz każde `gatewayKeyRef` w `clients` to **nazwy** zmiennych env z wartościami kluczy gateway — ustawiane w `.env` (szablon: `.env.example`).
 - Aliasy pod `models` są publicznym API (`modelAlias`).
-- **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic-main`) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach.
+- **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic`, `google` w repozytoryjnym pliku) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach.
+- **Fallback aliasu (`models[].fallback`):** opcjonalny klucz wskazujący inny alias z sekcji `models`. Po wyczerpaniu retry na aliasie żądanym `ResilientExecutor` (`src/common/resilience/resilient-executor.ts`) próbuje alias fallback (z tą samą polityką retry/timeout z aliasu **pierwszego**). Walidacja Zod przy starcie: fallback musi istnieć, nie może wskazywać samego siebie ani tworzyć pętli A→B→A. Przy sukcesie na fallbacku odpowiedź HTTP zawiera opcjonalne **`effectiveModelAlias`** (alias faktycznie użyty); pole **`model`** pozostaje żądanym `modelAlias`.
 - **Ograniczenie: jedna instancja per typ providera.** W `providers` może wystąpić **co najwyżej jeden** wpis o danym `type` (np. tylko jeden `type: anthropic`). Walidacja Zod (`GatewayConfigSchema.providers.superRefine` w `src/config/configuration.ts`) **odrzuca start** z czytelnym komunikatem przy duplikacie (komunikat wskazuje zduplikowany typ i nazwy zderzających się instancji). Różnice między środowiskami (dev/staging/prod) wyraża się **wartością** zmiennej środowiskowej wskazanej przez `apiKeyRef`, a nie przez deklarowanie wielu instancji tego samego typu w YAML.
 - **Spójność grafu `providers` ↔ `models` (fail-fast przy starcie):**
   - sekcja `models` **nie może być pusta**;
@@ -140,7 +185,7 @@ Uwagi:
   - każda instancja providera z **`enabled !== false`** (w praktyce w YAML ustaw **`enabled: true`** dla providerów używanych w runtime; pominięte `enabled` → po parsowaniu Zod domyślnie **`false`**, wtedy instancja jest wyłączona) musi mieć **co najmniej jeden** alias w `models` z tym samym `providerInstance`;
   - po filtrze `enabled` funkcja `buildEffectiveGatewayConfig` ponownie wymusza, że każdy **aktywny** provider ma ≥1 **aktywny** model (modele powiązane z providerem `enabled: false` są pomijane z ostrzeżeniem w logu).
   - Instancja z **`enabled: false`** **nie wymaga** wpisów w `models` (może pozostać w YAML jako wyłączona rezerwa).
-- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`policy.params`** (`defaults`, `allowOverrides`, `bounds`) jest używana w runtime przez `resolveProviderCallOptions` (merge z opcjonalnym `params` w body). **`timeoutMs`** i **`retry`** z YAML nie są jeszcze w pełni mapowane w adapterach — kierunek dopięcia: `dokumentacja_koncepcyjna.md`, `spec/SPEC-PROVIDERS.md`.
+- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`policy.params`** — merge w `resolveProviderCallOptions`. **`timeoutMs`** i **`retry`** — egzekwowane w `ResilientExecutor` przy wywołaniu adaptera (timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` lub `RETRY_POLICY_DEFAULTS`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`.
 
 ## 3) Walidacja i fail-fast
 
@@ -160,7 +205,7 @@ Gateway kończy start m.in. gdy:
 
 | Warstwa | Gdzie | Przykładowe reguły |
 |---------|--------|-------------------|
-| Zod (surowy YAML) | `GatewayConfigSchema` | duplikat `type`; puste `models`; model → provider; provider (aktywny) → ≥1 model |
+| Zod (surowy YAML) | `GatewayConfigSchema` | duplikat `type`; puste `models`; model → provider; provider (aktywny) → ≥1 model; `fallback` istnieje, bez samoodwołania i pętli A↔B |
 | Efektywna konfiguracja | `buildEffectiveGatewayConfig` | filtr `enabled`; ≥1 aktywny model globalnie; aktywny provider → aktywny model; klucz API dla aktywnych providerów |
 
 **Poza zakresem obecnej implementacji (plan — krok 5.6, część pozostała):** pełny katalog aliasów wszystkich modeli API Anthropic/Google, aliasy intencjonalne oraz ta sama walidacja w `npm run config:validate` (krok 5.5 — skrypt nadal placeholder).
@@ -171,7 +216,7 @@ Wpis w `package.json` istnieje (`"config:validate": ""`), ale **komenda jest na 
 
 ## 4) Nadpisywanie parametrów per request
 
-**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** (w **response** zawsze echo lub `conv_*`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation-tracking.md`) oraz opcjonalne zagnieżdżone **`params`** (`temperature`, `maxOutputTokens`). Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
+**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** w formacie **`conv_<uuid>`** (regex w `ChatRequestDto`; w **response** zawsze echo lub nowe `conv_<uuid>`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation-tracking.md`) oraz opcjonalne zagnieżdżone **`params`** (`temperature`, `maxOutputTokens`). Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
 
 **Merge parametrów:** `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`) bierze `policy.params` z YAML dla aliasu, nakłada body `params` tylko dla pól z **`allowOverrides`**, następnie **clamp** do **`bounds`**. Niedozwolone pole → HTTP **400** + `MODEL_NOT_ALLOWED`. Efektywne wartości trafiają do adapterów (`ProviderCallOptions`) i do klucza cache (`ResponseCacheService`).
 

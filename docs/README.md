@@ -16,10 +16,11 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 10. **Smart rate limiting**, **readiness**, **logging/metrics** — wdrożone; szczegóły: `konfiguracja.md`, `architektura.md`.
 11. **Śledzenie rozmów (`conversationId`)** — response zawsze z ID; Sentry Conversations tylko przy ID w request (zalecany start od tury 2 + pełne `messages[]`); szczegóły: `conversation-tracking.md`.
 12. **Parametry generacji (`params`)** — opcjonalne `temperature` / `maxOutputTokens` w body; merge z `policy.params` w YAML (`resolveProviderCallOptions`); szczegóły: `konfiguracja.md`, `dokumentacja_api.md`.
+13. **Odporność (retry, timeout, fallback)** — `ResilientExecutor` + `models[].fallback` w YAML; opcjonalne `effectiveModelAlias` w odpowiedzi; szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
 
 ## Spis plików
 
-- `../openapi.json` *(w katalogu głównym repo, v0.9.0)* — OpenAPI 3.1: kontrakt REST zsynchronizowany z kodem (czat + opcjonalne `params`, `securitySchemes.GatewayKeyAuth`, streaming SSE, health, envelope `ErrorEnvelope`).
+- `../openapi.json` *(w katalogu głównym repo, v0.10.0)* — OpenAPI 3.1: kontrakt REST zsynchronizowany z kodem (czat, `params`, retry/fallback/`effectiveModelAlias`, `securitySchemes.GatewayKeyAuth`, streaming SSE, health, `ErrorEnvelope`).
 - `dokumentacja_koncepcyjna.md` — cel produktu, zakres (MVP / v1), założenia.
 - `architektura.md` — widok logiczny, moduły, warstwy, integracje providerów.
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.

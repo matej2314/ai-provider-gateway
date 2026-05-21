@@ -52,7 +52,7 @@ flowchart TB
 ## Warstwy wewnątrz modułów (konwencja NestJS)
 
 1. **Controller** — mapowanie HTTP, statusy, nagłówki; brak logiki biznesowej i brak bezpośrednich wywołań SDK providerów. Limit rozmiaru body JSON: **`1mb`** (`express.json` w `src/main.ts`).
-2. **Service (use case)** — orkiestracja: wybór modelu/trybu, polityki (timeout/retry), mapowanie parametrów, normalizacja błędów.
+2. **Service (use case)** — orkiestracja: wybór modelu/trybu, `ResilientExecutor` (timeout/retry/fallback z YAML), `resolveProviderCallOptions`, normalizacja błędów.
 3. **Adapters (providers)** — tłumaczenie kontraktu gateway ↔ kontrakt SDK providera; obsługa błędów specyficznych dla SDK.
 4. **DTO + walidacja** — walidacja wejścia i konfiguracji jako brzeg systemu.
 

@@ -76,6 +76,7 @@ export const GatewayConfigSchema = z
       z.object({
         providerInstance: z.string(),
         modelId: z.string(),
+        fallback: z.string().min(1).optional(),
         capabilities: z
           .object({
             streaming: z.boolean().optional(),
@@ -87,7 +88,7 @@ export const GatewayConfigSchema = z
             timeoutMs: z.number().int().min(1).optional(),
             retry: z
               .object({
-                maxAttempts: z.number().int().min(1).optional(),
+                maxAttempts: z.number().int().min(1).max(5).optional(),
                 onStatus: z.array(z.number().int().min(1)).optional(),
               })
               .optional()
@@ -138,6 +139,38 @@ export const GatewayConfigSchema = z
           }),
       }),
     ),
+  })
+  .superRefine((config, ctx) => {
+    for (const [alias, modelConfig] of Object.entries(config.models)) {
+      const fallback = modelConfig.fallback;
+
+      if (!fallback) continue;
+
+      if (fallback === alias) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Model alias ${alias} cannot have itself as fallback.`,
+          path: ['models', alias, 'fallback'],
+        });
+        continue;
+      }
+      if (!config.models[fallback]) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Model alias ${alias} references non-existent fallback ${fallback}`,
+          path: ['models', alias, 'fallback'],
+        });
+        continue;
+      }
+      const fallbackOfFallback = config.models[fallback]?.fallback;
+      if (fallbackOfFallback === alias) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Circular fallback detected: ${alias} => ${fallback} => ${alias}`,
+          path: ['models', alias, 'fallback'],
+        });
+      }
+    }
   })
   .superRefine((data, ctx) => {
     for (const [alias, model] of Object.entries(data.models)) {

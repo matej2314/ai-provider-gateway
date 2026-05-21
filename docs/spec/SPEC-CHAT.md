@@ -63,7 +63,9 @@ F-7. Limity DTO: `messages` — **1..150** elementów; `content` — max **3000*
 
 F-8. *(Opcjonalnie — cache odpowiedzi)* Gateway może zwracać zapisaną odpowiedź dla **`POST /api/v1/chat`** z polami **`cached: true`** i **`cachedAt`**, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Streaming nie podlega cache.
 
-F-9. *(Conversation tracking)* `conversationId` opcjonalne w żądaniu. Do Sentry (`gen_ai.conversation.id`) trafia **tylko** ID z body klienta; bez niego span jest logowany jako pojedyncze wywołanie. Gateway **zawsze** zwraca `conversationId` w odpowiedzi (echo lub `conv_<uuid>`). Klient od tury 2+ z ID musi wysyłać pełną historię w `messages[]` — patrz `conversation-tracking.md`.
+F-9. *(Conversation tracking)* `conversationId` opcjonalne w żądaniu w formacie `conv_<uuid>`. Do Sentry trafia **tylko** ID z body klienta. Gateway **zawsze** zwraca `conversationId` w odpowiedzi (echo lub `conv_<uuid>`). Klient od tury 2+ z ID musi wysyłać pełną historię w `messages[]` — patrz `conversation-tracking.md`.
+
+F-10. *(Odporność)* Gateway stosuje `policy.retry` i `policy.timeoutMs` z YAML przez `ResilientExecutor`. Po wyczerpaniu prób na aliasie żądanym, gdy skonfigurowano `models[].fallback`, próbuje alias zapasowy. Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne `effectiveModelAlias`; pole `model` = żądany `modelAlias`.
 
 ## Wymagania niefunkcjonalne
 
@@ -80,7 +82,8 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [x] Dla nieznanego `modelAlias` gateway zwraca `400` z `code: MODEL_ALIAS_NOT_FOUND` (bez wywołania providera).
 - [x] Parametry są walidowane (DTO widełki 0–2 / 1–8192, allowlista `allowOverrides`, clamp `bounds` w `resolveProviderCallOptions`; `ChatParamsDto` + `ChatRequestDto.params`).
 - [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka `x-request-id` jest **aktywna** (`RequestIdMiddleware`). Response header `x-request-id` (poza body) nie jest jeszcze ustawiany.
-- [x] Opcjonalne `conversationId` jest walidowane; do Sentry trafia tylko z requestu; w odpowiedzi echo lub `conv_*` (`ChatRequestDto`, `ChatService`, `SentryAiMetricsAdapter`).
+- [x] Opcjonalne `conversationId` jest walidowane (`conv_<uuid>`); do Sentry trafia tylko z requestu; w odpowiedzi echo lub `conv_*` (`ChatRequestDto`, `ChatService`, `SentryAiMetricsAdapter`).
+- [x] Retry/timeout/fallback z YAML (`ResilientExecutor`, `effectiveModelAlias` w odpowiedzi przy fallbacku).
 
 ## Poza zakresem (względem rdzenia MVP)
 

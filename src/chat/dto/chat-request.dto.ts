@@ -4,8 +4,8 @@ import {
   ValidateNested,
   ArrayMinSize,
   ArrayMaxSize,
-  MinLength,
   IsOptional,
+  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -56,6 +56,11 @@ export class ChatRequestDto {
   })
   @IsOptional()
   @IsString()
-  @MinLength(1)
+  @Matches(
+    /^conv_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    {
+      message: 'conversationId must be conv_<uuid>',
+    },
+  )
   conversationId?: string;
 }

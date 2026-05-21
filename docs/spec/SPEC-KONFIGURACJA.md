@@ -13,7 +13,7 @@ Użytkownik ma móc skonfigurować gateway bez zmian w kodzie:
 ### Scenariusz A — minimalna konfiguracja
 
 1. Użytkownik ustawia **co najmniej jeden** klucz providera w `.env`: `ANTHROPIC_API_KEY` **lub** `GOOGLE_API_KEY` (w środowisku **production** gateway odrzuca start bez żadnego niepustego klucza po `trim()`; w development ta reguła nie jest egzekwowana — patrz `src/config/env.validation.ts`).
-2. W configu dodaje `providerInstance=anthropic-main` i `modelAlias=chat-default`.
+2. W configu dodaje `providerInstance=anthropic` (lub `google`) z `enabled: true` i `modelAlias=chat-default`.
 3. Uruchamia serwis i wywołuje `/chat`.
 
 ### Scenariusz B — konfiguracja dwóch providerów + streaming
@@ -35,7 +35,8 @@ F-2. Plik konfiguracyjny modeli musi wspierać:
 - definicję provider instances (`type`, `apiKeyRef`),
 - definicję `modelAlias` → (`providerInstance`, `modelId`),
 - polityki (timeout, retry, allowlista parametrów, bounds),
-- capabilities (co najmniej `streaming`).
+- capabilities (co najmniej `streaming`),
+- opcjonalny **`fallback`** (alias zapasowy — walidacja bez pętli przy starcie).
 
 F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast). Plik `gateway.config.yaml` jest wczytywany i walidowany schematem Zod w `src/config/configuration.ts`.
 
