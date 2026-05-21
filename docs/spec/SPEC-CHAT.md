@@ -8,7 +8,7 @@ Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym for
 
 Gateway musi działać na poprawnie zwalidowanym środowisku: w **`NODE_ENV=production`** obowiązuje **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`), zgodnie z `src/config/env.validation.ts` i `docs/konfiguracja.md`. Ponadto wymagany jest poprawny `gateway.config.yaml` (fail‑fast przy starcie).
 
-**Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body **`params`** — zaplanowane (**Faza 5**); DTO i `openapi.json` przyjmują `modelAlias`, `messages` oraz opcjonalne **`conversationId`** (metryki Sentry — `docs/conversation-tracking.md`). **Cache odpowiedzi** dla czatu standardowego — **wdrożony** (`src/cache/`, `konfiguracja.md`).
+**Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body: `modelAlias`, `messages`, opcjonalne **`conversationId`** (metryki Sentry — `docs/conversation-tracking.md`), opcjonalne **`params`** (`temperature`, `maxOutputTokens` — merge z `policy.params` w YAML przez `resolveProviderCallOptions`, `src/chat/helpers/resolve-provider-call-options.ts`). **Cache odpowiedzi** dla czatu standardowego — **wdrożony** (`src/cache/`, klucz uwzględnia efektywne parametry wywołania — `konfiguracja.md`).
 
 ## Użytkownicy i scenariusze
 
@@ -43,7 +43,9 @@ F-1. Endpoint przyjmuje request zawierający:
 - `modelAlias` (string, wymagane),
 - `messages[]` (wymagane),
 - `conversationId` (string, opcjonalnie — w **request** włącza grupowanie Sentry; w **response** zawsze zwracane echo lub `conv_*`),
-- `params` (opcjonalnie, planowane Faza 5).
+- `params` (opcjonalnie: `temperature`, `maxOutputTokens` — tylko pola z `policy.params.allowOverrides` dla aliasu; wartości po merge obcinane do `policy.params.bounds`).
+
+F-1a. Niedozwolony override w `params` → `400` z `code=MODEL_NOT_ALLOWED` (`resolveProviderCallOptions`).
 
 F-2. `messages[]` wspiera role wyłącznie: `user`, `assistant` (rola `system` w API jest zablokowana).
 
@@ -57,7 +59,7 @@ F-5. Gateway powinien dołączyć `usage`, jeśli provider/SDK udostępnia te da
 
 F-6. Nieznany `modelAlias` → `400` z `code=MODEL_ALIAS_NOT_FOUND` (`ProviderRegistryService.resolveModelAlias`, payload zachowywany przez `GlobalExceptionFilter`).
 
-F-7. Limity DTO: `messages` — **1..50** elementów; `content` — max **3000** znaków na wiadomość (`chat-request.dto.ts`, `chat-message.dto.ts`). Nadwyżkowe pola w body → `400` (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`).
+F-7. Limity DTO: `messages` — **1..150** elementów; `content` — max **3000** znaków na wiadomość (`chat-request.dto.ts`, `chat-message.dto.ts`). Nadwyżkowe pola w body → `400` (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`).
 
 F-8. *(Opcjonalnie — cache odpowiedzi)* Gateway może zwracać zapisaną odpowiedź dla **`POST /api/v1/chat`** z polami **`cached: true`** i **`cachedAt`**, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Streaming nie podlega cache.
 
@@ -76,7 +78,7 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [x] Dla poprawnego requestu gateway zwraca `200` i spójny JSON (`ChatService.executeChat`).
 - [x] *(Cache)* Przy włączonym i dostępnym backendzie cache powtórzone identyczne żądanie `POST /api/v1/chat` może zwrócić odpowiedź z `cached: true` (szczegóły klucza: `ResponseCacheService`).
 - [x] Dla nieznanego `modelAlias` gateway zwraca `400` z `code: MODEL_ALIAS_NOT_FOUND` (bez wywołania providera).
-- [ ] Parametry są walidowane (allowlista + bounds); DTO nie przyjmuje jeszcze `params`.
+- [x] Parametry są walidowane (DTO widełki 0–2 / 1–8192, allowlista `allowOverrides`, clamp `bounds` w `resolveProviderCallOptions`; `ChatParamsDto` + `ChatRequestDto.params`).
 - [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka `x-request-id` jest **aktywna** (`RequestIdMiddleware`). Response header `x-request-id` (poza body) nie jest jeszcze ustawiany.
 - [x] Opcjonalne `conversationId` jest walidowane; do Sentry trafia tylko z requestu; w odpowiedzi echo lub `conv_*` (`ChatRequestDto`, `ChatService`, `SentryAiMetricsAdapter`).
 

@@ -27,7 +27,7 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 |------|-----------|
 | `VALIDATION_FAILED` | Body requestu lub parametry nie przeszły walidacji. |
 | `MODEL_ALIAS_NOT_FOUND` | Podany `modelAlias` nie istnieje w konfiguracji gateway. |
-| `MODEL_NOT_ALLOWED` | Model lub tryb (np. streaming) nie jest dozwolony przez policy. |
+| `MODEL_NOT_ALLOWED` | Model, tryb (np. streaming) lub pole w `params` (np. `temperature`) nie jest dozwolone przez policy (`allowOverrides`). |
 | `PROVIDER_UNSUPPORTED` | Provider wskazany w konfiguracji nie ma adaptera w kodzie. |
 | `PROVIDER_AUTH_FAILED` | Błąd uwierzytelnienia do providera (np. zły klucz). |
 | `PROVIDER_RATE_LIMITED` | Provider zwrócił limit (429) — mapowanie SDK w `provider-error.mapper.ts`. |

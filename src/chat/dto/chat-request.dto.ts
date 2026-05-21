@@ -7,10 +7,11 @@ import {
   MinLength,
   IsOptional,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 import { ChatMessageDto } from './chat-message.dto';
+import { ChatParamsDto } from './chat-params.dto';
 
 const MAX_MESSAGES = 150;
 
@@ -36,6 +37,16 @@ export class ChatRequestDto {
   @ValidateNested({ each: true })
   @Type(() => ChatMessageDto)
   messages: ChatMessageDto[];
+
+  @ApiPropertyOptional({
+    description:
+      'Optional generation overrides. Only fields listed in allowOverrides for this modelAlias are accepted.',
+    type: ChatParamsDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ChatParamsDto)
+  params?: ChatParamsDto;
 
   @ApiProperty({
     description:

@@ -134,7 +134,7 @@ ai-provider-gateway/
 
 ## 2) Opis katalogów (odpowiedzialności)
 
-- **`src/chat/`**: HTTP dla czatu standardowego i streamingu (`chat-stream.controller.ts`, SSE). Orkiestracja przez `ChatService` i rejestr providerów; podkatalog `sse/` (serializer zdarzeń).
+- **`src/chat/`**: HTTP dla czatu standardowego i streamingu (`chat-stream.controller.ts`, SSE). DTO (`chat-request.dto.ts`, `chat-params.dto.ts`, `chat-message.dto.ts`), `helpers/resolve-provider-call-options.ts`, orkiestracja `ChatService`, podkatalog `sse/` (serializer zdarzeń).
 - **`src/providers/`**: adaptery Anthropic / Google i `ProviderRegistryService`. Jedyna warstwa bezpośrednio używająca SDK vendorów.
 - **`src/config/`**: `configuration.ts` — wczytanie `gateway.config.yaml`, walidacja Zod (`GatewayConfigSchema`: m.in. jeden `type` per provider, spójność `providers` ↔ `models`), `buildEffectiveGatewayConfig` (filtr `enabled`, klucze API, aktywne modele), złożenie `gatewayKey`, `resolvedSystemPrompts`, `providers`, obiektów **`cache`** / **`redis`** z env; `configuration.types.ts` / `configuration.helpers.ts`; `env.validation.ts` — reguły env (klucze API w production, opcjonalnie **`CACHE_*`** / **`REDIS_*`**).
 - **`src/health/`**: liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready`).
@@ -155,6 +155,7 @@ ai-provider-gateway/
 
 - Fundament: config z YAML, registry, adaptery Anthropic + Google.
 - Error envelope, `RequestIdMiddleware`, gateway key + smart rate limit, mapowanie błędów SDK, system prompt z plików, cache (`noop`/`redis`), logging/metrics (w tym `conversationId` → Sentry), readiness, graceful shutdown (`main.ts`).
-- W toku (**Faza 5+**): `params` w body, `npm run config:validate`, pełny katalog aliasów modeli (dokończenie 5.6), pełne policy timeout/retry w adapterach, response header `x-request-id`.
+- W toku (**Faza 5+**): `npm run config:validate`, pełny katalog aliasów modeli (dokończenie 5.6), pełne policy timeout/retry w adapterach, response header `x-request-id`.
+- **Wdrożone (params):** `src/chat/dto/chat-params.dto.ts`, `src/chat/helpers/resolve-provider-call-options.ts`, merge w `ChatService` + klucz cache w `ResponseCacheService`.
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

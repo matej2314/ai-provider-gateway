@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Provider Gateway API",
-    "version": "0.8.3",
-    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają dekoratora **`@GatewayKeyAndSmartRateLimit()`** (`src/common/decorators/gateway-key-and-smart-rate-limit.decorator.ts`): kolejno **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek klucza: `x-gateway-key` (wysyłany jako `X-Gateway-Key`); allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** nie wymagają klucza. Błędy klucza: brak → **401** (`GATEWAY_KEY_MISSING`); odrzucony → **403** (`GATEWAY_KEY_INVALID`); pusta allowlista → **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`RATE_LIMIT_SMART_ENABLED=true`, Redis gotowy): token bucket per klucz (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY` lub `clients[].rateLimit` w YAML), limit równoległych streamów, cooldown po **429** od providera (`RATE_LIMIT_COOLDOWN_AFTER_429`) — kod **`RATE_LIMITED`** (**429**). Gdy Redis niedostępny, smart limiter degraduje się (przepuszcza). Szczegóły: `docs/konfiguracja.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** z **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`). Jawne **`code`** w payloadzie wyjątku są zachowywane; inaczej mapowanie z `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). Błędy SDK providerów mapuje `provider-error.mapper.ts`. Walidacja: komunikaty sklejane separatorem **`; `**. Słownik: `docs/dictionary.md`.\n\n**`requestId`:** **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`) — nagłówek **`x-request-id`** jeśli niepusty, inaczej `req_<uuid>`. Response header `x-request-id` nie jest ustawiany.\n\n**Cache (`POST /api/v1/chat`):** backend `noop` lub `redis` — pola **`cached`**, **`cachedAt`** przy trafieniu. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–50, `content` max 3000 znaków, opcjonalne **`conversationId`**. **Response:** zawsze `conversationId` (echo lub `conv_<uuid>`). **Sentry:** `gen_ai.conversation.id` tylko gdy klient poda `conversationId` w request (konwersacja); bez niego — span pojedynczej wiadomości. Od tury 2 z ID klient wysyła pełną historię w `messages[]`. `SENTRY_INCLUDE_PROMPTS=true` dla treści w spanach. Szczegóły: `docs/conversation-tracking.md`. `ValidationPipe` z `forbidNonWhitelisted`, limit JSON **1 MB**.\n\n**Planowane (Faza 5):** body `params`, response header `x-request-id` — `docs/dokumentacja_koncepcyjna.md`."
+    "version": "0.9.0",
+    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming (Fazy 1–2 oraz 4); providery MVP = Anthropic + Google Gemini; trwa v1 (m.in. Fazy 3 oraz 5–7). **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają dekoratora **`@GatewayKeyAndSmartRateLimit()`** (`src/common/decorators/gateway-key-and-smart-rate-limit.decorator.ts`): kolejno **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek klucza: `x-gateway-key` (wysyłany jako `X-Gateway-Key`); allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** nie wymagają klucza. Błędy klucza: brak → **401** (`GATEWAY_KEY_MISSING`); odrzucony → **403** (`GATEWAY_KEY_INVALID`); pusta allowlista → **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`RATE_LIMIT_SMART_ENABLED=true`, Redis gotowy): token bucket per klucz (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY` lub `clients[].rateLimit` w YAML), limit równoległych streamów, cooldown po **429** od providera (`RATE_LIMIT_COOLDOWN_AFTER_429`) — kod **`RATE_LIMITED`** (**429**). Gdy Redis niedostępny, smart limiter degraduje się (przepuszcza). Szczegóły: `docs/konfiguracja.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** z **`GlobalExceptionFilter`** (`src/common/filters/http-exception.filter.ts`). Jawne **`code`** w payloadzie wyjątku są zachowywane; inaczej mapowanie z `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). Błędy SDK providerów mapuje `provider-error.mapper.ts`. Walidacja: komunikaty sklejane separatorem **`; `**. Słownik: `docs/dictionary.md`.\n\n**`requestId`:** **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`) — nagłówek **`x-request-id`** jeśli niepusty, inaczej `req_<uuid>`. Response header `x-request-id` nie jest ustawiany.\n\n**Cache (`POST /api/v1/chat`):** backend `noop` lub `redis` — pola **`cached`**, **`cachedAt`** przy trafieniu. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–150, `content` max 3000 znaków, opcjonalne **`conversationId`**, opcjonalne **`params`** (`temperature`, `maxOutputTokens`) — nadpisanie tylko pól z `policy.params.allowOverrides` dla aliasu; wartości po merge obcinane do `policy.params.bounds` z YAML. **Response:** zawsze `conversationId` (echo lub `conv_<uuid>`). **Sentry:** `gen_ai.conversation.id` tylko gdy klient poda `conversationId` w request (konwersacja); bez niego — span pojedynczej wiadomości. Od tury 2 z ID klient wysyła pełną historię w `messages[]`. `SENTRY_INCLUDE_PROMPTS=true` dla treści w spanach. Szczegóły: `docs/conversation-tracking.md`. `ValidationPipe` z `forbidNonWhitelisted`, limit JSON **1 MB**.\n\n**Planowane (Faza 5):** response header `x-request-id` — `docs/dokumentacja_koncepcyjna.md`."
   },
   "servers": [
     {
@@ -80,7 +80,7 @@
         "tags": ["Chat"],
         "operationId": "postChat",
         "summary": "Chat (standard)",
-        "description": "Pełna odpowiedź JSON. `requestId` z `RequestIdMiddleware`. Parametry wywołania (`temperature`, `maxOutputTokens`) z YAML. Pole `model` = alias `modelAlias`.\n\n**`conversationId`:** w odpowiedzi zawsze (echo lub `conv_<uuid>`). W **request** opcjonalne — włącza grupowanie Sentry (`gen_ai.conversation.id`). Zalecany przepływ: tura 1 bez `conversationId` (span pojedynczej wiadomości); tura 2+ z `conversationId` z odpowiedzi tury 1 oraz **pełną** tablicą `messages[]` (user + assistant z poprzednich tur). Szczegóły: `docs/conversation-tracking.md`.\n\nOpcjonalny cache; smart rate limit / cooldown (`RATE_LIMITED`).",
+        "description": "Pełna odpowiedź JSON. `requestId` z `RequestIdMiddleware`. Parametry wywołania (`temperature`, `maxOutputTokens`): domyślnie z `policy.params.defaults` w YAML; opcjonalne **`params`** w body nadpisują dozwolone pola (`allowOverrides`) i są obcinane do `bounds`. Pole `model` = alias `modelAlias`.\n\n**`conversationId`:** w odpowiedzi zawsze (echo lub `conv_<uuid>`). W **request** opcjonalne — włącza grupowanie Sentry (`gen_ai.conversation.id`). Zalecany przepływ: tura 1 bez `conversationId` (span pojedynczej wiadomości); tura 2+ z `conversationId` z odpowiedzi tury 1 oraz **pełną** tablicą `messages[]` (user + assistant z poprzednich tur). Szczegóły: `docs/conversation-tracking.md`.\n\nOpcjonalny cache (klucz uwzględnia efektywne parametry wywołania); smart rate limit / cooldown (`RATE_LIMITED`).",
         "requestBody": {
           "required": true,
           "content": {
@@ -121,6 +121,14 @@
                       { "role": "user", "content": "A o Warszawie?" }
                     ]
                   }
+                },
+                "withParams": {
+                  "summary": "Override parametrów generacji (allowOverrides + bounds z YAML)",
+                  "value": {
+                    "modelAlias": "chat-default",
+                    "messages": [{ "role": "user", "content": "Krótko." }],
+                    "params": { "temperature": 0.7, "maxOutputTokens": 256 }
+                  }
                 }
               }
             }
@@ -149,7 +157,7 @@
             }
           },
           "400": {
-            "description": "Walidacja DTO, nieznany `modelAlias` (`MODEL_ALIAS_NOT_FOUND`), `STREAMING_NOT_SUPPORTED` (nie dotyczy tego endpointu) lub inny `400` z jawnym `code`.",
+            "description": "Walidacja DTO, nieznany `modelAlias` (`MODEL_ALIAS_NOT_FOUND`), niedozwolony override w `params` (`MODEL_NOT_ALLOWED`), `STREAMING_NOT_SUPPORTED` (nie dotyczy tego endpointu) lub inny `400` z jawnym `code`.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
@@ -179,6 +187,15 @@
                       "message": "conversationId must be longer than or equal to 1 characters",
                       "requestId": "req_01H...",
                       "details": []
+                    }
+                  },
+                  "paramNotAllowed": {
+                    "value": {
+                      "statusCode": 400,
+                      "code": "MODEL_NOT_ALLOWED",
+                      "message": "Parameter temperature is not allowed for this model alias",
+                      "requestId": "req_01H...",
+                      "details": [{ "field": "params.temperature", "allowOverrides": [] }]
                     }
                   }
                 }
@@ -308,6 +325,14 @@
                     "messages": [{ "role": "user", "content": "Powiedz coś krótko." }],
                     "conversationId": "conv_stream_abc123"
                   }
+                },
+                "withParams": {
+                  "summary": "Override parametrów (jak POST /chat)",
+                  "value": {
+                    "modelAlias": "chat-default",
+                    "messages": [{ "role": "user", "content": "Powiedz coś krótko." }],
+                    "params": { "temperature": 0.5, "maxOutputTokens": 512 }
+                  }
                 }
               }
             }
@@ -328,7 +353,7 @@
             }
           },
           "400": {
-            "description": "Walidacja DTO lub błąd domenowy z `validateForStreaming` (przed SSE) — JSON `ErrorEnvelope`.",
+            "description": "Walidacja DTO, niedozwolony override w `params` (`MODEL_NOT_ALLOWED`) lub błąd domenowy z `validateForStreaming` (przed SSE) — JSON `ErrorEnvelope`.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
@@ -337,7 +362,7 @@
                     "value": {
                       "statusCode": 400,
                       "code": "VALIDATION_FAILED",
-                      "message": "messages must contain no more than 50 elements",
+                      "message": "messages must contain no more than 150 elements",
                       "requestId": "req_01H...",
                       "details": []
                     }
@@ -470,6 +495,24 @@
           "content": { "type": "string", "maxLength": 3000 }
         }
       },
+      "ChatParams": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2,
+            "description": "Override; dozwolone tylko gdy alias ma `temperature` w `policy.params.allowOverrides`."
+          },
+          "maxOutputTokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8192,
+            "description": "Override; dozwolone tylko gdy alias ma `maxOutputTokens` w `allowOverrides`."
+          }
+        }
+      },
       "ChatRequest": {
         "type": "object",
         "additionalProperties": false,
@@ -479,7 +522,7 @@
           "messages": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 50,
+            "maxItems": 150,
             "items": { "$ref": "#/components/schemas/ChatMessage" }
           },
           "conversationId": {
@@ -487,6 +530,9 @@
             "minLength": 1,
             "description": "Opcjonalny identyfikator sesji. **W request:** gdy podany, spany LLM w Sentry dostają `gen_ai.conversation.id` i grupują się w Explore → Conversations; wymaga powtarzania tego samego ID oraz pełnej historii w `messages[]` (w tym wcześniejsze tury user/assistant). **Gdy pominięty w request:** Sentry loguje pojedynczą wiadomość (bez conversation.id); gateway i tak zwraca nowe `conv_<uuid>` w odpowiedzi do adopcji od następnej tury. Zob. `docs/conversation-tracking.md`.",
             "example": "conv_123e4567-e89b-12d3-a456-426614174000"
+          },
+          "params": {
+            "$ref": "#/components/schemas/ChatParams"
           }
         }
       },
@@ -541,7 +587,7 @@
       "ChatResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "provider", "model", "output", "requestId"],
+        "required": ["id", "provider", "model", "output", "requestId", "conversationId"],
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "provider": { "type": "string", "minLength": 1 },

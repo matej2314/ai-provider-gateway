@@ -51,9 +51,13 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 **Stan kodu (`openapi.json`):** envelope **`ErrorEnvelope`** z `GlobalExceptionFilter` (`APP_FILTER` w `AppModule`). Jawne **`code`** z payloadu wyjątku (guardy, `RATE_LIMITED`, kody z `provider-error.mapper.ts`); inaczej `DEFAULT_HTTP_STATUS_TO_CODE`. `requestId` z **`RequestIdMiddleware`** lub z payloadu wyjątku.
 
+## Parametry generacji (`params` w body)
+
+**Stan kodu:** opcjonalne **`params`** (`temperature`, `maxOutputTokens`) w `ChatRequestDto`; merge z `policy.params` w YAML (`defaults`, `allowOverrides`, `bounds`) w `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`); ten sam kontrakt dla standard i stream. Niedozwolony override → **`MODEL_NOT_ALLOWED`** (400). Klucz cache uwzględnia efektywne parametry (`ResponseCacheService`).
+
 ## Rozszerzenia (Faza 5 i dalsze)
 
-Parametry **`params`** w body, skrypt `npm run config:validate`, nagłówek odpowiedzi `x-request-id` oraz pełniejsze wykorzystanie policy w adapterach — `dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`. Słownik kodów (`dictionary.md`) obejmuje też kody na przyszłe scenariusze (np. `MODEL_NOT_ALLOWED`).
+Skrypt `npm run config:validate`, nagłówek odpowiedzi `x-request-id` oraz pełniejsze wykorzystanie policy (`timeoutMs`, `retry`) w adapterach — `dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`.
 
 **Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED` są już emitowane w payloadach wyjątków i zachowywane przez `GlobalExceptionFilter`.
 
@@ -66,13 +70,13 @@ Parametry **`params`** w body, skrypt `npm run config:validate`, nagłówek odpo
 
 ## Walidacja
 
-- Walidacja DTO na brzegu (`ValidationPipe`: m.in. `messages` 1–50, `content` max 3000 znaków, opcjonalne `conversationId` min. 1 znak, `forbidNonWhitelisted`).
+- Walidacja DTO na brzegu (`ValidationPipe`: m.in. `messages` 1–150, `content` max 3000 znaków, opcjonalne `conversationId` min. 1 znak, opcjonalne zagnieżdżone `params`, `forbidNonWhitelisted`).
 - Limit rozmiaru JSON body: **1 MB** (`express.json` w `main.ts`).
 - Walidacja konfiguracji przy starcie (fail‑fast) i w runtime (np. unknown `modelAlias` → błąd deterministyczny z kodem `MODEL_ALIAS_NOT_FOUND` przy `POST /chat`).
 
 ## Idempotencja i retry
 
-- Standardowy chat nie jest idempotentny w sensie biznesowym (ten sam request może generować różną odpowiedź), **chyba że** zadziała warstwa cache dla **`POST /api/v1/chat`** — wtedy identyczny payload (włącznie z wpływem na klucz cache: `modelAlias`, `messages`, warstwy system promptu) może zwrócić wcześniejszą odpowiedź z **`cached: true`** (`ResponseCacheService`, `konfiguracja.md`).
+- Standardowy chat nie jest idempotentny w sensie biznesowym (ten sam request może generować różną odpowiedź), **chyba że** zadziała warstwa cache dla **`POST /api/v1/chat`** — wtedy identyczny payload (klucz cache: `modelAlias`, `messages`, sygnatura system promptu, efektywne `temperature` / `maxOutputTokens`) może zwrócić wcześniejszą odpowiedź z **`cached: true`** (`ResponseCacheService`, `konfiguracja.md`).
 - Retry po stronie gateway jest ograniczony do błędów “bezpiecznych” (np. 429/5xx) i kontrolowany polityką w konfiguracji.
 
 ## CORS / Auth

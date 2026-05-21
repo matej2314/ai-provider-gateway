@@ -6,7 +6,7 @@ Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.
 
 1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
 2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
-3. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 (Faza 5: `params` w body, `config:validate`; dalsze rozszerzenia kontraktu). **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`**, **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`), logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). Kody domenowe w payloadzie wyjątku są zachowywane przez filtr.
+3. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 (Faza 5: m.in. `config:validate`, response header `x-request-id`; dalsze rozszerzenia kontraktu). **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`**, **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`), **`params` w body** (`ChatParamsDto`, `resolveProviderCallOptions`), logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). Kody domenowe w payloadzie wyjątku są zachowywane przez filtr.
 4. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
 5. **System prompt po stronie serwera** — wdrożony w kodzie (DTO + `ChatService` + `configuration.ts` + `openapi.json` + `konfiguracja.md` / `architektura.md`).
 6. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
@@ -83,13 +83,15 @@ Część pól policy (timeout, retry per YAML) nie jest jeszcze w pełni wykorzy
 
 ### Request body
 
-Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 50** wiadomości), każda wiadomość: **`role`** ∈ `{user, assistant}`, **`content`** string **do 3000** znaków (`src/chat/dto/chat-request.dto.ts`, `chat-message.dto.ts`). Opcjonalnie **`conversationId`** (niepusty string): w **request** włącza grupowanie Sentry (`gen_ai.conversation.id`); bez niego span = pojedyncza wiadomość. Od **drugiej tury** z `conversationId` klient powinien wysłać **pełną** historię w `messages[]` (w tym wcześniejszą odpowiedź `assistant`). Szczegóły: **`conversation-tracking.md`**. Bez **`params`** (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Limit body: **1 MB**.
+Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 150** wiadomości), każda wiadomość: **`role`** ∈ `{user, assistant}`, **`content`** string **do 3000** znaków (`src/chat/dto/chat-request.dto.ts`, `chat-message.dto.ts`). Opcjonalnie **`conversationId`** (niepusty string): w **request** włącza grupowanie Sentry (`gen_ai.conversation.id`); bez niego span = pojedyncza wiadomość. Od **drugiej tury** z `conversationId` klient powinien wysłać **pełną** historię w `messages[]` (w tym wcześniejszą odpowiedź `assistant`). Szczegóły: **`conversation-tracking.md`**.
+
+Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`): zagnieżdżony obiekt z **`temperature`** (0–2) i/lub **`maxOutputTokens`** (1–8192). Wartości efektywne = merge **`policy.params.defaults`** z YAML ← nadpisanie z body tylko dla pól w **`allowOverrides`**; po merge **clamp** do **`bounds`** (`resolveProviderCallOptions`). Niedozwolone pole w body → **`400`** + **`MODEL_NOT_ALLOWED`**. Nadwyżkowe pola w body → **`400`** (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Limit body: **1 MB**.
 
 ### Response (`200`)
 
 `ChatService.executeChat`: `id`, `provider`, `model`, `output`, `usage` (opcjonalnie, zależnie od adaptera), `requestId`, **`conversationId`** (echo z body lub `conv_<uuid>` wygenerowane przez gateway — `conversation-tracking.md`).
 
-**Cache (opcjonalny):** gdy backend cache jest dostępny (`ResponseCacheService` + `CACHE_ENABLED` / `CACHE_BACKEND` — `konfiguracja.md`), przed wywołaniem providera wykonywany jest lookup; przy trafieniu zwracany jest zapisany JSON z **`cached: true`** oraz **`cachedAt`** (timestamp ISO). W przeciwnym razie po udanym wywołaniu providera odpowiedź jest zapisywana pod kluczem zależnym m.in. od `modelAlias`, treści `messages` i sygnatury warstw system promptu (SHA-256). **Streaming nie jest cache’owany.**
+**Cache (opcjonalny):** gdy backend cache jest dostępny (`ResponseCacheService` + `CACHE_ENABLED` / `CACHE_BACKEND` — `konfiguracja.md`), przed wywołaniem providera wykonywany jest lookup; przy trafieniu zwracany jest zapisany JSON z **`cached: true`** oraz **`cachedAt`** (timestamp ISO). W przeciwnym razie po udanym wywołaniu providera odpowiedź jest zapisywana pod kluczem zależnym m.in. od `modelAlias`, treści `messages`, sygnatury warstw system promptu (SHA-256) oraz **efektywnych** parametrów wywołania (`temperature`, `maxOutputTokens` po merge). **Streaming nie jest cache’owany.**
 
 Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi standardowej, jak i w SSE (`meta.model`) — vendorowy `modelId` nie jest zwracany w żadnej odpowiedzi (`ChatService.executeChat` i `ChatService.executeStream` zwracają `requestBody.modelAlias`).
 
@@ -98,7 +100,7 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 | HTTP | Kiedy |
 |------|--------|
 | 200 | Sukces |
-| 400 | Walidacja DTO (m.in. pusty `conversationId` → `VALIDATION_FAILED`); nieznany `modelAlias` → zwykle `code: MODEL_ALIAS_NOT_FOUND` (`ProviderRegistryService`); inne `BadRequestException` mogą nadpisać `code` |
+| 400 | Walidacja DTO (m.in. pusty `conversationId` → `VALIDATION_FAILED`); nieznany `modelAlias` → `MODEL_ALIAS_NOT_FOUND`; niedozwolony override w `params` → `MODEL_NOT_ALLOWED` (`resolveProviderCallOptions`); inne `BadRequestException` mogą nadpisać `code` |
 | 401 | Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`) |
 | 403 | Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`) |
 | 429 | Smart rate limit / cooldown (`RATE_LIMITED`) lub limit providera (`PROVIDER_RATE_LIMITED`) |
@@ -144,7 +146,7 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 
 1. Używaj **`openapi.json`** do generatorów i integracji (w tym **`securitySchemes.GatewayKeyAuth`** dla czatu).
 2. Do **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** dołącz nagłówek **`X-Gateway-Key`** z wartością operatora (allowlista — `konfiguracja.md`).
-3. Nie wysyłaj **`params`** w body — nie są częścią DTO (konfiguracja aliasu w YAML dostarcza domyślne wartości używane w serwisie).
+3. **`params`** w body są opcjonalne — bez nich używane są wyłącznie `policy.params.defaults` z YAML; override wymaga wpisu pola w `allowOverrides` dla aliasu (`konfiguracja.md`).
 4. Przy włączonym cache powtórzone **`POST /api/v1/chat`** z tym samym body mogą zwrócić odpowiedź z **`cached: true`** bez wywołania providera (`konfiguracja.md`).
 5. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator gateway w plikach `src/config/system-prompt/`.
 6. Przy streamingu składaj tekst z kolejnych `delta`; `done` nie niesie metryk tokenów w obecnej wersji.

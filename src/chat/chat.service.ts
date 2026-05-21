@@ -7,6 +7,7 @@ import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.servic
 import { v4 as uuidv4 } from 'uuid';
 import type { ResolvedSystemPrompts } from '../config/configuration.types';
 import { ProviderRegistryService } from '../providers/provider-registry.service';
+import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
 import type {
   ProviderCallOptions,
   ProviderChatTurn,
@@ -180,20 +181,11 @@ export class ChatService {
     const responseConversationId =
       this.getOrCreateConversationIdForResponse(requestBody);
 
-    const cachedResponse =
-      await this.cacheService.getCachedResponse(requestBody);
-
-    if (
-      cachedResponse &&
-      this.isCachedChatAllowedForModelAlias(requestBody.modelAlias)
-    ) {
-      log.info('Chat cache hit');
-      return cachedResponse;
-    }
-
     const { provider, providerName, modelId, params } = this.registry.resolve(
       requestBody.modelAlias,
     );
+
+    const options = resolveProviderCallOptions(params, requestBody.params);
 
     if (gatewayKey) {
       const cooldownResult = await this.rateLimiter.checkCooldown(
@@ -219,14 +211,22 @@ export class ChatService {
           429,
         );
       }
+
+      const cachedResponse = await this.cacheService.getCachedResponse(
+        requestBody,
+        options,
+      );
+
+      if (
+        cachedResponse &&
+        this.isCachedChatAllowedForModelAlias(requestBody.modelAlias)
+      ) {
+        log.info('Chat cache hit');
+        return cachedResponse;
+      }
     }
 
     const providerInput = this.buildProviderInput(requestBody);
-
-    const options: ProviderCallOptions = {
-      temperature: params?.defaults?.temperature ?? undefined,
-      maxOutputTokens: params?.defaults?.maxOutputTokens ?? undefined,
-    };
 
     try {
       const startedAt = Date.now();
@@ -267,7 +267,7 @@ export class ChatService {
 
       const latency = Date.now() - startedAt;
 
-      await this.cacheService.setCachedResponse(requestBody, result);
+      await this.cacheService.setCachedResponse(requestBody, result, options);
       log.info('Chat completed successfully', {
         provider: providerName,
         modelId,
@@ -374,10 +374,10 @@ export class ChatService {
 
     const providerInput = this.buildProviderInput(requestBody);
 
-    const options: ProviderCallOptions = {
-      temperature: params?.defaults?.temperature ?? undefined,
-      maxOutputTokens: params?.defaults?.maxOutputTokens ?? undefined,
-    };
+    const options: ProviderCallOptions = resolveProviderCallOptions(
+      params,
+      requestBody.params,
+    );
 
     const id = `gw_${uuidv4()}`;
 

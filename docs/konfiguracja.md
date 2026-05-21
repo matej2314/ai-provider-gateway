@@ -140,7 +140,7 @@ Uwagi:
   - każda instancja providera z **`enabled !== false`** (w praktyce w YAML ustaw **`enabled: true`** dla providerów używanych w runtime; pominięte `enabled` → po parsowaniu Zod domyślnie **`false`**, wtedy instancja jest wyłączona) musi mieć **co najmniej jeden** alias w `models` z tym samym `providerInstance`;
   - po filtrze `enabled` funkcja `buildEffectiveGatewayConfig` ponownie wymusza, że każdy **aktywny** provider ma ≥1 **aktywny** model (modele powiązane z providerem `enabled: false` są pomijane z ostrzeżeniem w logu).
   - Instancja z **`enabled: false`** **nie wymaga** wpisów w `models` (może pozostać w YAML jako wyłączona rezerwa).
-- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane, ale **adaptery nie korzystają z nich w pełni** — część parametrów pochodzi ze stałych w kodzie adaptera lub wyłącznie z `policy.params.defaults` w `ChatService`; kierunek dopięcia: `dokumentacja_koncepcyjna.md`, `spec/SPEC-PROVIDERS.md`.
+- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`policy.params`** (`defaults`, `allowOverrides`, `bounds`) jest używana w runtime przez `resolveProviderCallOptions` (merge z opcjonalnym `params` w body). **`timeoutMs`** i **`retry`** z YAML nie są jeszcze w pełni mapowane w adapterach — kierunek dopięcia: `dokumentacja_koncepcyjna.md`, `spec/SPEC-PROVIDERS.md`.
 
 ## 3) Walidacja i fail-fast
 
@@ -171,7 +171,9 @@ Wpis w `package.json` istnieje (`"config:validate": ""`), ale **komenda jest na 
 
 ## 4) Nadpisywanie parametrów per request
 
-**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–50** elementów, `content` do **3000** znaków na wiadomość) oraz opcjonalne **`conversationId`**: w **response** zawsze echo lub `conv_*`; w **request** włącza `gen_ai.conversation.id` w Sentry (konwersacja od drugiej tury — pełna historia w `messages[]`) — `conversation-tracking.md`. Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`. Domyślne **temperature** / **maxOutputTokens** dla wywołania pochodzą z **`policy.params.defaults`** w YAML (użycie w `ChatService`). Opcjonalne **`params` w body** jest zaplanowane (**Faza 5**): allowlista, bounds, mapowanie na SDK.
+**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** (w **response** zawsze echo lub `conv_*`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation-tracking.md`) oraz opcjonalne zagnieżdżone **`params`** (`temperature`, `maxOutputTokens`). Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
+
+**Merge parametrów:** `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`) bierze `policy.params` z YAML dla aliasu, nakłada body `params` tylko dla pól z **`allowOverrides`**, następnie **clamp** do **`bounds`**. Niedozwolone pole → HTTP **400** + `MODEL_NOT_ALLOWED`. Efektywne wartości trafiają do adapterów (`ProviderCallOptions`) i do klucza cache (`ResponseCacheService`).
 
 Szczegóły: `dokumentacja_api.md`, `openapi.json`.
 

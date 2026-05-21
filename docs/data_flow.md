@@ -10,11 +10,11 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 |-------|-----------|
 | **Klient** | Dowolny klient HTTP (aplikacja, serwis, BFF). |
 | **HTTP** | Kontroler + walidacja DTO + odpowiedź. |
-| **ChatService** | Resolve aliasu, składanie system promptu z konfiguracji, mapowanie `messages[]` na `user|assistant`, wywołanie adaptera. |
+| **ChatService** | Resolve aliasu, `resolveProviderCallOptions` (YAML + opcjonalne `params` z body), składanie system promptu z konfiguracji, mapowanie `messages[]` na `user|assistant`, wywołanie adaptera. |
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na adapter + `modelId`. |
 | **Provider** | Adapter Anthropic / Google. |
 | **LLM API** | Zewnętrzny serwis providera. |
-| **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha treści + warstw system promptu); brak wpływu na streaming. |
+| **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha: `modelAlias`, `messages`, sygnatura system promptu, efektywne parametry wywołania); brak wpływu na streaming. |
 | **Metrics** | `MetricsService` + Sentry/noop — span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId`; `messages[]` → atrybuty input/output przy `SENTRY_INCLUDE_PROMPTS` (`conversation-tracking.md`). |
 
 ---
@@ -60,21 +60,22 @@ sequenceDiagram
   participant P as Provider Adapter
   participant A as LLM API
 
-  K->>+H: POST /api/v1/chat (modelAlias, messages, conversationId?)
+  K->>+H: POST /api/v1/chat (modelAlias, messages, conversationId?, params?)
   H->>H: walidacja DTO
   H->>+S: executeChat
   S->>S: conversationId response (echo/conv_*) + metrics ID tylko z body
-  S->>C: getCachedResponse
+  S->>+R: resolve(modelAlias)
+  R-->>-S: adapter + policy.params
+  S->>S: resolveProviderCallOptions(policy, body.params)
+  S->>C: getCachedResponse (z efektywnymi params)
   alt trafienie w cache
     C-->>S: JSON (z cached/cachedAt)
     S-->>H: odpowiedź
   else brak wpisu
     S->>S: checkCooldown (opcjonalnie, smart limit)
     S->>S: composeSystemPrompt + toProviderTurns
-    S->>+R: resolve(modelAlias)
-    R-->>-S: adapter + providerName + modelId
     S->>+M: observeLlmCall (conversationId? + messages[])
-    M->>+P: complete(input, modelId)
+    M->>+P: complete(input, modelId, options)
     P->>+A: request do providera
     A-->>-P: response
     P-->>-M: ProviderChatResponse
@@ -85,13 +86,13 @@ sequenceDiagram
   H-->>-K: 200 JSON (+ conversationId)
 ```
 
-**Uwagi:** body **`params`** nie jest częścią DTO — wartości wyjścia pochodzą z konfiguracji aliasu (`gateway.config.yaml`). Odpowiedź z cache zawiera **`cached: true`** i **`cachedAt`**; pole **`requestId`** pochodzi z żądania zapisanej w cache (nie jest nadpisywane na nowe ID per request).
+**Uwagi:** opcjonalne **`params`** w body są scalane z `policy.params` w YAML (`resolveProviderCallOptions`) przed cache i wywołaniem providera. Odpowiedź z cache zawiera **`cached: true`** i **`cachedAt`**; pole **`requestId`** pochodzi z żądania zapisanej w cache (nie jest nadpisywane na nowe ID per request). Błąd **`MODEL_NOT_ALLOWED`** może powstać już po `resolve`, przed wywołaniem LLM.
 
 ---
 
 ## 2. Standard `POST /api/v1/chat` — błąd
 
-Odpowiedzi JSON błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polami `{statusCode, code, message, requestId, details?}` — `GlobalExceptionFilter` (global). **`code`** pochodzi z payloadu wyjątku (m.in. auth brzegowy) lub z domyślnego mapowania statusu; pełne rozróżnienie wszystkich przypadków z `dictionary.md` — **Faza 5** (Krok 5.1b).
+Odpowiedzi JSON błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polami `{statusCode, code, message, requestId, details?}` — `GlobalExceptionFilter` (global). **`code`** pochodzi z payloadu wyjątku (m.in. auth brzegowy, `MODEL_NOT_ALLOWED`, `MODEL_ALIAS_NOT_FOUND`) lub z domyślnego mapowania statusu; pełny słownik: `dictionary.md`.
 
 ```mermaid
 sequenceDiagram

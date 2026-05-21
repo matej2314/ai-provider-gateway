@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
 Wersja dokumentu: **1.0**.  
-**OpenAPI:** `openapi.json` (v0.8.2) — zsynchronizowany z `src/` (health liveness/readiness, smart rate limit, limity DTO, cache, SSE). Envelope `ErrorEnvelope` (`GlobalExceptionFilter`) + **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`). **Czat:** `@GatewayKeyAndSmartRateLimit()` → `GatewayKeyGuard` + `SmartRateLimitGuard` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). Opcjonalny smart rate limit: `RATE_LIMIT_SMART_ENABLED`, Redis — `konfiguracja.md`. **Faza 5** (body `params`, `config:validate`): `dokumentacja_koncepcyjna.md`. **Cache:** `src/cache/` — tylko `POST /chat` standardowy.
+**OpenAPI:** `openapi.json` (v0.9.0) — zsynchronizowany z `src/` (health liveness/readiness, smart rate limit, limity DTO, opcjonalne `params`, cache, SSE). Envelope `ErrorEnvelope` (`GlobalExceptionFilter`) + **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`). **Czat:** `@GatewayKeyAndSmartRateLimit()` → `GatewayKeyGuard` + `SmartRateLimitGuard` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). Opcjonalny smart rate limit: `RATE_LIMIT_SMART_ENABLED`, Redis — `konfiguracja.md`. **Faza 5 (pozostałość):** `config:validate`, response header `x-request-id` — `dokumentacja_koncepcyjna.md`. **Cache:** `src/cache/` — tylko `POST /chat` standardowy (klucz z efektywnymi parametrami wywołania).
 
 ## Konwencje globalne
 
@@ -37,12 +37,12 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + 
 
 ### `POST /api/v1/chat`
 
-Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAndSmartRateLimit()`. Body: `modelAlias`, `messages`, opcjonalnie **`conversationId`** (Sentry: konwersacja tylko w request; response zawsze z ID — `conversation-tracking.md`).
+Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAndSmartRateLimit()`. Body: `modelAlias`, `messages`, opcjonalnie **`conversationId`** (Sentry: konwersacja tylko w request; response zawsze z ID — `conversation-tracking.md`), opcjonalnie **`params`** (`temperature`, `maxOutputTokens` — `resolveProviderCallOptions`).
 
 | | |
 |--|--|
 | **200** | odpowiedź gateway (`dokumentacja_api.md`); **`conversationId`** w body; opcjonalnie **`cached: true`**, **`cachedAt`** |
-| **400** | walidacja DTO (m.in. pusty `conversationId`); `MODEL_ALIAS_NOT_FOUND`; inne jawne `code` |
+| **400** | walidacja DTO (m.in. pusty `conversationId`); `MODEL_ALIAS_NOT_FOUND`; `MODEL_NOT_ALLOWED` (niedozwolony override w `params`); inne jawne `code` |
 | **401** | brak `X-Gateway-Key` — `GATEWAY_KEY_MISSING` |
 | **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |
 | **429** | `RATE_LIMITED` (smart limit / cooldown) lub `PROVIDER_RATE_LIMITED` (upstream) |

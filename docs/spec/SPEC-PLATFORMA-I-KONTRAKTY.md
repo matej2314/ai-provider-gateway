@@ -13,7 +13,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 - zasady uwierzytelnienia na brzegu (gateway key),
 - zasady logowania (bez sekretów).
 
-**Stan implementacji (skrót):** **`openapi.json`** (v0.8.0): czat, SSE, health liveness/readiness, `cached`/`cachedAt`, **`RATE_LIMITED`**. **`GlobalExceptionFilter`** (`AppModule`) + **`RequestIdMiddleware`**. Czat: **`@GatewayKeyAndSmartRateLimit()`** (klucz + opcjonalny smart limit). Mapowanie błędów SDK: `provider-error.mapper.ts`. Faza 5: body `params`, response header `x-request-id` — `dokumentacja_koncepcyjna.md`.
+**Stan implementacji (skrót):** **`openapi.json`** (v0.9.0): czat, SSE, health liveness/readiness, opcjonalne `params`, `cached`/`cachedAt`, **`RATE_LIMITED`**, **`MODEL_NOT_ALLOWED`**. **`GlobalExceptionFilter`** (`AppModule`) + **`RequestIdMiddleware`**. Czat: **`@GatewayKeyAndSmartRateLimit()`** (klucz + opcjonalny smart limit). Mapowanie błędów SDK: `provider-error.mapper.ts`. Faza 5 (pozostałość): `config:validate`, response header `x-request-id` — `dokumentacja_koncepcyjna.md`.
 
 ## Użytkownicy i scenariusze
 
