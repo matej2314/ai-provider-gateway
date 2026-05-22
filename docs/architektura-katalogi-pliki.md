@@ -222,7 +222,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
 | **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekorator guardów, typy Express. |
 | **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). |
-| **`src/guards/`**, **`src/rate-limit/`** | `X-Gateway-Key` + smart limiting (Redis); `RateLimitModule` w `AppModule` — bez `@nestjs/throttler`. |
+| **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez `RateLimitModule` → `RedisCacheModule`. |
 | **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |
 | **`src/health/`** | Liveness i readiness. |
 | **`scripts/`** | Walidacja konfiguracji offline (w przygotowaniu). |
@@ -233,13 +233,15 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 
 ## 3) Stan wdrożenia vs dokumentacja
 
-**Wdrożone w kodzie** (porównuj z `openapi.json`):
+**Wdrożone w kodzie** (porównuj z `openapi.json` i `src/`):
 
-- Config z YAML, registry, adaptery Anthropic + Google.
-- Czat standard + SSE, `params`, retry/fallback/`effectiveModelAlias`.
-- Error envelope, `RequestIdMiddleware`, gateway key + smart rate limit.
-- System prompt z plików (`helpers/system-prompt.ts`), cache (`noop`/`redis`), logging/metrics, readiness, graceful shutdown.
+- Config z YAML (`gateway.config.yaml` w repo: aliasy `chat-default`, `claude-sonnet`, `gemini-flash`; klienci `webapp`, `ide-plugin`), registry, adaptery Anthropic + Google.
+- Czat standard + SSE, `params`, retry/fallback/`effectiveModelAlias` (`ResilientExecutor`).
+- Error envelope (`GlobalExceptionFilter`), kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
+- `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
+- Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
+- System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.cache`), graceful shutdown.
 
-**W toku (Faza 5+):** pełna implementacja `npm run config:validate`, response header `x-request-id`.
+**Pozostałość v1:** `npm run config:validate` (placeholder w `scripts/validate-config.ts`), opcjonalnie CORS.
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

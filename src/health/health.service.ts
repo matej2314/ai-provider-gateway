@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CacheRegistryService } from 'src/cache/cache-registry.service';
 
-export interface HealtCheckResult {
+export interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';
   message: string;
 }
@@ -40,7 +40,7 @@ export class HealthService {
     };
   }
 
-  private checkConfig(): HealtCheckResult {
+  private checkConfig(): HealthCheckResult {
     const hasGatewayConfig = !!this.config.get('gateway');
     const hasResolvedPrompts = !!this.config.get('resolvedSystemPrompts');
 
@@ -57,7 +57,7 @@ export class HealthService {
     };
   }
 
-  private checkCache(): HealtCheckResult {
+  private checkCache(): HealthCheckResult {
     const cacheConfig = this.config.get<{
       enabled?: boolean;
       backend?: string;

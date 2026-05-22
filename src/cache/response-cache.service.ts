@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { ChatRequestDto } from '../chat/dto/chat-request.dto';
@@ -6,6 +6,7 @@ import type { CacheBackend } from './interfaces/cache-backend-interface';
 import type { ResolvedSystemPrompts } from 'src/config/configuration.types';
 import { CACHE_BACKEND } from './cache.tokens';
 import { ProviderCallOptions } from 'src/providers/interfaces/ai-provider.interface';
+import { LoggingService } from 'src/logging/logging.service';
 
 export interface CachedChatResponse {
   id: string;
@@ -26,12 +27,18 @@ export interface CachedChatResponse {
 
 @Injectable()
 export class ResponseCacheService {
-  private readonly logger = new Logger(ResponseCacheService.name);
+  private readonly logger: LoggingService;
 
   constructor(
     @Inject(CACHE_BACKEND) private readonly cache: CacheBackend,
     private readonly config: ConfigService,
-  ) {}
+    private readonly loggingService: LoggingService,
+  ) {
+    const logger = this.loggingService.child({
+      module: 'ResponseCacheService',
+    });
+    this.logger = logger;
+  }
 
   private generateCacheKey(
     request: ChatRequestDto,
@@ -81,13 +88,13 @@ export class ResponseCacheService {
 
     try {
       const parsed = JSON.parse(cached) as CachedChatResponse;
-      this.logger.log(`Cache HIT for key: ${key}`);
+      this.logger.info(`Cache HIT for key: ${key}`);
       return parsed;
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error(
         `Failed to parse cached response for key: ${key}:`,
-        message,
+        err,
       );
       await this.cache.delete(key);
       return null;
@@ -132,7 +139,7 @@ export class ResponseCacheService {
     const success = await this.cache.delete(key);
 
     if (success) {
-      this.logger.log(`Cache invalidated for key: ${key}`);
+      this.logger.info(`Cache invalidated for key: ${key}`);
     }
   }
 }

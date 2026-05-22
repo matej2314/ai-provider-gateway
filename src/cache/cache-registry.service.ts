@@ -1,13 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
+import { LoggingService } from 'src/logging/logging.service';
 
 @Injectable()
 export class CacheRegistryService {
-  private readonly logger = new Logger(CacheRegistryService.name);
   private readonly backends = new Map<string, CacheBackend>();
-
-  constructor(private readonly config: ConfigService) {}
+  private readonly logger: LoggingService;
+  constructor(
+    private readonly config: ConfigService,
+    private readonly loggingService: LoggingService,
+  ) {
+    const logger = this.loggingService.child({
+      module: 'CacheRegistryService',
+    });
+    this.logger = logger;
+  }
 
   register(backendId: string, backend: CacheBackend): void {
     this.backends.set(backendId.toLowerCase(), backend);

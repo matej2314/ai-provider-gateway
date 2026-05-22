@@ -27,19 +27,19 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 - **Status projektu:** Rdzeń **MVP** (routing + chat + streaming) domknięty w Fazach 1–2 oraz 4; Faza 0 zamknięta. Trwa **v1** (m.in. Fazy 3 oraz 5–7 według tabeli w planie).
 - **Providery (MVP):** Anthropic API + Google Gemini API
 - **Cel MVP:** Działające **kierowanie zapytań do providerów** (registry / routing), działający **chat** synchroniczny (`POST /api/v1/chat`) oraz działający **streaming** (SSE / `POST /api/v1/chat/stream`).
-- **v1:** Wszystko ponadto — m.in. konfiguracja z plików (Faza 3), utwardzenie błędów i kontraktu API (Faza 5), observability (Faza 6), polish i deploy (Faza 7), oraz pozostałe elementy planu poza rdzeniem MVP.
+- **v1:** Wszystko ponadto — m.in. konfiguracja z plików (Faza 3 — wdrożona), utwardzenie kontraktu API (Faza 5 — w większości wdrożona; pozostałość: `config:validate`, CORS), observability (Faza 6 — wdrożona), polish i deploy (Faza 7), oraz pozostałe elementy planu poza rdzeniem MVP.
 
 **Podział MVP / v1:** Rdzeń MVP realizują **Fazy 1–2** oraz **4** (routing, chat, streaming). **Faza 3** i **Fazy 5–7** traktuj jako **v1** — numeracja faz jest chronologiczna w projekcie, nie równa się kolejności „MVP najpierw”.
 
 ### Stan realizacji (skrót)
 
 - **Endpoint czatu standardowego** `POST /api/v1/chat` — zaimplementowany; opcjonalnie **cache odpowiedzi** (`src/cache/`, env — `konfiguracja.md`).
-- **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; envelope `ErrorEnvelope` — **wdrożony**. **Gateway key** + opcjonalny **smart rate limit** — **wdrożony** (`@GatewayKeyAndSmartRateLimit()`). **Readiness** (`GET /api/v1/health/ready`), **logging/metrics** (Pino, Sentry), **graceful shutdown** — **wdrożone**. **`params` w body** — **wdrożone**. **Policy `timeoutMs` / `retry` + fallback aliasu** — **wdrożone** (`ResilientExecutor`, `models[].fallback` w YAML). Faza 5 (pozostałość): `config:validate`, response header `x-request-id`.
+- **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; envelope `ErrorEnvelope` — **wdrożony**. **Gateway key** + opcjonalny **smart rate limit** — **wdrożony** (`@GatewayKeyAndSmartRateLimit()`; kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** — `dictionary.md`). **Readiness**, **logging/metrics** (Pino, Sentry), **graceful shutdown** — **wdrożone** (Faza 6 w planie). **`params` w body**, **policy `timeoutMs` / `retry` + fallback**, **nagłówek odpowiedzi `x-request-id`** — **wdrożone**. **v1 (pozostałość):** `npm run config:validate` (placeholder), opcjonalnie CORS (`CORS_ORIGINS` w `.env.example` bez implementacji w kodzie).
 - **Providery** Anthropic i Google Gemini — adaptery i rejestr zaimplementowane.
 - **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie zaimplementowane (**Faza 3** w planie; wg nagłówka planu jest to część **v1**, nie rdzenia MVP). Rozszerzona walidacja grafu `providers` ↔ `models` (fail-fast) — `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` (F-3b, F-3c).
 - Klucze API w `.env`; **w production** obowiązuje **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
 - Policy z YAML: **`params`** w `resolveProviderCallOptions`; **`timeoutMs` / `retry` / `fallback`** w `ResilientExecutor` (`dokumentacja_api.md`, `konfiguracja.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego — działa.
-- Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter`). Propagacja **`x-request-id`** — **wdrożone** (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) — **wdrożone** dla Anthropic/Google. Response header `x-request-id` — **Faza 5**.
+- Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter`). **`requestId`**: propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) — **wdrożone** dla Anthropic/Google (`PROVIDER_*`); limity gateway — **`RATE_LIMITED`** (`SmartRateLimitGuard`, cooldown w `ChatService`).
 - Testy jednostkowe przy modułach (`*.spec.ts`).
 
 ## Poza zakresem (wybrane wykluczenia na start)
@@ -82,7 +82,7 @@ Zamiast zmuszać klientów do podawania vendorowego `modelId`, gateway wspiera *
 ## Kierunek rozwoju (v1 i dalej)
 
 - **System prompt po stronie serwera** — **wdrożone**: pliki w `src/config/system-prompt/`, brak roli `system` w API; szczegóły w `konfiguracja.md` i `architektura.md`.
-- **Cache / Redis** — **odpowiedzi czatu standardowego:** moduł `src/cache/` (backend `noop` / `redis`, konfiguracja env w `konfiguracja.md`). Dalszy rozwój (limity, metryki itd.): ten dokument (sekcja „Kierunek rozwoju”) oraz `spec/SPEC-KONFIGURACJA.md` / `konfiguracja.md` tam, gdzie dotyczy env.
+- **Cache / Redis** — cache odpowiedzi (`src/cache/`) i smart rate limit (`src/rate-limit/`, wspólny `RedisConnectionService` gdy Redis załadowany) — `konfiguracja.md`. Metryki LLM — `MetricsService` / Sentry (Faza 6 wdrożona).
 - OpenAI jako trzeci provider (wymaga płatnego konta API).
 - Retry/circuit‑breaker i metryki per provider.
 - “Policy packs”: profile ustawień per środowisko (dev/prod) i per alias modelu.

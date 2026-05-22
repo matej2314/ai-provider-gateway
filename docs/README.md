@@ -13,15 +13,17 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 7. Dla pracy spec‑first: katalog `spec/`.
 8. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — opis warstw i ścieżek: `konfiguracja.md`, `architektura.md`, `dokumentacja_api.md`.
 9. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`.
-10. **Smart rate limiting** (`src/rate-limit/`, Redis; bez `@nestjs/throttler`), **readiness**, **logging/metrics** — wdrożone; limity: YAML `clients[].rateLimit` lub env; szczegóły: `konfiguracja.md`, `architektura.md`.
-11. **Śledzenie rozmów (`conversationId`)** — response zawsze z ID; Sentry Conversations tylko przy ID w request (zalecany start od tury 2 + pełne `messages[]`); szczegóły: `conversation-tracking.md`.
-12. **Parametry generacji (`params`)** — opcjonalne `temperature` / `maxOutputTokens` w body; merge z `policy.params` w YAML (`resolveProviderCallOptions`); szczegóły: `konfiguracja.md`, `dokumentacja_api.md`.
-13. **Odporność (retry, timeout, fallback)** — `ResilientExecutor` + `models[].fallback` w YAML; opcjonalne `effectiveModelAlias` w odpowiedzi; szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
-14. **Moduł czatu** — `ChatService` (cache, limity, odpowiedź gateway) + `ChatProviderCallService` (adaptery, metryki, SSE); helpery w `src/chat/helpers/` — `architektura-katalogi-pliki.md`, `data_flow.md`.
+10. **Smart rate limiting** (`src/rate-limit/`, Redis; bez `@nestjs/throttler`), kody błędów **`RATE_LIMITED`** vs **`PROVIDER_RATE_LIMITED`** — `dictionary.md`; limity: YAML `clients[].rateLimit` lub env; szczegóły: `konfiguracja.md`, `architektura.md`.
+11. **Request ID** — propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`).
+12. **Observability** — logging/metrics (Pino, Sentry), readiness, graceful shutdown — `architektura.md`.
+13. **Śledzenie rozmów (`conversationId`)** — response zawsze z ID; Sentry Conversations tylko przy ID w request (zalecany start od tury 2 + pełne `messages[]`); szczegóły: `conversation-tracking.md`.
+14. **Parametry generacji (`params`)** — opcjonalne `temperature` / `maxOutputTokens` w body; merge z `policy.params` w YAML (`resolveProviderCallOptions`); szczegóły: `konfiguracja.md`, `dokumentacja_api.md`.
+15. **Odporność (retry, timeout, fallback)** — `ResilientExecutor` + `models[].fallback` w YAML; opcjonalne `effectiveModelAlias` w odpowiedzi; szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
+16. **Moduł czatu** — `ChatService` (cache, limity, odpowiedź gateway) + `ChatProviderCallService` (adaptery, metryki, SSE); helpery w `src/chat/helpers/` — `architektura-katalogi-pliki.md`, `data_flow.md`.
 
 ## Spis plików
 
-- `../openapi.json` *(w katalogu głównym repo, v0.11.1)* — OpenAPI 3.1: kontrakt REST zsynchronizowany z kodem (czat, `ChatProviderCallService`, `params`, retry/fallback/`effectiveModelAlias`, smart rate limit `src/rate-limit/`, `securitySchemes.GatewayKeyAuth`, streaming SSE, health, `ErrorEnvelope`).
+- `../openapi.json` *(w katalogu głównym repo, v0.11.1)* — OpenAPI 3.1: kontrakt REST (czat, SSE, health, `ErrorEnvelope`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`, smart rate limit, cache). **Uwaga:** opis w `info` w pliku może wyprzedzać kod — źródło prawdy dla zachowania: `src/` + ten katalog `docs/`.
 - `dokumentacja_koncepcyjna.md` — cel produktu, zakres (MVP / v1), założenia.
 - `architektura.md` — widok logiczny, moduły, warstwy, integracje providerów.
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.

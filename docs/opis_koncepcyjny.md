@@ -73,7 +73,7 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 - **Status projektu:** Rdzeń **MVP** (routing + chat + streaming) domknięty w Fazach 1–2 oraz 4; trwa **v1** (m.in. Fazy 3 oraz 5–7).
 - **Providery (MVP):** Anthropic API + Google Gemini API
 - **Cel MVP:** działające **kierowanie zapytań do providerów** (registry / routing), działający **chat** synchroniczny (`POST /api/v1/chat`) oraz działający **streaming** (SSE / `POST /api/v1/chat/stream`).
-- **v1:** m.in. konfiguracja z plików (Faza 3), utwardzenie kontraktu API (Faza 5), observability (Faza 6), polish i deploy (Faza 7); cache odpowiedzi czatu (`src/cache/`) oraz dalszy rozwój Redis (limity, metryki) — opis w **`dokumentacja_koncepcyjna.md`**.
+- **v1:** m.in. konfiguracja z plików (Faza 3), utwardzenie kontraktu API (Faza 5 — w kodzie m.in. `RATE_LIMITED`, nagłówek `x-request-id`; pozostałość: `config:validate`), observability (Faza 6 — wdrożone), polish i deploy (Faza 7); cache odpowiedzi i smart rate limit (`src/cache/`, `src/rate-limit/`) — szczegóły w **`dokumentacja_koncepcyjna.md`**.
 
 ---
 

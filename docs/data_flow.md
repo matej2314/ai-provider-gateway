@@ -33,7 +33,7 @@ sequenceDiagram
 
   K->>+H: POST /api/v1/chat (JSON)
   H->>H: ValidationPipe (DTO)
-  Note over H: RequestIdMiddleware; GatewayKeyGuard + SmartRateLimitGuard na czacie
+  Note over H: RequestIdMiddleware (req.requestId + response header x-request-id); GatewayKeyGuard + SmartRateLimitGuard na czacie
   H->>+S: executeChat(request)
   S->>C: get (opcjonalnie)
   alt cache HIT
@@ -162,4 +162,4 @@ sequenceDiagram
 
 ---
 
-Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura.md`, `dokumentacja_koncepcyjna.md` (cache odpowiedzi w kodzie; dalszy rozwój warstwy Redis).
+Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura.md`, `dictionary.md` (kody `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`), `konfiguracja.md`.

@@ -45,7 +45,7 @@ flowchart TB
 | **Cache** (`src/cache`) | Globalny moduł dynamiczny: rejestr backendów (`noop` zawsze, `redis` warunkowo), `ResponseCacheService` — cache wyłącznie dla **`POST /api/v1/chat`** (klucz m.in. z `modelAlias`, treści wiadomości i sygnatury warstw system promptu). Konfiguracja env: `docs/konfiguracja.md`. |
 | **Providers** (`src/providers`) | Adaptery providerów (Anthropic/Google Gemini) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
-| **Health** (`src/health`) | Liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready` — config, Redis). Walidacja konfiguracji przy **starcie** procesu. |
+| **Health** (`src/health`) | Liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready` — `checks.config`, `checks.cache`). Walidacja konfiguracji przy **starcie** procesu. `checks.cache` dotyczy backendu **cache odpowiedzi** (`noop`/`redis`), nie osobnego probe smart rate limit (limitery używają tego samego `RedisConnectionService` gdy Redis jest załadowany — `RateLimitModule` → `RedisCacheModule`). |
 | **Rate limit** (`src/rate-limit`) | Jedyna warstwa limitów gateway: smart limiting per `X-Gateway-Key` (Redis) — token bucket (RPS/burst), równoległe streamy, cooldown po 429 od providera (`SmartRateLimitGuard`, `SmartRateLimiterService`). Limity: opcjonalnie `clients[].rateLimit` w YAML, inaczej env; przełącznik `RATE_LIMIT_SMART_ENABLED`. Bez `@nestjs/throttler`. |
 | **Logging / Metrics** | Structured logging (Pino), opcjonalnie Sentry (błędy + spany LLM). |
 
@@ -94,7 +94,7 @@ Szczegóły: `architektura_api.md` + `anty-patterny.md`.
 
 ## Observability
 
-- **Request ID**: `RequestIdMiddleware` — nagłówek `x-request-id` lub `req_<uuid>`; w envelope błędów i logach.
+- **Request ID**: `RequestIdMiddleware` — nagłówek żądania `x-request-id` (echo) lub `req_<uuid>`; to samo ID w body (`requestId`), envelope błędów, logach oraz **nagłówku odpowiedzi** `x-request-id`.
 - **Logging**: `LoggingModule` (domyślnie Pino); opcjonalnie raportowanie błędów do Sentry.
 - **Metryki LLM**: `MetricsService` + backend Sentry lub noop. **`conversationId` w request** grupuje spany (`gen_ai.conversation.id`); bez niego — pojedynczy span. Response zawsze zwraca ID sesji. Pełna treść wątku w Sentry wymaga pełnego `messages[]` od klienta — `docs/conversation-tracking.md`.
 - **Graceful shutdown**: `SIGTERM` / `SIGINT` w `main.ts` (`app.close()`).

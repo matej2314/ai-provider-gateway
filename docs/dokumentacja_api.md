@@ -6,7 +6,7 @@ Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.
 
 1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
 2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
-3. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 (Faza 5: m.in. `config:validate`, response header `x-request-id`; dalsze rozszerzenia kontraktu). **Wdrożone w `src/`:** `GlobalExceptionFilter` (`APP_FILTER` w `app.module.ts`), **`RequestIdMiddleware`**, **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`), **`params` w body** (`ChatParamsDto`, `resolveProviderCallOptions`), logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). Kody domenowe w payloadzie wyjątku są zachowywane przez filtr.
+3. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 (pozostałość v1: m.in. `config:validate`, CORS). **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`).
 4. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
 5. **System prompt po stronie serwera** — wczytanie plików w `configuration.ts`, składanie w `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`).
 6. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
@@ -29,7 +29,7 @@ Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.
 
 **Nagłówek `X-Gateway-Key`:** **wymagany** dla czatu (`@GatewayKeyAndSmartRateLimit()` na kontrolerach). Allowlista: `buildGatewayKeyRuntime` w `configuration.ts`. Przy `RATE_LIMIT_SMART_ENABLED=true` i gotowym Redis — dodatkowo limity per klucz (`SmartRateLimitGuard`, `SmartRateLimiterService`; szczegóły `konfiguracja.md`). **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** — bez klucza (guardy czatu ich nie obejmują).
 
-**`requestId`:** `RequestIdMiddleware` ustawia `req.requestId` z nagłówka **`x-request-id`** (jeśli niepusty) lub generuje `req_<uuid>`. W envelope błędów i odpowiedziach czatu pole **`requestId`** pochodzi z tej wartości. Nagłówek odpowiedzi **`x-request-id`** — planowany (Faza 5), obecnie **nie** jest ustawiany w `main.ts`.
+**`requestId`:** `RequestIdMiddleware` ustawia `req.requestId` z nagłówka żądania **`x-request-id`** (jeśli niepusty) lub generuje `req_<uuid>`, oraz ustawia **nagłówek odpowiedzi** `x-request-id` na tę samą wartość (`src/common/middleware/request-id.middleware.ts`). Pole **`requestId`** w JSON (sukces, błąd, SSE `meta`) pochodzi z `req.requestId`. Klient może korelować logi po nagłówku odpowiedzi lub po polu w body.
 
 ---
 
@@ -137,13 +137,13 @@ Liveness — `HealthService.getLiveness()`: `{ status: "healthy", timestamp }`. 
 
 ## `GET /api/v1/health/ready`
 
-Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `redis`).
+Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `cache`).
 
 | Aspekt | Zachowanie w kodzie |
 |--------|---------------------|
 | **HTTP** | Zawsze **200** — gotowość oceniasz po polu **`status`** w body (`ready` / `not_ready`), nie po kodzie HTTP. |
-| **`checks.redis`** | `degraded` gdy Redis niedostępny — **nie** blokuje `ready` (liczy się jako OK w `allHealthy`). |
-| **`checks.config`** | `healthy` tylko gdy **brak** `gateway` w config, ale jest `resolvedSystemPrompts`; gdy oba są załadowane (typowy start po poprawnym YAML) — **`unhealthy`** → często **`not_ready`** w body. Implementacja: `HealthService.checkConfig`. |
+| **`checks.config`** | **`healthy`** gdy załadowane są **`gateway`** i **`resolvedSystemPrompts`** (typowy start po poprawnym YAML). **`unhealthy`** gdy brakuje któregoś z tych obiektów w config — wtedy body często ma `status: not_ready`. Implementacja: `HealthService.checkConfig`. |
+| **`checks.cache`** | Gdy cache wyłączony (`noop`) → **`healthy`** („Cache disabled”). Gdy backend `redis` włączony, ale adapter niedostępny → **`degraded`** — **nie** blokuje `ready` (traktowane jak OK w `allHealthy`). **Nie** jest to osobny probe smart rate limit; limitery mogą używać tego samego `RedisConnectionService` (`RateLimitModule` importuje `RedisCacheModule`). |
 
 Orchestrator powinien traktować instancję jako gotową tylko przy `status === "ready"` w JSON.
 
@@ -166,6 +166,7 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 7. **`usage`** może być niekompletne między providerami.
 8. **`conversationId`**: w odpowiedzi zawsze (echo lub `conv_*`). W **request** — tylko wtedy Sentry grupuje turę jako konwersację; typowy start: tura 1 bez ID, tura 2+ z ID z odpowiedzi + pełne `messages[]` (`conversation-tracking.md`).
 9. **Streaming:** nieprawidłowe `params` (poza `allowOverrides`) mogą zwrócić `MODEL_NOT_ALLOWED` **po** rozpoczęciu SSE — w czacie standardowym ten sam błąd jest **przed** wywołaniem providera.
-10. **Readiness:** `GET /health/ready` zawsze **200** — sprawdzaj `body.status === "ready"`.
+10. **Readiness:** `GET /health/ready` zawsze **200** — sprawdzaj `body.status === "ready"`; pole w `checks` to **`cache`** (nie `redis`).
+11. **Korelacja:** nagłówek odpowiedzi **`x-request-id`** = to samo ID co pole `requestId` w JSON (przy standardowym flow bez nadpisywania `requestId` w payloadzie wyjątku).
 
 Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `conversation-tracking.md`, `dokumentacja_koncepcyjna.md`.

@@ -81,7 +81,7 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [x] *(Cache)* Przy włączonym i dostępnym backendzie cache powtórzone identyczne żądanie `POST /api/v1/chat` może zwrócić odpowiedź z `cached: true` (szczegóły klucza: `ResponseCacheService`).
 - [x] Dla nieznanego `modelAlias` gateway zwraca `400` z `code: MODEL_ALIAS_NOT_FOUND` (bez wywołania providera).
 - [x] Parametry są walidowane (DTO widełki 0–2 / 1–8192, allowlista `allowOverrides`, clamp `bounds` w `resolveProviderCallOptions`; `ChatParamsDto` + `ChatRequestDto.params`).
-- [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka `x-request-id` jest **aktywna** (`RequestIdMiddleware`). Response header `x-request-id` (poza body) nie jest jeszcze ustawiany.
+- [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka żądania `x-request-id` (echo) lub `req_<uuid>` (`RequestIdMiddleware`). Nagłówek odpowiedzi **`x-request-id`** ustawiany na tę samą wartość.
 - [x] Opcjonalne `conversationId` jest walidowane (`conv_<uuid>`); do Sentry trafia tylko z requestu; w odpowiedzi echo lub `conv_*` (`ChatRequestDto`, `ChatService`, `SentryAiMetricsAdapter`).
 - [x] Retry/timeout/fallback z YAML (`ResilientExecutor`, `effectiveModelAlias` w odpowiedzi przy fallbacku).
 

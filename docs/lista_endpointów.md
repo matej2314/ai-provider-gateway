@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
 Wersja dokumentu: **1.0**.  
-**OpenAPI:** `openapi.json` (v0.11.1) — zsynchronizowany z `src/` (health, smart rate limit `src/rate-limit/`, `params`, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`). Envelope `ErrorEnvelope` (`GlobalExceptionFilter`) + **`RequestIdMiddleware`**. **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Faza 5 (pozostałość):** `config:validate`, response header `x-request-id`. **Cache:** `src/cache/` + `helpers/cache-policy.ts` — tylko `POST /chat` (provider włączony w YAML).
+**OpenAPI:** `openapi.json` (v0.11.1) — zsynchronizowany z `src/` (health, smart rate limit `src/rate-limit/`, `params`, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`). Envelope `ErrorEnvelope` (`GlobalExceptionFilter`) + **`RequestIdMiddleware`** (body + nagłówek odpowiedzi **`x-request-id`**). **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **v1 (pozostałość):** `npm run config:validate` (placeholder). **Cache:** `src/cache/` + `helpers/cache-policy.ts` — tylko `POST /chat` (provider włączony w YAML).
 
 ## Konwencje globalne
 
@@ -11,6 +11,7 @@ Wersja dokumentu: **1.0**.
 | **Prefiks ścieżek** | `/api/v1` (`src/main.ts`: `setGlobalPrefix('api/v1')`) |
 | **Format** | JSON (`application/json`) dla standard; SSE (`text/event-stream`) dla **`POST /api/v1/chat/stream`** |
 | **Błędy (JSON)** | Envelope `ErrorEnvelope` (`{statusCode, code, message, requestId, details?}`) — schema w `openapi.json`, implementacja w `src/common/filters/http-exception.filter.ts` |
+| **`x-request-id`** | Nagłówek odpowiedzi (wszystkie trasy z `RequestIdMiddleware`, w tym health) — echo nagłówka żądania lub `req_<uuid>` |
 
 **Uruchomienie serwisu:** w **`NODE_ENV=production`** walidacja env wymaga **co najmniej jednego** niepustego klucza (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W development ten warunek **nie** jest egzekwowany (`src/config/env.validation.ts`).  
 Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + reguły efektywnej konfiguracji w `src/config/configuration.ts` — m.in. puste `models`, nieznany `providerInstance`, włączony provider bez modeli); brak pliku lub błąd walidacji kończy start aplikacji (`konfiguracja.md`).
@@ -29,7 +30,7 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + 
 
 | | |
 |--|--|
-| **200** | Readiness w body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.redis`. **HTTP zawsze 200** — probe ocenia pole `status`, nie kod HTTP. `checks.redis: degraded` nie blokuje `ready`. Szczegóły `checks.config`: `dokumentacja_api.md`. |
+| **200** | Readiness w body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.cache`. **HTTP zawsze 200** — probe ocenia pole `status`, nie kod HTTP. `checks.cache: degraded` (Redis cache niedostępny) nie blokuje `ready`. Szczegóły: `dokumentacja_api.md`. |
 
 ---
 
@@ -69,7 +70,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | GET | `/api/v1/health` | liveness |
-| GET | `/api/v1/health/ready` | readiness (config, redis) |
+| GET | `/api/v1/health/ready` | readiness (`checks.config`, `checks.cache`) |
 | POST | `/api/v1/chat` | standard (pełna odpowiedź) |
 | POST | `/api/v1/chat/stream` | streaming SSE (`ChatStreamController`) |
 

@@ -15,7 +15,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Effective model alias** (`effectiveModelAlias`) | Alias faktycznie użyty do wywołania providera. | Obecny w odpowiedzi JSON / SSE `meta` tylko gdy żądany alias różni się od użytego (sukces na fallbacku). Pole `model` = żądany `modelAlias`. |
 | **Standard** | Tryb odpowiedzi: pełna odpowiedź JSON. | `POST /api/v1/chat`. |
 | **Streaming** | Tryb odpowiedzi: SSE. | `POST /api/v1/chat/stream` — patrz `openapi.json`, `dokumentacja_api.md`. |
-| **Request ID** | Identyfikator korelacyjny żądania. | W logach i w error envelope. |
+| **Request ID** | Identyfikator korelacyjny żądania. | `RequestIdMiddleware`: nagłówek żądania `x-request-id` (echo) lub `req_<uuid>`; to samo ID w body (`requestId`), w envelope błędów oraz w nagłówku odpowiedzi **`x-request-id`** (`src/common/middleware/request-id.middleware.ts`). |
 | **Conversation ID** (`conversationId`) | Opcjonalny identyfikator w body czatu w formacie `conv_<uuid>`. W **request** włącza `gen_ai.conversation.id` w Sentry; w **response** zawsze echo lub `conv_<uuid>`. Historia = `messages[]` od klienta. Patrz `conversation-tracking.md`. |
 | **Policy** | Zestaw limitów i zasad (`timeoutMs`, `retry`, `params`). | Per alias w YAML; `timeout`/`retry` w `ResilientExecutor`, `params` w `resolveProviderCallOptions`. |
 | **Resilient executor** | Warstwa retry + fallback + timeout wokół wywołania adaptera. | `src/common/resilience/resilient-executor.ts`; `runOnce` deleguje do `ChatProviderCallService` (`ChatModule`). |
@@ -44,18 +44,19 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 
 ## Kody HTTP (mapowanie)
 
-| HTTP | Przykładowe `code` |
-|------|---------------------|
-| 400 | `VALIDATION_FAILED`, `MODEL_ALIAS_NOT_FOUND`, `MODEL_NOT_ALLOWED` |
-| 401 | `PROVIDER_AUTH_FAILED` *(jeśli mapujesz 401 od providera jako 502/401 zależnie od polityki)* |
-| 429 | `RATE_LIMITED`, `PROVIDER_RATE_LIMITED` |
-| 502 | `PROVIDER_UNAVAILABLE` |
-| 504 | `PROVIDER_TIMEOUT` |
-| 401 | `GATEWAY_KEY_MISSING` |
-| 403 | `GATEWAY_KEY_INVALID` |
-| 500 | `GATEWAY_KEY_NOT_CONFIGURED` |
+| HTTP | Typowe `code` (jawne w payloadzie wyjątku) | Fallback `DEFAULT_HTTP_STATUS_TO_CODE` |
+|------|---------------------------------------------|--------------------------------------|
+| 400 | `VALIDATION_FAILED`, `MODEL_ALIAS_NOT_FOUND`, `MODEL_NOT_ALLOWED` | `VALIDATION_FAILED` |
+| 401 | `GATEWAY_KEY_MISSING` (`GatewayKeyGuard`) | `PROVIDER_AUTH_FAILED` |
+| 403 | `GATEWAY_KEY_INVALID` (`GatewayKeyGuard`) | `GATEWAY_KEY_INVALID` |
+| 429 | `RATE_LIMITED` (gateway), `PROVIDER_RATE_LIMITED` (upstream) | `RATE_LIMITED` |
+| 500 | `GATEWAY_KEY_NOT_CONFIGURED`, `INTERNAL_SERVER_ERROR` | `INTERNAL_SERVER_ERROR` |
+| 502 | `PROVIDER_UNSUPPORTED`, `PROVIDER_UNAVAILABLE` | `PROVIDER_UNAVAILABLE` |
+| 504 | `PROVIDER_TIMEOUT` | `PROVIDER_TIMEOUT` |
 
-**Stan implementacji:** odpowiedzi błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polem **`code`**. `GlobalExceptionFilter` **zachowuje** jawne kody z payloadu wyjątku (m.in. **`GATEWAY_KEY_*`**, **`RATE_LIMITED`**, **`MODEL_ALIAS_NOT_FOUND`**, **`STREAMING_NOT_SUPPORTED`**, **`PROVIDER_*`** z `provider-error.mapper.ts`). W przeciwnym razie: `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). **`requestId`**: `RequestIdMiddleware` + ewentualnie nadpisanie z payloadu wyjątku. Pole **`message`**: string (`join('; ')` przy walidacji).
+**Zasada:** ścieżki domenowe (guardy, `ChatService`, `provider-error.mapper.ts`) **zawsze** ustawiają jawne `code`. Fallback dotyczy wyjątków bez pola `code` (np. część błędów walidacji Nest).
+
+**Stan implementacji:** envelope **`ErrorEnvelope`** (`openapi.json`); `GlobalExceptionFilter` zachowuje `code` z payloadu. Enum: `src/common/errors/api-error.code.ts` (w tym **`RATE_LIMITED`** i **`PROVIDER_RATE_LIMITED`**). **`requestId`**: `RequestIdMiddleware` + ewentualne nadpisanie z payloadu wyjątku w filtrze; nagłówek odpowiedzi **`x-request-id`** ustawiany w middleware razem z `req.requestId`.
 
 Powiązane: `openapi.json`, `architektura_api.md`, `dokumentacja_api.md`, `anty-patterny.md`.
 

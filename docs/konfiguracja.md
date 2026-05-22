@@ -41,7 +41,10 @@ Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/con
 | `REDIS_DB` | `0` | Numer bazy Redis. |
 | `REDIS_KEY_PREFIX` | `aigw:` | Prefiks konfiguracyjny Redis (osobny od `CACHE_KEY_PREFIX`; przy braku `cache.keyPrefix` w serwisie cache używany jest fallback). |
 
-**Ładowanie modułu Redis w Nest:** w `src/app.module.ts` stos Redis (`RedisCacheModule` wewnątrz `CacheModule.register`) jest importowany tylko gdy **`CACHE_ENABLED === 'true'`** oraz **`CACHE_BACKEND`** (po `toLowerCase()`) to **`redis`**. W przeciwnym razie działa wyłącznie backend **`noop`** (brak zależności od działającego Redis przy starcie).
+**Ładowanie modułu Redis w Nest:**
+
+- **Cache odpowiedzi:** w `src/app.module.ts` stos Redis (`RedisCacheModule` w `CacheModule.register`) jest importowany tylko gdy **`CACHE_ENABLED === 'true'`** oraz **`CACHE_BACKEND=redis`**. W przeciwnym razie backend cache to **`noop`**.
+- **Smart rate limit:** `RateLimitModule` **zawsze** importuje `RedisCacheModule` (wspólny `RedisConnectionService`). Przy `RATE_LIMIT_SMART_ENABLED=true` i działającym Redis limitery działają **niezależnie** od tego, czy cache odpowiedzi jest włączony. Gdy Redis niedostępny → fail-open (żądania przepuszczane) — `konfiguracja.md` (sekcja smart rate limiting).
 
 **Zachowanie:** `ChatService.executeChat` przed wywołaniem providera sprawdza cache (`ResponseCacheService`); przy trafieniu — tylko gdy alias i powiązany provider są **włączone** w YAML (`isCachedChatAllowedForModelAlias` w `src/chat/helpers/cache-policy.ts`) — zwracana jest zapisana odpowiedź z polami **`cached: true`** i **`cachedAt`** (ISO 8601). Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z tej warstwy.
 
@@ -49,7 +52,7 @@ Szablon zmiennych: `.env.example`.
 
 ### Smart rate limiting (`src/rate-limit/`)
 
-Implementacja: **`RateLimitModule`**, **`SmartRateLimiterService`**, **`SmartRateLimitGuard`** (dekorator `@GatewayKeyAndSmartRateLimit()` na kontrolerach czatu). **Nie** używa `@nestjs/throttler` — zmienne `RATE_LIMIT_ENABLED`, `RATE_LIMIT_TTL`, `RATE_LIMIT_MAX` zostały usunięte z konfiguracji.
+Implementacja: **`RateLimitModule`**, **`SmartRateLimiterService`**, **`SmartRateLimitGuard`** (dekorator `@GatewayKeyAndSmartRateLimit()` na kontrolerach czatu: najpierw `GatewayKeyGuard`, potem `SmartRateLimitGuard`). **`SmartRateLimitGuard`** ponownie weryfikuje nagłówek `X-Gateway-Key` (`requireGatewayKey`) — celowo, gdy guard jest użyty **bez** `GatewayKeyGuard` (defense in depth). **Nie** używa `@nestjs/throttler`.
 
 **Kolejność limitów (per wartość `X-Gateway-Key`):**
 
@@ -80,7 +83,10 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 | `ERROR_REPORTING_ADAPTER` | `sentry` \| `noop`. |
 | `METRICS_BACKEND` | `sentry` \| `noop` — spany LLM w `MetricsService`. |
 | `SENTRY_INCLUDE_PROMPTS` | `true` — `gen_ai.input.messages` / `gen_ai.output.messages` na spanach (wymagane m.in. dla widoku Conversations). |
-| `APP_VERSION` | Wersja w readiness. |
+| `APP_VERSION` | Wersja w readiness (`GET /api/v1/health/ready`). |
+| `CORS_ORIGINS` | W `.env.example` — **nie** podłączone w `src/main.ts` (brak middleware CORS). |
+
+**Readiness a Redis:** `GET /api/v1/health/ready` zwraca `checks.cache` (stan backendu cache `noop`/`redis`), **nie** osobny check pod smart rate limit. Przy `CACHE_ENABLED=false` i `RATE_LIMIT_SMART_ENABLED=true` operator powinien monitorować Redis poza readiness lub rozszerzyć health w przyszłości.
 
 ## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
 

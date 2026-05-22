@@ -50,17 +50,18 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Błędy HTTP
 
-**Stan kodu (`openapi.json`):** envelope **`ErrorEnvelope`** z `GlobalExceptionFilter` (`APP_FILTER` w `AppModule`). Jawne **`code`** z payloadu wyjątku (guardy, `RATE_LIMITED`, kody z `provider-error.mapper.ts`); inaczej `DEFAULT_HTTP_STATUS_TO_CODE`. `requestId` z **`RequestIdMiddleware`** (`x-request-id` w żądaniu lub `req_<uuid>`) — pole w JSON odpowiedzi/błędu; nagłówek odpowiedzi `x-request-id` — planowany (Faza 5).
+**Stan kodu (`openapi.json`):** envelope **`ErrorEnvelope`** z `GlobalExceptionFilter` (`APP_FILTER` w `AppModule`). Jawne **`code`** z payloadu wyjątku (guardy, `RATE_LIMITED`, kody z `provider-error.mapper.ts`); inaczej `DEFAULT_HTTP_STATUS_TO_CODE` (dla HTTP **429** fallback to **`RATE_LIMITED`** — patrz `dictionary.md`). **`requestId`:** `RequestIdMiddleware` — nagłówek żądania `x-request-id` (echo) lub `req_<uuid>`; to samo ID w polu JSON (`requestId`) oraz w **nagłówku odpowiedzi** `x-request-id` (`res.setHeader` w `src/common/middleware/request-id.middleware.ts`).
 
 ## Parametry generacji (`params` w body)
 
 **Stan kodu:** opcjonalne **`params`** (`temperature`, `maxOutputTokens`) w `ChatRequestDto`; merge z `policy.params` w YAML (`defaults`, `allowOverrides`, `bounds`) w `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`); ten sam kontrakt dla standard i stream. Niedozwolony override → **`MODEL_NOT_ALLOWED`** (400). Klucz cache uwzględnia efektywne parametry (`ResponseCacheService`).
 
-## Rozszerzenia (Faza 5 i dalsze)
+## Rozszerzenia (pozostałość v1)
 
-Skrypt `npm run config:validate` oraz nagłówek odpowiedzi `x-request-id` — `dokumentacja_koncepcyjna.md`, `dokumentacja_api.md`.
+- **`npm run config:validate`** — wpis w `package.json` istnieje, skrypt `scripts/validate-config.ts` jest **placeholder** (walidacja offline YAML + env bez HTTP) — `konfiguracja.md`, `dokumentacja_koncepcyjna.md`.
+- **`CORS_ORIGINS`** w `.env.example` — **nie** zaimplementowane w `src/main.ts` (brak middleware CORS); przy wystawieniu do przeglądarki skonfiguruj reverse proxy lub dodaj CORS w kodzie.
 
-**Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED` są już emitowane w payloadach wyjątków i zachowywane przez `GlobalExceptionFilter`.
+**Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.
 
 ## Opcjonalne śledzenie rozmowy (`conversationId`)
 
@@ -88,7 +89,7 @@ W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** 
 
 - Reverse proxy z dodatkowym auth / mTLS w razie potrzeby,
 - Rate limiting i WAF,
-- Ograniczenia originów w CORS (jeśli wystawiane do przeglądarki).
+- Ograniczenia originów w CORS (jeśli wystawiane do przeglądarki) — zmienna `CORS_ORIGINS` w `.env.example` jest **zarezerwowana**; middleware CORS **nie** jest jeszcze w kodzie.
 
 ## Powiązane dokumenty
 

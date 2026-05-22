@@ -50,6 +50,10 @@ Jeśli gateway ma w przyszłości wykonywać narzędzia:
 
 Uruchomienie gateway zakłada m.in. poprawny **`gateway.config.yaml`** oraz — w **production** — spełnienie reguły **minimum jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`, `konfiguracja.md`). Opcjonalnie zmienne **`CACHE_*`** / **`REDIS_*`** — ten sam dokument.
 
+## Stan kodu
+
+Plik `mcp.json` w katalogu głównym repo służy integracji IDE — **nie** jest wczytywany przez gateway przy starcie (poza zakresem rdzenia MVP).
+
 ## Powiązane dokumenty
 
 - Konfiguracja ogólna: `konfiguracja.md`

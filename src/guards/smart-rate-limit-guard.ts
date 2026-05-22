@@ -60,7 +60,7 @@ export class SmartRateLimitGuard implements CanActivate {
       throw new HttpException(
         {
           statusCode: 429,
-          code: 'RATE_LIMITED',
+          code: ApiErrorCode.RATE_LIMITED,
           message: rateLimitResult.reason || 'Rate limit exceeded',
           requestId: req.requestId,
           details: [],
@@ -77,7 +77,7 @@ export class SmartRateLimitGuard implements CanActivate {
         throw new HttpException(
           {
             statusCode: 429,
-            code: 'RATE_LIMITED',
+            code: ApiErrorCode.RATE_LIMITED,
             message:
               streamsResult.reason || 'Concurrent streams limit exceeded',
             requestId: req.requestId,

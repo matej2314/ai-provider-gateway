@@ -3,16 +3,23 @@ import { ConfigService } from '@nestjs/config';
 import type { CacheBackend } from '../../interfaces/cache-backend-interface';
 import { RedisConnectionService } from './redis-connection.service';
 import { CacheRegistryService } from '../../cache-registry.service';
+import { LoggingService } from 'src/logging/logging.service';
 
 @Injectable()
 export class RedisCacheAdapter implements CacheBackend, OnModuleInit {
-  private readonly logger = new Logger(RedisCacheAdapter.name);
+  private readonly logger: LoggingService;
 
   constructor(
     private readonly connection: RedisConnectionService,
     private readonly config: ConfigService,
     private readonly registry: CacheRegistryService,
-  ) {}
+    private readonly loggingService: LoggingService,
+  ) {
+    const logger = this.loggingService.child({
+      module: 'RedisCacheAdapter',
+    });
+    this.logger = logger;
+  }
 
   onModuleInit(): void {
     this.registry.register('redis', this);

@@ -29,7 +29,7 @@ Uwagi:
 - `timestamp` to ISO 8601 UTC (`new Date().toISOString()` w `HealthService.getLiveness` / `getReadiness`).
 - Endpoint nie wymaga `X-Gateway-Key`.
 
-F-1b. `GET /api/v1/health/ready` zwraca readiness (`status`: `ready` | `not_ready`, `checks.config`, `checks.redis`, `version`, `uptime`) — implementacja w `HealthService.getReadiness`. **HTTP zawsze 200**; probe ocenia pole `status` w body. Szczegóły `checks.config`: `docs/dokumentacja_api.md`.
+F-1b. `GET /api/v1/health/ready` zwraca readiness (`status`: `ready` | `not_ready`, `checks.config`, `checks.cache`, `version`, `uptime`) — implementacja w `HealthService.getReadiness`. **HTTP zawsze 200**; probe ocenia pole `status` w body. `checks.cache` odzwierciedla backend **cache odpowiedzi** (`noop` / `redis`), nie osobny probe smart rate limit. Szczegóły: `docs/dokumentacja_api.md`.
 
 F-2. Gateway musi być w stanie jednoznacznie określić “gotowość” do obsługi żądań LLM:
 
@@ -48,7 +48,7 @@ NFR-2. Health endpoint ma działać szybko (p95 < 50ms lokalnie).
 
 - [x] `GET /api/v1/health` działa, gdy proces działa.
 - [x] Liveness zwraca `status: healthy` (bez sekretów).
-- [x] Readiness (`GET /api/v1/health/ready`) raportuje config i Redis.
+- [x] Readiness (`GET /api/v1/health/ready`) raportuje `checks.config` i `checks.cache`.
 
 ## Poza zakresem (względem rdzenia MVP)
 

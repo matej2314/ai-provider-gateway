@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisConnectionService } from 'src/cache/adapters/redis-cache/redis-connection.service';
 import {
   GatewayKeyRuntimeConfig,
   ResolvedGatewayClient,
 } from 'src/config/configuration.types';
+import { LoggingService } from 'src/logging/logging.service';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -15,13 +16,19 @@ export interface RateLimitResult {
 
 @Injectable()
 export class SmartRateLimiterService {
-  private readonly logger = new Logger(SmartRateLimiterService.name);
+  private readonly logger: LoggingService;
   private readonly clientsMap: Map<string, ResolvedGatewayClient>;
 
   constructor(
     private readonly config: ConfigService,
     private readonly redisConnection: RedisConnectionService,
+    private readonly loggingService: LoggingService,
   ) {
+    const logger = this.loggingService.child({
+      module: 'SmartRateLimiterService',
+    });
+    this.logger = logger;
+
     const gatewayKeyConfig =
       this.config.get<GatewayKeyRuntimeConfig>('gatewayKey');
     this.clientsMap = new Map(
@@ -129,12 +136,13 @@ export class SmartRateLimiterService {
           allowed: true,
           remaining: Math.floor(remaining),
           resetAt: new Date(lastRefill + windowMs),
-          reason: 'Rate limit exceeded for gateway key',
         };
       }
-    } catch (error) {
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(
         `Rate limit check failed for key ${gatewayKey}: ${error.message}`,
+        error,
       );
 
       return { allowed: true, remaining: 999, resetAt: new Date() };
@@ -144,7 +152,7 @@ export class SmartRateLimiterService {
       allowed: false,
       remaining: 0,
       resetAt: new Date(),
-      reason: 'Rate limit check failed',
+      reason: 'Rate limit exceeded for gateway key.',
     };
   }
 
@@ -174,13 +182,14 @@ export class SmartRateLimiterService {
           allowed: false,
           remaining: 0,
           resetAt: new Date(Date.now() + 300000),
-          reason: `Max concurrent streams (${maxConcurrent}) exceed for gateway key.`,
+          reason: `Max concurrent streams (${maxConcurrent}) exceeded for gateway key.`,
         };
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(
         `Concurrent streams check failed for key ${gatewayKey}:`,
-        err.message,
+        error,
       );
       return { allowed: true, remaining: 999, resetAt: new Date() };
     }
@@ -194,10 +203,11 @@ export class SmartRateLimiterService {
     try {
       const client = this.redisConnection.getClient();
       await client!.decr(key);
-    } catch (err) {
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(
-        `Gailed to release stream for key ${gatewayKey}:`,
-        err.message,
+        `Failed to release stream for key ${gatewayKey}:`,
+        error,
       );
     }
   }
@@ -225,10 +235,11 @@ export class SmartRateLimiterService {
       }
 
       return { allowed: true, remaining: 999, resetAt: new Date() };
-    } catch (err) {
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(
         `Cooldown check failed for ${gatewayKey}:${provider}:`,
-        err.message,
+        error,
       );
       return { allowed: true, remaining: 999, resetAt: new Date() };
     }
@@ -251,10 +262,11 @@ export class SmartRateLimiterService {
       this.logger.warn(
         `Cooldown set for ${gatewayKey}:${provider} (${cooldownSeconds})s`,
       );
-    } catch (err) {
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(
         `Failed to set cooldown for ${gatewayKey}:${provider}:`,
-        err.message,
+        error,
       );
     }
   }

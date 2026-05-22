@@ -13,7 +13,7 @@ import { ChatService } from './chat.service';
 import { GatewayKeyAndSmartRateLimit } from 'src/common/decorators/gateway-key-and-smart-rate-limit.decorator';
 import { StreamCleanupInterceptor } from 'src/common/interceptors/stream-cleanup.interceptor';
 
-@Controller('/chat')
+@Controller('chat')
 @GatewayKeyAndSmartRateLimit()
 export class ChatStreamController {
   private readonly sse = new SseSerializer();

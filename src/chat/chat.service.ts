@@ -11,11 +11,11 @@ import { ResilientExecutor } from 'src/common/resilience/resilient-executor';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseEvent } from './sse/sse-event.type';
 import { ResponseCacheService } from '../cache/response-cache.service';
-import type { GatewayConfig } from '../config/configuration';
 import { getOrCreateConversationIdForResponse } from './helpers/conversation-id';
 import { getResolvedSystemPrompts } from './helpers/system-prompt';
 import { isCachedChatAllowedForModelAlias } from './helpers/cache-policy';
 import { buildRetryPolicyFromResolved } from './helpers/retry-policy';
+import type { GatewayConfig } from '../config/configuration';
 
 @Injectable()
 export class ChatService {
@@ -105,13 +105,13 @@ export class ChatService {
         log.warn('Rate limit exceeded', {
           provider: primaryResolved.providerName,
           status: 429,
-          code: 'RATE_LIMITED',
+          code: ApiErrorCode.RATE_LIMITED,
         });
 
         throw new HttpException(
           {
             statusCode: 429,
-            code: 'RATE_LIMITED',
+            code: ApiErrorCode.RATE_LIMITED,
             message: cooldownResult.reason || 'Rate limit exceeded',
             requestId: requestId,
             details: [],

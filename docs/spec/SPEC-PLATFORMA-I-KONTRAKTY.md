@@ -13,7 +13,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 - zasady uwierzytelnienia na brzegu (gateway key),
 - zasady logowania (bez sekretów).
 
-**Stan implementacji (skrót):** **`openapi.json`** (v0.11.1): czat, SSE, health, `params`, `cached`/`cachedAt`, retry/fallback/`effectiveModelAlias`, smart rate limit (`src/rate-limit/`, bez `@nestjs/throttler`), **`RATE_LIMITED`**, **`MODEL_NOT_ALLOWED`**, **`PROVIDER_TIMEOUT`**. Moduł czatu: **`ChatService`** + **`ChatProviderCallService`** + helpery (`system-prompt`, `provider-input`, `cache-policy`, …). **`GlobalExceptionFilter`** + **`RequestIdMiddleware`**. Czat: **`@GatewayKeyAndSmartRateLimit()`**. **`ResilientExecutor`**. Faza 5 (pozostałość): `config:validate`, response header `x-request-id` — `dokumentacja_koncepcyjna.md`.
+**Stan implementacji (skrót):** **`openapi.json`** (v0.11.1): czat, SSE, health, `params`, `cached`/`cachedAt`, retry/fallback/`effectiveModelAlias`, smart rate limit (`src/rate-limit/`), **`RATE_LIMITED`** (gateway) / **`PROVIDER_RATE_LIMITED`** (upstream), **`MODEL_NOT_ALLOWED`**, **`PROVIDER_TIMEOUT`**. **`ChatService`** + **`ChatProviderCallService`**. **`GlobalExceptionFilter`** + **`RequestIdMiddleware`** (nagłówek odpowiedzi **`x-request-id`** + pole `requestId` w JSON). Czat: **`@GatewayKeyAndSmartRateLimit()`**. **`ResilientExecutor`**. Pozostałość v1: `config:validate` — `dokumentacja_koncepcyjna.md`.
 
 ## Użytkownicy i scenariusze
 
@@ -57,7 +57,8 @@ F-4. `requestId` musi pojawić się:
 - w envelope błędów,
 - w odpowiedziach sukcesu (standard),
 - w zdarzeniu `meta` (streaming),
-- w logach.
+- w logach,
+- w nagłówku odpowiedzi HTTP **`x-request-id`** (echo wartości z `req.requestId`).
 
 ### Walidacja
 
@@ -102,7 +103,7 @@ NFR-3. Domyślne zachowanie powinno być bezpieczne: bez dumpowania surowych wyj
 - [x] Endpointy czatu wymagają `X-Gateway-Key` zgodnie z allowlistą (`GatewayKeyGuard`, konfiguracja w `src/config/configuration.ts`).
 - [x] Nieznany `modelAlias` nie wykonuje żadnego wywołania do providerów (`ProviderRegistryService.resolve` rzuca `BadRequestException` przed wywołaniem adaptera).
 - [ ] Logi nie zawierają kluczy i nagłówków auth (weryfikacja przez test/manual) — strukturalne logi z redakcją w **Fazie 6.1** (pino + redaction).
-- [x] `requestId` jest widoczny w odpowiedziach standard/stream (body sukcesu, envelope błędu, SSE `meta`); response header `x-request-id` — TBD.
+- [x] `requestId` jest widoczny w odpowiedziach standard/stream (body sukcesu, envelope błędu, SSE `meta`) oraz w nagłówku odpowiedzi **`x-request-id`** (`RequestIdMiddleware`).
 
 ## Poza zakresem (względem rdzenia MVP)
 

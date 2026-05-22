@@ -106,7 +106,18 @@ Ten plik zbiera typowe pułapki w projektach “LLM gateway”.
 
 **Rób**: fail-fast w production przy starcie; lokalnie pamiętaj, że wywołanie adaptera i tak wymaga realnego klucza dla używanego providera (szczegóły: `docs/konfiguracja.md`).
 
-## 11) Cache odpowiedzi bez świadomości “świeżości”
+## 11) Mylenie kodów limitów (`RATE_LIMITED` vs `PROVIDER_RATE_LIMITED`)
+
+**Nie rób**: traktowania każdego HTTP **429** jako limitu providera.
+
+**Rób**:
+
+- **`RATE_LIMITED`** — smart rate limit gateway, cooldown po 429 upstream, równoległe streamy (`SmartRateLimitGuard`, `ChatService` + `SmartRateLimiterService`).
+- **`PROVIDER_RATE_LIMITED`** — wyłącznie mapowanie błędu z SDK (`provider-error.mapper.ts`).
+
+Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
+
+## 12) Cache odpowiedzi bez świadomości “świeżości”
 
 **Nie rób**: zakładania, że każda odpowiedź z **`POST /api/v1/chat`** jest “na żywo” z providera — przy włączonym cache możliwy jest zwrot z **`cached: true`**.
 
