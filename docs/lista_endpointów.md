@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
 Wersja dokumentu: **1.0**.  
-**OpenAPI:** `openapi.json` (v0.11.1) — zsynchronizowany z `src/` (health, smart rate limit `src/rate-limit/`, `params`, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`). Envelope `ErrorEnvelope` (`GlobalExceptionFilter`) + **`RequestIdMiddleware`** (body + nagłówek odpowiedzi **`x-request-id`**). **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **v1 (pozostałość):** `npm run config:validate` (placeholder). **Cache:** `src/cache/` + `helpers/cache-policy.ts` — tylko `POST /chat` (provider włączony w YAML).
+**OpenAPI:** `openapi.json` (v0.12.0) — zsynchronizowany z `src/` (health, smart rate limit `src/rate-limit/`, `params`, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`). Envelope `ErrorEnvelope` (`GlobalExceptionFilter`) + **`RequestIdMiddleware`** (body + nagłówek odpowiedzi **`x-request-id`**). **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **v1 (pozostałość):** `npm run config:validate` (placeholder). **Cache:** `src/cache/` + `helpers/cache-policy.ts` — tylko `POST /chat` (provider włączony w YAML).
 
 ## Konwencje globalne
 

@@ -23,7 +23,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 
 ## Spis plików
 
-- `../openapi.json` *(w katalogu głównym repo, v0.11.1)* — OpenAPI 3.1: kontrakt REST (czat, SSE, health, `ErrorEnvelope`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`, smart rate limit, cache). **Uwaga:** opis w `info` w pliku może wyprzedzać kod — źródło prawdy dla zachowania: `src/` + ten katalog `docs/`.
+- `../openapi.json` *(w katalogu głównym repo, v0.12.0)* — OpenAPI 3.1: kontrakt REST (czat, SSE, health, `ErrorEnvelope`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`, smart rate limit, cache). Źródło prawdy dla zachowania: `src/` + ten katalog `docs/`.
 - `dokumentacja_koncepcyjna.md` — cel produktu, zakres (MVP / v1), założenia.
 - `architektura.md` — widok logiczny, moduły, warstwy, integracje providerów.
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.

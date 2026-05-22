@@ -2,8 +2,9 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Provider Gateway API",
-    "version": "0.11.1",
-    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming; providery MVP = Anthropic + Google Gemini. **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Odporność (`ResilientExecutor`):** dla każdego aliasu z `gateway.config.yaml` stosowane są `policy.timeoutMs`, `policy.retry.maxAttempts` i `policy.retry.onStatus` (domyślnie z `RETRY_POLICY_DEFAULTS` w `src/common/retry-policy-defaults.ts`). Retry dotyczy wyłącznie błędów HTTP z listy `onStatus` (domyślnie 429, 500, 502, 503, 504). Po wyczerpaniu prób na aliasie pierwszym, opcjonalnie **`models[].fallback`** uruchamia drugi alias (bez pętli — walidacja Zod przy starcie + `assertNoFallbackCycle` w runtime). Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne **`effectiveModelAlias`**. Timeout → **504** (`PROVIDER_TIMEOUT`). Szczegóły: `docs/konfiguracja.md`, `docs/dokumentacja_api.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają **`@GatewayKeyAndSmartRateLimit()`**: **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek: `X-Gateway-Key`; allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. Health bez klucza. Błędy klucza: **401** (`GATEWAY_KEY_MISSING`), **403** (`GATEWAY_KEY_INVALID`), **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`src/rate-limit/`, `RATE_LIMIT_SMART_ENABLED=true`, Redis): token bucket per `X-Gateway-Key`, limit równoległych streamów; limity z `clients[].rateLimit` w `gateway.config.yaml` lub domyślne z env (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY`, `RATE_LIMIT_STREAMS_CONCURRENT`). Cooldown po 429 od providera (czat standardowy) — **`RATE_LIMITED`**. Bez `@nestjs/throttler`. Health bez limitów. Szczegóły: `docs/konfiguracja.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** (`GlobalExceptionFilter`). Słownik: `docs/dictionary.md`.\n\n**`requestId`:** **`RequestIdMiddleware`** — nagłówek **`x-request-id`** jeśli niepusty, inaczej `req_<uuid>`.\n\n**Cache (`POST /api/v1/chat`):** `noop` / `redis` — **`cached`**, **`cachedAt`**. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–150, `content` max 3000 znaków; **`conversationId`** opcjonalnie w formacie `conv_<uuid>`; **`params`** z `allowOverrides` / `bounds`. **Response:** zawsze `conversationId` (echo lub `conv_<uuid>`). **Sentry:** `gen_ai.conversation.id` tylko gdy klient poda `conversationId` w request. `ValidationPipe` + limit JSON **1 MB**.\n\n**Planowane (Faza 5):** response header `x-request-id` — `docs/dokumentacja_koncepcyjna.md`."
+    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming; providery MVP = Anthropic + Google Gemini. **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Odporność (`ResilientExecutor`):** dla każdego aliasu z `gateway.config.yaml` stosowane są `policy.timeoutMs`, `policy.retry.maxAttempts` i `policy.retry.onStatus` (domyślnie z `RETRY_POLICY_DEFAULTS` w `src/common/retry-policy-defaults.ts`). Retry dotyczy wyłącznie błędów HTTP z listy `onStatus` (domyślnie 429, 500, 502, 503, 504). Po wyczerpaniu prób na aliasie pierwszym, opcjonalnie **`models[].fallback`** uruchamia drugi alias (bez pętli — walidacja Zod przy starcie + `assertNoFallbackCycle` w runtime). Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne **`effectiveModelAlias`**. Timeout → **504** (`PROVIDER_TIMEOUT`). Szczegóły: `docs/konfiguracja.md`, `docs/dokumentacja_api.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają **`@GatewayKeyAndSmartRateLimit()`**: **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek: `X-Gateway-Key`; allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. Health bez klucza. Błędy klucza: **401** (`GATEWAY_KEY_MISSING`), **403** (`GATEWAY_KEY_INVALID`), **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`src/rate-limit/`, `RATE_LIMIT_SMART_ENABLED=true`, Redis): token bucket per `X-Gateway-Key`, limit równoległych streamów; limity z `clients[].rateLimit` w `gateway.config.yaml` lub domyślne z env (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY`, `RATE_LIMIT_STREAMS_CONCURRENT`). Cooldown po 429 od providera (**tylko** `POST /api/v1/chat`) — **`RATE_LIMITED`**. Limit upstream providera — **`PROVIDER_RATE_LIMITED`**. Bez `@nestjs/throttler`. Szczegóły: `docs/konfiguracja.md`, `docs/dictionary.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** (`GlobalExceptionFilter`). Słownik: `docs/dictionary.md`.\n\n**Korelacja (`requestId`):** **`RequestIdMiddleware`** — nagłówek żądania **`x-request-id`** (echo) lub `req_<uuid>`; to samo ID w polu JSON **`requestId`** oraz w **nagłówku odpowiedzi** **`x-request-id`** (wszystkie trasy objęte middleware, w tym health).\n\n**Cache (`POST /api/v1/chat`):** `noop` / `redis` — **`cached`**, **`cachedAt`**. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–150, `content` max 3000 znaków; **`conversationId`** opcjonalnie w formacie `conv_<uuid>`; **`params`** z `allowOverrides` / `bounds`. **Response:** zawsze `conversationId` (echo lub `conv_<uuid>`). **Sentry:** `gen_ai.conversation.id` tylko gdy klient poda `conversationId` w request. `ValidationPipe` + limit JSON **1 MB**.\n\n**Dokumentacja ludzka:** `docs/`. **Swagger UI:** `/api-docs` (JSON: `/api-docs/swagger.json`). **Pozostałość v1:** `npm run config:validate` (placeholder), `CORS_ORIGINS` w `.env.example` bez implementacji w kodzie.",
+    "version": "0.12.0",
+    "contact": {}
   },
   "servers": [
     {
@@ -12,437 +13,360 @@
     }
   ],
   "tags": [
-    { "name": "Health", "description": "Liveness i readiness" },
-    { "name": "Chat", "description": "Chat completions (standard + streaming)" }
+    {
+      "name": "Health",
+      "description": "Liveness i readiness"
+    },
+    {
+      "name": "Chat",
+      "description": "Chat completions (standard + streaming)"
+    }
   ],
   "paths": {
-    "/api/v1/health": {
-      "get": {
-        "tags": ["Health"],
-        "operationId": "getHealth",
-        "summary": "Liveness",
-        "description": "Lekki probe procesu (`HealthService.getLiveness`). Nie wymaga `X-Gateway-Key`.",
-        "responses": {
-          "200": {
-            "description": "Proces działa",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthLivenessResponse" },
-                "examples": {
-                  "ok": {
-                    "value": {
-                      "status": "healthy",
-                      "timestamp": "2026-05-19T12:00:00.000Z"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/health/ready": {
-      "get": {
-        "tags": ["Health"],
-        "operationId": "getHealthReady",
-        "summary": "Readiness",
-        "description": "Gotowość do obsługi ruchu (`HealthService.getReadiness`): konfiguracja gateway, opcjonalnie Redis (degraded gdy niedostępny). **HTTP zawsze 200** — ocena po polu `status` w body (`ready` / `not_ready`). Nie wymaga `X-Gateway-Key`.",
-        "responses": {
-          "200": {
-            "description": "JSON readiness; pole `status` w body (`ready` | `not_ready`), nie kod HTTP",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthReadinessResponse" },
-                "examples": {
-                  "ready": {
-                    "value": {
-                      "status": "ready",
-                      "timestamp": "2026-05-19T12:00:00.000Z",
-                      "version": "1.0.0",
-                      "uptime": 42,
-                      "checks": {
-                        "config": { "status": "healthy", "message": "Config is loaded" },
-                        "redis": { "status": "degraded", "message": "Redis unavailable (graceful degradation)" }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/chat": {
       "post": {
-        "security": [{ "GatewayKeyAuth": [] }],
-        "tags": ["Chat"],
-        "operationId": "postChat",
-        "summary": "Chat (standard)",
-        "description": "Pełna odpowiedź JSON. `requestId` z `RequestIdMiddleware`. Parametry wywołania (`temperature`, `maxOutputTokens`): domyślnie z `policy.params.defaults` w YAML; opcjonalne **`params`** w body nadpisują dozwolone pola (`allowOverrides`) i są obcinane do `bounds`. Pole **`model`** = żądany `modelAlias`; przy fallbackie opcjonalnie **`effectiveModelAlias`** (alias faktycznie użyty).\n\n**Warstwa wywołania providera:** `ChatService` (cache, limity, `ResilientExecutor`) → `ChatProviderCallService.completeOnce` (system prompt, `ProviderChatInput`, metryki LLM).\n\n**Odporność:** `ResilientExecutor` — retry na aliasie pierwszym (`policy.retry`), potem opcjonalnie alias z `fallback` w YAML (np. `claude-sonnet` → `chat-default`). Timeout z `policy.timeoutMs` → **504** (`PROVIDER_TIMEOUT`).\n\n**`conversationId`:** w odpowiedzi zawsze (echo lub `conv_<uuid>` w formacie RFC UUID). W **request** opcjonalne — włącza grupowanie Sentry. Szczegóły: `docs/conversation-tracking.md`.\n\nOpcjonalny cache (tylko gdy provider i alias są włączone w YAML); smart rate limit / cooldown (`RATE_LIMITED`).",
+        "description": "Pełna odpowiedź JSON. Cache, smart rate limit, ResilientExecutor, opcjonalny fallback (effectiveModelAlias).",
+        "operationId": "ChatController_chat",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Opcjonalny ID korelacji. Gdy brak, gateway ustawia req_<uuid> w odpowiedzi/błędzie.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ChatRequest" },
-              "examples": {
-                "minimal": {
-                  "value": {
-                    "modelAlias": "chat-default",
-                    "messages": [{ "role": "user", "content": "Napisz krótkie streszczenie." }]
-                  }
-                },
-                "multiTurn": {
-                  "value": {
-                    "modelAlias": "chat-default",
-                    "messages": [
-                      { "role": "user", "content": "Czym jest gateway?" },
-                      { "role": "assistant", "content": "Warstwa pośrednia między klientem a LLM." },
-                      { "role": "user", "content": "Podsumuj w jednym zdaniu." }
-                    ]
-                  }
-                },
-                "firstTurnNoConversationId": {
-                  "summary": "Tura 1 — bez conversationId w request (Sentry: pojedynczy span)",
-                  "value": {
-                    "modelAlias": "chat-default",
-                    "messages": [{ "role": "user", "content": "Wypisz 2 fakty o Polsce." }]
-                  }
-                },
-                "secondTurnWithConversation": {
-                  "summary": "Tura 2+ — conversationId + pełna historia w messages[]",
-                  "value": {
-                    "modelAlias": "chat-default",
-                    "conversationId": "conv_123e4567-e89b-12d3-a456-426614174000",
-                    "messages": [
-                      { "role": "user", "content": "Wypisz 2 fakty o Polsce." },
-                      { "role": "assistant", "content": "Polska leży w Europie Środkowej..." },
-                      { "role": "user", "content": "A o Warszawie?" }
-                    ]
-                  }
-                },
-                "withParams": {
-                  "summary": "Override parametrów generacji (allowOverrides + bounds z YAML)",
-                  "value": {
-                    "modelAlias": "chat-default",
-                    "messages": [{ "role": "user", "content": "Krótko." }],
-                    "params": { "temperature": 0.7, "maxOutputTokens": 256 }
-                  }
-                }
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequestDto"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Odpowiedź gateway (standard)",
+            "description": "",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ChatResponse" },
-                "examples": {
-                  "okText": {
-                    "value": {
-                      "id": "gw_01H...",
-                      "provider": "anthropic",
-                      "model": "chat-default",
-                      "output": { "type": "text", "text": "..." },
-                      "usage": { "inputTokens": 123, "outputTokens": 456 },
-                      "requestId": "req_...",
-                      "conversationId": "conv_123e4567-e89b-12d3-a456-426614174000"
-                    }
-                  }
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponseDto"
                 }
               }
             }
           },
           "400": {
-            "description": "Walidacja DTO, nieznany `modelAlias` (`MODEL_ALIAS_NOT_FOUND`), niedozwolony override w `params` (`MODEL_NOT_ALLOWED`), `STREAMING_NOT_SUPPORTED` (nie dotyczy tego endpointu) lub inny `400` z jawnym `code`.",
+            "description": "Walidacja, MODEL_ALIAS_NOT_FOUND, MODEL_NOT_ALLOWED, STREAMING_NOT_SUPPORTED (stream)",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
-                "examples": {
-                  "validationFailed": {
-                    "value": {
-                      "statusCode": 400,
-                      "code": "VALIDATION_FAILED",
-                      "message": "modelAlias must be a string",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  },
-                  "unknownAlias": {
-                    "value": {
-                      "statusCode": 400,
-                      "code": "MODEL_ALIAS_NOT_FOUND",
-                      "message": "Model alias unknown-alias not found in config",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  },
-                  "invalidConversationId": {
-                    "value": {
-                      "statusCode": 400,
-                      "code": "VALIDATION_FAILED",
-                      "message": "conversationId must be conv_<uuid>",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  },
-                  "paramNotAllowed": {
-                    "value": {
-                      "statusCode": 400,
-                      "code": "MODEL_NOT_ALLOWED",
-                      "message": "Parameter temperature is not allowed for this model alias",
-                      "requestId": "req_01H...",
-                      "details": [{ "field": "params.temperature", "allowOverrides": [] }]
-                    }
-                  }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
                 }
               }
             }
           },
           "401": {
-            "description": "Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`).",
+            "description": "GATEWAY_KEY_MISSING",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
-                "examples": {
-                  "missingKey": {
-                    "value": {
-                      "statusCode": 401,
-                      "code": "GATEWAY_KEY_MISSING",
-                      "message": "Missing X-Gateway-Key header value.",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
                 }
               }
             }
           },
           "403": {
-            "description": "Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`).",
+            "description": "GATEWAY_KEY_INVALID",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
-                "examples": {
-                  "invalidKey": {
-                    "value": {
-                      "statusCode": 403,
-                      "code": "GATEWAY_KEY_INVALID",
-                      "message": "Invalid X-Gateway-Key header value.",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
                 }
               }
             }
           },
           "429": {
-            "description": "Limit gateway: smart rate limit per klucz (`RATE_LIMITED`) lub mapowanie 429 od providera (`PROVIDER_RATE_LIMITED`).",
+            "description": "RATE_LIMITED lub PROVIDER_RATE_LIMITED",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
-                "examples": {
-                  "rateLimited": {
-                    "value": {
-                      "statusCode": 429,
-                      "code": "RATE_LIMITED",
-                      "message": "Rate limit exceeded",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Przekroczony `policy.timeoutMs` (`PROVIDER_TIMEOUT`) lub mapowanie 504 od providera.",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
-                "examples": {
-                  "providerTimeout": {
-                    "value": {
-                      "statusCode": 504,
-                      "code": "PROVIDER_TIMEOUT",
-                      "message": "Request timeout after 30000ms",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "M.in. `PROVIDER_UNSUPPORTED` lub `PROVIDER_UNAVAILABLE` (mapper SDK / wyczerpanie retry+fallback).",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
-                "examples": {
-                  "providerUnsupported": {
-                    "value": {
-                      "statusCode": 502,
-                      "code": "PROVIDER_UNSUPPORTED",
-                      "message": "Provider google not registered.",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
                 }
               }
             }
           },
           "500": {
-            "description": "Nieobsłużony wyjątek lub `GATEWAY_KEY_NOT_CONFIGURED`.",
+            "description": "INTERNAL_SERVER_ERROR, GATEWAY_KEY_NOT_CONFIGURED",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
-                "examples": {
-                  "internalError": {
-                    "value": {
-                      "statusCode": 500,
-                      "code": "INTERNAL_SERVER_ERROR",
-                      "message": "An unexpected error occurred",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "PROVIDER_UNSUPPORTED, PROVIDER_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "PROVIDER_TIMEOUT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
                 }
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "GatewayKeyAuth": []
+          }
+        ],
+        "summary": "Chat (standard)",
+        "tags": [
+          "Chat"
+        ]
       }
     },
     "/api/v1/chat/stream": {
       "post": {
-        "security": [{ "GatewayKeyAuth": [] }],
-        "tags": ["Chat"],
-        "operationId": "postChatStream",
-        "summary": "Chat (streaming)",
-        "description": "SSE (`text/event-stream`): `meta` → `delta`* → `done` (pusty `{}`).\n\nTen sam body i kontrakt co `POST /api/v1/chat` (w tym retry/fallback przez `ResilientExecutor`). Wywołanie providera: `ChatProviderCallService.streamOnce` (emit `meta`/`delta`, metryki stream). W **`meta`**: `model` = żądany alias; opcjonalnie **`effectiveModelAlias`** po fallbacku; zawsze **`conversationId`** (echo lub `conv_<uuid>`).\n\n**JSON `ErrorEnvelope` przed `flushHeaders`:** walidacja, guardy, **`validateForStreaming`**. **Po `flushHeaders`:** m.in. `MODEL_NOT_ALLOWED` (`params` w `resolveProviderCallOptions` w `streamOnce`), błędy providera (`PROVIDER_*`), timeout — częściowy SSE zamiast JSON. Brak cooldownu po 429 jak w czacie standardowym. **`StreamCleanupInterceptor`** w `finalize`. Patrz `docs/conversation-tracking.md`, `docs/dokumentacja_api.md`.",
+        "description": "SSE (`text/event-stream`): kolejność zdarzeń `meta` → `delta`* → `done` (pusty `{}`).\n\nTen sam body co POST /chat. Błędy JSON (ErrorEnvelope) tylko **przed** flushHeaders.\n\nPo rozpoczęciu streamu błędy mogą być częściowym SSE.",
+        "operationId": "ChatStreamController_streamChat",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Opcjonalny ID korelacji. Gdy brak, gateway ustawia req_<uuid> w odpowiedzi/błędzie.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ChatRequest" },
-              "examples": {
-                "minimal": {
-                  "value": {
-                    "modelAlias": "chat-default",
-                    "messages": [{ "role": "user", "content": "Powiedz coś krótko." }]
-                  }
-                },
-                "withConversationId": {
-                  "value": {
-                    "modelAlias": "chat-default",
-                    "messages": [{ "role": "user", "content": "Powiedz coś krótko." }],
-                    "conversationId": "conv_123e4567-e89b-12d3-a456-426614174000"
-                  }
-                },
-                "withParams": {
-                  "summary": "Override parametrów (jak POST /chat)",
-                  "value": {
-                    "modelAlias": "chat-default",
-                    "messages": [{ "role": "user", "content": "Powiedz coś krótko." }],
-                    "params": { "temperature": 0.5, "maxOutputTokens": 512 }
-                  }
-                }
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequestDto"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "SSE stream",
+            "description": "SSE: event meta (SseMetaPayload), delta* (SseDeltaPayload), done (SseDonePayload)",
             "content": {
               "text/event-stream": {
-                "schema": { "type": "string", "description": "Strumień SSE. Każde zdarzenie: `event: <name>\\ndata: <json>\\n\\n`." },
+                "schema": {
+                  "type": "string",
+                  "description": "Format: `event: <name>\\ndata: <json>\\n\\n`"
+                },
                 "examples": {
-                  "sse": {
-                    "value": "event: meta\ndata: {\"id\":\"gw_01H...\",\"provider\":\"anthropic\",\"model\":\"claude-sonnet\",\"effectiveModelAlias\":\"chat-default\",\"requestId\":\"req_...\",\"conversationId\":\"conv_123e4567-e89b-12d3-a456-426614174000\"}\n\nevent: delta\ndata: {\"text\":\"Cześć\"}\n\nevent: delta\ndata: {\"text\":\"!\"}\n\nevent: done\ndata: {}\n"
+                  "meta": {
+                    "value": "event: meta\ndata: {\"id\":\"gw_...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\",\"conversationId\":\"conv_...\"}\n\n"
                   }
                 }
               }
             }
           },
           "400": {
-            "description": "Walidacja DTO, niedozwolony override w `params` (`MODEL_NOT_ALLOWED`) lub błąd domenowy z `validateForStreaming` (przed SSE) — JSON `ErrorEnvelope`.",
+            "description": "Walidacja, MODEL_ALIAS_NOT_FOUND, MODEL_NOT_ALLOWED, STREAMING_NOT_SUPPORTED (stream)",
             "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" },
-                "examples": {
-                  "validationFailed": {
-                    "value": {
-                      "statusCode": 400,
-                      "code": "VALIDATION_FAILED",
-                      "message": "messages must contain no more than 150 elements",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  },
-                  "streamingNotSupported": {
-                    "value": {
-                      "statusCode": 400,
-                      "code": "STREAMING_NOT_SUPPORTED",
-                      "message": "Streaming not supported for this model.",
-                      "requestId": "req_01H...",
-                      "details": []
-                    }
-                  }
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
                 }
               }
             }
           },
           "401": {
-            "description": "Brak `X-Gateway-Key` (przed SSE).",
+            "description": "GATEWAY_KEY_MISSING",
             "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
               }
             }
           },
           "403": {
-            "description": "Niepoprawny `X-Gateway-Key` (przed SSE).",
+            "description": "GATEWAY_KEY_INVALID",
             "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
               }
             }
           },
           "429": {
-            "description": "Smart rate limit (`RATE_LIMITED`) — przed SSE.",
+            "description": "RATE_LIMITED lub PROVIDER_RATE_LIMITED",
             "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_SERVER_ERROR, GATEWAY_KEY_NOT_CONFIGURED",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "PROVIDER_UNSUPPORTED, PROVIDER_UNAVAILABLE",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "PROVIDER_TIMEOUT",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "GatewayKeyAuth": []
+          }
+        ],
+        "summary": "Chat (streaming)",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "description": "Lekki probe procesu. Nie wymaga X-Gateway-Key.",
+        "operationId": "HealthController_getLiveness",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Opcjonalny ID korelacji. Gdy brak, gateway ustawia req_<uuid> w odpowiedzi/błędzie.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthLivenessResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Liveness",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "description": "HTTP zawsze 200; ocena po body.status (ready | not_ready). Nie wymaga X-Gateway-Key.",
+        "operationId": "HealthController_getReadiness",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Opcjonalny ID korelacji. Gdy brak, gateway ustawia req_<uuid> w odpowiedzi/błędzie.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReadinessResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Readiness",
+        "tags": [
+          "Health"
+        ]
       }
     }
   },
   "components": {
+    "headers": {
+      "XRequestId": {
+        "description": "Identyfikator korelacyjny żądania — echo nagłówka żądania `x-request-id` (jeśli niepusty) lub `req_<uuid>`. Ustawiany przez `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) na wszystkich trasach z middleware. To samo ID co pole `requestId` w JSON (sukces, błąd, SSE `meta`).",
+        "schema": {
+          "type": "string"
+        },
+        "example": "req_123e4567-e89b-12d3-a456-426614174000"
+      }
+    },
     "securitySchemes": {
       "GatewayKeyAuth": {
         "type": "apiKey",
         "in": "header",
         "name": "X-Gateway-Key",
-        "description": "Klucz klienta gateway (allowlista z `gateway.config.yaml` + env). Chronione endpointy używają `@GatewayKeyAndSmartRateLimit()`."
+        "description": "Klucz klienta (allowlista z gateway.config.yaml + env). Wymagany dla POST /chat i POST /chat/stream."
       }
     },
     "schemas": {
       "HealthLivenessResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["status", "timestamp"],
+        "required": [
+          "status",
+          "timestamp"
+        ],
         "properties": {
-          "status": { "type": "string", "const": "healthy" },
+          "status": {
+            "type": "string",
+            "const": "healthy"
+          },
           "timestamp": {
             "type": "string",
             "format": "date-time",
@@ -453,31 +377,70 @@
       "HealthCheckItem": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["status", "message"],
+        "required": [
+          "status",
+          "message"
+        ],
         "properties": {
-          "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy"] },
-          "message": { "type": "string" }
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded",
+              "unhealthy"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
         }
       },
       "HealthReadinessResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["status", "timestamp", "version", "uptime", "checks"],
+        "required": [
+          "status",
+          "timestamp",
+          "version",
+          "uptime",
+          "checks"
+        ],
         "properties": {
-          "status": { "type": "string", "enum": ["ready", "not_ready"] },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "not_ready"
+            ]
+          },
           "timestamp": {
             "type": "string",
             "format": "date-time",
             "description": "ISO 8601 UTC (`toISOString()` w `HealthService.getReadiness`)."
           },
-          "version": { "type": "string" },
-          "uptime": { "type": "integer", "minimum": 0, "description": "Czas działania procesu w sekundach (`process.uptime()`)." },
+          "version": {
+            "type": "string"
+          },
+          "uptime": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Czas działania procesu w sekundach (`process.uptime()`)."
+          },
           "checks": {
             "type": "object",
             "additionalProperties": false,
+            "required": [
+              "config",
+              "cache"
+            ],
             "properties": {
-              "config": { "$ref": "#/components/schemas/HealthCheckItem" },
-              "redis": { "$ref": "#/components/schemas/HealthCheckItem" }
+              "config": {
+                "$ref": "#/components/schemas/HealthCheckItem"
+              },
+              "cache": {
+                "$ref": "#/components/schemas/HealthCheckItem",
+                "description": "Stan backendu cache odpowiedzi (`noop` lub `redis` z `CACHE_*`). Nie dotyczy osobno smart rate limit."
+              }
             }
           }
         }
@@ -485,18 +448,29 @@
       "ErrorEnvelope": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["statusCode", "code", "message", "requestId"],
+        "required": [
+          "statusCode",
+          "code",
+          "message",
+          "requestId"
+        ],
         "description": "Envelope błędów z `GlobalExceptionFilter`. Pole `message` jest zawsze stringiem (walidacja: `join('; ')`).",
         "properties": {
-          "statusCode": { "type": "integer", "minimum": 400, "maximum": 599 },
+          "statusCode": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
           "code": {
             "type": "string",
-            "description": "Kod maszynowy z payloadu wyjątku lub `DEFAULT_HTTP_STATUS_TO_CODE`. Słownik: `docs/dictionary.md`."
+            "description": "Kod maszynowy z payloadu wyjątku lub `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). Przykłady: `GATEWAY_KEY_*`, `RATE_LIMITED` (gateway), `PROVIDER_RATE_LIMITED` (upstream), `MODEL_*`, `PROVIDER_*`. Słownik: `docs/dictionary.md`."
           },
-          "message": { "type": "string" },
+          "message": {
+            "type": "string"
+          },
           "requestId": {
             "type": "string",
-            "description": "Z `RequestIdMiddleware` lub z payloadu wyjątku (guardy)."
+            "description": "Z `RequestIdMiddleware` (nagłówek odpowiedzi `x-request-id` ma tę samą wartość) lub z payloadu wyjątku, jeśli jawnie nadpisane."
           },
           "details": {
             "type": "array",
@@ -507,16 +481,27 @@
       },
       "ChatRole": {
         "type": "string",
-        "enum": ["user", "assistant"],
+        "enum": [
+          "user",
+          "assistant"
+        ],
         "description": "Rola `system` w API jest zablokowana — system prompt z plików w `src/config/system-prompt/`."
       },
       "ChatMessage": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["role", "content"],
+        "required": [
+          "role",
+          "content"
+        ],
         "properties": {
-          "role": { "$ref": "#/components/schemas/ChatRole" },
-          "content": { "type": "string", "maxLength": 3000 }
+          "role": {
+            "$ref": "#/components/schemas/ChatRole"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 3000
+          }
         }
       },
       "ChatParams": {
@@ -540,14 +525,21 @@
       "ChatRequest": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["modelAlias", "messages"],
+        "required": [
+          "modelAlias",
+          "messages"
+        ],
         "properties": {
-          "modelAlias": { "type": "string" },
+          "modelAlias": {
+            "type": "string"
+          },
           "messages": {
             "type": "array",
             "minItems": 1,
             "maxItems": 150,
-            "items": { "$ref": "#/components/schemas/ChatMessage" }
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            }
           },
           "conversationId": {
             "type": "string",
@@ -563,17 +555,36 @@
       "SseMetaPayload": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "provider", "model", "requestId", "conversationId"],
+        "required": [
+          "id",
+          "provider",
+          "model",
+          "requestId",
+          "conversationId"
+        ],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "provider": { "type": "string", "minLength": 1 },
-          "model": { "type": "string", "minLength": 1, "description": "Żądany `modelAlias` z body." },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Żądany `modelAlias` z body."
+          },
           "effectiveModelAlias": {
             "type": "string",
             "minLength": 1,
             "description": "Obecne tylko gdy `ResilientExecutor` obsłużył żądanie na aliasie `fallback` z YAML (inny niż `model`)."
           },
-          "requestId": { "type": "string", "minLength": 1 },
+          "requestId": {
+            "type": "string",
+            "minLength": 1
+          },
           "conversationId": {
             "type": "string",
             "minLength": 1,
@@ -584,9 +595,13 @@
       "SseDeltaPayload": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["text"],
+        "required": [
+          "text"
+        ],
         "properties": {
-          "text": { "type": "string" }
+          "text": {
+            "type": "string"
+          }
         }
       },
       "SseDonePayload": {
@@ -598,47 +613,445 @@
       "ChatOutputText": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["type", "text"],
+        "required": [
+          "type",
+          "text"
+        ],
         "properties": {
-          "type": { "type": "string", "const": "text" },
-          "text": { "type": "string" }
+          "type": {
+            "type": "string",
+            "const": "text"
+          },
+          "text": {
+            "type": "string"
+          }
         }
       },
       "ChatUsage": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "inputTokens": { "type": "integer", "minimum": 0 },
-          "outputTokens": { "type": "integer", "minimum": 0 },
-          "totalTokens": { "type": "integer", "minimum": 0 }
+          "inputTokens": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "outputTokens": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalTokens": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       },
       "ChatResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "provider", "model", "output", "requestId", "conversationId"],
+        "required": [
+          "id",
+          "provider",
+          "model",
+          "output",
+          "requestId",
+          "conversationId"
+        ],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "provider": { "type": "string", "minLength": 1 },
-          "model": { "type": "string", "minLength": 1, "description": "Żądany `modelAlias` z body." },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Żądany `modelAlias` z body."
+          },
           "effectiveModelAlias": {
             "type": "string",
             "minLength": 1,
             "description": "Obecne tylko po udanym fallbacku (`models[].fallback` w YAML) — alias faktycznie użyty do wywołania providera."
           },
           "output": {
-            "oneOf": [{ "$ref": "#/components/schemas/ChatOutputText" }]
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChatOutputText"
+              }
+            ]
           },
-          "usage": { "$ref": "#/components/schemas/ChatUsage" },
-          "requestId": { "type": "string", "minLength": 1 },
+          "usage": {
+            "$ref": "#/components/schemas/ChatUsage"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1
+          },
           "conversationId": {
             "type": "string",
             "minLength": 1,
             "description": "ID sesji zwrócone klientowi (echo `conversationId` z body lub `conv_<uuid>` gdy brak w request). Grupowanie w Sentry wymaga podania tego samego ID w body kolejnych żądań — patrz `docs/conversation-tracking.md`."
           },
-          "cached": { "type": "boolean", "const": true },
-          "cachedAt": { "type": "string", "format": "date-time" }
+          "cached": {
+            "type": "boolean",
+            "const": true
+          },
+          "cachedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
+      },
+      "ChatMessageDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "description": "Rola wiadomości. Rola system nie jest dozwolona — system prompt z plików serwera.",
+            "example": "user"
+          },
+          "content": {
+            "type": "string",
+            "description": "Content of the message. Must be a string with a maximum length of 3000 characters.",
+            "example": "Hello, how are you?"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ]
+      },
+      "ChatParamsDto": {
+        "type": "object",
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "description": "Override temperature for this request. Allowed only if listed in allowOverrides for modelAlias.",
+            "minimum": 0,
+            "maximum": 2,
+            "example": 0.7
+          },
+          "maxOutputTokens": {
+            "type": "number",
+            "description": "Override max output tokens. Allowed only if listed in allowOverrides for modelAlias.",
+            "minimum": 1,
+            "maximum": 8192,
+            "example": 1024
+          }
+        }
+      },
+      "ChatRequestDto": {
+        "type": "object",
+        "properties": {
+          "modelAlias": {
+            "type": "string",
+            "description": "Alias modelu z gateway.config.yaml",
+            "example": "chat-default"
+          },
+          "messages": {
+            "minItems": 1,
+            "maxItems": 150,
+            "description": "Historia wiadomości (1–150).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageDto"
+            }
+          },
+          "params": {
+            "description": "Optional generation overrides. Only fields listed in allowOverrides for this modelAlias are accepted.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChatParamsDto"
+              }
+            ]
+          },
+          "conversationId": {
+            "type": "string",
+            "description": "Opcjonalny conv_<uuid>. W request włącza grupowanie Sentry; w response zawsze zwracany ID.",
+            "example": "conv_123e4567-e89b-12d3-a456-426614174000",
+            "pattern": "^conv_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          }
+        },
+        "required": [
+          "modelAlias",
+          "messages"
+        ]
+      },
+      "ChatOutputTextDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "text"
+            ],
+            "example": "text"
+          },
+          "text": {
+            "type": "string",
+            "example": "Odpowiedź modelu..."
+          }
+        },
+        "required": [
+          "type",
+          "text"
+        ]
+      },
+      "ChatUsageDto": {
+        "type": "object",
+        "properties": {
+          "inputTokens": {
+            "type": "number",
+            "minimum": 0
+          },
+          "outputTokens": {
+            "type": "number",
+            "minimum": 0
+          },
+          "totalTokens": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "ChatResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "gw_01HZZZZZZZZZZZZZZZZZZZZZZ"
+          },
+          "provider": {
+            "type": "string",
+            "example": "anthropic"
+          },
+          "model": {
+            "type": "string",
+            "description": "Żądany modelAlias z body",
+            "example": "chat-default"
+          },
+          "effectiveModelAlias": {
+            "type": "string",
+            "description": "Tylko po udanym fallbacku w YAML",
+            "example": "claude-sonnet"
+          },
+          "output": {
+            "$ref": "#/components/schemas/ChatOutputTextDto"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/ChatUsageDto"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": "string"
+          },
+          "cached": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Tylko przy trafieniu cache"
+          },
+          "cachedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "model",
+          "output",
+          "requestId",
+          "conversationId"
+        ]
+      },
+      "ErrorEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 400,
+            "minimum": 400,
+            "maximum": 599
+          },
+          "code": {
+            "type": "string",
+            "example": "VALIDATION_FAILED",
+            "description": "Kod maszynowy; słownik: docs/dictionary.md"
+          },
+          "message": {
+            "type": "string",
+            "example": "modelAlias must be a string"
+          },
+          "requestId": {
+            "type": "string",
+            "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
+          },
+          "details": {
+            "type": "array",
+            "description": "Obecna implementacja często zwraca [].",
+            "example": []
+          }
+        },
+        "required": [
+          "statusCode",
+          "code",
+          "message",
+          "requestId"
+        ]
+      },
+      "HealthLivenessResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy"
+            ],
+            "example": "healthy"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-05-19T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "status",
+          "timestamp"
+        ]
+      },
+      "HealthCheckItemDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded",
+              "unhealthy"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "example": "Config is loaded"
+          }
+        },
+        "required": [
+          "status",
+          "message"
+        ]
+      },
+      "HealthReadinessChecksDto": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/HealthCheckItemDto"
+          },
+          "cache": {
+            "description": "Backend cache odpowiedzi (noop/redis). Nie dotyczy smart rate limit.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCheckItemDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "config",
+          "cache"
+        ]
+      },
+      "HealthReadinessResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "not_ready"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "string",
+            "example": "1.0.0"
+          },
+          "uptime": {
+            "type": "number",
+            "example": 42,
+            "minimum": 0
+          },
+          "checks": {
+            "$ref": "#/components/schemas/HealthReadinessChecksDto"
+          }
+        },
+        "required": [
+          "status",
+          "timestamp",
+          "version",
+          "uptime",
+          "checks"
+        ]
+      },
+      "SseMetaPayloadDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "description": "Żądany modelAlias z body"
+          },
+          "effectiveModelAlias": {
+            "type": "string",
+            "description": "Po fallbacku"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "model",
+          "requestId",
+          "conversationId"
+        ]
+      },
+      "SseDeltaPayloadDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "SseDonePayloadDto": {
+        "type": "object",
+        "properties": {}
       }
     }
   }
