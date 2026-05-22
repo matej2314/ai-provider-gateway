@@ -13,7 +13,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 - zasady uwierzytelnienia na brzegu (gateway key),
 - zasady logowania (bez sekretów).
 
-**Stan implementacji (skrót):** **`openapi.json`** (v0.11.0): czat, SSE, health, `params`, `cached`/`cachedAt`, retry/fallback/`effectiveModelAlias`, **`RATE_LIMITED`**, **`MODEL_NOT_ALLOWED`**, **`PROVIDER_TIMEOUT`**. Moduł czatu: **`ChatService`** + **`ChatProviderCallService`** + helpery (`system-prompt`, `provider-input`, `cache-policy`, …). **`GlobalExceptionFilter`** + **`RequestIdMiddleware`**. Czat: **`@GatewayKeyAndSmartRateLimit()`**. **`ResilientExecutor`**. Faza 5 (pozostałość): `config:validate`, response header `x-request-id` — `dokumentacja_koncepcyjna.md`.
+**Stan implementacji (skrót):** **`openapi.json`** (v0.11.1): czat, SSE, health, `params`, `cached`/`cachedAt`, retry/fallback/`effectiveModelAlias`, smart rate limit (`src/rate-limit/`, bez `@nestjs/throttler`), **`RATE_LIMITED`**, **`MODEL_NOT_ALLOWED`**, **`PROVIDER_TIMEOUT`**. Moduł czatu: **`ChatService`** + **`ChatProviderCallService`** + helpery (`system-prompt`, `provider-input`, `cache-policy`, …). **`GlobalExceptionFilter`** + **`RequestIdMiddleware`**. Czat: **`@GatewayKeyAndSmartRateLimit()`**. **`ResilientExecutor`**. Faza 5 (pozostałość): `config:validate`, response header `x-request-id` — `dokumentacja_koncepcyjna.md`.
 
 ## Użytkownicy i scenariusze
 

@@ -222,7 +222,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
 | **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekorator guardów, typy Express. |
 | **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). |
-| **`src/guards/`**, **`src/rate-limit/`** | `X-Gateway-Key` + smart limiting (Redis). |
+| **`src/guards/`**, **`src/rate-limit/`** | `X-Gateway-Key` + smart limiting (Redis); `RateLimitModule` w `AppModule` — bez `@nestjs/throttler`. |
 | **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |
 | **`src/health/`** | Liveness i readiness. |
 | **`scripts/`** | Walidacja konfiguracji offline (w przygotowaniu). |

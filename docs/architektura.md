@@ -46,7 +46,7 @@ flowchart TB
 | **Providers** (`src/providers`) | Adaptery providerów (Anthropic/Google Gemini) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
 | **Health** (`src/health`) | Liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready` — config, Redis). Walidacja konfiguracji przy **starcie** procesu. |
-| **Rate limit** (`src/rate-limit`) | Smart limiting per `X-Gateway-Key` (Redis): RPS/burst, równoległe streamy, cooldown po 429 od providera. |
+| **Rate limit** (`src/rate-limit`) | Jedyna warstwa limitów gateway: smart limiting per `X-Gateway-Key` (Redis) — token bucket (RPS/burst), równoległe streamy, cooldown po 429 od providera (`SmartRateLimitGuard`, `SmartRateLimiterService`). Limity: opcjonalnie `clients[].rateLimit` w YAML, inaczej env; przełącznik `RATE_LIMIT_SMART_ENABLED`. Bez `@nestjs/throttler`. |
 | **Logging / Metrics** | Structured logging (Pino), opcjonalnie Sentry (błędy + spany LLM). |
 
 ## Warstwy wewnątrz modułów (konwencja NestJS)

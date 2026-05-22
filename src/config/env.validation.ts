@@ -80,23 +80,6 @@ class EnvironmentVariables {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   @IsOptional()
-  RATE_LIMIT_ENABLED?: boolean = true;
-
-  @Transform(({ value }) => parseInt(value, 10))
-  @IsInt()
-  @Min(1000)
-  @IsOptional()
-  RATE_LIMIT_TTL?: number = 60000;
-
-  @Transform(({ value }) => parseInt(value, 10))
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  RATE_LIMIT_MAX?: number = 100;
-
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  @IsOptional()
   RATE_LIMIT_SMART_ENABLED?: boolean = false;
 
   @Transform(({ value }) => parseInt(value, 10))

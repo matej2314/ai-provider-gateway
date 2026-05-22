@@ -13,7 +13,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 7. Dla pracy spec‑first: katalog `spec/`.
 8. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — opis warstw i ścieżek: `konfiguracja.md`, `architektura.md`, `dokumentacja_api.md`.
 9. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`.
-10. **Smart rate limiting**, **readiness**, **logging/metrics** — wdrożone; szczegóły: `konfiguracja.md`, `architektura.md`.
+10. **Smart rate limiting** (`src/rate-limit/`, Redis; bez `@nestjs/throttler`), **readiness**, **logging/metrics** — wdrożone; limity: YAML `clients[].rateLimit` lub env; szczegóły: `konfiguracja.md`, `architektura.md`.
 11. **Śledzenie rozmów (`conversationId`)** — response zawsze z ID; Sentry Conversations tylko przy ID w request (zalecany start od tury 2 + pełne `messages[]`); szczegóły: `conversation-tracking.md`.
 12. **Parametry generacji (`params`)** — opcjonalne `temperature` / `maxOutputTokens` w body; merge z `policy.params` w YAML (`resolveProviderCallOptions`); szczegóły: `konfiguracja.md`, `dokumentacja_api.md`.
 13. **Odporność (retry, timeout, fallback)** — `ResilientExecutor` + `models[].fallback` w YAML; opcjonalne `effectiveModelAlias` w odpowiedzi; szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
@@ -21,7 +21,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 
 ## Spis plików
 
-- `../openapi.json` *(w katalogu głównym repo, v0.11.0)* — OpenAPI 3.1: kontrakt REST zsynchronizowany z kodem (czat, `ChatProviderCallService`, `params`, retry/fallback/`effectiveModelAlias`, `securitySchemes.GatewayKeyAuth`, streaming SSE, health, `ErrorEnvelope`).
+- `../openapi.json` *(w katalogu głównym repo, v0.11.1)* — OpenAPI 3.1: kontrakt REST zsynchronizowany z kodem (czat, `ChatProviderCallService`, `params`, retry/fallback/`effectiveModelAlias`, smart rate limit `src/rate-limit/`, `securitySchemes.GatewayKeyAuth`, streaming SSE, health, `ErrorEnvelope`).
 - `dokumentacja_koncepcyjna.md` — cel produktu, zakres (MVP / v1), założenia.
 - `architektura.md` — widok logiczny, moduły, warstwy, integracje providerów.
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.

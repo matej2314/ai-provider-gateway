@@ -23,7 +23,7 @@ Najważniejsze pliki:
 - `docs/architektura_api.md` — konwencje API, requestId, streaming
 - `docs/lista_endpointów.md` — szybka lista endpointów
 - `docs/dokumentacja_api.md` — kontrakt request/response + przykłady
-- `docs/konfiguracja.md` — env + “plug&play” konfiguracja
+- `docs/konfiguracja.md` — env + “plug&play” konfiguracja (w tym smart rate limit: `src/rate-limit/`, YAML per klient + env)
 - `docs/spec/` — specyfikacje (SDD), np. `SPEC-CHAT.md`, `SPEC-PROVIDERS.md`
 - `openapi.json` — OpenAPI 3.1 (zsynchronizowany z kodem)
 
@@ -81,6 +81,10 @@ curl -X POST "http://localhost:3000/api/v1/chat/stream" ^
 ```
 
 Szczegóły kontraktów: `openapi.json`, `docs/dokumentacja_api.md`.
+
+## Rate limiting (smart)
+
+Limit ruchu na czacie jest realizowany wyłącznie przez **`src/rate-limit/`** (`SmartRateLimitGuard` + `SmartRateLimiterService`, Redis). Włączenie: `RATE_LIMIT_SMART_ENABLED=true` w `.env`. Limity per klient: opcjonalnie `clients[].rateLimit` w `gateway.config.yaml`, inaczej domyślne z env (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY`, `RATE_LIMIT_STREAMS_CONCURRENT`). Healthcheck bez limitów. Szczegóły: `docs/konfiguracja.md`.
 
 ## System prompt i `messages[]`
 

@@ -47,22 +47,28 @@ Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/con
 
 Szablon zmiennych: `.env.example`.
 
-### Smart rate limiting i Throttler (opcjonalnie)
+### Smart rate limiting (`src/rate-limit/`)
+
+Implementacja: **`RateLimitModule`**, **`SmartRateLimiterService`**, **`SmartRateLimitGuard`** (dekorator `@GatewayKeyAndSmartRateLimit()` na kontrolerach czatu). **Nie** używa `@nestjs/throttler` — zmienne `RATE_LIMIT_ENABLED`, `RATE_LIMIT_TTL`, `RATE_LIMIT_MAX` zostały usunięte z konfiguracji.
+
+**Kolejność limitów (per wartość `X-Gateway-Key`):**
+
+1. Jeśli klient w runtime ma sekcję **`clients[].rateLimit`** w `gateway.config.yaml` → używane są `rps`, `burst`, `maxConcurrentStreams` z YAML (mapowanie po faktycznej wartości klucza z env, nie po nazwie wpisu `webapp`).
+2. W przeciwnym razie → domyślne wartości z env (tabela poniżej).
 
 | Zmienna | Domyślnie | Znaczenie |
 |---------|-----------|-----------|
-| `RATE_LIMIT_ENABLED` | `true` | Rejestracja `ThrottlerModule` w `AppModule` (storage Redis gdy cache+redis gotowy). **Uwaga:** globalny `ThrottlerGuard` nie jest podpięty — limit HTTP opiera się na smart limiterze poniżej. |
-| `RATE_LIMIT_TTL` | `60000` | Okno Throttler (ms). |
-| `RATE_LIMIT_MAX` | `100` | Limit żądań w oknie Throttler. |
 | `RATE_LIMIT_SMART_ENABLED` | `false` | Gdy **`true`**, `SmartRateLimitGuard` egzekwuje limity per `X-Gateway-Key` (wymaga gotowego Redis). |
 | `RATE_LIMIT_RPS_PER_KEY` | `10` | Domyślny RPS (token bucket) gdy klient nie ma `rateLimit` w YAML. |
 | `RATE_LIMIT_BURST_PER_KEY` | `20` | Domyślny burst. |
 | `RATE_LIMIT_STREAMS_CONCURRENT` | `3` | Maks. równoległych streamów per klucz. |
-| `RATE_LIMIT_COOLDOWN_AFTER_429` | `60` | Sekundy blokady per klucz+provider po 429 od upstream (`ChatService` → `SmartRateLimiterService.setCooldown`). |
+| `RATE_LIMIT_COOLDOWN_AFTER_429` | `60` | Sekundy blokady per klucz+provider po 429 od upstream (`ChatService.executeChat` → `SmartRateLimiterService.setCooldown`; tylko czat standardowy, nie streaming). |
 
-W **`gateway.config.yaml`** sekcja **`clients[].rateLimit`** nadpisuje `rps`, `burst`, `maxConcurrentStreams` dla danego klucza (przykład: `webapp` w repozytoryjnym pliku).
+W **`gateway.config.yaml`** opcjonalna sekcja **`clients.<id>.rateLimit`** (przykład: `webapp` w repozytoryjnym pliku; klient `ide-plugin` bez `rateLimit` → limity z env).
 
-Gdy Redis niedostępny, `SmartRateLimiterService` **przepuszcza** żądania (graceful degradation). Kod błędu limitu gateway: **`RATE_LIMITED`** (HTTP 429).
+**Health** (`GET /api/v1/health`, `GET /api/v1/health/ready`) — bez guardów czatu i bez limitów gateway.
+
+Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza** żądania (graceful degradation). Kod błędu limitu gateway: **`RATE_LIMITED`** (HTTP 429). Limit upstream providera: **`PROVIDER_RATE_LIMITED`** (osobna ścieżka w `provider-error.mapper.ts`).
 
 ### Observability (env)
 
