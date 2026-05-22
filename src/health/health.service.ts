@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RedisCacheAdapter } from 'src/cache/adapters/redis-cache/redis-cache.adapter';
+import { CacheRegistryService } from 'src/cache/cache-registry.service';
 
 export interface HealtCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -11,7 +11,7 @@ export interface HealtCheckResult {
 export class HealthService {
   constructor(
     private readonly config: ConfigService,
-    private readonly redis: RedisCacheAdapter,
+    private readonly cacheRegistry: CacheRegistryService,
   ) {}
 
   getLiveness() {
@@ -24,7 +24,7 @@ export class HealthService {
   getReadiness() {
     const checks = {
       config: this.checkConfig(),
-      redis: this.checkRedis(),
+      cache: this.checkCache(),
     };
 
     const allHealthy = Object.values(checks).every(
@@ -57,16 +57,33 @@ export class HealthService {
     };
   }
 
-  private checkRedis(): HealtCheckResult {
-    if (!this.redis.isAvailable()) {
+  private checkCache(): HealtCheckResult {
+    const cacheConfig = this.config.get<{
+      enabled?: boolean;
+      backend?: string;
+    }>('cache');
+
+    const backendId = (cacheConfig?.backend ?? 'noop').toLowerCase();
+
+    if (!cacheConfig?.enabled || backendId === 'noop') {
       return {
-        status: 'degraded',
-        message: 'Redis unavailable (graceful degradation)',
+        status: 'healthy',
+        message: 'Cache disabled (noop)',
       };
     }
+
+    const backend = this.cacheRegistry.resolve();
+
+    if (!backend.isAvailable()) {
+      return {
+        status: 'degraded',
+        message: `Cache backend "${backendId}" unavailable`,
+      };
+    }
+
     return {
       status: 'healthy',
-      message: 'Redis connected',
+      message: `Cache backend "${backendId}" available`,
     };
   }
 }

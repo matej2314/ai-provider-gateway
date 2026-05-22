@@ -3,14 +3,28 @@ import './instrument';
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { json } from 'express';
 import { LoggingService } from './logging/logging.service';
+import { join } from 'path';
+import { readFileSync } from 'fs';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = app.get(LoggingService);
   app.setGlobalPrefix('api/v1');
+
+  const openApiPath = join(process.cwd(), 'openapi.json');
+  const document = JSON.parse(readFileSync(openApiPath, 'utf8'));
+
+  SwaggerModule.setup('api-docs', app, document, {
+    useGlobalPrefix: true,
+    jsonDocumentUrl: 'api-docs/swagger.json',
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
 
   app.getHttpAdapter().getInstance().disable('x-powered-by');
 
