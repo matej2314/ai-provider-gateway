@@ -17,7 +17,7 @@ export class HealthService {
   getLiveness() {
     return {
       status: 'healthy',
-      timestamp: new Date().toLocaleDateString(),
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -33,7 +33,7 @@ export class HealthService {
 
     return {
       status: allHealthy ? 'ready' : 'not_ready',
-      timestamp: new Date().toLocaleDateString(),
+      timestamp: new Date().toISOString(),
       version: process.env.APP_VERSION || '1.0.0',
       uptime: Math.floor(process.uptime()),
       checks,
@@ -44,7 +44,7 @@ export class HealthService {
     const hasGatewayConfig = !!this.config.get('gateway');
     const hasResolvedPrompts = !!this.config.get('resolvedSystemPrompts');
 
-    if (!hasGatewayConfig || hasResolvedPrompts) {
+    if (hasGatewayConfig && hasResolvedPrompts) {
       return {
         status: 'healthy',
         message: 'Config is loaded',

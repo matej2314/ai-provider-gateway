@@ -21,15 +21,15 @@ F-1. `GET /api/v1/health` zwraca `200` i lekki JSON (liveness):
 ```json
 {
   "status": "healthy",
-  "timestamp": "5/19/2026"
+  "timestamp": "2026-05-19T12:00:00.000Z"
 }
 ```
 
 Uwagi:
-- `timestamp` pochodzi z `toLocaleDateString()` w `HealthService.getLiveness` (format zależny od locale serwera).
+- `timestamp` to ISO 8601 UTC (`new Date().toISOString()` w `HealthService.getLiveness` / `getReadiness`).
 - Endpoint nie wymaga `X-Gateway-Key`.
 
-F-1b. `GET /api/v1/health/ready` zwraca readiness (`status`: `ready` | `not_ready`, `checks.config`, `checks.redis`, `version`, `uptime`) — implementacja w `HealthService.getReadiness`.
+F-1b. `GET /api/v1/health/ready` zwraca readiness (`status`: `ready` | `not_ready`, `checks.config`, `checks.redis`, `version`, `uptime`) — implementacja w `HealthService.getReadiness`. **HTTP zawsze 200**; probe ocenia pole `status` w body. Szczegóły `checks.config`: `docs/dokumentacja_api.md`.
 
 F-2. Gateway musi być w stanie jednoznacznie określić “gotowość” do obsługi żądań LLM:
 

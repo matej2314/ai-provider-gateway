@@ -6,9 +6,9 @@ Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.
 
 1. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) zgodny z aktualnym kodem.
 2. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO).
-3. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 (Faza 5: m.in. `config:validate`, response header `x-request-id`; dalsze rozszerzenia kontraktu). **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`**, **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`), **`params` w body** (`ChatParamsDto`, `resolveProviderCallOptions`), logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). Kody domenowe w payloadzie wyjątku są zachowywane przez filtr.
+3. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 (Faza 5: m.in. `config:validate`, response header `x-request-id`; dalsze rozszerzenia kontraktu). **Wdrożone w `src/`:** `GlobalExceptionFilter` (`APP_FILTER` w `app.module.ts`), **`RequestIdMiddleware`**, **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`), **`params` w body** (`ChatParamsDto`, `resolveProviderCallOptions`), logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). Kody domenowe w payloadzie wyjątku są zachowywane przez filtr.
 4. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
-5. **System prompt po stronie serwera** — wdrożony w kodzie (DTO + `ChatService` + `configuration.ts` + `openapi.json` + `konfiguracja.md` / `architektura.md`).
+5. **System prompt po stronie serwera** — wczytanie plików w `configuration.ts`, składanie w `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`).
 6. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
 
 ## Podstawy
@@ -24,16 +24,18 @@ Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.
 **Konfiguracja przy starcie:**
 
 - **`gateway.config.yaml`** — wczytanie i walidacja Zod + `buildEffectiveGatewayConfig` (`src/config/configuration.ts`): m.in. spójność `providers` ↔ `models` (niepuste `models`, alias → provider, włączony provider → ≥1 model). Szczegóły: `konfiguracja.md`.
-- **Pliki system promptu** — `MASTER_SYSTEM_PROMPT.md` (wymagany), opcjonalnie `MAIN_SYSTEM_PROMPT.md` oraz `models/<modelAlias>.md` dla aliasów z YAML; treść składana w `ChatService` (`MASTER` + `MAIN?` + warstwa per model). Szczegóły: `konfiguracja.md`.
+- **Pliki system promptu** — `MASTER_SYSTEM_PROMPT.md` (wymagany), opcjonalnie `MAIN_SYSTEM_PROMPT.md` oraz `models/<modelAlias>.md` dla aliasów z YAML; treść składana w runtime (`composeSystemPrompt` w `src/chat/helpers/system-prompt.ts`). Szczegóły: `konfiguracja.md`.
 - **Env** — w **`NODE_ENV=production`** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`). Opcjonalnie zmienne **`CACHE_*`** / **`REDIS_*`** — `konfiguracja.md`.
 
-**Nagłówek `X-Gateway-Key`:** **wymagany** dla czatu (`@GatewayKeyAndSmartRateLimit()` na kontrolerach). Allowlista: `buildGatewayKeyRuntime` w `configuration.ts`. Przy `RATE_LIMIT_SMART_ENABLED=true` i gotowym Redis — dodatkowo limity per klucz (`SmartRateLimitGuard`, `SmartRateLimiterService`; szczegóły `konfiguracja.md`). **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** — bez klucza.
+**Nagłówek `X-Gateway-Key`:** **wymagany** dla czatu (`@GatewayKeyAndSmartRateLimit()` na kontrolerach). Allowlista: `buildGatewayKeyRuntime` w `configuration.ts`. Przy `RATE_LIMIT_SMART_ENABLED=true` i gotowym Redis — dodatkowo limity per klucz (`SmartRateLimitGuard`, `SmartRateLimiterService`; szczegóły `konfiguracja.md`). **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** — bez klucza (guardy czatu ich nie obejmują).
+
+**`requestId`:** `RequestIdMiddleware` ustawia `req.requestId` z nagłówka **`x-request-id`** (jeśli niepusty) lub generuje `req_<uuid>`. W envelope błędów i odpowiedziach czatu pole **`requestId`** pochodzi z tej wartości. Nagłówek odpowiedzi **`x-request-id`** — planowany (Faza 5), obecnie **nie** jest ustawiany w `main.ts`.
 
 ---
 
 ## Format błędów
 
-Wszystkie odpowiedzi błędów obsłużone przez `GlobalExceptionFilter` jako JSON są w envelope **`ErrorEnvelope`** (`openapi.json`) — patrz `src/common/filters/http-exception.filter.ts` (globalnie w `src/main.ts`). **Uwaga:** przy `POST /api/v1/chat/stream` część błędów może powstać **po** `flushHeaders` (patrz sekcja streamingu) — wtedy klient może nie otrzymać poprawnego JSON.
+Wszystkie odpowiedzi błędów obsłużone przez `GlobalExceptionFilter` jako JSON są w envelope **`ErrorEnvelope`** (`openapi.json`) — patrz `src/common/filters/http-exception.filter.ts` (rejestracja: `APP_FILTER` w `src/app.module.ts`). **Uwaga:** przy `POST /api/v1/chat/stream` część błędów może powstać **po** `flushHeaders` (patrz sekcja streamingu) — wtedy klient może nie otrzymać poprawnego JSON.
 
 ```json
 {
@@ -65,7 +67,7 @@ Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; *
 
 ### System prompt i role w `messages[]`
 
-**Stan kodu:** w żądaniu HTTP dozwolone są wyłącznie role `user` i `assistant` (`ChatMessageDto`, walidacja `400` przy `role=system`). Instrukcja systemowa dla providera jest **składana po stronie serwera** w `ChatService.buildProviderInput`: `MASTER` + opcjonalnie `MAIN` + opcjonalnie treść z `src/config/system-prompt/models/<modelAlias>.md`, a następnie przekazywana adapterom jako `ProviderChatInput.system`. Nie ma już agregacji `system` z treści żądania.
+**Stan kodu:** w żądaniu HTTP dozwolone są wyłącznie role `user` i `assistant` (`ChatMessageDto`, walidacja `400` przy `role=system`). Instrukcja systemowa jest **składana po stronie serwera** w `composeSystemPrompt` (`src/chat/helpers/system-prompt.ts`) i przekazywana adapterom przez `buildProviderInputForAlias` (`src/chat/helpers/provider-input.ts`) w **`ChatProviderCallService`**. Nie ma agregacji `system` z treści żądania.
 
 **Spójny opis warstw i ścieżek plików:** `konfiguracja.md`, `architektura.md`.
 
@@ -85,15 +87,17 @@ Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRe
 
 Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 150** wiadomości), każda wiadomość: **`role`** ∈ `{user, assistant}`, **`content`** string **do 3000** znaków (`src/chat/dto/chat-request.dto.ts`, `chat-message.dto.ts`). Opcjonalnie **`conversationId`** w formacie **`conv_<uuid>`** (walidacja regex w `ChatRequestDto`): w **request** włącza grupowanie Sentry (`gen_ai.conversation.id`); bez niego span = pojedyncza wiadomość. Od **drugiej tury** z `conversationId` klient powinien wysłać **pełną** historię w `messages[]` (w tym wcześniejszą odpowiedź `assistant`). Szczegóły: **`conversation-tracking.md`**.
 
-Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`): zagnieżdżony obiekt z **`temperature`** (0–2) i/lub **`maxOutputTokens`** (1–8192). Wartości efektywne = merge **`policy.params.defaults`** z YAML ← nadpisanie z body tylko dla pól w **`allowOverrides`**; po merge **clamp** do **`bounds`** (`resolveProviderCallOptions`). Niedozwolone pole w body → **`400`** + **`MODEL_NOT_ALLOWED`**. Nadwyżkowe pola w body → **`400`** (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Limit body: **1 MB**.
+Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`): zagnieżdżony obiekt z **`temperature`** (0–2) i/lub **`maxOutputTokens`** (1–8192). Wartości efektywne = merge **`policy.params.defaults`** z YAML ← nadpisanie z body tylko dla pól w **`allowOverrides`**; po merge **clamp** do **`bounds`** (`resolveProviderCallOptions`). Niedozwolone pole w body → **`400`** + **`MODEL_NOT_ALLOWED`** — w czacie standardowym sprawdzane **przed** wywołaniem providera (`executeChat`, linia wywołania `resolveProviderCallOptions` przed `ResilientExecutor`). Nadwyżkowe pola w body → **`400`** (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Limit body: **1 MB**.
 
 ### Response (`200`)
 
 `ChatService.executeChat`: `id`, `provider`, `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`** (gdy zadziałał fallback z YAML), `output`, `usage` (opcjonalnie, zależnie od adaptera), `requestId`, **`conversationId`** (echo z body lub `conv_<uuid>` wygenerowane przez gateway — `conversation-tracking.md`).
 
-**Cache (opcjonalny):** gdy backend cache jest dostępny (`ResponseCacheService` + `CACHE_ENABLED` / `CACHE_BACKEND` — `konfiguracja.md`), przed wywołaniem providera wykonywany jest lookup; przy trafieniu zwracany jest zapisany JSON z **`cached: true`** oraz **`cachedAt`** (timestamp ISO). W przeciwnym razie po udanym wywołaniu providera odpowiedź jest zapisywana pod kluczem zależnym m.in. od `modelAlias`, treści `messages`, sygnatury warstw system promptu (SHA-256) oraz **efektywnych** parametrów wywołania (`temperature`, `maxOutputTokens` po merge). **Streaming nie jest cache’owany.**
+**Cache (opcjonalny):** gdy backend cache jest dostępny (`ResponseCacheService` + `CACHE_ENABLED` / `CACHE_BACKEND` — `konfiguracja.md`), przed wywołaniem providera wykonywany jest lookup; przy trafieniu (oraz gdy alias i provider są **włączone** w YAML — `isCachedChatAllowedForModelAlias` w `src/chat/helpers/cache-policy.ts`) zwracany jest zapisany JSON z **`cached: true`** oraz **`cachedAt`** (timestamp ISO). W przeciwnym razie po udanym wywołaniu (`ChatProviderCallService.completeOnce` w ramach `ResilientExecutor`) odpowiedź jest zapisywana pod kluczem zależnym m.in. od `modelAlias`, treści `messages`, sygnatury warstw system promptu (SHA-256) oraz **efektywnych** parametrów wywołania. **Streaming nie jest cache’owany.**
 
-Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi standardowej, jak i w SSE (`meta.model`) — vendorowy `modelId` nie jest zwracany w żadnej odpowiedzi (`ChatService.executeChat` i `ChatService.executeStream` zwracają `requestBody.modelAlias`).
+**Cooldown po 429 od providera** (`SmartRateLimiterService.setCooldown`) jest ustawiany w `ChatService.executeChat` po błędzie upstream — **nie** dotyczy `executeStream` (brak przekazania klucza do `handleProviderError` w streamingu).
+
+Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi standardowej, jak i w SSE (`meta.model`) — vendorowy `modelId` nie jest zwracany w żadnej odpowiedzi. SSE **`meta`** jest emitowane w `ChatProviderCallService.streamOnce` (pierwsze udane wywołanie w łańcuchu retry/fallback).
 
 ### Typowe kody
 
@@ -116,24 +120,32 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation-tracking.md`).
 
-**Zdarzenia:** `meta` → `delta`* → `done` (`{}`). W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`** (po fallbacku), `requestId`, **`conversationId`** (jak w odpowiedzi standardowej). Retry/fallback — ten sam `ResilientExecutor` co w czacie standardowym.
+**Zdarzenia:** `meta` → `delta`* → `done` (`{}`). W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`** (po fallbacku), `requestId`, **`conversationId`** (jak w odpowiedzi standardowej). Emisja `meta`/`delta` — `ChatProviderCallService.streamOnce`; `done` — `ChatService.executeStream`. Retry/fallback — ten sam `ResilientExecutor` co w czacie standardowym.
 
 **Błędy i JSON `ErrorEnvelope`:**
 
 - **Przed SSE (pewny JSON):** `ValidationPipe`, guardy (`GatewayKeyGuard`, `SmartRateLimitGuard`), **`validateForStreaming`** — m.in. `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`.
-- **Po `flushHeaders`:** błędy z **`executeStream`** (provider, sieć) — klient może dostać częściowy strumień zamiast JSON.
+- **Po `flushHeaders`:** błędy z **`executeStream`** / **`ChatProviderCallService.streamOnce`** — m.in. `MODEL_NOT_ALLOWED` (niedozwolone pole w `params` sprawdzane dopiero w `resolveProviderCallOptions` wewnątrz `streamOnce`), błędy providera (`PROVIDER_*`), timeout (`PROVIDER_TIMEOUT`), wyczerpanie retry+fallback (`PROVIDER_UNAVAILABLE`). Klient może dostać **częściowy** strumień (`meta` / `delta`) zamiast poprawnego JSON; połączenie kończy się w `finally` kontrolera (`res.end()`).
 
-Patrz: `src/chat/chat-stream.controller.ts`, `src/chat/chat.service.ts`.
+Patrz: `src/chat/chat-stream.controller.ts`, `src/chat/chat.service.ts`, `src/chat/chat-provider-call.service.ts`.
 
 ---
 
 ## `GET /api/v1/health`
 
-Liveness — `HealthService.getLiveness()`: `{ status: "healthy", timestamp }` (`timestamp` — locale string serwera).
+Liveness — `HealthService.getLiveness()`: `{ status: "healthy", timestamp }`. Pole **`timestamp`** to **`new Date().toISOString()`** (ISO 8601, UTC), nie locale string.
 
 ## `GET /api/v1/health/ready`
 
-Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `version`, `uptime`, `checks` (`config`, `redis`). Redis w stanie `degraded` gdy niedostępny — nie blokuje `ready` sam w sobie (logika w serwisie).
+Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `redis`).
+
+| Aspekt | Zachowanie w kodzie |
+|--------|---------------------|
+| **HTTP** | Zawsze **200** — gotowość oceniasz po polu **`status`** w body (`ready` / `not_ready`), nie po kodzie HTTP. |
+| **`checks.redis`** | `degraded` gdy Redis niedostępny — **nie** blokuje `ready` (liczy się jako OK w `allHealthy`). |
+| **`checks.config`** | `healthy` tylko gdy **brak** `gateway` w config, ale jest `resolvedSystemPrompts`; gdy oba są załadowane (typowy start po poprawnym YAML) — **`unhealthy`** → często **`not_ready`** w body. Implementacja: `HealthService.checkConfig`. |
+
+Orchestrator powinien traktować instancję jako gotową tylko przy `status === "ready"` w JSON.
 
 ---
 
@@ -153,5 +165,7 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 6. Przy streamingu składaj tekst z kolejnych `delta`; `done` nie niesie metryk tokenów w obecnej wersji.
 7. **`usage`** może być niekompletne między providerami.
 8. **`conversationId`**: w odpowiedzi zawsze (echo lub `conv_*`). W **request** — tylko wtedy Sentry grupuje turę jako konwersację; typowy start: tura 1 bez ID, tura 2+ z ID z odpowiedzi + pełne `messages[]` (`conversation-tracking.md`).
+9. **Streaming:** nieprawidłowe `params` (poza `allowOverrides`) mogą zwrócić `MODEL_NOT_ALLOWED` **po** rozpoczęciu SSE — w czacie standardowym ten sam błąd jest **przed** wywołaniem providera.
+10. **Readiness:** `GET /health/ready` zawsze **200** — sprawdzaj `body.status === "ready"`.
 
 Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `conversation-tracking.md`, `dokumentacja_koncepcyjna.md`.

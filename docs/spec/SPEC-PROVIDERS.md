@@ -19,7 +19,7 @@ Wartości uwierzytelniające są wczytywane z env (w konfiguracji modeli: `apiKe
 1. Implementator tworzy nowy adapter (np. OpenAI).
 2. Rejestruje go w module Providers.
 3. Konfiguracja pozwala wskazać `providerInstance` typu `openai`.
-4. ChatService używa go bez zmian w kontrolerze.
+4. `ChatProviderCallService` wywołuje adapter; `ChatService` orkiestruje bez zmian w kontrolerze.
 
 ### Scenariusz B — ujednolicone błędy
 

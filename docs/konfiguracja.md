@@ -43,7 +43,7 @@ Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/con
 
 **Ładowanie modułu Redis w Nest:** w `src/app.module.ts` stos Redis (`RedisCacheModule` wewnątrz `CacheModule.register`) jest importowany tylko gdy **`CACHE_ENABLED === 'true'`** oraz **`CACHE_BACKEND`** (po `toLowerCase()`) to **`redis`**. W przeciwnym razie działa wyłącznie backend **`noop`** (brak zależności od działającego Redis przy starcie).
 
-**Zachowanie:** `ChatService.executeChat` przed wywołaniem providera sprawdza cache (`ResponseCacheService`); przy trafieniu zwracana jest zapisana odpowiedź z polami **`cached: true`** i **`cachedAt`** (ISO 8601). Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z tej warstwy.
+**Zachowanie:** `ChatService.executeChat` przed wywołaniem providera sprawdza cache (`ResponseCacheService`); przy trafieniu — tylko gdy alias i powiązany provider są **włączone** w YAML (`isCachedChatAllowedForModelAlias` w `src/chat/helpers/cache-policy.ts`) — zwracana jest zapisana odpowiedź z polami **`cached: true`** i **`cachedAt`** (ISO 8601). Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z tej warstwy.
 
 Szablon zmiennych: `.env.example`.
 
@@ -58,7 +58,7 @@ Szablon zmiennych: `.env.example`.
 | `RATE_LIMIT_RPS_PER_KEY` | `10` | Domyślny RPS (token bucket) gdy klient nie ma `rateLimit` w YAML. |
 | `RATE_LIMIT_BURST_PER_KEY` | `20` | Domyślny burst. |
 | `RATE_LIMIT_STREAMS_CONCURRENT` | `3` | Maks. równoległych streamów per klucz. |
-| `RATE_LIMIT_COOLDOWN_AFTER_429` | `60` | Sekundy blokady per klucz+provider po 429 od upstream (`ChatService.setCooldown`). |
+| `RATE_LIMIT_COOLDOWN_AFTER_429` | `60` | Sekundy blokady per klucz+provider po 429 od upstream (`ChatService` → `SmartRateLimiterService.setCooldown`). |
 
 W **`gateway.config.yaml`** sekcja **`clients[].rateLimit`** nadpisuje `rps`, `burst`, `maxConcurrentStreams` dla danego klucza (przykład: `webapp` w repozytoryjnym pliku).
 

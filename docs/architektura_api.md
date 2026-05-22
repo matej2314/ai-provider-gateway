@@ -32,7 +32,7 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 
 - `id` — identyfikator odpowiedzi (gateway),
 - `provider` — nazwa providera użytego do wykonania,
-- `model` — **alias** (`modelAlias`) z żądania; ten sam identyfikator w odpowiedzi standardowej i w SSE **`meta`**. Vendorowy `modelId` nie jest zwracany w żadnej odpowiedzi (`ChatService.executeChat` i `ChatService.executeStream`),
+- `model` — **alias** (`modelAlias`) z żądania; ten sam identyfikator w odpowiedzi standardowej (`ChatService.executeChat`) i w SSE **`meta`** (`ChatProviderCallService.streamOnce`). Vendorowy `modelId` nie jest zwracany w żadnej odpowiedzi,
 - `output` — treść odpowiedzi (tekst i/lub struktura),
 - `usage` — metadane tokenów (jeśli dostępne),
 - `requestId` — korelacja z logami.
@@ -43,14 +43,14 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 
 Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/event-stream`), zdarzenia `meta` → `delta*` → `done`.
 
-**Stan kodu:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream` (`meta` → `delta*` → `done`; `done` ma pusty payload — `openapi.json`).
+**Stan kodu:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream` + `ChatProviderCallService.streamOnce` (`meta` → `delta*` → `done`; `done` ma pusty payload — `openapi.json`).
 
 - Gateway nie gwarantuje identycznego zachowania token‑po‑token między providerami.
 - Klient powinien traktować SSE jako strumień fragmentów + metadane z `meta`.
 
 ## Błędy HTTP
 
-**Stan kodu (`openapi.json`):** envelope **`ErrorEnvelope`** z `GlobalExceptionFilter` (`APP_FILTER` w `AppModule`). Jawne **`code`** z payloadu wyjątku (guardy, `RATE_LIMITED`, kody z `provider-error.mapper.ts`); inaczej `DEFAULT_HTTP_STATUS_TO_CODE`. `requestId` z **`RequestIdMiddleware`** lub z payloadu wyjątku.
+**Stan kodu (`openapi.json`):** envelope **`ErrorEnvelope`** z `GlobalExceptionFilter` (`APP_FILTER` w `AppModule`). Jawne **`code`** z payloadu wyjątku (guardy, `RATE_LIMITED`, kody z `provider-error.mapper.ts`); inaczej `DEFAULT_HTTP_STATUS_TO_CODE`. `requestId` z **`RequestIdMiddleware`** (`x-request-id` w żądaniu lub `req_<uuid>`) — pole w JSON odpowiedzi/błędu; nagłówek odpowiedzi `x-request-id` — planowany (Faza 5).
 
 ## Parametry generacji (`params` w body)
 
@@ -77,12 +77,12 @@ Skrypt `npm run config:validate` oraz nagłówek odpowiedzi `x-request-id` — `
 
 ## Idempotencja, retry i fallback
 
-- Standardowy chat nie jest idempotentny w sensie biznesowym (ten sam request może generować różną odpowiedź), **chyba że** zadziała warstwa cache dla **`POST /api/v1/chat`** — wtedy identyczny payload może zwrócić wcześniejszą odpowiedź z **`cached: true`** (`ResponseCacheService`, `konfiguracja.md`).
+- Standardowy chat nie jest idempotentny w sensie biznesowym (ten sam request może generować różną odpowiedź), **chyba że** zadziała warstwa cache dla **`POST /api/v1/chat`** — wtedy identyczny payload może zwrócić wcześniejszą odpowiedź z **`cached: true`** (`ResponseCacheService`, `konfiguracja.md`). Cooldown po 429 od providera (`setCooldown`) — tylko ścieżka standardowego czatu, nie streaming.
 - **`ResilientExecutor`** (`src/common/resilience/`): dla aliasu z żądania stosuje `policy.retry` (max prób, lista `onStatus`) i `policy.timeoutMs` z YAML (domyślnie `RETRY_POLICY_DEFAULTS`). Retry tylko dla `HttpException` ze statusem z `onStatus`. Po wyczerpaniu prób — opcjonalnie wywołanie aliasu z **`models[].fallback`** (ta sama polityka retry co alias pierwszy). Timeout → **504** / `PROVIDER_TIMEOUT`. Szczegóły: `konfiguracja.md`, `dokumentacja_api.md`.
 
 ## CORS / Auth
 
-Endpointy czatu wymagają **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()`). Opcjonalny smart rate limit per klucz (`RATE_LIMIT_SMART_ENABLED`, Redis). Health: **`GET /api/v1/health`**, **`GET /api/v1/health/ready`** — publiczne.
+Endpointy czatu wymagają **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()`). Opcjonalny smart rate limit per klucz (`RATE_LIMIT_SMART_ENABLED`, Redis). Health: **`GET /api/v1/health`**, **`GET /api/v1/health/ready`** — publiczne (bez guardów czatu). Readiness: HTTP **200** zawsze; ocena po `body.status` (`ready` / `not_ready`) — `dokumentacja_api.md`.
 
 W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** nie zastępuje izolacji sieciowej ani obrony przed nadużyciami na dużą skalę.
 

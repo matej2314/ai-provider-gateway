@@ -6,6 +6,7 @@ import { GatewayKeyGuard } from '../guards/gateway-key.guard';
 import { SmartRateLimitGuard } from '../guards/smart-rate-limit-guard';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 import { ResilientExecutor } from 'src/common/resilience/resilient-executor';
+import { ChatProviderCallService } from './chat-provider-call.service';
 
 @Module({
   imports: [RateLimitModule],
@@ -15,6 +16,7 @@ import { ResilientExecutor } from 'src/common/resilience/resilient-executor';
     GatewayKeyGuard,
     SmartRateLimitGuard,
     ResilientExecutor,
+    ChatProviderCallService,
   ],
 })
 export class ChatModule {}

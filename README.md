@@ -69,7 +69,7 @@ curl -X POST "http://localhost:3000/api/v1/chat" ^
   -d "{\"modelAlias\":\"chat-default\",\"messages\":[{\"role\":\"user\",\"content\":\"Napisz krótkie streszczenie.\"}]}"
 ```
 
-Body **`params`** (per request) jest zaplanowane (**Faza 5**); DTO przyjmują tylko `modelAlias` i `messages` — szczegóły: `docs/dokumentacja_api.md`.
+Opcjonalne body **`params`** (`temperature`, `maxOutputTokens`) — merge z `policy.params` w YAML; szczegóły: `docs/dokumentacja_api.md`.
 
 ### Chat (streaming SSE)
 
@@ -82,12 +82,11 @@ curl -X POST "http://localhost:3000/api/v1/chat/stream" ^
 
 Szczegóły kontraktów: `openapi.json`, `docs/dokumentacja_api.md`.
 
-## Normalizacja `system`
+## System prompt i `messages[]`
 
-HTTP może przyjąć `messages[]` z rolą `system|user|assistant`, ale przed wywołaniem adaptera gateway normalizuje wejście do portu providerów:
+W żądaniu HTTP dozwolone są wyłącznie role **`user`** i **`assistant`** (`ChatMessageDto`). Rola `system` w body jest odrzucana walidacją (**400**).
 
-- `system?: string` — agregacja wszystkich wiadomości systemowych,
-- `messages[]` — wyłącznie `user|assistant`.
+Instrukcja systemowa dla LLM jest **składana po stronie serwera** z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias) i trafia do adapterów jako `ProviderChatInput.system` (`src/chat/helpers/system-prompt.ts`, `provider-input.ts`).
 
 Powód i mapowania SDK: `docs/architektura.md` + `docs/spec/SPEC-PROVIDERS.md`.
 
@@ -111,5 +110,7 @@ npm test
 ```
 
 ## Struktura repo
+
+Moduł czatu: **`ChatService`** (orkiestracja) + **`ChatProviderCallService`** (wywołania providerów, metryki) + helpery w `src/chat/helpers/`.
 
 Opis katalogów i plików: `docs/architektura-katalogi-pliki.md`.

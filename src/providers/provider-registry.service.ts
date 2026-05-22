@@ -18,7 +18,7 @@ import { UnsupportedProviderException } from '../common/exceptions/unsupported-p
 import { LoggingService } from '../logging/logging.service';
 import { RETRY_POLICY_DEFAULTS } from 'src/common/retry-policy-defaults';
 
-interface ResolvedProviderConfig {
+export interface ResolvedProviderConfig {
   provider: AIProvider;
   providerName: string;
   modelId: string;

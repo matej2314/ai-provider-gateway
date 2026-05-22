@@ -18,8 +18,8 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Request ID** | Identyfikator korelacyjny żądania. | W logach i w error envelope. |
 | **Conversation ID** (`conversationId`) | Opcjonalny identyfikator w body czatu w formacie `conv_<uuid>`. W **request** włącza `gen_ai.conversation.id` w Sentry; w **response** zawsze echo lub `conv_<uuid>`. Historia = `messages[]` od klienta. Patrz `conversation-tracking.md`. |
 | **Policy** | Zestaw limitów i zasad (`timeoutMs`, `retry`, `params`). | Per alias w YAML; `timeout`/`retry` w `ResilientExecutor`, `params` w `resolveProviderCallOptions`. |
-| **Resilient executor** | Warstwa retry + fallback + timeout wokół wywołania adaptera. | `src/common/resilience/resilient-executor.ts`, rejestrowany w `ChatModule`. |
-| **Response cache** | Opcjonalna warstwa zapisu/odczytu odpowiedzi **`POST /api/v1/chat`** (backend `noop` lub `redis`). | Klucz m.in. z aliasu modelu, treści wiadomości i sygnatury warstw system promptu; streaming wyłączony z cache. |
+| **Resilient executor** | Warstwa retry + fallback + timeout wokół wywołania adaptera. | `src/common/resilience/resilient-executor.ts`; `runOnce` deleguje do `ChatProviderCallService` (`ChatModule`). |
+| **Response cache** | Opcjonalna warstwa zapisu/odczytu odpowiedzi **`POST /api/v1/chat`** (backend `noop` lub `redis`). | Lookup/zapis w `ChatService`; odczyt cache tylko gdy provider i alias są włączone w YAML (`isCachedChatAllowedForModelAlias`). Klucz m.in. z aliasu, `messages`, sygnatury system promptu i efektywnych `params`. Streaming bez cache. |
 | **Walidacja env (klucze)** | Reguły na zmiennych środowiskowych przy starcie aplikacji. | Przy **`NODE_ENV=production`** wymagany jest **co najmniej jeden** niepusty klucz (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W innych środowiskach ta reguła nie blokuje startu (`src/config/env.validation.ts`). Dodatkowo walidowane są opcjonalne pola **`CACHE_*`** / **`REDIS_*`** (typy, wartości domyślne). |
 
 ## Kody błędów (stabilne)

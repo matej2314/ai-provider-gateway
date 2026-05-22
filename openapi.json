@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Provider Gateway API",
-    "version": "0.10.0",
+    "version": "0.11.0",
     "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming; providery MVP = Anthropic + Google Gemini. **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Odporność (`ResilientExecutor`):** dla każdego aliasu z `gateway.config.yaml` stosowane są `policy.timeoutMs`, `policy.retry.maxAttempts` i `policy.retry.onStatus` (domyślnie z `RETRY_POLICY_DEFAULTS` w `src/common/retry-policy-defaults.ts`). Retry dotyczy wyłącznie błędów HTTP z listy `onStatus` (domyślnie 429, 500, 502, 503, 504). Po wyczerpaniu prób na aliasie pierwszym, opcjonalnie **`models[].fallback`** uruchamia drugi alias (bez pętli — walidacja Zod przy starcie + `assertNoFallbackCycle` w runtime). Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne **`effectiveModelAlias`**. Timeout → **504** (`PROVIDER_TIMEOUT`). Szczegóły: `docs/konfiguracja.md`, `docs/dokumentacja_api.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają **`@GatewayKeyAndSmartRateLimit()`**: **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek: `X-Gateway-Key`; allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. Health bez klucza. Błędy klucza: **401** (`GATEWAY_KEY_MISSING`), **403** (`GATEWAY_KEY_INVALID`), **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`RATE_LIMIT_SMART_ENABLED=true`, Redis): token bucket per klucz, limit równoległych streamów, cooldown po 429 od providera — **`RATE_LIMITED`**. Szczegóły: `docs/konfiguracja.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** (`GlobalExceptionFilter`). Słownik: `docs/dictionary.md`.\n\n**`requestId`:** **`RequestIdMiddleware`** — nagłówek **`x-request-id`** jeśli niepusty, inaczej `req_<uuid>`.\n\n**Cache (`POST /api/v1/chat`):** `noop` / `redis` — **`cached`**, **`cachedAt`**. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–150, `content` max 3000 znaków; **`conversationId`** opcjonalnie w formacie `conv_<uuid>`; **`params`** z `allowOverrides` / `bounds`. **Response:** zawsze `conversationId` (echo lub `conv_<uuid>`). **Sentry:** `gen_ai.conversation.id` tylko gdy klient poda `conversationId` w request. `ValidationPipe` + limit JSON **1 MB**.\n\n**Planowane (Faza 5):** response header `x-request-id` — `docs/dokumentacja_koncepcyjna.md`."
   },
   "servers": [
@@ -32,7 +32,7 @@
                   "ok": {
                     "value": {
                       "status": "healthy",
-                      "timestamp": "5/19/2026"
+                      "timestamp": "2026-05-19T12:00:00.000Z"
                     }
                   }
                 }
@@ -47,10 +47,10 @@
         "tags": ["Health"],
         "operationId": "getHealthReady",
         "summary": "Readiness",
-        "description": "Gotowość do obsługi ruchu (`HealthService.getReadiness`): konfiguracja gateway, opcjonalnie Redis (degraded gdy cache/redis wyłączony lub niedostępny). Nie wymaga `X-Gateway-Key`.",
+        "description": "Gotowość do obsługi ruchu (`HealthService.getReadiness`): konfiguracja gateway, opcjonalnie Redis (degraded gdy niedostępny). **HTTP zawsze 200** — ocena po polu `status` w body (`ready` / `not_ready`). Nie wymaga `X-Gateway-Key`.",
         "responses": {
           "200": {
-            "description": "Wynik probe readiness (status `ready` lub `not_ready`)",
+            "description": "JSON readiness; pole `status` w body (`ready` | `not_ready`), nie kod HTTP",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/HealthReadinessResponse" },
@@ -58,7 +58,7 @@
                   "ready": {
                     "value": {
                       "status": "ready",
-                      "timestamp": "5/19/2026",
+                      "timestamp": "2026-05-19T12:00:00.000Z",
                       "version": "1.0.0",
                       "uptime": 42,
                       "checks": {
@@ -80,7 +80,7 @@
         "tags": ["Chat"],
         "operationId": "postChat",
         "summary": "Chat (standard)",
-        "description": "Pełna odpowiedź JSON. `requestId` z `RequestIdMiddleware`. Parametry wywołania (`temperature`, `maxOutputTokens`): domyślnie z `policy.params.defaults` w YAML; opcjonalne **`params`** w body nadpisują dozwolone pola (`allowOverrides`) i są obcinane do `bounds`. Pole **`model`** = żądany `modelAlias`; przy fallbackie opcjonalnie **`effectiveModelAlias`** (alias faktycznie użyty).\n\n**Odporność:** `ResilientExecutor` — retry na aliasie pierwszym (`policy.retry`), potem opcjonalnie alias z `fallback` w YAML (np. `claude-sonnet` → `chat-default`). Timeout z `policy.timeoutMs` → **504** (`PROVIDER_TIMEOUT`).\n\n**`conversationId`:** w odpowiedzi zawsze (echo lub `conv_<uuid>` w formacie RFC UUID). W **request** opcjonalne — włącza grupowanie Sentry. Szczegóły: `docs/conversation-tracking.md`.\n\nOpcjonalny cache; smart rate limit / cooldown (`RATE_LIMITED`).",
+        "description": "Pełna odpowiedź JSON. `requestId` z `RequestIdMiddleware`. Parametry wywołania (`temperature`, `maxOutputTokens`): domyślnie z `policy.params.defaults` w YAML; opcjonalne **`params`** w body nadpisują dozwolone pola (`allowOverrides`) i są obcinane do `bounds`. Pole **`model`** = żądany `modelAlias`; przy fallbackie opcjonalnie **`effectiveModelAlias`** (alias faktycznie użyty).\n\n**Warstwa wywołania providera:** `ChatService` (cache, limity, `ResilientExecutor`) → `ChatProviderCallService.completeOnce` (system prompt, `ProviderChatInput`, metryki LLM).\n\n**Odporność:** `ResilientExecutor` — retry na aliasie pierwszym (`policy.retry`), potem opcjonalnie alias z `fallback` w YAML (np. `claude-sonnet` → `chat-default`). Timeout z `policy.timeoutMs` → **504** (`PROVIDER_TIMEOUT`).\n\n**`conversationId`:** w odpowiedzi zawsze (echo lub `conv_<uuid>` w formacie RFC UUID). W **request** opcjonalne — włącza grupowanie Sentry. Szczegóły: `docs/conversation-tracking.md`.\n\nOpcjonalny cache (tylko gdy provider i alias są włączone w YAML); smart rate limit / cooldown (`RATE_LIMITED`).",
         "requestBody": {
           "required": true,
           "content": {
@@ -325,7 +325,7 @@
         "tags": ["Chat"],
         "operationId": "postChatStream",
         "summary": "Chat (streaming)",
-        "description": "SSE (`text/event-stream`): `meta` → `delta`* → `done` (pusty `{}`).\n\nTen sam body i kontrakt co `POST /api/v1/chat` (w tym retry/fallback przez `ResilientExecutor`). W **`meta`**: `model` = żądany alias; opcjonalnie **`effectiveModelAlias`** po fallbacku; zawsze **`conversationId`** (echo lub `conv_<uuid>`).\n\n**JSON `ErrorEnvelope` przed `flushHeaders`:** walidacja, guardy, **`validateForStreaming`**. **Po `flushHeaders`:** błędy providera — częściowy SSE. **`StreamCleanupInterceptor`** w `finalize`. Patrz `docs/conversation-tracking.md`.",
+        "description": "SSE (`text/event-stream`): `meta` → `delta`* → `done` (pusty `{}`).\n\nTen sam body i kontrakt co `POST /api/v1/chat` (w tym retry/fallback przez `ResilientExecutor`). Wywołanie providera: `ChatProviderCallService.streamOnce` (emit `meta`/`delta`, metryki stream). W **`meta`**: `model` = żądany alias; opcjonalnie **`effectiveModelAlias`** po fallbacku; zawsze **`conversationId`** (echo lub `conv_<uuid>`).\n\n**JSON `ErrorEnvelope` przed `flushHeaders`:** walidacja, guardy, **`validateForStreaming`**. **Po `flushHeaders`:** m.in. `MODEL_NOT_ALLOWED` (`params` w `resolveProviderCallOptions` w `streamOnce`), błędy providera (`PROVIDER_*`), timeout — częściowy SSE zamiast JSON. Brak cooldownu po 429 jak w czacie standardowym. **`StreamCleanupInterceptor`** w `finalize`. Patrz `docs/conversation-tracking.md`, `docs/dokumentacja_api.md`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -445,7 +445,8 @@
           "status": { "type": "string", "const": "healthy" },
           "timestamp": {
             "type": "string",
-            "description": "Znacznik czasu z `toLocaleDateString()` w `HealthService.getLiveness` (format zależny od locale serwera, nie ISO 8601)."
+            "format": "date-time",
+            "description": "ISO 8601 UTC (`new Date().toISOString()` w `HealthService.getLiveness` i `getReadiness`)."
           }
         }
       },
@@ -464,7 +465,11 @@
         "required": ["status", "timestamp", "version", "uptime", "checks"],
         "properties": {
           "status": { "type": "string", "enum": ["ready", "not_ready"] },
-          "timestamp": { "type": "string" },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 UTC (`toISOString()` w `HealthService.getReadiness`)."
+          },
           "version": { "type": "string" },
           "uptime": { "type": "integer", "minimum": 0, "description": "Czas działania procesu w sekundach (`process.uptime()`)." },
           "checks": {

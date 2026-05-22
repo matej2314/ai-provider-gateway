@@ -49,7 +49,7 @@ F-1a. Niedozwolony override w `params` → `400` z `code=MODEL_NOT_ALLOWED` (`re
 
 F-2. `messages[]` wspiera role wyłącznie: `user`, `assistant` (rola `system` w API jest zablokowana).
 
-F-2a. Gateway buduje `system` dla adaptera **wyłącznie z plików** w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie `models/<modelAlias>.md`), zgodnie z `ChatService` i `configuration.ts`. Do adaptera trafia `messages[]` zawierające wyłącznie `user` i `assistant`.
+F-2a. Gateway buduje `system` dla adaptera **wyłącznie z plików** w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie `models/<modelAlias>.md`), zgodnie z `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`) i `configuration.ts`. Wywołanie adaptera: `ChatProviderCallService`. Do adaptera trafia `messages[]` zawierające wyłącznie `user` i `assistant`.
 
 F-3. Gateway musi zwrócić odpowiedź w spójnym formacie niezależnym od providera.
 

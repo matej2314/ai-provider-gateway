@@ -10,7 +10,8 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 |-------|-----------|
 | **Klient** | Dowolny klient HTTP (aplikacja, serwis, BFF). |
 | **HTTP** | Kontroler + walidacja DTO + odpowiedź. |
-| **ChatService** | Resolve aliasu, `resolveProviderCallOptions`, składanie system promptu, mapowanie `messages[]`, orkiestracja przez **`ResilientExecutor`** (retry, timeout, opcjonalny fallback). |
+| **ChatService** | Cache, smart rate limit (cooldown), `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
+| **ChatProviderCallService** | Pojedyncze wywołanie adaptera: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `MetricsService.observeLlmCall` / `observeLlmStream`, emisja SSE `meta`/`delta`. |
 | **ResilientExecutor** | Retry na aliasie żądanym (`policy.retry`, `policy.timeoutMs`), potem opcjonalnie alias `fallback` z YAML. |
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na adapter + `modelId`. |
 | **Provider** | Adapter Anthropic / Google. |
@@ -55,6 +56,7 @@ sequenceDiagram
   participant K as Klient
   participant H as HTTP
   participant S as ChatService
+  participant PC as ChatProviderCallService
   participant C as ResponseCache
   participant R as ProviderRegistry
   participant M as MetricsService
@@ -64,24 +66,26 @@ sequenceDiagram
   K->>+H: POST /api/v1/chat (modelAlias, messages, conversationId?, params?)
   H->>H: walidacja DTO
   H->>+S: executeChat
-  S->>S: conversationId response (echo/conv_*) + metrics ID tylko z body
+  S->>S: conversationId response (echo/conv_*)
   S->>+R: resolve(modelAlias)
   R-->>-S: adapter + policy.params
   S->>S: resolveProviderCallOptions(policy, body.params)
   S->>C: getCachedResponse (z efektywnymi params)
-  alt trafienie w cache
+  alt trafienie w cache (provider włączony w YAML)
     C-->>S: JSON (z cached/cachedAt)
     S-->>H: odpowiedź
   else brak wpisu
     S->>S: checkCooldown (opcjonalnie, smart limit)
-    S->>S: composeSystemPrompt + toProviderTurns
     S->>S: ResilientExecutor (retry / fallback / timeout)
-    S->>+M: observeLlmCall (conversationId? + messages[])
+    S->>+PC: completeOnce (per alias w łańcuchu)
+    PC->>PC: buildProviderInputForAlias + resolveProviderCallOptions
+    PC->>+M: observeLlmCall
     M->>+P: complete(input, modelId, options)
     P->>+A: request do providera
     A-->>-P: response
     P-->>-M: ProviderChatResponse
-    M-->>-S: wynik + span Sentry
+    M-->>-PC: wynik + span Sentry
+    PC-->>-S: response + resolved
     S->>C: setCachedResponse
     S-->>-H: ChatResponse (id, usage, requestId, conversationId, effectiveModelAlias?, …)
   end
@@ -125,6 +129,7 @@ sequenceDiagram
   participant K as Klient
   participant H as HTTP (ChatStreamController)
   participant S as ChatService
+  participant PC as ChatProviderCallService
   participant R as ProviderRegistry
   participant M as MetricsService
   participant P as Provider Adapter
@@ -133,21 +138,25 @@ sequenceDiagram
   K->>+H: POST /api/v1/chat/stream
   H->>H: walidacja DTO + validateForStreaming
   H->>H: nagłówki SSE + flushHeaders
-  H-->>K: SSE: event meta (z conversationId)
   H->>+S: executeStream
-  S->>S: conversationId response + metrics ID tylko z body
+  S->>S: conversationId response
   S->>+R: resolve
-  R-->>-S: adapter + modelId + capabilities
+  R-->>-S: adapter + capabilities
   S->>S: ResilientExecutor (retry / fallback / timeout)
-  S->>M: observeLlmStream (conversationId? + messages[])
-  S->>+P: stream(...)
+  S->>+PC: streamOnce (emit przez callback)
+  PC->>PC: buildProviderInputForAlias
+  PC->>M: observeLlmStream
+  PC-->>H: SSE meta (id, conversationId, effectiveModelAlias?)
+  H-->>K: event meta
+  PC->>+P: stream(...)
   P->>+A: streaming request
   loop fragmenty
     A-->>P: chunk
-    P-->>S: tekst
-    S-->>H: delta
+    P-->>PC: tekst
+    PC-->>H: delta
     H-->>K: SSE: event delta
   end
+  S-->>H: emit done
   H-->>-K: SSE: event done
 ```
 

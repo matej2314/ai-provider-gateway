@@ -1,39 +1,81 @@
 # Architektura katalogów i plików
 
-Ten dokument opisuje **strukturę katalogów i plików** projektu *AI Provider Gateway*.
+Ten dokument opisuje **strukturę katalogów i plików** projektu *AI Provider Gateway* (stan zsynchronizowany z repozytorium).
 
 Zasady:
 
-- Struktura jest **modułowa** (NestJS), a integracje providerów są w `src/providers/`.
-- Elementy oznaczone *(plan)* pochodzą ze specyfikacji w `docs/spec/` i mogą wyprzedzać pełną implementację.
+- Struktura jest **modułowa** (NestJS); integracje providerów — `src/providers/`.
+- Elementy oznaczone *(plan)* nie istnieją w kodzie lub są poza rdzeniem MVP.
+- **Pominięte w drzewie:** `node_modules/`, `dist/`, `.git/`, lokalne `.env` (nie commitować).
+- Pliki **`*.spec.ts`** — testy jednostkowe obok modułów; wypisane zbiorczo tam, gdzie występują.
+- Pliki **`*.md`** w katalogu głównym poza `README.md` — notatki/plany robocze (poza kontraktem produktu).
 
 ---
 
-## 1) Drzewo repozytorium (wysoki poziom)
+## 1) Drzewo repozytorium
 
 ```
 ai-provider-gateway/
-├── openapi.json
-├── gateway.config.yaml
+├── openapi.json                    # OpenAPI 3.1 (kontrakt HTTP)
+├── gateway.config.yaml             # aliasy modeli, providery, polityki
+├── package.json
+├── package-lock.json
+├── README.md
+├── nest-cli.json
+├── tsconfig.json
+├── tsconfig.build.json
+├── eslint.config.mjs
+├── .prettierrc
+├── .env.example
+├── .env                            # lokalnie — nie commitować
+├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
+├── mcp.json                        # konfiguracja MCP (integracja z IDE; patrz docs/mcp.md)
+│
+├── scripts/
+│   └── validate-config.ts          # docelowo: npm run config:validate (obecnie placeholder w package.json)
+│
+├── test/                           # testy e2e (Jest)
+│   ├── jest-e2e.json
+│   └── app.e2e-spec.ts
+│
 ├── src/
-│   ├── main.ts
+│   ├── main.ts                     # bootstrap NestJS, graceful shutdown
+│   ├── instrument.ts               # inicjalizacja Sentry (import przed app)
 │   ├── app.module.ts
 │   │
 │   ├── chat/
 │   │   ├── chat.module.ts
-│   │   ├── chat.controller.ts
-│   │   ├── chat-stream.controller.ts    # POST …/chat/stream (SSE)
-│   │   ├── chat.service.ts
+│   │   ├── chat.controller.ts              # POST /chat
+│   │   ├── chat.controller.spec.ts
+│   │   ├── chat-stream.controller.ts       # POST /chat/stream (SSE)
+│   │   ├── chat-stream.controller.spec.ts
+│   │   ├── chat.service.ts                 # cache, limity, ResilientExecutor, odpowiedź gateway
+│   │   ├── chat.service.spec.ts
+│   │   ├── chat-provider-call.service.ts   # complete/stream, metryki LLM, SSE meta/delta
 │   │   ├── dto/
 │   │   │   ├── chat-request.dto.ts
+│   │   │   ├── chat-params.dto.ts
 │   │   │   └── chat-message.dto.ts
+│   │   ├── helpers/
+│   │   │   ├── cache-policy.ts
+│   │   │   ├── conversation-id.ts
+│   │   │   ├── metrics.ts
+│   │   │   ├── provider-input.ts
+│   │   │   ├── resolve-provider-call-options.ts
+│   │   │   ├── resolve-provider-call-options.spec.ts
+│   │   │   ├── retry-policy.ts
+│   │   │   └── system-prompt.ts
 │   │   └── sse/
-│   │       ├── sse-event.type.ts        # SseMetaEvent / SseDeltaEvent / SseDoneEvent
-│   │       └── sse.serializer.ts        # `event: <name>\ndata: <json>\n\n`
+│   │       ├── sse-event.type.ts
+│   │       └── sse.serializer.ts
 │   │
 │   ├── providers/
-│   │   ├── providers.module.ts
+│   │   ├── providers.module.ts             # dynamiczna rejestracja adapterów
+│   │   ├── provider-registry.module.ts
 │   │   ├── provider-registry.service.ts
+│   │   ├── provider-registry.service.spec.ts
 │   │   ├── interfaces/
 │   │   │   └── ai-provider.interface.ts
 │   │   ├── anthropic/
@@ -42,122 +84,162 @@ ai-provider-gateway/
 │   │   ├── google/
 │   │   │   ├── google.module.ts
 │   │   │   └── google.adapter.ts
-│   │   └── openai/ *(plan — poza rdzeniem MVP / v1+)*
+│   │   └── openai/                         # (plan — poza rdzeniem MVP / v1+)
 │   │
 │   ├── config/
-│   │   ├── configuration.ts       # load gateway.config.yaml + Zod; cache/redis w obiekcie config
+│   │   ├── configuration.ts                # gateway.config.yaml + Zod, cache/redis z env
 │   │   ├── configuration.types.ts
 │   │   ├── configuration.helpers.ts
 │   │   ├── env.validation.ts
-│   │   └── system-prompt/        # MASTER / MAIN / models/<alias>.md — składanie system promptu (configuration.ts + ChatService)
+│   │   ├── provider-types.ts
+│   │   └── system-prompt/
+│   │       ├── MASTER_SYSTEM_PROMPT.md     # wymagany przy starcie
+│   │       ├── MAIN_SYSTEM_PROMPT.md       # opcjonalny
+│   │       └── models/
+│   │           └── chat-default.md         # przykład per alias (więcej wg YAML)
 │   │
 │   ├── guards/
 │   │   ├── gateway-key.guard.ts
 │   │   └── smart-rate-limit-guard.ts
+│   │
 │   ├── rate-limit/
 │   │   ├── rate-limit.module.ts
 │   │   └── smart-rate-limiter.service.ts
+│   │
 │   ├── logging/
 │   │   ├── logging.module.ts
 │   │   ├── logging.service.ts
-│   │   └── adapters/          # pino, console, sentry error reporting
+│   │   ├── logging.service.spec.ts
+│   │   ├── logging.tokens.ts
+│   │   ├── interfaces/
+│   │   │   └── logger.interface.ts
+│   │   └── adapters/
+│   │       ├── pino-logger.adapter.ts
+│   │       ├── console-logger.adapter.ts
+│   │       ├── sentry-error-reporting.adapter.ts
+│   │       └── noop-error-reporting.adapter.ts
+│   │
 │   ├── metrics/
 │   │   ├── metrics.module.ts
 │   │   ├── metrics.service.ts
-│   │   └── adapters/          # sentry, noop
-│   ├── instrument.ts            # inicjalizacja Sentry (import w main.ts)
+│   │   ├── metrics.service.spec.ts
+│   │   ├── metrics.tokens.ts
+│   │   ├── interfaces/
+│   │   │   └── metrics-backend.interface.ts
+│   │   └── adapters/
+│   │       ├── sentry-metrics.adapter.ts
+│   │       └── noop-metrics.adapter.ts
+│   │
 │   ├── health/
 │   │   ├── health.module.ts
 │   │   ├── health.controller.ts
-│   │   └── health.service.ts
+│   │   ├── health.controller.spec.ts
+│   │   ├── health.service.ts
+│   │   └── health.service.spec.ts
 │   │
-│   ├── cache/                      # opcjonalny cache odpowiedzi (tylko POST …/chat standardowy)
-│   │   ├── cache.module.ts         # CacheModule.register({ includeRedisStack }) — globalny moduł dynamiczny
+│   ├── cache/
+│   │   ├── cache.module.ts                 # CacheModule.register({ includeRedisStack })
 │   │   ├── cache.tokens.ts
 │   │   ├── cache-registry.service.ts
 │   │   ├── response-cache.service.ts
 │   │   ├── interfaces/
 │   │   │   └── cache-backend-interface.ts
 │   │   └── adapters/
-│   │       ├── noop-cache/         # backend domyślny — brak zapisu/odczytu
-│   │       └── redis-cache/        # ioredis — ładowany gdy CACHE_ENABLED=true i CACHE_BACKEND=redis
+│   │       ├── noop-cache/
+│   │       │   ├── noop-cache.module.ts
+│   │       │   └── noop-cache.adapter.ts
+│   │       └── redis-cache/
+│   │           ├── redis-cache.module.ts
+│   │           ├── redis-cache.adapter.ts
+│   │           └── redis-connection.service.ts
 │   │
-│   ├── common/
-│   │   ├── dtos/
-│   │   │   └── error-envelope.dto.ts
-│   │   ├── decorators/
-│   │   │   └── gateway-key-and-smart-rate-limit.decorator.ts
-│   │   ├── errors/                 # api-error.code, provider-error.mapper
-│   │   ├── filters/
-│   │   │   └── http-exception.filter.ts   # GlobalExceptionFilter (APP_FILTER)
-│   │   ├── interceptors/
-│   │   │   └── stream-cleanup.interceptor.ts
-│   │   ├── middleware/
-│   │   │   └── request-id.middleware.ts
-│   │   ├── readGatewayKeyHeader.ts
-│   │   └── types/
-│   │       └── express.d.ts
+│   └── common/
+│       ├── readGatewayKeyHeader.ts
+│       ├── retry-policy-defaults.ts        # domyślne onStatus / maxAttempts / timeoutMs
+│       ├── decorators/
+│       │   └── gateway-key-and-smart-rate-limit.decorator.ts
+│       ├── dtos/
+│       │   └── error-envelope.dto.ts
+│       ├── errors/
+│       │   ├── api-error.code.ts
+│       │   ├── api-error.dto.ts
+│       │   ├── provider-error.mapper.ts
+│       │   └── provider-error.mapper.helpers.ts
+│       ├── exceptions/
+│       │   └── unsupported-provider.exception.ts
+│       ├── filters/
+│       │   └── http-exception.filter.ts    # GlobalExceptionFilter
+│       ├── interceptors/
+│       │   └── stream-cleanup.interceptor.ts
+│       ├── middleware/
+│       │   └── request-id.middleware.ts
+│       ├── resilience/
+│       │   ├── resilient-executor.ts
+│       │   ├── fallback-chain.ts
+│       │   ├── is-retryable-http-error.ts
+│       │   └── resilience.types.ts
+│       └── types/
+│           └── express.d.ts                # Request.requestId
 │
-├── test/                           # e2e (gdy rozbudowane)
-├── docs/
-│   ├── README.md
-│   ├── dokumentacja_koncepcyjna.md
-│   ├── architektura.md
-│   ├── architektura_api.md
-│   ├── lista_endpointów.md
-│   ├── dokumentacja_api.md
-│   ├── data_flow.md
-│   ├── konfiguracja.md
-│   ├── mcp.md
-│   ├── dictionary.md
-│   ├── anty-patterny.md
-│   ├── architektura-katalogi-pliki.md
-│   ├── opis_koncepcyjny.md
-│   └── spec/
-│       ├── SPEC-README.md
-│       ├── SPEC-PLATFORMA-I-KONTRAKTY.md
-│       ├── SPEC-CHAT.md
-│       ├── SPEC-CHAT-STREAMING.md
-│       ├── SPEC-PROVIDERS.md
-│       ├── SPEC-KONFIGURACJA.md
-│       └── SPEC-HEALTH.md
-│
-├── .env.example
-├── .env *(lokalnie, nie commitować)*
-├── docker-compose.yml *(jeśli obecny)*
-├── package.json
-├── README.md
-└── mcp.json *(plan — konfiguracja MCP użytkownika; patrz docs/mcp.md)*
+└── docs/
+    ├── README.md
+    ├── dokumentacja_koncepcyjna.md
+    ├── architektura.md
+    ├── architektura_api.md
+    ├── architektura-katalogi-pliki.md      # ten plik
+    ├── lista_endpointów.md
+    ├── dokumentacja_api.md
+    ├── conversation-tracking.md
+    ├── data_flow.md
+    ├── konfiguracja.md
+    ├── dictionary.md
+    ├── anty-patterny.md
+    ├── mcp.md
+    ├── opis_koncepcyjny.md                 # alias → dokumentacja_koncepcyjna.md
+    └── spec/
+        ├── SPEC-README.md
+        ├── SPEC-PLATFORMA-I-KONTRAKTY.md
+        ├── SPEC-CHAT.md
+        ├── SPEC-CHAT-STREAMING.md
+        ├── SPEC-PROVIDERS.md
+        ├── SPEC-KONFIGURACJA.md
+        └── SPEC-HEALTH.md
 ```
+
+### Notatki robocze (katalog główny, opcjonalnie)
+
+Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatki, np. `PLAN_IMPLEMENTACJI.md`, `*_refactor.md` — nie są częścią kontraktu API ani wdrożenia gatewaya.
 
 ---
 
 ## 2) Opis katalogów (odpowiedzialności)
 
-- **`src/chat/`**: HTTP dla czatu standardowego i streamingu (`chat-stream.controller.ts`, SSE). DTO (`chat-request.dto.ts`, `chat-params.dto.ts`, `chat-message.dto.ts`), `helpers/resolve-provider-call-options.ts`, orkiestracja `ChatService`, podkatalog `sse/` (serializer zdarzeń).
-- **`src/providers/`**: adaptery Anthropic / Google i `ProviderRegistryService`. Jedyna warstwa bezpośrednio używająca SDK vendorów.
-- **`src/config/`**: `configuration.ts` — wczytanie `gateway.config.yaml`, walidacja Zod (`GatewayConfigSchema`: m.in. jeden `type` per provider, spójność `providers` ↔ `models`), `buildEffectiveGatewayConfig` (filtr `enabled`, klucze API, aktywne modele), złożenie `gatewayKey`, `resolvedSystemPrompts`, `providers`, obiektów **`cache`** / **`redis`** z env; `configuration.types.ts` / `configuration.helpers.ts`; `env.validation.ts` — reguły env (klucze API w production, opcjonalnie **`CACHE_*`** / **`REDIS_*`**).
-- **`src/health/`**: liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready`).
-- **`src/rate-limit/`**: smart rate limiting per klucz gateway (Redis token bucket, równoległe streamy, cooldown po 429).
-- **`src/logging/`**, **`src/metrics/`**: Pino + spany LLM (Sentry/noop). `conversationId` z body → `gen_ai.conversation.id`; `messages[]` → input/output messages (gdy `SENTRY_INCLUDE_PROMPTS`). Response: echo lub `conv_*` (`conversation-tracking.md`).
-- **`src/cache/`**: warstwa cache odpowiedzi dla **`POST /api/v1/chat`** (nie dotyczy streamingu). Rejestr backendów (`CacheRegistryService`), implementacje **`noop`** (zawsze) i **`redis`** (gdy `AppModule` załaduje stos Redis — patrz `konfiguracja.md`), `ResponseCacheService` używany w `ChatService`.
-- **`src/common/resilience/`**: `ResilientExecutor` (retry, timeout, fallback chain), `fallback-chain.ts`, `is-retryable-http-error.ts`, `retry-policy-defaults.ts` — używane w `ChatService`.
-- **`src/common/`**: `GlobalExceptionFilter` (APP_FILTER w `AppModule`), **`RequestIdMiddleware`** (wszystkie trasy), `StreamCleanupInterceptor` (streaming), `provider-error.mapper.ts`, dekorator **`@GatewayKeyAndSmartRateLimit()``.
-- **`src/guards/`**: `GatewayKeyGuard` (allowlista kluczy), `SmartRateLimitGuard` (limity per klucz gdy `RATE_LIMIT_SMART_ENABLED`).
-- **`src/common/types/express.d.ts`**: augmentacja `Express.Request` o `requestId: string` dla kontrolerów i filtrów.
-- **Testy jednostkowe**: obok kodu, np. `src/**/*.spec.ts`.
-- **`docs/`**: dokumentacja oraz specyfikacje SDD.
+| Katalog | Odpowiedzialność |
+|---------|------------------|
+| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache, smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi. **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Helpery: system prompt, provider input, params, retry policy, cache policy, `conversationId`. |
+| **`src/providers/`** | Adaptery Anthropic / Google, `ProviderRegistryService` + moduł rejestru. Jedyna warstwa z bezpośrednim użyciem SDK vendorów. |
+| **`src/config/`** | Wczytanie `gateway.config.yaml`, walidacja Zod, `buildEffectiveGatewayConfig`, `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
+| **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
+| **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekorator guardów, typy Express. |
+| **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). |
+| **`src/guards/`**, **`src/rate-limit/`** | `X-Gateway-Key` + smart limiting (Redis). |
+| **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |
+| **`src/health/`** | Liveness i readiness. |
+| **`scripts/`** | Walidacja konfiguracji offline (w przygotowaniu). |
+| **`test/`** | Testy e2e Jest. |
+| **`docs/`** | Dokumentacja i specyfikacje SDD (`spec/`). |
 
 ---
 
 ## 3) Stan wdrożenia vs dokumentacja
 
-**Zamknięte lub częściowo zamknięte** (porównuj z kodem i `openapi.json`):
+**Wdrożone w kodzie** (porównuj z `openapi.json`):
 
-- Fundament: config z YAML, registry, adaptery Anthropic + Google.
-- Error envelope, `RequestIdMiddleware`, gateway key + smart rate limit, mapowanie błędów SDK, system prompt z plików, cache (`noop`/`redis`), logging/metrics (w tym `conversationId` → Sentry), readiness, graceful shutdown (`main.ts`).
-- Odporność: `ResilientExecutor` — retry/timeout/fallback z YAML (`effectiveModelAlias` w odpowiedzi).
-- W toku (**Faza 5+**): `npm run config:validate`, pełny katalog aliasów modeli (dokończenie 5.6), response header `x-request-id`.
-- **Wdrożone (params):** `src/chat/dto/chat-params.dto.ts`, `src/chat/helpers/resolve-provider-call-options.ts`, merge w `ChatService` + klucz cache w `ResponseCacheService`.
+- Config z YAML, registry, adaptery Anthropic + Google.
+- Czat standard + SSE, `params`, retry/fallback/`effectiveModelAlias`.
+- Error envelope, `RequestIdMiddleware`, gateway key + smart rate limit.
+- System prompt z plików (`helpers/system-prompt.ts`), cache (`noop`/`redis`), logging/metrics, readiness, graceful shutdown.
+
+**W toku (Faza 5+):** pełna implementacja `npm run config:validate`, response header `x-request-id`.
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

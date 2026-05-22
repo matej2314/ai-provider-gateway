@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
 Wersja dokumentu: **1.0**.  
-**OpenAPI:** `openapi.json` (v0.10.0) — zsynchronizowany z `src/` (health, smart rate limit, `params`, cache, SSE, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`). Envelope `ErrorEnvelope` (`GlobalExceptionFilter`) + **`RequestIdMiddleware`** (`src/common/middleware/request-id.middleware.ts`). **Czat:** `@GatewayKeyAndSmartRateLimit()` → `GatewayKeyGuard` + `SmartRateLimitGuard` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). Opcjonalny smart rate limit: `RATE_LIMIT_SMART_ENABLED`, Redis — `konfiguracja.md`. **Faza 5 (pozostałość):** `config:validate`, response header `x-request-id` — `dokumentacja_koncepcyjna.md`. **Cache:** `src/cache/` — tylko `POST /chat` standardowy (klucz z efektywnymi parametrami wywołania).
+**OpenAPI:** `openapi.json` (v0.11.0) — zsynchronizowany z `src/` (health, smart rate limit, `params`, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`). Envelope `ErrorEnvelope` (`GlobalExceptionFilter`) + **`RequestIdMiddleware`**. **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Faza 5 (pozostałość):** `config:validate`, response header `x-request-id`. **Cache:** `src/cache/` + `helpers/cache-policy.ts` — tylko `POST /chat` (provider włączony w YAML).
 
 ## Konwencje globalne
 
@@ -23,13 +23,13 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + 
 
 | | |
 |--|--|
-| **200** | Liveness: `status: "healthy"`, `timestamp` (locale string z `HealthService.getLiveness`) — `openapi.json` |
+| **200** | Liveness: `status: "healthy"`, `timestamp` (**ISO 8601**, `toISOString()` w `HealthService.getLiveness`) — `openapi.json` |
 
 ### `GET /api/v1/health/ready`
 
 | | |
 |--|--|
-| **200** | Readiness: `status` (`ready` \| `not_ready`), `version`, `uptime`, `checks.config`, `checks.redis` — `HealthService.getReadiness` |
+| **200** | Readiness w body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.redis`. **HTTP zawsze 200** — probe ocenia pole `status`, nie kod HTTP. `checks.redis: degraded` nie blokuje `ready`. Szczegóły `checks.config`: `dokumentacja_api.md`. |
 
 ---
 
@@ -45,7 +45,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 | **400** | walidacja DTO (m.in. `conversationId` ≠ `conv_<uuid>`); `MODEL_ALIAS_NOT_FOUND`; `MODEL_NOT_ALLOWED`; inne jawne `code` |
 | **401** | brak `X-Gateway-Key` — `GATEWAY_KEY_MISSING` |
 | **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |
-| **429** | `RATE_LIMITED` (smart limit / cooldown) lub `PROVIDER_RATE_LIMITED` (upstream) |
+| **429** | `RATE_LIMITED` (smart limit / cooldown po 429 upstream — cooldown tylko w tej ścieżce) lub `PROVIDER_RATE_LIMITED` (upstream) |
 | **502** | m.in. `PROVIDER_UNSUPPORTED`, `PROVIDER_UNAVAILABLE` (w tym wyczerpanie retry+fallback) |
 | **504** | `PROVIDER_TIMEOUT` (`policy.timeoutMs`) |
 | **500** | nieobsłużony wyjątek; rzadko `GATEWAY_KEY_NOT_CONFIGURED` |
@@ -60,7 +60,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 | **200** | `text/event-stream`; w `meta` m.in. **`conversationId`**, opcjonalnie **`effectiveModelAlias`** |
 | **400** | JSON `ErrorEnvelope` **przed** SSE: walidacja DTO, `validateForStreaming` (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`) |
 | **401** / **403** / **429** | guardy klucza i smart rate limit — przed `flushHeaders` |
-| *(po SSE)* | błędy providera w `executeStream` — patrz `dokumentacja_api.md` |
+| *(po SSE)* | m.in. `MODEL_NOT_ALLOWED` (`params`), `PROVIDER_*`, `PROVIDER_TIMEOUT` — częściowy strumień zamiast JSON; bez cooldownu jak w czacie standardowym — `dokumentacja_api.md` |
 
 ---
 

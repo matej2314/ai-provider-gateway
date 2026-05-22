@@ -41,7 +41,7 @@ flowchart TB
 
 | Moduł | Odpowiedzialność |
 |------|------------------|
-| **Chat** (`src/chat`) | Czat standardowy (`POST /api/v1/chat`) i streaming SSE (`POST /api/v1/chat/stream` — `ChatStreamController`). Orkiestracja wyboru modelu: składanie system promptu z plików (`MASTER` / `MAIN` / per alias), mapowanie `messages[]` na `user|assistant`, delegacja do adapterów. Dla czatu standardowego: opcjonalny odczyt/zapis odpowiedzi przez `ResponseCacheService` (`src/cache`). |
+| **Chat** (`src/chat`) | Czat standardowy (`POST /api/v1/chat`) i streaming SSE (`POST /api/v1/chat/stream` — `ChatStreamController`). **`ChatService`**: cache, limity, `ResilientExecutor`, odpowiedź gateway. **`ChatProviderCallService`**: wywołania adapterów, metryki LLM, SSE `meta`/`delta`. System prompt z plików (`helpers/system-prompt.ts`); `messages[]` → port providerów (`helpers/provider-input.ts`). Cache tylko dla czatu standardowego (`ResponseCacheService`, `helpers/cache-policy.ts`). |
 | **Cache** (`src/cache`) | Globalny moduł dynamiczny: rejestr backendów (`noop` zawsze, `redis` warunkowo), `ResponseCacheService` — cache wyłącznie dla **`POST /api/v1/chat`** (klucz m.in. z `modelAlias`, treści wiadomości i sygnatury warstw system promptu). Konfiguracja env: `docs/konfiguracja.md`. |
 | **Providers** (`src/providers`) | Adaptery providerów (Anthropic/Google Gemini) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
@@ -52,13 +52,13 @@ flowchart TB
 ## Warstwy wewnątrz modułów (konwencja NestJS)
 
 1. **Controller** — mapowanie HTTP, statusy, nagłówki; brak logiki biznesowej i brak bezpośrednich wywołań SDK providerów. Limit rozmiaru body JSON: **`1mb`** (`express.json` w `src/main.ts`).
-2. **Service (use case)** — orkiestracja: wybór modelu/trybu, `ResilientExecutor` (timeout/retry/fallback z YAML), `resolveProviderCallOptions`, normalizacja błędów.
+2. **Service (use case)** — **`ChatService`**: orkiestracja (cache, rate limit, `ResilientExecutor`, envelope odpowiedzi). **`ChatProviderCallService`**: pojedyncze wywołanie providera (`completeOnce` / `streamOnce`), `resolveProviderCallOptions`, metryki.
 3. **Adapters (providers)** — tłumaczenie kontraktu gateway ↔ kontrakt SDK providera; obsługa błędów specyficznych dla SDK.
 4. **DTO + walidacja** — walidacja wejścia i konfiguracji jako brzeg systemu.
 
 ### System prompt i wiadomości do adaptera
 
-Kontrakt HTTP **nie** przyjmuje roli `system` w `messages[]` (walidacja DTO). Treść systemowa dla LLM jest **polityką gatewaya**: przy starcie wczytywane są pliki z `src/config/system-prompt/`, a w `ChatService` składane są warstwy:
+Kontrakt HTTP **nie** przyjmuje roli `system` w `messages[]` (walidacja DTO). Treść systemowa dla LLM jest **polityką gatewaya**: przy starcie wczytywane są pliki z `src/config/system-prompt/`, a w runtime składane są warstwy (`composeSystemPrompt` w `src/chat/helpers/system-prompt.ts`):
 
 - **MASTER** — wymagany plik `MASTER_SYSTEM_PROMPT.md`,
 - **MAIN** — opcjonalny `MAIN_SYSTEM_PROMPT.md`,
