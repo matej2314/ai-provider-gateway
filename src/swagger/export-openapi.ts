@@ -8,15 +8,16 @@ import {
   OPENAPI_OUTPUT_FILENAME,
   OPENAPI_SPEC_VERSION,
 } from './swagger.constants';
+import { PORT, API_GLOBAL_PREFIX } from '../setup.app';
 
 async function exportOpenApi(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn'],
   });
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix(API_GLOBAL_PREFIX);
 
-  const document = createOpenApiDocument(app, Number(process.env.PORT ?? 3000));
+  const document = createOpenApiDocument(app, PORT);
   document.openapi = OPENAPI_SPEC_VERSION;
 
   const outputPath = join(process.cwd(), OPENAPI_OUTPUT_FILENAME);

@@ -2,32 +2,18 @@ import 'dotenv/config';
 import './instrument';
 
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { json } from 'express';
 import { LoggingService } from './logging/logging.service';
 import { setupSwagger } from './swagger/swagger.setup';
+import { setupApp, PORT } from './setup.app';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = app.get(LoggingService);
-  app.setGlobalPrefix('api/v1');
-  setupSwagger(app, { logger, port: Number(process.env.PORT ?? 3000) });
-  app.getHttpAdapter().getInstance().disable('x-powered-by');
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
+  setupApp(app);
+  setupSwagger(app, { logger, port: PORT });
 
-  app.use(json({ limit: '1mb' }));
-
-  app.enableShutdownHooks();
-
-  const PORT = process.env.PORT ?? 3000;
   await app.listen(PORT, () => {
     logger.info(`[Bootstrap] Gateway listening on http://localhost:${PORT}`);
   });
