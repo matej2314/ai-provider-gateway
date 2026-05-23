@@ -1,41 +1,19 @@
 {
   "openapi": "3.1.0",
-  "info": {
-    "title": "AI Provider Gateway API",
-    "description": "REST API dla chat completions (JSON) oraz streamingu (SSE) nad adapterami Anthropic / Google Gemini.\n\n**Zakres produktu:** rdzeń MVP = routing + chat + streaming; providery MVP = Anthropic + Google Gemini. **System prompt** jest składany po stronie serwera z plików w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie per alias); w `messages[]` dozwolone są wyłącznie role `user` i `assistant` — patrz `docs/konfiguracja.md`, `docs/architektura.md`.\n\n**Odporność (`ResilientExecutor`):** dla każdego aliasu z `gateway.config.yaml` stosowane są `policy.timeoutMs`, `policy.retry.maxAttempts` i `policy.retry.onStatus` (domyślnie z `RETRY_POLICY_DEFAULTS` w `src/common/retry-policy-defaults.ts`). Retry dotyczy wyłącznie błędów HTTP z listy `onStatus` (domyślnie 429, 500, 502, 503, 504). Po wyczerpaniu prób na aliasie pierwszym, opcjonalnie **`models[].fallback`** uruchamia drugi alias (bez pętli — walidacja Zod przy starcie + `assertNoFallbackCycle` w runtime). Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne **`effectiveModelAlias`**. Timeout → **504** (`PROVIDER_TIMEOUT`). Szczegóły: `docs/konfiguracja.md`, `docs/dokumentacja_api.md`.\n\n**Auth i limity na brzegu:** endpointy **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** używają **`@GatewayKeyAndSmartRateLimit()`**: **`GatewayKeyGuard`** + **`SmartRateLimitGuard`**. Nagłówek: `X-Gateway-Key`; allowlista z `masterKeyRef` i niepustych `clients[].gatewayKeyRef` w `gateway.config.yaml`. Health bez klucza. Błędy klucza: **401** (`GATEWAY_KEY_MISSING`), **403** (`GATEWAY_KEY_INVALID`), **500** (`GATEWAY_KEY_NOT_CONFIGURED`).\n\n**Smart rate limiting** (`src/rate-limit/`, `RATE_LIMIT_SMART_ENABLED=true`, Redis): token bucket per `X-Gateway-Key`, limit równoległych streamów; limity z `clients[].rateLimit` w `gateway.config.yaml` lub domyślne z env (`RATE_LIMIT_RPS_PER_KEY`, `RATE_LIMIT_BURST_PER_KEY`, `RATE_LIMIT_STREAMS_CONCURRENT`). Cooldown po 429 od providera (**tylko** `POST /api/v1/chat`) — **`RATE_LIMITED`**. Limit upstream providera — **`PROVIDER_RATE_LIMITED`**. Bez `@nestjs/throttler`. Szczegóły: `docs/konfiguracja.md`, `docs/dictionary.md`.\n\n**Format błędów:** envelope **`ErrorEnvelope`** (`GlobalExceptionFilter`). Słownik: `docs/dictionary.md`.\n\n**Korelacja (`requestId`):** **`RequestIdMiddleware`** — nagłówek żądania **`x-request-id`** (echo) lub `req_<uuid>`; to samo ID w polu JSON **`requestId`** oraz w **nagłówku odpowiedzi** **`x-request-id`** (wszystkie trasy objęte middleware, w tym health).\n\n**Cache (`POST /api/v1/chat`):** `noop` / `redis` — **`cached`**, **`cachedAt`**. Streaming bez cache.\n\n**Walidacja body:** `messages` 1–150, `content` max 3000 znaków; **`conversationId`** opcjonalnie w formacie `conv_<uuid>`; **`params`** z `allowOverrides` / `bounds`. **Response:** zawsze `conversationId` (echo lub `conv_<uuid>`). **Sentry:** `gen_ai.conversation.id` tylko gdy klient poda `conversationId` w request. `ValidationPipe` + limit JSON **1 MB**.\n\n**Dokumentacja ludzka:** `docs/`. **Swagger UI:** `/api-docs` (JSON: `/api-docs/swagger.json`). **Pozostałość v1:** `npm run config:validate` (placeholder), `CORS_ORIGINS` w `.env.example` bez implementacji w kodzie.",
-    "version": "0.12.0",
-    "contact": {}
-  },
-  "servers": [
-    {
-      "url": "http://localhost:3000",
-      "description": "Przykład lokalny"
-    }
-  ],
-  "tags": [
-    {
-      "name": "Health",
-      "description": "Liveness i readiness"
-    },
-    {
-      "name": "Chat",
-      "description": "Chat completions (standard + streaming)"
-    }
-  ],
   "paths": {
     "/api/v1/chat": {
       "post": {
-        "description": "Pełna odpowiedź JSON. Cache, smart rate limit, ResilientExecutor, opcjonalny fallback (effectiveModelAlias).",
+        "description": "Full JSON response. Cache, smart rate limit, ResilientExecutor, optional fallback (effectiveModelAlias).",
         "operationId": "ChatController_chat",
         "parameters": [
           {
             "name": "x-request-id",
             "in": "header",
-            "description": "Opcjonalny ID korelacji. Gdy brak, gateway ustawia req_<uuid> w odpowiedzi/błędzie.",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
             "required": false,
             "schema": {
               "type": "string",
-              "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
             }
           }
         ],
@@ -136,7 +114,7 @@
             "GatewayKeyAuth": []
           }
         ],
-        "summary": "Chat (standard)",
+        "summary": "Standard chat",
         "tags": [
           "Chat"
         ]
@@ -144,17 +122,17 @@
     },
     "/api/v1/chat/stream": {
       "post": {
-        "description": "SSE (`text/event-stream`): kolejność zdarzeń `meta` → `delta`* → `done` (pusty `{}`).\n\nTen sam body co POST /chat. Błędy JSON (ErrorEnvelope) tylko **przed** flushHeaders.\n\nPo rozpoczęciu streamu błędy mogą być częściowym SSE.",
+        "description": "SSE (`text/event-stream`): event sequence `meta` → `delta`* → `done` (empty `{}`).\n\nSame body as POST /chat. JSON errors (ErrorEnvelope) only **before** flushHeaders.\n\nAfter stream starts, errors may be partial SSE.",
         "operationId": "ChatStreamController_streamChat",
         "parameters": [
           {
             "name": "x-request-id",
             "in": "header",
-            "description": "Opcjonalny ID korelacji. Gdy brak, gateway ustawia req_<uuid> w odpowiedzi/błędzie.",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
             "required": false,
             "schema": {
               "type": "string",
-              "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
             }
           }
         ],
@@ -170,7 +148,7 @@
         },
         "responses": {
           "200": {
-            "description": "SSE: event meta (SseMetaPayload), delta* (SseDeltaPayload), done (SseDonePayload)",
+            "description": "SSE: event meta (SseMetaPayload), delta* (SseDeltaPayload), done (SseDonePayload).",
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -179,7 +157,7 @@
                 },
                 "examples": {
                   "meta": {
-                    "value": "event: meta\ndata: {\"id\":\"gw_...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\",\"conversationId\":\"conv_...\"}\n\n"
+                    "value": "event: meta\ndata: {\"id\":\"gw_...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\",\"conversationId\":\"conv_...\"}"
                   }
                 }
               }
@@ -261,7 +239,7 @@
             "GatewayKeyAuth": []
           }
         ],
-        "summary": "Chat (streaming)",
+        "summary": "Streaming chat",
         "tags": [
           "Chat"
         ]
@@ -269,17 +247,17 @@
     },
     "/api/v1/health": {
       "get": {
-        "description": "Lekki probe procesu. Nie wymaga X-Gateway-Key.",
+        "description": "LightWeight process probe. Does not require X-Gateway-Key.",
         "operationId": "HealthController_getLiveness",
         "parameters": [
           {
             "name": "x-request-id",
             "in": "header",
-            "description": "Opcjonalny ID korelacji. Gdy brak, gateway ustawia req_<uuid> w odpowiedzi/błędzie.",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
             "required": false,
             "schema": {
               "type": "string",
-              "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
             }
           }
         ],
@@ -303,17 +281,17 @@
     },
     "/api/v1/health/ready": {
       "get": {
-        "description": "HTTP zawsze 200; ocena po body.status (ready | not_ready). Nie wymaga X-Gateway-Key.",
+        "description": "HTTP always 200; evaluation by body.status (ready | not_ready). Does not require X-Gateway-Key.",
         "operationId": "HealthController_getReadiness",
         "parameters": [
           {
             "name": "x-request-id",
             "in": "header",
-            "description": "Opcjonalny ID korelacji. Gdy brak, gateway ustawia req_<uuid> w odpowiedzi/błędzie.",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
             "required": false,
             "schema": {
               "type": "string",
-              "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
             }
           }
         ],
@@ -336,374 +314,38 @@
       }
     }
   },
-  "components": {
-    "headers": {
-      "XRequestId": {
-        "description": "Identyfikator korelacyjny żądania — echo nagłówka żądania `x-request-id` (jeśli niepusty) lub `req_<uuid>`. Ustawiany przez `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) na wszystkich trasach z middleware. To samo ID co pole `requestId` w JSON (sukces, błąd, SSE `meta`).",
-        "schema": {
-          "type": "string"
-        },
-        "example": "req_123e4567-e89b-12d3-a456-426614174000"
-      }
+  "info": {
+    "title": "AI Provider Gateway API",
+    "description": "REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/dokumentacja_api.md`.",
+    "version": "0.12.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Liveness and readiness - without X-Gateway-Key."
     },
+    {
+      "name": "Chat",
+      "description": "Chat completions (standard + streaming SSE)."
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Localhost"
+    }
+  ],
+  "components": {
     "securitySchemes": {
       "GatewayKeyAuth": {
         "type": "apiKey",
         "in": "header",
         "name": "X-Gateway-Key",
-        "description": "Klucz klienta (allowlista z gateway.config.yaml + env). Wymagany dla POST /chat i POST /chat/stream."
+        "description": "Client key. Required for POST /chat and POST /chat/stream."
       }
     },
     "schemas": {
-      "HealthLivenessResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "status",
-          "timestamp"
-        ],
-        "properties": {
-          "status": {
-            "type": "string",
-            "const": "healthy"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "ISO 8601 UTC (`new Date().toISOString()` w `HealthService.getLiveness` i `getReadiness`)."
-          }
-        }
-      },
-      "HealthCheckItem": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "status",
-          "message"
-        ],
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "healthy",
-              "degraded",
-              "unhealthy"
-            ]
-          },
-          "message": {
-            "type": "string"
-          }
-        }
-      },
-      "HealthReadinessResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "status",
-          "timestamp",
-          "version",
-          "uptime",
-          "checks"
-        ],
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "ready",
-              "not_ready"
-            ]
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "ISO 8601 UTC (`toISOString()` w `HealthService.getReadiness`)."
-          },
-          "version": {
-            "type": "string"
-          },
-          "uptime": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Czas działania procesu w sekundach (`process.uptime()`)."
-          },
-          "checks": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "config",
-              "cache"
-            ],
-            "properties": {
-              "config": {
-                "$ref": "#/components/schemas/HealthCheckItem"
-              },
-              "cache": {
-                "$ref": "#/components/schemas/HealthCheckItem",
-                "description": "Stan backendu cache odpowiedzi (`noop` lub `redis` z `CACHE_*`). Nie dotyczy osobno smart rate limit."
-              }
-            }
-          }
-        }
-      },
-      "ErrorEnvelope": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "statusCode",
-          "code",
-          "message",
-          "requestId"
-        ],
-        "description": "Envelope błędów z `GlobalExceptionFilter`. Pole `message` jest zawsze stringiem (walidacja: `join('; ')`).",
-        "properties": {
-          "statusCode": {
-            "type": "integer",
-            "minimum": 400,
-            "maximum": 599
-          },
-          "code": {
-            "type": "string",
-            "description": "Kod maszynowy z payloadu wyjątku lub `DEFAULT_HTTP_STATUS_TO_CODE` (`src/common/errors/api-error.code.ts`). Przykłady: `GATEWAY_KEY_*`, `RATE_LIMITED` (gateway), `PROVIDER_RATE_LIMITED` (upstream), `MODEL_*`, `PROVIDER_*`. Słownik: `docs/dictionary.md`."
-          },
-          "message": {
-            "type": "string"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Z `RequestIdMiddleware` (nagłówek odpowiedzi `x-request-id` ma tę samą wartość) lub z payloadu wyjątku, jeśli jawnie nadpisane."
-          },
-          "details": {
-            "type": "array",
-            "description": "Obecna implementacja zawsze emituje pustą tablicę.",
-            "items": {}
-          }
-        }
-      },
-      "ChatRole": {
-        "type": "string",
-        "enum": [
-          "user",
-          "assistant"
-        ],
-        "description": "Rola `system` w API jest zablokowana — system prompt z plików w `src/config/system-prompt/`."
-      },
-      "ChatMessage": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "role",
-          "content"
-        ],
-        "properties": {
-          "role": {
-            "$ref": "#/components/schemas/ChatRole"
-          },
-          "content": {
-            "type": "string",
-            "maxLength": 3000
-          }
-        }
-      },
-      "ChatParams": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "temperature": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 2,
-            "description": "Override; dozwolone tylko gdy alias ma `temperature` w `policy.params.allowOverrides`."
-          },
-          "maxOutputTokens": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 8192,
-            "description": "Override; dozwolone tylko gdy alias ma `maxOutputTokens` w `allowOverrides`."
-          }
-        }
-      },
-      "ChatRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "modelAlias",
-          "messages"
-        ],
-        "properties": {
-          "modelAlias": {
-            "type": "string"
-          },
-          "messages": {
-            "type": "array",
-            "minItems": 1,
-            "maxItems": 150,
-            "items": {
-              "$ref": "#/components/schemas/ChatMessage"
-            }
-          },
-          "conversationId": {
-            "type": "string",
-            "pattern": "^conv_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-            "description": "Opcjonalny identyfikator sesji w formacie `conv_<uuid>` (`ChatRequestDto`). **W request:** włącza `gen_ai.conversation.id` w Sentry; wymaga pełnej historii w `messages[]` od tury 2. **Gdy pominięty:** Sentry = pojedyncza wiadomość; gateway zwraca nowe `conv_<uuid>` w odpowiedzi. Zob. `docs/conversation-tracking.md`.",
-            "example": "conv_123e4567-e89b-12d3-a456-426614174000"
-          },
-          "params": {
-            "$ref": "#/components/schemas/ChatParams"
-          }
-        }
-      },
-      "SseMetaPayload": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "provider",
-          "model",
-          "requestId",
-          "conversationId"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "provider": {
-            "type": "string",
-            "minLength": 1
-          },
-          "model": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Żądany `modelAlias` z body."
-          },
-          "effectiveModelAlias": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Obecne tylko gdy `ResilientExecutor` obsłużył żądanie na aliasie `fallback` z YAML (inny niż `model`)."
-          },
-          "requestId": {
-            "type": "string",
-            "minLength": 1
-          },
-          "conversationId": {
-            "type": "string",
-            "minLength": 1,
-            "description": "ID sesji zwrócone klientowi (echo `conversationId` z body lub `conv_<uuid>` gdy brak w request). Grupowanie Sentry wymaga podania tego samego ID w body żądania."
-          }
-        }
-      },
-      "SseDeltaPayload": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "text"
-        ],
-        "properties": {
-          "text": {
-            "type": "string"
-          }
-        }
-      },
-      "SseDonePayload": {
-        "type": "object",
-        "additionalProperties": false,
-        "description": "Runtime emituje pusty obiekt; `usage` w streamingu planowane.",
-        "properties": {}
-      },
-      "ChatOutputText": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "type",
-          "text"
-        ],
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "text"
-          },
-          "text": {
-            "type": "string"
-          }
-        }
-      },
-      "ChatUsage": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "inputTokens": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "outputTokens": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "totalTokens": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      },
-      "ChatResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "provider",
-          "model",
-          "output",
-          "requestId",
-          "conversationId"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "provider": {
-            "type": "string",
-            "minLength": 1
-          },
-          "model": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Żądany `modelAlias` z body."
-          },
-          "effectiveModelAlias": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Obecne tylko po udanym fallbacku (`models[].fallback` w YAML) — alias faktycznie użyty do wywołania providera."
-          },
-          "output": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ChatOutputText"
-              }
-            ]
-          },
-          "usage": {
-            "$ref": "#/components/schemas/ChatUsage"
-          },
-          "requestId": {
-            "type": "string",
-            "minLength": 1
-          },
-          "conversationId": {
-            "type": "string",
-            "minLength": 1,
-            "description": "ID sesji zwrócone klientowi (echo `conversationId` z body lub `conv_<uuid>` gdy brak w request). Grupowanie w Sentry wymaga podania tego samego ID w body kolejnych żądań — patrz `docs/conversation-tracking.md`."
-          },
-          "cached": {
-            "type": "boolean",
-            "const": true
-          },
-          "cachedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
       "ChatMessageDto": {
         "type": "object",
         "properties": {
@@ -713,11 +355,12 @@
               "user",
               "assistant"
             ],
-            "description": "Rola wiadomości. Rola system nie jest dozwolona — system prompt z plików serwera.",
+            "description": "Role of the message. Must be either \"user\" or \"assistant\".",
             "example": "user"
           },
           "content": {
             "type": "string",
+            "maxLength": 3000,
             "description": "Content of the message. Must be a string with a maximum length of 3000 characters.",
             "example": "Hello, how are you?"
           }
@@ -732,16 +375,16 @@
         "properties": {
           "temperature": {
             "type": "number",
-            "description": "Override temperature for this request. Allowed only if listed in allowOverrides for modelAlias.",
             "minimum": 0,
             "maximum": 2,
+            "description": "Override temperature for this request. Allowed only if listed in allowOverrides for modelAlias.",
             "example": 0.7
           },
           "maxOutputTokens": {
             "type": "number",
-            "description": "Override max output tokens. Allowed only if listed in allowOverrides for modelAlias.",
             "minimum": 1,
             "maximum": 8192,
+            "description": "Override max output tokens. Allowed only if listed in allowOverrides for modelAlias.",
             "example": 1024
           }
         }
@@ -751,13 +394,19 @@
         "properties": {
           "modelAlias": {
             "type": "string",
-            "description": "Alias modelu z gateway.config.yaml",
-            "example": "chat-default"
+            "description": "Model alias to use for the request. Must be defined in the configuration.",
+            "example": "claude-sonnet-4-5"
           },
           "messages": {
             "minItems": 1,
             "maxItems": 150,
-            "description": "Historia wiadomości (1–150).",
+            "description": "Array of messages to send in the request. Each message must have a role and content. Maximum 150 messages.",
+            "example": [
+              {
+                "role": "user",
+                "content": "Hello, how are you?"
+              }
+            ],
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ChatMessageDto"
@@ -773,9 +422,9 @@
           },
           "conversationId": {
             "type": "string",
-            "description": "Opcjonalny conv_<uuid>. W request włącza grupowanie Sentry; w response zawsze zwracany ID.",
-            "example": "conv_123e4567-e89b-12d3-a456-426614174000",
-            "pattern": "^conv_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            "pattern": "^conv_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "description": "Optional conversation ID to group multiple requests into a single conversation for metrics tracking. Generate unique ID on the client side and reuse it for all requests in the same conversation.",
+            "example": "conv_123e4567-e89b-12d3-a456-426614174000"
           }
         },
         "required": [
@@ -795,7 +444,8 @@
           },
           "text": {
             "type": "string",
-            "example": "Odpowiedź modelu..."
+            "description": "Odpowiedź wygenerowana przez model.",
+            "example": "Odpowiedź modelu...."
           }
         },
         "required": [
@@ -833,12 +483,12 @@
           },
           "model": {
             "type": "string",
-            "description": "Żądany modelAlias z body",
+            "description": "Requested modelAlias from body",
             "example": "chat-default"
           },
           "effectiveModelAlias": {
             "type": "string",
-            "description": "Tylko po udanym fallbacku w YAML",
+            "description": "Only after successful fallback in YAML",
             "example": "claude-sonnet"
           },
           "output": {
@@ -848,17 +498,20 @@
             "$ref": "#/components/schemas/ChatUsageDto"
           },
           "requestId": {
-            "type": "string"
+            "type": "string",
+            "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
           },
           "conversationId": {
-            "type": "string"
+            "type": "string",
+            "description": "Conversation ID returned to client (echo conversationId from body or conv_<uuid> when missing in request). Sentry grouping requires the same ID in body of subsequent requests — see conversation-tracking.md.",
+            "example": "conv_01HZZZZZZZZZZZZZZZZZZZZZZ"
           },
           "cached": {
             "type": "boolean",
             "enum": [
               true
             ],
-            "description": "Tylko przy trafieniu cache"
+            "description": "Whether the response was returned from cache"
           },
           "cachedAt": {
             "type": "string",
@@ -886,7 +539,7 @@
           "code": {
             "type": "string",
             "example": "VALIDATION_FAILED",
-            "description": "Kod maszynowy; słownik: docs/dictionary.md"
+            "description": "Machine-readable error code; dictionary: docs/dictionary.md"
           },
           "message": {
             "type": "string",
@@ -894,11 +547,11 @@
           },
           "requestId": {
             "type": "string",
-            "example": "req_01HZZZZZZZZZZZZZZZZZZZZZZ"
+            "example": "req_01H..."
           },
           "details": {
             "type": "array",
-            "description": "Obecna implementacja często zwraca [].",
+            "description": "Current implementation often returns []",
             "example": []
           }
         },
@@ -958,7 +611,7 @@
             "$ref": "#/components/schemas/HealthCheckItemDto"
           },
           "cache": {
-            "description": "Backend cache odpowiedzi (noop/redis). Nie dotyczy smart rate limit.",
+            "description": "Response cache backend (noop/redis). Does not affect smart rate limit.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/HealthCheckItemDto"
@@ -983,7 +636,8 @@
           },
           "timestamp": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "example": "2026-05-19T12:00:00.000Z"
           },
           "version": {
             "type": "string",
@@ -1017,11 +671,11 @@
           },
           "model": {
             "type": "string",
-            "description": "Żądany modelAlias z body"
+            "description": "Requested modelAlias from body"
           },
           "effectiveModelAlias": {
             "type": "string",
-            "description": "Po fallbacku"
+            "description": "Model alias actually used for provider call (after fallback)"
           },
           "requestId": {
             "type": "string"
@@ -1048,10 +702,6 @@
         "required": [
           "text"
         ]
-      },
-      "SseDonePayloadDto": {
-        "type": "object",
-        "properties": {}
       }
     }
   }

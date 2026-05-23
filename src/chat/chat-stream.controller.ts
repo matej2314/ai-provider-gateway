@@ -7,12 +7,26 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import {
+  ApiOperation,
+  ApiBody,
+  ApiSecurity,
+  ApiTags,
+  ApiProduces,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseSerializer } from './sse/sse.serializer';
 import { ChatService } from './chat.service';
 import { GatewayKeyAndSmartRateLimit } from 'src/common/decorators/gateway-key-and-smart-rate-limit.decorator';
 import { StreamCleanupInterceptor } from 'src/common/interceptors/stream-cleanup.interceptor';
+import { ApiGatewayChatErrorResponses } from 'src/common/decorators/api-gateway-error-responses.decorator';
+import { SseMetaPayloadDto } from './dto/sse-meta-payload.dto';
+import { ApiRequestIdHeader } from '../common/decorators/api-request-id-header.decorator';
+import { CHAT_STREAM_API_DESCRIPTION } from './dto/sse-stream-description';
 
+@ApiTags('Chat')
+@ApiSecurity('GatewayKeyAuth')
 @Controller('chat')
 @GatewayKeyAndSmartRateLimit()
 export class ChatStreamController {
@@ -22,6 +36,38 @@ export class ChatStreamController {
 
   @Post('stream')
   @UseInterceptors(StreamCleanupInterceptor)
+  @ApiOperation({
+    summary: 'Streaming chat',
+    description: CHAT_STREAM_API_DESCRIPTION,
+  })
+  @ApiBody({ type: ChatRequestDto })
+  @ApiProduces('text/event-stream')
+  @ApiResponse({
+    status: 200,
+    description:
+      'SSE: event meta (SseMetaPayload), delta* (SseDeltaPayload), done (SseDonePayload).',
+    content: {
+      'text/event-stream': {
+        schema: {
+          type: 'string',
+          description: 'Format: `event: <name>\\ndata: <json>\\n\\n`',
+        },
+        examples: {
+          meta: {
+            value: `event: meta\ndata: ${JSON.stringify({
+              id: 'gw_...',
+              provider: 'anthropic',
+              model: 'chat-default',
+              requestId: 'req_...',
+              conversationId: 'conv_...',
+            } satisfies SseMetaPayloadDto)}`,
+          },
+        },
+      },
+    },
+  })
+  @ApiGatewayChatErrorResponses()
+  @ApiRequestIdHeader()
   async streamChat(
     @Req() req: Request,
     @Body() requestBody: ChatRequestDto,

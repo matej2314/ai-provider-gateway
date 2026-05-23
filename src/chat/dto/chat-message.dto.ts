@@ -5,6 +5,7 @@ const CONTENT_MAX_LENGTH = 3000;
 
 export class ChatMessageDto {
   @ApiProperty({
+    enum: ['user', 'assistant'],
     description: 'Role of the message. Must be either "user" or "assistant".',
     required: true,
     example: 'user',

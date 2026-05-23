@@ -7,6 +7,7 @@ import { SmartRateLimitGuard } from '../guards/smart-rate-limit-guard';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 import { ResilientExecutor } from 'src/common/resilience/resilient-executor';
 import { ChatProviderCallService } from './chat-provider-call.service';
+import { StreamCleanupInterceptor } from 'src/common/interceptors/stream-cleanup.interceptor';
 
 @Module({
   imports: [RateLimitModule],
@@ -17,6 +18,7 @@ import { ChatProviderCallService } from './chat-provider-call.service';
     SmartRateLimitGuard,
     ResilientExecutor,
     ChatProviderCallService,
+    StreamCleanupInterceptor,
   ],
 })
 export class ChatModule {}
