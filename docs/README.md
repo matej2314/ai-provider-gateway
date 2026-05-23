@@ -6,7 +6,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 
 1. Zacznij od `dokumentacja_koncepcyjna.md` (WHAT/WHY).
 2. Następnie `architektura.md` (moduły i granice) oraz `architektura_api.md` (konwencje API).
-3. Dla szczegółów HTTP: **kontrakt** w `openapi.json` (katalog główny repo), oraz opis ludzki: `lista_endpointów.md` i `dokumentacja_api.md`.
+3. Dla szczegółów HTTP: **kontrakt** w `openapi.json` (katalog główny repo; generowany z kodu — `npm run openapi:export`), interaktywnie **Swagger UI** (`/api/v1/api-docs`), oraz opis ludzki: `lista_endpointów.md` i `dokumentacja_api.md`.
 4. Dla konfiguracji “plug&play”: `konfiguracja.md` + `mcp.md`.
 5. Dla przepływów: `data_flow.md`.
 6. Dla ryzyk: `anty-patterny.md`.
@@ -20,10 +20,11 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 14. **Parametry generacji (`params`)** — opcjonalne `temperature` / `maxOutputTokens` w body; merge z `policy.params` w YAML (`resolveProviderCallOptions`); szczegóły: `konfiguracja.md`, `dokumentacja_api.md`.
 15. **Odporność (retry, timeout, fallback)** — `ResilientExecutor` + `models[].fallback` w YAML; opcjonalne `effectiveModelAlias` w odpowiedzi; szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
 16. **Moduł czatu** — `ChatService` (cache, limity, odpowiedź gateway) + `ChatProviderCallService` (adaptery, metryki, SSE); helpery w `src/chat/helpers/` — `architektura-katalogi-pliki.md`, `data_flow.md`.
+17. **OpenAPI / Swagger** — `@nestjs/swagger` w kontrolerach i DTO (`src/swagger/`); UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport statyczny: `npm run openapi:export` → `openapi.json`; env `SWAGGER_ENABLED` — `konfiguracja.md`, `dokumentacja_api.md`.
 
 ## Spis plików
 
-- `../openapi.json` *(w katalogu głównym repo, v0.12.0)* — OpenAPI 3.1: kontrakt REST (czat, SSE, health, `ErrorEnvelope`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`, smart rate limit, cache). Źródło prawdy dla zachowania: `src/` + ten katalog `docs/`.
+- `../openapi.json` *(w katalogu głównym repo, v0.12.0)* — OpenAPI 3.1: kontrakt REST (czat, SSE, health, `ErrorEnvelope`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`, smart rate limit, cache). **Generowany z kodu** (`src/swagger/export-openapi.ts`, dekoratory `@Api*` na kontrolerach/DTO). Źródło prawdy dla zachowania: `src/` + ten katalog `docs/`.
 - `dokumentacja_koncepcyjna.md` — cel produktu, zakres (MVP / v1), założenia.
 - `architektura.md` — widok logiczny, moduły, warstwy, integracje providerów.
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.

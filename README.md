@@ -16,13 +16,15 @@ Aktualnie wspierani providerzy:
 
 Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 
-| Temat                       | Plik                                                                          |
-| --------------------------- | ----------------------------------------------------------------------------- |
-| Kontrakt HTTP (OpenAPI 3.1) | [`openapi.json`](openapi.json) — Swagger UI: `http://localhost:3000/api-docs` |
-| API (ludzki opis)           | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md)                        |
-| Konfiguracja env + YAML     | [`docs/konfiguracja.md`](docs/konfiguracja.md)                                |
-| Kody błędów                 | [`docs/dictionary.md`](docs/dictionary.md)                                    |
-| Architektura                | [`docs/architektura.md`](docs/architektura.md)                                |
+| Temat                       | Plik                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------ |
+| Kontrakt HTTP (OpenAPI 3.1) | [`openapi.json`](openapi.json) — generowany: `npm run openapi:export`                      |
+| Swagger UI (runtime)        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`) |
+| API (ludzki opis)           | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md)                                     |
+| Konfiguracja env + YAML     | [`docs/konfiguracja.md`](docs/konfiguracja.md)                                             |
+| Kody błędów                 | [`docs/dictionary.md`](docs/dictionary.md)                                                 |
+| Architektura                | [`docs/architektura.md`](docs/architektura.md)                                             |
+| Struktura katalogów         | [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md)               |
 
 ## Szybki start (lokalnie)
 
@@ -112,14 +114,11 @@ Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalog
 ## Skrypty
 
 ```bash
-npm run start:dev    # development
+npm run start:dev       # development
 npm run build
-npm run start:prod   # po build
-npm run config:validate  # placeholder (scripts/validate-config.ts)
+npm run start:prod      # po build
+npm run openapi:export  # openapi.json z dekoratorów @nestjs/swagger
+npm run config:validate # placeholder (scripts/validate-config.ts)
 npm test
+npm run test:e2e
 ```
-
-## Pozostałość v1
-
-- `npm run config:validate` — skrypt offline (jeszcze pusty)
-- `CORS_ORIGINS` w `.env.example` — brak implementacji w `src/main.ts`

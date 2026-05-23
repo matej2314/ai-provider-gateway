@@ -147,7 +147,7 @@ Przy **cache hit** (`POST /api/v1/chat`) gateway **nie** wywołuje providera i *
 | Zmienna | Znaczenie |
 |---------|-----------|
 | `SENTRY_DSN` | Wymagane do wysyłki |
-| `METRICS_BACKEND=sentry` | Adapter metryk (w dev; w prod często domyślnie przy `NODE_ENV=production`) |
+| `METRICS_BACKEND=sentry` | Adapter metryk LLM (`MetricsModule`); w **production** domyślnie Sentry gdy `METRICS_BACKEND` nie ustawiony na `noop` |
 | `SENTRY_TRACES_SAMPLE_RATE` | Np. `1.0` na test |
 | `SENTRY_INCLUDE_PROMPTS=true` | `gen_ai.input.messages` / `gen_ai.output.messages` na spanach |
 | `streamGenAiSpans: true` | W `src/instrument.ts` — **wymagane** dla widoku Conversations |

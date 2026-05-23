@@ -41,9 +41,15 @@ ai-provider-gateway/
 │   └── app.e2e-spec.ts
 │
 ├── src/
-│   ├── main.ts                     # bootstrap NestJS, graceful shutdown
+│   ├── main.ts                     # bootstrap NestJS, ValidationPipe, Swagger, graceful shutdown
+│   ├── setup.app.ts                # placeholder pod wspólny setup aplikacji (obecnie pusty)
 │   ├── instrument.ts               # inicjalizacja Sentry (import przed app)
 │   ├── app.module.ts
+│   │
+│   ├── swagger/
+│   │   ├── swagger.constants.ts    # OPENAPI_VERSION, SWAGGER_UI_PATH, OPENAPI_OUTPUT_FILENAME
+│   │   ├── swagger.setup.ts        # createOpenApiDocument, setupSwagger (UI + jsonDocumentUrl)
+│   │   └── export-openapi.ts       # npm run openapi:export → openapi.json
 │   │
 │   ├── chat/
 │   │   ├── chat.module.ts
@@ -57,7 +63,14 @@ ai-provider-gateway/
 │   │   ├── dto/
 │   │   │   ├── chat-request.dto.ts
 │   │   │   ├── chat-params.dto.ts
-│   │   │   └── chat-message.dto.ts
+│   │   │   ├── chat-message.dto.ts
+│   │   │   ├── chat-response.dto.ts
+│   │   │   ├── chat-output-text.dto.ts
+│   │   │   ├── chat-usage.dto.ts
+│   │   │   ├── sse-meta-payload.dto.ts
+│   │   │   ├── sse-delta-payload.dto.ts
+│   │   │   ├── sse-done-payload.dto.ts
+│   │   │   └── sse-stream-description.ts
 │   │   ├── helpers/
 │   │   │   ├── cache-policy.ts
 │   │   │   ├── conversation-id.ts
@@ -81,10 +94,9 @@ ai-provider-gateway/
 │   │   ├── anthropic/
 │   │   │   ├── anthropic.module.ts
 │   │   │   └── anthropic.adapter.ts
-│   │   ├── google/
-│   │   │   ├── google.module.ts
-│   │   │   └── google.adapter.ts
-│   │   └── openai/                         # (plan — poza rdzeniem MVP / v1+)
+│   │   └── google/
+│   │       ├── google.module.ts
+│   │       └── google.adapter.ts
 │   │
 │   ├── config/
 │   │   ├── configuration.ts                # gateway.config.yaml + Zod, cache/redis z env
@@ -135,7 +147,11 @@ ai-provider-gateway/
 │   │   ├── health.controller.ts
 │   │   ├── health.controller.spec.ts
 │   │   ├── health.service.ts
-│   │   └── health.service.spec.ts
+│   │   ├── health.service.spec.ts
+│   │   └── dto/
+│   │       ├── health-liveness-response.dto.ts
+│   │       ├── health-readiness-response.dto.ts
+│   │       └── health-check-item.dto.ts
 │   │
 │   ├── cache/
 │   │   ├── cache.module.ts                 # CacheModule.register({ includeRedisStack })
@@ -157,7 +173,9 @@ ai-provider-gateway/
 │       ├── readGatewayKeyHeader.ts
 │       ├── retry-policy-defaults.ts        # domyślne onStatus / maxAttempts / timeoutMs
 │       ├── decorators/
-│       │   └── gateway-key-and-smart-rate-limit.decorator.ts
+│       │   ├── gateway-key-and-smart-rate-limit.decorator.ts
+│       │   ├── api-gateway-error-responses.decorator.ts
+│       │   └── api-request-id-header.decorator.ts
 │       ├── dtos/
 │       │   └── error-envelope.dto.ts
 │       ├── errors/
@@ -220,11 +238,12 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/providers/`** | Adaptery Anthropic / Google, `ProviderRegistryService` + moduł rejestru. Jedyna warstwa z bezpośrednim użyciem SDK vendorów. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, walidacja Zod, `buildEffectiveGatewayConfig`, `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
-| **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekorator guardów, typy Express. |
+| **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiRequestIdHeader`), typy Express. |
 | **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). |
 | **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez `RateLimitModule` → `RedisCacheModule`. |
 | **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |
-| **`src/health/`** | Liveness i readiness. |
+| **`src/health/`** | Liveness i readiness; DTO z dekoratorami `@Api*` dla OpenAPI. |
+| **`src/swagger/`** | Generowanie dokumentu OpenAPI z kodu (`@nestjs/swagger`); UI pod `/api/v1/api-docs`, JSON pod `/api/v1/swagger.json`; eksport statyczny → `openapi.json`. |
 | **`scripts/`** | Walidacja konfiguracji offline (w przygotowaniu). |
 | **`test/`** | Testy e2e Jest. |
 | **`docs/`** | Dokumentacja i specyfikacje SDD (`spec/`). |
@@ -241,7 +260,8 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
 - System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.cache`), graceful shutdown.
+- OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach i DTO, `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
 
-**Pozostałość v1:** `npm run config:validate` (placeholder w `scripts/validate-config.ts`), opcjonalnie CORS.
+**Pozostałość v1:** `npm run config:validate` (placeholder w `scripts/validate-config.ts`), `src/setup.app.ts` (pusty placeholder), opcjonalnie CORS.
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

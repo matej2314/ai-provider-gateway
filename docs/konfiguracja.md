@@ -18,6 +18,8 @@ Zmienne providerów (Anthropic + Google Gemini — bieżący zestaw w repozytori
 
 W repo powinien istnieć `.env.example` bez wartości sekretów.
 
+**Uwaga o `.env.example` vs domyślne wartości w kodzie:** szablon w repozytorium może mieć włączone funkcje opcjonalne (np. `CACHE_ENABLED=true`, `RATE_LIMIT_SMART_ENABLED=true`) dla wygody lokalnego developmentu. **Domyślne wartości walidatora** (`EnvironmentVariables` w `src/config/env.validation.ts`) przy braku zmiennej to: `CACHE_ENABLED=false`, `CACHE_BACKEND=noop`, `RATE_LIMIT_SMART_ENABLED=false`. Efektywna konfiguracja zależy od tego, co faktycznie ustawisz w `.env`.
+
 **Klucze gateway (nagłówek `X-Gateway-Key`):**
 
 - W **`gateway.config.yaml`**: pole **`masterKeyRef`** (nazwa zmiennej env dla klucza master, np. `MASTER_KEY`) oraz opcjonalna sekcja **`clients`** — każdy klient ma **`gatewayKeyRef`** wskazujący nazwę zmiennej env z kluczem tego klienta (np. `GATEWAY_KEY_WEBAPP`).
@@ -75,16 +77,28 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 
 ### Observability (env)
 
-| Zmienna                                                                           | Znaczenie                                                                                                         |
+| Zmienna                                                                           | Domyślnie / zachowanie                                                                                            |
 | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `LOG_LEVEL`, `LOG_ADAPTER`                                                        | Poziom i backend logów (`pino` / `console`) — `LoggingModule`.                                                    |
-| `LOG_PRETTY`                                                                      | Czytelny output Pino (dev).                                                                                       |
-| `SENTRY_DSN`, `SENTRY_ENABLED`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE` | Sentry (`src/instrument.ts`, opcjonalnie metrics/errors).                                                         |
-| `ERROR_REPORTING_ADAPTER`                                                         | `sentry` \| `noop`.                                                                                               |
-| `METRICS_BACKEND`                                                                 | `sentry` \| `noop` — spany LLM w `MetricsService`.                                                                |
-| `SENTRY_INCLUDE_PROMPTS`                                                          | `true` — `gen_ai.input.messages` / `gen_ai.output.messages` na spanach (wymagane m.in. dla widoku Conversations). |
-| `APP_VERSION`                                                                     | Wersja w readiness (`GET /api/v1/health/ready`).                                                                  |
+| `LOG_LEVEL`                                                                       | `info` — poziom logów (`LoggingModule`).                                                                          |
+| `LOG_ADAPTER`                                                                     | `pino` — backend logów (`pino` / `console`).                                                                      |
+| `LOG_PRETTY`                                                                      | `false` w walidatorze; czytelny output Pino (dev).                                                                |
+| `SENTRY_DSN`                                                                      | Pusty — wymagany, gdy włączony adapter Sentry (metrics lub error reporting).                                      |
+| `SENTRY_ENABLED`                                                                  | `false` w walidatorze; w **development** włącza error reporting przez Sentry gdy `ERROR_REPORTING_ADAPTER` nie nadpisuje (`LoggingModule`). W **production** error reporting domyślnie próbuje Sentry (gdy `SENTRY_DSN` ustawiony). |
+| `SENTRY_ENVIRONMENT`                                                              | `development` w walidatorze; przekazywane do Sentry.                                                            |
+| `SENTRY_TRACES_SAMPLE_RATE`                                                       | `0.1` w walidatorze; w `instrument.ts` fallback `1.0` gdy brak wartości.                                        |
+| `ERROR_REPORTING_ADAPTER`                                                         | `noop` w walidatorze; dozwolone: `sentry` \| `noop`. W production bez override → Sentry gdy `SENTRY_DSN` jest ustawiony. |
+| `METRICS_BACKEND`                                                                 | `noop` w walidatorze; dozwolone: `sentry` \| `noop`. W **production** bez override → Sentry (`instrument.ts`, `MetricsModule`). |
+| `SENTRY_INCLUDE_PROMPTS`                                                          | Brak w walidatorze; gdy `true` — `gen_ai.input.messages` / `gen_ai.output.messages` na spanach (wymagane m.in. dla widoku Conversations). |
+| `APP_VERSION`                                                                     | W readiness (`GET /api/v1/health/ready`); fallback `dev` w logach.                                                |
 | `CORS_ORIGINS`                                                                    | W `.env.example` — **nie** podłączone w `src/main.ts` (brak middleware CORS).                                     |
+| `SWAGGER_ENABLED`                                                                 | Domyślnie włączone poza production (`SWAGGER_ENABLED !== 'false'`). W **production** Swagger UI/JSON tylko gdy **`SWAGGER_ENABLED=true`** (`src/swagger/swagger.setup.ts`). UI: `/api/v1/api-docs`, spec JSON: `/api/v1/swagger.json`. |
+| `PORT`                                                                            | `3000`; używany też przy eksporcie OpenAPI (`openapi:export`).                                                    |
+| `NODE_ENV`                                                                        | W **production** wymusza regułę co najmniej jednego klucza providera (sekcja 1).                                  |
+
+**Sentry — dwa punkty inicjalizacji:**
+
+- **`src/instrument.ts`** (przed bootstrapem Nest): SDK Sentry z `streamGenAiSpans: true` gdy metryki Sentry są aktywne — wymagane dla widoku **Conversations** (`conversation-tracking.md`).
+- **`LoggingModule`** / **`MetricsModule`**: adaptery error reporting i metryk LLM (`SentryAiMetricsAdapter`, `SentryErrorReportingAdapter`).
 
 **Readiness a Redis:** `GET /api/v1/health/ready` zwraca `checks.cache` (stan backendu cache `noop`/`redis`), **nie** osobny check pod smart rate limit. Przy `CACHE_ENABLED=false` i `RATE_LIMIT_SMART_ENABLED=true` operator powinien monitorować Redis poza readiness lub rozszerzyć health w przyszłości.
 
