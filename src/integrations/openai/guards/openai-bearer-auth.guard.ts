@@ -12,7 +12,7 @@ import type { Request } from 'express';
 import type { GatewayKeyRuntimeConfig } from 'src/config/configuration.types';
 
 export function readBearerToken(req: Request): string | undefined {
-  const raw = req.header('Authorization') ?? req.headers['Authorization'];
+  const raw = req.header('authorization') ?? req.headers['authorization'];
   const value = Array.isArray(raw) ? raw[0]?.trim() : raw?.trim();
 
   if (!value) return undefined;

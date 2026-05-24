@@ -53,7 +53,7 @@ export class OpenAiExceptionFilter implements ExceptionFilter {
       res.setHeader('x-request-id', req.requestId);
     }
 
-    res.status(status).join({
+    res.status(status).json({
       error: {
         message,
         type,
