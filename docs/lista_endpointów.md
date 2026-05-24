@@ -73,6 +73,39 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 | GET | `/api/v1/health/ready` | readiness (`checks.config`, `checks.cache`) |
 | POST | `/api/v1/chat` | standard (pełna odpowiedź) |
 | POST | `/api/v1/chat/stream` | streaming SSE (`ChatStreamController`) |
+| GET | `/api/v1/openai/models` | lista modeli (fasada OpenAI) — *w przygotowaniu* |
+| POST | `/api/v1/openai/chat/completions` | chat OpenAI — *w przygotowaniu* |
+| GET | `/api/v1/anthropic/models` | lista modeli (fasada Anthropic) — *w przygotowaniu* |
+| POST | `/api/v1/anthropic/messages` | messages Anthropic — *w przygotowaniu* |
 
-Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura_api.md`, `dokumentacja_koncepcyjna.md`.
+---
+
+## Integracje IDE *(w przygotowaniu — `src/integrations/`)*
+
+Fasady dla klientów oczekujących API vendora. Wspólna allowlista kluczy klienta; **inny** nagłówek auth niż natywny czat. Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
+
+### OpenAI API *(Cursor — Bearer)*
+
+Base URL w IDE: `http://<host>:<port>/api/v1/openai`
+
+| Metoda | Ścieżka | Opis |
+|--------|---------|------|
+| GET | `/api/v1/openai/models` | lista aliasów (`gateway.config.yaml`), format OpenAI |
+| GET | `/api/v1/openai/models/:model` | pojedynczy alias |
+| POST | `/api/v1/openai/chat/completions` | chat; `stream: true` → SSE OpenAI |
+
+### Anthropic Messages API *(Claude Code — x-api-key)*
+
+Base URL w IDE: `http://<host>:<port>/api/v1/anthropic`
+
+| Metoda | Ścieżka | Opis |
+|--------|---------|------|
+| GET | `/api/v1/anthropic/models` | lista aliasów, format Anthropic |
+| POST | `/api/v1/anthropic/messages` | messages; `stream: true` → SSE Anthropic |
+
+**Uwaga:** do czasu ukończenia implementacji kontrolerów odpowiedzi mogą być **404** lub puste — moduł jest zarejestrowany w `AppModule`, pliki w `src/integrations/` w trakcie wypełniania.
+
+---
+
+Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura_api.md`, `dokumentacja_koncepcyjna.md`, `integracje.md`.
 

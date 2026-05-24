@@ -20,5 +20,6 @@ import { StreamCleanupInterceptor } from 'src/common/interceptors/stream-cleanup
     ChatProviderCallService,
     StreamCleanupInterceptor,
   ],
+  exports: [ChatService, SmartRateLimitGuard],
 })
 export class ChatModule {}

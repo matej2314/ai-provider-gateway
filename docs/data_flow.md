@@ -18,6 +18,7 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **LLM API** | Zewnętrzny serwis providera. |
 | **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha: `modelAlias`, `messages`, sygnatura system promptu, efektywne parametry wywołania); brak wpływu na streaming. |
 | **Metrics** | `MetricsService` + Sentry/noop — span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId`; `messages[]` → atrybuty input/output przy `SENTRY_INCLUDE_PROMPTS` (`conversation-tracking.md`). |
+| **Fasada integracji** | Kontroler `src/integrations/openai` lub `anthropic` + mappery — tłumaczenie kontraktu vendora na `ChatRequestDto`, potem ten sam `ChatService` co natywny czat (`integracje.md`). |
 
 ---
 
@@ -162,4 +163,40 @@ sequenceDiagram
 
 ---
 
-Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura.md`, `dictionary.md` (kody `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`), `konfiguracja.md`.
+---
+
+## 4. Fasada OpenAI — `POST /api/v1/openai/chat/completions` (docelowo)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant K as Cursor (klient OpenAI)
+  participant F as OpenAiChatCompletionsController
+  participant M as openai-request.mapper
+  participant S as ChatService
+  participant PC as ChatProviderCallService
+  participant P as Provider Adapter
+
+  K->>+F: POST .../openai/chat/completions (Bearer, model, messages)
+  F->>F: OpenAiBearerAuthGuard → req.gatewayKey
+  F->>F: SmartRateLimitGuard (readClientGatewayKey)
+  F->>M: mapOpenAiRequestToGateway
+  M-->>F: ChatRequestDto (modelAlias, messages, params?)
+  F->>+S: executeChat(dto, requestId, gatewayKey)
+  Note over S,PC: Ten sam przepływ co sekcja 1 (cache, ResilientExecutor, completeOnce)
+  S-->>-F: ChatResponse
+  F->>F: openai-response.mapper
+  F-->>-K: 200 JSON (kształt OpenAI)
+```
+
+**Streaming (`stream: true`):** `OpenAiOrchestrationService` → `executeStream` → `openai-stream.mapper` (SSE OpenAI). Slot równoległego streamu — w kontrolerze fasady, nie w `StreamCleanupInterceptor` (ścieżka bez `/stream` w URL).
+
+---
+
+## 5. Fasada Anthropic — `POST /api/v1/anthropic/messages` (docelowo)
+
+Analogicznie do sekcji 4: `AnthropicApiKeyGuard` → mapper bloków `content` → `ChatService` → `anthropic-response.mapper` / `anthropic-stream.mapper`.
+
+---
+
+Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura.md`, `integracje.md`, `dictionary.md` (kody `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`), `konfiguracja.md`.

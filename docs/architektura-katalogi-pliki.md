@@ -4,7 +4,7 @@ Ten dokument opisuje **strukturę katalogów i plików** projektu *AI Provider G
 
 Zasady:
 
-- Struktura jest **modułowa** (NestJS); integracje providerów — `src/providers/`.
+- Struktura jest **modułowa** (NestJS); adaptery LLM — `src/providers/`; fasady HTTP dla IDE — `src/integrations/`.
 - Elementy oznaczone *(plan)* nie istnieją w kodzie lub są poza rdzeniem MVP.
 - **Pominięte w drzewie:** `node_modules/`, `dist/`, `.git/`, lokalne `.env` (nie commitować).
 - Pliki **`*.spec.ts`** — testy jednostkowe obok modułów; wypisane zbiorczo tam, gdzie występują.
@@ -98,6 +98,57 @@ ai-provider-gateway/
 │   │       ├── google.module.ts
 │   │       └── google.adapter.ts
 │   │
+│   ├── integrations/                       # fasady OpenAI / Anthropic API → ChatService (w toku)
+│   │   ├── integrations.module.ts
+│   │   ├── integrations.constants.ts       # OPENAI_INTEGRATION_PATH, ANTHROPIC_INTEGRATION_PATH
+│   │   ├── openai/
+│   │   │   ├── openai.module.ts
+│   │   │   ├── controllers/
+│   │   │   │   ├── openai-chat-completions.controller.ts
+│   │   │   │   └── openai-models.controller.ts
+│   │   │   ├── services/
+│   │   │   │   ├── openai-orchestration.service.ts
+│   │   │   │   └── openai-models-catalog.service.ts
+│   │   │   ├── mappers/
+│   │   │   │   ├── openai-request.mapper.ts
+│   │   │   │   ├── openai-response.mapper.ts
+│   │   │   │   └── openai-stream.mapper.ts
+│   │   │   ├── guards/
+│   │   │   │   └── openai-bearer-auth.guard.ts
+│   │   │   ├── filters/
+│   │   │   │   └── openai-exception.filter.ts
+│   │   │   ├── decorators/
+│   │   │   │   └── openai-auth.decorator.ts
+│   │   │   └── dtos/
+│   │   │       ├── openai-chat-message.dto.ts
+│   │   │       ├── openai-chat-completion-request.dto.ts
+│   │   │       ├── openai-chat-completion-response.dto.ts
+│   │   │       └── openai-models-list-response.dto.ts
+│   │   └── anthropic/
+│   │       ├── anthropic.module.ts
+│   │       ├── controllers/
+│   │       │   ├── anthropic-messages.controller.ts
+│   │       │   └── anthropic-models.controller.ts
+│   │       ├── services/
+│   │       │   ├── anthropic-orchestration.service.ts
+│   │       │   └── anthropic-models-catalog.service.ts
+│   │       ├── mappers/
+│   │       │   ├── anthropic-request.mapper.ts
+│   │       │   ├── anthropic-response.mapper.ts
+│   │       │   └── anthropic-stream.mapper.ts
+│   │       ├── guards/
+│   │       │   └── anthropic-api-key.guard.ts
+│   │       ├── filters/
+│   │       │   └── anthropic-exception.filter.ts
+│   │       ├── decorators/
+│   │       │   └── anthropic-auth.decorator.ts
+│   │       └── dtos/
+│   │           ├── anthropic-content-block.dto.ts
+│   │           ├── anthropic-message.dto.ts
+│   │           ├── anthropic-messages-request.dto.ts
+│   │           ├── anthropic-messages-response.dto.ts
+│   │           └── anthropic-models-list-response.dto.ts
+│   │
 │   ├── config/
 │   │   ├── configuration.ts                # gateway.config.yaml + Zod, cache/redis z env
 │   │   ├── configuration.types.ts
@@ -171,6 +222,7 @@ ai-provider-gateway/
 │   │
 │   └── common/
 │       ├── readGatewayKeyHeader.ts
+│       ├── readClientGatewayKey.ts         # (docelowo) req.gatewayKey lub X-Gateway-Key — smart limit
 │       ├── retry-policy-defaults.ts        # domyślne onStatus / maxAttempts / timeoutMs
 │       ├── decorators/
 │       │   ├── gateway-key-and-smart-rate-limit.decorator.ts
@@ -197,7 +249,7 @@ ai-provider-gateway/
 │       │   ├── is-retryable-http-error.ts
 │       │   └── resilience.types.ts
 │       └── types/
-│           └── express.d.ts                # Request.requestId
+│           └── express.d.ts                # Request.requestId, Request.gatewayKey (fasady)
 │
 └── docs/
     ├── README.md
@@ -213,6 +265,9 @@ ai-provider-gateway/
     ├── dictionary.md
     ├── anty-patterny.md
     ├── mcp.md
+    ├── integracje.md                       # fasady OpenAI / Anthropic (IDE)
+    ├── integracja-openai-kontrakt.md
+    ├── integracja-anthropic-messages.md
     ├── opis_koncepcyjny.md                 # alias → dokumentacja_koncepcyjna.md
     └── spec/
         ├── SPEC-README.md
@@ -234,8 +289,9 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 
 | Katalog | Odpowiedzialność |
 |---------|------------------|
-| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache, smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi. **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Helpery: system prompt, provider input, params, retry policy, cache policy, `conversationId`. |
+| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache, smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi. **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Eksport **`ChatService`**, **`SmartRateLimitGuard`** dla modułu integracji. Helpery: system prompt, provider input, params, retry policy, cache policy, `conversationId`. |
 | **`src/providers/`** | Adaptery Anthropic / Google, `ProviderRegistryService` + moduł rejestru. Jedyna warstwa z bezpośrednim użyciem SDK vendorów. |
+| **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, walidacja Zod, `buildEffectiveGatewayConfig`, `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
 | **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiRequestIdHeader`), typy Express. |
@@ -261,7 +317,8 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
 - System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.cache`), graceful shutdown.
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach i DTO, `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
+- **Integracje IDE (w toku):** szkielet `src/integrations/` (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; endpointy fasad — po ukończeniu implementacji (`integracje.md`).
 
-**Pozostałość v1:** `npm run config:validate` (placeholder w `scripts/validate-config.ts`), `src/setup.app.ts` (pusty placeholder), opcjonalnie CORS.
+**Pozostałość v1:** `npm run config:validate` (placeholder w `scripts/validate-config.ts`), `src/setup.app.ts` (pusty placeholder), opcjonalnie CORS; dokończenie fasad OpenAI / Anthropic (`readClientGatewayKey`, kontrolery, mappery).
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

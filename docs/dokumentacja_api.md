@@ -150,6 +150,20 @@ Orchestrator powinien traktować instancję jako gotową tylko przy `status === 
 
 ---
 
+## Fasady integracji (IDE) — w przygotowaniu
+
+Osobne kontrakty HTTP dla narzędzi IDE; **nie** opisane w bieżącym `openapi.json` (kontrakt natywny). Po wdrożeniu:
+
+| Powierzchnia | Dokumentacja operacyjna |
+|--------------|------------------------|
+| OpenAI (`/api/v1/openai/…`) | `integracja-openai-kontrakt.md` |
+| Anthropic (`/api/v1/anthropic/…`) | `integracja-anthropic-messages.md` |
+| Architektura wspólna | `integracje.md` |
+
+Wewnętrznie wszystkie fasady wywołują ten sam **`ChatService`** co `POST /chat`. Pole **`model`** w żądaniu vendora = **`modelAlias`** z YAML. Błędy w kształcie OpenAI / Anthropic (lokalne filtry), nie `ErrorEnvelope`.
+
+---
+
 ## Kody i słownik
 
 Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zachowuje **`code`** z obiektowego payloadu wyjątku (m.in. `GATEWAY_KEY_*`, `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`), w przeciwnym razie stosuje mapowanie ze statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE`).
@@ -170,4 +184,4 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 10. **Readiness:** `GET /health/ready` zawsze **200** — sprawdzaj `body.status === "ready"`; pole w `checks` to **`cache`** (nie `redis`).
 11. **Korelacja:** nagłówek odpowiedzi **`x-request-id`** = to samo ID co pole `requestId` w JSON (przy standardowym flow bez nadpisywania `requestId` w payloadzie wyjątku).
 
-Powiązane: `lista_endpointów.md`, `architektura_api.md`, `konfiguracja.md`, `conversation-tracking.md`, `dokumentacja_koncepcyjna.md`.
+Powiązane: `lista_endpointów.md`, `architektura_api.md`, `integracje.md`, `konfiguracja.md`, `conversation-tracking.md`, `dokumentacja_koncepcyjna.md`.

@@ -9,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { SmartRateLimiterService } from 'src/rate-limit/smart-rate-limiter.service';
-import { readGatewayKeyHeader } from 'src/common/readGatewayKeyHeader';
+import { readClientGatewayKey } from 'src/common/readClientGatewayKey';
 import { ApiErrorCode } from 'src/common/errors/api-error.code';
 
 @Injectable()
@@ -20,13 +20,13 @@ export class SmartRateLimitGuard implements CanActivate {
   ) {}
 
   private requireGatewayKey(req: Request): string {
-    const gatewayKey = readGatewayKeyHeader(req);
+    const gatewayKey = readClientGatewayKey(req);
 
     if (!gatewayKey) {
       throw new UnauthorizedException({
         statusCode: 401,
         code: ApiErrorCode.GATEWAY_KEY_MISSING,
-        message: 'Missing X-Gateway-Key header value.',
+        message: 'Missing client gateway key.',
         requestId: req.requestId,
         details: [],
       });

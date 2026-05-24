@@ -2,11 +2,22 @@
 
 ## Styl API
 
-- Gateway udostępnia **spójne REST API** nad jednym zasobem: *chat completions* (konwersacja).
-- Wersjonowanie przez prefiks ścieżki (np. `/api/v1`) — szczegóły zależą od implementacji global prefix w NestJS.
+Gateway udostępnia **trzy powierzchnie HTTP** pod prefiksem `/api/v1`:
+
+| Powierzchnia | Odbiorca | Auth | Główne trasy |
+|--------------|----------|------|--------------|
+| **Natywna** | Aplikacje zintegrowane z kontraktem gateway | `X-Gateway-Key` | `POST /chat`, `POST /chat/stream` |
+| **OpenAI** | Cursor i klienty OpenAI SDK | `Authorization: Bearer` | `GET /openai/models`, `POST /openai/chat/completions` |
+| **Anthropic** | Claude Code i klienty Messages API | `x-api-key` (lub Bearer) | `GET /anthropic/models`, `POST /anthropic/messages` |
+
+Szczegóły fasad (mapowanie `model` → `modelAlias`, błędy vendora, stan wdrożenia): **`integracje.md`**.
+
+### Natywny kontrakt (rdzeń)
+
+- Spójne REST API nad zasobem *chat* (konwersacja).
 - Dwa tryby odpowiedzi:
   - **standard** (pełna odpowiedź JSON),
-  - **streaming** (SSE).
+  - **streaming** (SSE gateway: `meta` → `delta` → `done`).
 
 **Warunek uruchomienia:** przy starcie wczytywany jest `gateway.config.yaml` (fail‑fast przy błędzie). Walidacja env: **minimum jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` obowiązuje **tylko gdy `NODE_ENV=production`** (`src/config/env.validation.ts`; szczegóły: `docs/konfiguracja.md`).
 
@@ -83,7 +94,11 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## CORS / Auth
 
-Endpointy czatu wymagają **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()`). Opcjonalny smart rate limit per klucz (`RATE_LIMIT_SMART_ENABLED`, Redis). Health: **`GET /api/v1/health`**, **`GET /api/v1/health/ready`** — publiczne (bez guardów czatu). Readiness: HTTP **200** zawsze; ocena po `body.status` (`ready` / `not_ready`) — `dokumentacja_api.md`.
+**Natywny czat** wymaga **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()`).
+
+**Fasady IDE** (w przygotowaniu) używają tej samej allowlisty kluczy klienta, ale innych nagłówków — Bearer (OpenAI) lub `x-api-key` (Anthropic); guard fasady ustawia `req.gatewayKey`, potem `SmartRateLimitGuard` (`readClientGatewayKey` — docelowo). Klucze providerów w `.env` pozostają wyłącznie w adapterach.
+
+Opcjonalny smart rate limit per klucz klienta (`RATE_LIMIT_SMART_ENABLED`, Redis). Health: **`GET /api/v1/health`**, **`GET /api/v1/health/ready`** — publiczne (bez guardów czatu). Readiness: HTTP **200** zawsze; ocena po `body.status` (`ready` / `not_ready`) — `dokumentacja_api.md`.
 
 W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** nie zastępuje izolacji sieciowej ani obrony przed nadużyciami na dużą skalę.
 
@@ -93,6 +108,7 @@ W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** 
 
 ## Powiązane dokumenty
 
+- Fasady IDE: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`
 - Kontrakt endpointów: `dokumentacja_api.md`
 - Śledzenie rozmów (metryki): `conversation-tracking.md`
 - Lista ścieżek: `lista_endpointów.md`

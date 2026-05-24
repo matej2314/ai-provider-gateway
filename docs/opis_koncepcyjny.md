@@ -102,3 +102,4 @@ Projekt demonstruje:
 - `dokumentacja_koncepcyjna.md`
 - `architektura.md`
 - `dokumentacja_api.md`
+- `integracje.md` — fasady API dla IDE (OpenAI / Anthropic)

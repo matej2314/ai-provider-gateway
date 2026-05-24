@@ -9,12 +9,14 @@ Opisuje **docelową architekturę** mikroserwisu “LLM Gateway”: granice modu
 ```mermaid
 flowchart TB
   subgraph clients [Klienci]
-    app[aplikacje użytkownika]
-    other[inne serwisy / BFF]
+    app[aplikacje — kontrakt gateway]
+    cursor[Cursor — OpenAI API]
+    claude[Claude Code — Anthropic API]
   end
 
   subgraph gw [AI Provider Gateway - NestJS]
     http[wejście HTTP: walidacja, requestId, logi]
+    integrations[Integrations Module — fasady IDE]
     chat[Chat Module]
     cache[Cache Module — opcjonalny backend odpowiedzi]
     providers[Providers Module]
@@ -27,8 +29,11 @@ flowchart TB
     google[(Google Gemini API)]
   end
 
-  clients --> http
+  app --> http
+  cursor --> integrations
+  claude --> integrations
   http --> chat
+  integrations --> chat
   chat --> cache
   chat --> providers
   http --> health
@@ -41,7 +46,8 @@ flowchart TB
 
 | Moduł | Odpowiedzialność |
 |------|------------------|
-| **Chat** (`src/chat`) | Czat standardowy (`POST /api/v1/chat`) i streaming SSE (`POST /api/v1/chat/stream` — `ChatStreamController`). **`ChatService`**: cache, limity, `ResilientExecutor`, odpowiedź gateway. **`ChatProviderCallService`**: wywołania adapterów, metryki LLM, SSE `meta`/`delta`. System prompt z plików (`helpers/system-prompt.ts`); `messages[]` → port providerów (`helpers/provider-input.ts`). Cache tylko dla czatu standardowego (`ResponseCacheService`, `helpers/cache-policy.ts`). |
+| **Chat** (`src/chat`) | Czat standardowy (`POST /api/v1/chat`) i streaming SSE (`POST /api/v1/chat/stream` — `ChatStreamController`). **`ChatService`**: cache, limity, `ResilientExecutor`, odpowiedź gateway. **`ChatProviderCallService`**: wywołania adapterów, metryki LLM, SSE `meta`/`delta`. Eksport **`ChatService`** i **`SmartRateLimitGuard`** dla fasad. System prompt z plików (`helpers/system-prompt.ts`); `messages[]` → port providerów (`helpers/provider-input.ts`). Cache tylko dla czatu standardowego (`ResponseCacheService`, `helpers/cache-policy.ts`). |
+| **Integrations** (`src/integrations`) | Równoległe fasady **OpenAI API** (`/api/v1/openai/…`) i **Anthropic Messages API** (`/api/v1/anthropic/…`) dla IDE — mapowanie HTTP na `ChatService` bez duplikacji logiki providerów. Osobne guardy auth (Bearer / `x-api-key`), lokalne filtry błędów w kształcie vendora. **Stan:** szkielet + rejestracja w `AppModule`; pełne endpointy — w toku (`integracje.md`). |
 | **Cache** (`src/cache`) | Globalny moduł dynamiczny: rejestr backendów (`noop` zawsze, `redis` warunkowo), `ResponseCacheService` — cache wyłącznie dla **`POST /api/v1/chat`** (klucz m.in. z `modelAlias`, treści wiadomości i sygnatury warstw system promptu). Konfiguracja env: `docs/konfiguracja.md`. |
 | **Providers** (`src/providers`) | Adaptery providerów (Anthropic/Google Gemini) + rejestr adapterów. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
@@ -52,7 +58,7 @@ flowchart TB
 
 ## Warstwy wewnątrz modułów (konwencja NestJS)
 
-1. **Controller** — mapowanie HTTP, statusy, nagłówki; brak logiki biznesowej i brak bezpośrednich wywołań SDK providerów. Limit rozmiaru body JSON: **`1mb`** (`express.json` w `src/main.ts`).
+1. **Controller** — mapowanie HTTP, statusy, nagłówki; brak logiki biznesowej i brak bezpośrednich wywołań SDK providerów. Kontrolery fasad (`src/integrations/*/controllers/`) delegują wyłącznie do mapperów + `ChatService`. Limit rozmiaru body JSON: **`1mb`** (`express.json` w `src/main.ts`).
 2. **Service (use case)** — **`ChatService`**: orkiestracja (cache, rate limit, `ResilientExecutor`, envelope odpowiedzi). **`ChatProviderCallService`**: pojedyncze wywołanie providera (`completeOnce` / `streamOnce`), `resolveProviderCallOptions`, metryki.
 3. **Adapters (providers)** — tłumaczenie kontraktu gateway ↔ kontrakt SDK providera; obsługa błędów specyficznych dla SDK.
 4. **DTO + walidacja** — walidacja wejścia i konfiguracji jako brzeg systemu.
@@ -88,10 +94,11 @@ Szczegóły: `konfiguracja.md`.
 ## Bezpieczeństwo (przegląd)
 
 - Gateway nie jest “open proxy”: endpointy providerów są zaszyte w kodzie adapterów.
+- **Dwa poziomy kluczy:** klient (IDE / aplikacja → allowlista gateway) vs provider (`.env` → SDK). Fasady używają tej samej allowlisty co `X-Gateway-Key`, ale innego nagłówka HTTP (`integracje.md`).
 - Brak logowania sekretów: klucze i wrażliwe nagłówki są redagowane.
-- Ustandaryzowane błędy nie zawierają surowych treści wyjątków SDK na produkcji.
+- Ustandaryzowane błędy nie zawierają surowych treści wyjątków SDK na produkcji (natywne API: `ErrorEnvelope`; fasady: format vendora).
 
-Szczegóły: `architektura_api.md` + `anty-patterny.md`.
+Szczegóły: `architektura_api.md` + `anty-patterny.md` + `integracje.md`.
 
 ## Observability
 

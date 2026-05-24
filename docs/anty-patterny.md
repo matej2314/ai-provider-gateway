@@ -124,3 +124,20 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 **Nie rób**: oczekiwania, że **`requestId`** w odpowiedzi z cache zawsze odpowiada bieżącemu żądaniu — w implementacji zwracany jest identyfikator zapisany wraz z pierwszą odpowiedzią.
 
 **Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); streaming jest ścieżką bez cache (`docs/spec/SPEC-CHAT-STREAMING.md`).
+
+## 13) Mylenie trzech kontraktów API (natywny vs fasady IDE)
+
+**Nie rób**:
+
+- wystawiania jednej trasy `GET /api/v1/models` dla wszystkich klientów (OpenAI i Anthropic mają różny kształt listy),
+- przekazywania klucza klienta (Bearer / `x-api-key`) do adapterów providerów zamiast kluczy z `.env`,
+- duplikowania logiki cache/retry/fallback w kontrolerach fasad zamiast delegacji do `ChatService`,
+- oczekiwania `ErrorEnvelope` z fasad OpenAI/Anthropic — mają własne filtry błędów.
+
+**Rób**:
+
+- osobne prefiksy `/api/v1/openai` i `/api/v1/anthropic` + natywny `/api/v1/chat`,
+- `readClientGatewayKey` + ta sama allowlista dla wszystkich powierzchni,
+- mapowanie `model` (vendor) → `modelAlias` (YAML) w warstwie mapperów.
+
+Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.

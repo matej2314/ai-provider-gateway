@@ -7,7 +7,7 @@ import {
 import { Observable } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 import { SmartRateLimiterService } from 'src/rate-limit/smart-rate-limiter.service';
-import { readGatewayKeyHeader } from 'src/common/readGatewayKeyHeader';
+import { readClientGatewayKey } from 'src/common/readClientGatewayKey';
 import type { Request } from 'express';
 
 @Injectable()
@@ -17,7 +17,7 @@ export class StreamCleanupInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const req = context.switchToHttp().getRequest<Request>();
 
-    const gatewayKey = readGatewayKeyHeader(req);
+    const gatewayKey = readClientGatewayKey(req);
     const isStreaming = req.url?.endsWith('/stream') ?? false;
 
     return next.handle().pipe(

@@ -7,6 +7,10 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | Termin | Definicja | Uwagi |
 |--------|-----------|------|
 | **Gateway / Proxy** | Warstwa pośrednia unifikująca integrację z LLM providerami. | Nie jest “open proxy” do dowolnych URL. |
+| **Fasada integracji** | Warstwa HTTP w `src/integrations/` mapująca kontrakt vendora (OpenAI / Anthropic Messages) na wewnętrzny `ChatRequestDto` i `ChatService`. | Osobne ścieżki `/api/v1/openai/…`, `/api/v1/anthropic/…`; nie zastępuje natywnego `/chat`. |
+| **Klucz klienta** | Sekret z allowlisty gateway (`GATEWAY_KEY_*` / YAML) używany przez aplikację lub IDE. | `X-Gateway-Key`, Bearer (OpenAI fasada) lub `x-api-key` (Anthropic fasada) — ta sama lista, różne nagłówki. |
+| **Klucz providera** | Sekret w `.env` do wywołań SDK (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`). | Adaptery w `src/providers/`; nigdy klucz klienta. |
+| **Integration root** | Segment Base URL w IDE: `.../api/v1/openai` lub `.../api/v1/anthropic`. | Klient dokleja `/models`, `/chat/completions`, `/messages`. |
 | **Provider** | Konkretny dostawca LLM (Anthropic, Google Gemini, ewentualnie OpenAI). | Implementowany jako adapter. |
 | **Adapter** | Implementacja kontraktu gateway dla danego providera. | Ukrywa SDK i szczegóły request/response. |
 | **Model ID** | Vendorowa nazwa modelu (np. `gpt-*`, `claude-*`). | Trafia do requestów providera. |
