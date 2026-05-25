@@ -25,6 +25,24 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 | Kody błędów                 | [`docs/dictionary.md`](docs/dictionary.md)                                                 |
 | Architektura                | [`docs/architektura.md`](docs/architektura.md)                                             |
 | Struktura katalogów         | [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md)               |
+| Fasada OpenAI (Cursor IDE)  | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md)                  |
+| Architektura fasad IDE      | [`docs/integracje.md`](docs/integracje.md)                                                  |
+
+## Integracje API
+
+Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
+
+| Standard | Endpointy | Dokumentacja | Dla |
+|----------|-----------|--------------|-----|
+| **Natywny** | `/api/v1/chat`, `/api/v1/chat/stream` | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md) | Własne aplikacje |
+| **OpenAI API** | `/api/v1/openai/models`, `/api/v1/openai/chat/completions` | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md) | Cursor IDE |
+| **Anthropic Messages API** | `/api/v1/anthropic/messages`, `/api/v1/anthropic/models` | [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md) | Claude Code *(w przygotowaniu)* |
+
+**Autoryzacja:** ta sama allowlista (`GATEWAY_KEY_*` z `.env`), różne nagłówki:
+
+- Natywny: `X-Gateway-Key`
+- OpenAI: `Authorization: Bearer` — Base URL: `.../api/v1/openai`
+- Anthropic: `x-api-key` (lub Bearer) — Base URL: `.../api/v1/anthropic`
 
 ## Szybki start (lokalnie)
 

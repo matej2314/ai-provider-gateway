@@ -73,18 +73,19 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 | GET | `/api/v1/health/ready` | readiness (`checks.config`, `checks.cache`) |
 | POST | `/api/v1/chat` | standard (pełna odpowiedź) |
 | POST | `/api/v1/chat/stream` | streaming SSE (`ChatStreamController`) |
-| GET | `/api/v1/openai/models` | lista modeli (fasada OpenAI) — *w przygotowaniu* |
-| POST | `/api/v1/openai/chat/completions` | chat OpenAI — *w przygotowaniu* |
+| GET | `/api/v1/openai/models` | lista modeli (fasada OpenAI) |
+| GET | `/api/v1/openai/models/:model` | pojedynczy alias (fasada OpenAI) |
+| POST | `/api/v1/openai/chat/completions` | chat OpenAI (JSON + `stream: true`) |
 | GET | `/api/v1/anthropic/models` | lista modeli (fasada Anthropic) — *w przygotowaniu* |
 | POST | `/api/v1/anthropic/messages` | messages Anthropic — *w przygotowaniu* |
 
 ---
 
-## Integracje IDE *(w przygotowaniu — `src/integrations/`)*
+## Integracje IDE (`src/integrations/`)
 
 Fasady dla klientów oczekujących API vendora. Wspólna allowlista kluczy klienta; **inny** nagłówek auth niż natywny czat. Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
 
-### OpenAI API *(Cursor — Bearer)*
+### OpenAI API *(Cursor — Bearer)* — **wdrożone**
 
 Base URL w IDE: `http://<host>:<port>/api/v1/openai`
 
@@ -94,7 +95,7 @@ Base URL w IDE: `http://<host>:<port>/api/v1/openai`
 | GET | `/api/v1/openai/models/:model` | pojedynczy alias |
 | POST | `/api/v1/openai/chat/completions` | chat; `stream: true` → SSE OpenAI |
 
-### Anthropic Messages API *(Claude Code — x-api-key)*
+### Anthropic Messages API *(Claude Code — x-api-key)* — *w przygotowaniu*
 
 Base URL w IDE: `http://<host>:<port>/api/v1/anthropic`
 
@@ -103,7 +104,7 @@ Base URL w IDE: `http://<host>:<port>/api/v1/anthropic`
 | GET | `/api/v1/anthropic/models` | lista aliasów, format Anthropic |
 | POST | `/api/v1/anthropic/messages` | messages; `stream: true` → SSE Anthropic |
 
-**Uwaga:** do czasu ukończenia implementacji kontrolerów odpowiedzi mogą być **404** lub puste — moduł jest zarejestrowany w `AppModule`, pliki w `src/integrations/` w trakcie wypełniania.
+**Uwaga:** fasada Anthropic — moduł zarejestrowany, kontrolery **w przygotowaniu** (możliwy **404**).
 
 ---
 

@@ -150,17 +150,17 @@ Orchestrator powinien traktować instancję jako gotową tylko przy `status === 
 
 ---
 
-## Fasady integracji (IDE) — w przygotowaniu
+## Fasady integracji (IDE)
 
-Osobne kontrakty HTTP dla narzędzi IDE; **nie** opisane w bieżącym `openapi.json` (kontrakt natywny). Po wdrożeniu:
+Osobne kontrakty HTTP dla narzędzi IDE; pełny opis operacyjny poza głównym `openapi.json` (kontrakt natywny). Tag **OpenAI API** jest dostępny w Swagger UI dla tras `/api/v1/openai/…`.
 
-| Powierzchnia | Dokumentacja operacyjna |
-|--------------|------------------------|
-| OpenAI (`/api/v1/openai/…`) | `integracja-openai-kontrakt.md` |
-| Anthropic (`/api/v1/anthropic/…`) | `integracja-anthropic-messages.md` |
-| Architektura wspólna | `integracje.md` |
+| Powierzchnia | Status | Dokumentacja operacyjna |
+|--------------|--------|------------------------|
+| OpenAI (`/api/v1/openai/…`) | **Wdrożone** | `integracja-openai-kontrakt.md` |
+| Anthropic (`/api/v1/anthropic/…`) | W przygotowaniu | `integracja-anthropic-messages.md` |
+| Architektura wspólna | — | `integracje.md` |
 
-Wewnętrznie wszystkie fasady wywołują ten sam **`ChatService`** co `POST /chat`. Pole **`model`** w żądaniu vendora = **`modelAlias`** z YAML. Błędy w kształcie OpenAI / Anthropic (lokalne filtry), nie `ErrorEnvelope`.
+Wewnętrznie fasady wywołują ten sam **`ChatService`** co `POST /chat`. Pole **`model`** w żądaniu vendora = **`modelAlias`** z YAML. Błędy w kształcie OpenAI / Anthropic (lokalne filtry), nie `ErrorEnvelope`.
 
 ---
 

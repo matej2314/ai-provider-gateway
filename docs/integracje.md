@@ -19,9 +19,9 @@ Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzę
 | `IntegrationsModule` w `AppModule` | Zarejestrowany |
 | `Request.gatewayKey` w `src/common/types/express.d.ts` | W repozytorium |
 | Eksport `ChatService`, `SmartRateLimitGuard` z `ChatModule` | W repozytorium |
-| `readClientGatewayKey` + aktualizacja `SmartRateLimitGuard` / `StreamCleanupInterceptor` | Do wdrożenia |
-| Kontrolery, guardy, mappery, filtry wyjątków | Pliki utworzone; **implementacja w toku** |
-| Endpointy HTTP fasad | **Niedostępne** do czasu ukończenia modułów |
+| `readClientGatewayKey` + aktualizacja `SmartRateLimitGuard` / `StreamCleanupInterceptor` | W repozytorium |
+| **Fasada OpenAI** (`OpenAiModule`) — auth, models, completions JSON + stream | **Wdrożona** — [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md) |
+| **Fasada Anthropic** (`AnthropicModule`) | Szkielet; endpointy **w przygotowaniu** |
 
 Szczegóły konfiguracji klientów (Cursor, Claude Code): **`integracja-openai-kontrakt.md`**, **`integracja-anthropic-messages.md`**.
 

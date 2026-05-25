@@ -21,7 +21,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 15. **Odporność (retry, timeout, fallback)** — `ResilientExecutor` + `models[].fallback` w YAML; opcjonalne `effectiveModelAlias` w odpowiedzi; szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
 16. **Moduł czatu** — `ChatService` (cache, limity, odpowiedź gateway) + `ChatProviderCallService` (adaptery, metryki, SSE); helpery w `src/chat/helpers/` — `architektura-katalogi-pliki.md`, `data_flow.md`.
 17. **OpenAPI / Swagger** — `@nestjs/swagger` w kontrolerach i DTO (`src/swagger/`); UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport statyczny: `npm run openapi:export` → `openapi.json`; env `SWAGGER_ENABLED` — `konfiguracja.md`, `dokumentacja_api.md`.
-18. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`); konfiguracja Cursor / Claude Code: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
+18. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`); **OpenAI wdrożone** — `integracja-openai-kontrakt.md` (Cursor); Anthropic w przygotowaniu — `integracja-anthropic-messages.md`; przegląd: `integracje.md`.
 
 ## Spis plików
 
@@ -38,7 +38,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `dictionary.md` — słownik pojęć i kody błędów.
 - `anty-patterny.md` — na co uważać, czego nie robić.
 - `integracje.md` — architektura fasad OpenAI / Anthropic (IDE), auth, rate limit, stan wdrożenia.
-- `integracja-openai-kontrakt.md` — podłączenie Cursor (Base URL `/api/v1/openai`).
+- `integracja-openai-kontrakt.md` — podłączenie Cursor (Base URL `/api/v1/openai`); models + chat/completions (JSON i stream).
 - `integracja-anthropic-messages.md` — podłączenie Claude Code (Base URL `/api/v1/anthropic`).
 
 ## Specyfikacje (SDD)
