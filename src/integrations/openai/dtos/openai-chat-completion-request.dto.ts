@@ -14,7 +14,14 @@ import {
 } from 'class-validator';
 import { OpenAiChatMessageDto } from './openai-chat-message.dto';
 
-const MAX_MESSAGES = 150;
+const MAX_MESSAGES = 15000;
+
+export class OpenAiStreamOptionsDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  include_usage?: boolean;
+}
 
 export class OpenAiChatCompletionRequestDto {
   @ApiProperty({ example: 'chat-default' })
@@ -48,4 +55,26 @@ export class OpenAiChatCompletionRequestDto {
   @IsNumber()
   @Min(1)
   max_tokens?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  include_usage?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  tools?: unknown[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  tool_choice?: unknown;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OpenAiStreamOptionsDto)
+  stream_options?: OpenAiStreamOptionsDto;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  user?: string;
 }
