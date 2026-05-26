@@ -76,8 +76,9 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 | GET | `/api/v1/openai/models` | lista modeli (fasada OpenAI) |
 | GET | `/api/v1/openai/models/:model` | pojedynczy alias (fasada OpenAI) |
 | POST | `/api/v1/openai/chat/completions` | chat OpenAI (JSON + `stream: true`) |
-| GET | `/api/v1/anthropic/models` | lista modeli (fasada Anthropic) — *w przygotowaniu* |
-| POST | `/api/v1/anthropic/messages` | messages Anthropic — *w przygotowaniu* |
+| GET | `/api/v1/anthropic/models` | lista modeli (fasada Anthropic) |
+| GET | `/api/v1/anthropic/models/:model` | pojedynczy alias (fasada Anthropic) |
+| POST | `/api/v1/anthropic/messages` | messages Anthropic (JSON + `stream: true`) |
 
 ---
 
@@ -95,16 +96,17 @@ Base URL w IDE: `http://<host>:<port>/api/v1/openai`
 | GET | `/api/v1/openai/models/:model` | pojedynczy alias |
 | POST | `/api/v1/openai/chat/completions` | chat; `stream: true` → SSE OpenAI |
 
-### Anthropic Messages API *(Claude Code — x-api-key)* — *w przygotowaniu*
+### Anthropic Messages API *(Claude Code — x-api-key)* — **wdrożone**
 
 Base URL w IDE: `http://<host>:<port>/api/v1/anthropic`
 
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | GET | `/api/v1/anthropic/models` | lista aliasów, format Anthropic |
+| GET | `/api/v1/anthropic/models/:model` | pojedynczy alias |
 | POST | `/api/v1/anthropic/messages` | messages; `stream: true` → SSE Anthropic |
 
-**Uwaga:** fasada Anthropic — moduł zarejestrowany, kontrolery **w przygotowaniu** (możliwy **404**).
+Auth: `x-api-key` (priorytet) lub `Authorization: Bearer` — ta sama allowlista co natywny czat. Szczegóły: [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md).
 
 ---
 

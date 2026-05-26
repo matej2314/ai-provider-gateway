@@ -165,7 +165,7 @@ sequenceDiagram
 
 ---
 
-## 4. Fasada OpenAI — `POST /api/v1/openai/chat/completions` (docelowo)
+## 4. Fasada OpenAI — `POST /api/v1/openai/chat/completions`
 
 ```mermaid
 sequenceDiagram
@@ -189,13 +189,35 @@ sequenceDiagram
   F-->>-K: 200 JSON (kształt OpenAI)
 ```
 
-**Streaming (`stream: true`):** `OpenAiOrchestrationService` → `executeStream` → `openai-stream.mapper` (SSE OpenAI). Slot równoległego streamu — w kontrolerze fasady, nie w `StreamCleanupInterceptor` (ścieżka bez `/stream` w URL).
+**Streaming (`stream: true`):** kontroler → `executeStream` → `openai-stream.mapper` (SSE OpenAI). Slot równoległego streamu — w kontrolerze fasady, nie w `StreamCleanupInterceptor` (ścieżka bez `/stream` w URL).
 
 ---
 
-## 5. Fasada Anthropic — `POST /api/v1/anthropic/messages` (docelowo)
+## 5. Fasada Anthropic — `POST /api/v1/anthropic/messages`
 
-Analogicznie do sekcji 4: `AnthropicApiKeyGuard` → mapper bloków `content` → `ChatService` → `anthropic-response.mapper` / `anthropic-stream.mapper`.
+```mermaid
+sequenceDiagram
+  autonumber
+  participant K as Klient Anthropic (Claude Code / curl)
+  participant F as AnthropicMessagesController
+  participant M as anthropic-request.mapper
+  participant S as ChatService
+  participant PC as ChatProviderCallService
+  participant P as Provider Adapter
+
+  K->>+F: POST .../anthropic/messages (x-api-key, model, messages[])
+  F->>F: AnthropicApiKeyGuard → req.gatewayKey
+  F->>F: SmartRateLimitGuard (readClientGatewayKey)
+  F->>M: mapAnthropicRequestToGateway
+  M-->>F: ChatRequestDto (modelAlias, messages, params?)
+  F->>+S: executeChat(dto, requestId, gatewayKey)
+  Note over S,PC: Ten sam przepływ co sekcja 1 (cache, ResilientExecutor, completeOnce)
+  S-->>-F: ChatResponse
+  F->>F: anthropic-response.mapper
+  F-->>-K: 200 JSON (kształt Message)
+```
+
+**Streaming (`stream: true`):** kontroler → `executeStream` → `anthropic-stream.mapper` (SSE Anthropic: `message_start`, `content_block_delta`, …). Slot równoległego streamu — w `AnthropicMessagesController`, analogicznie do OpenAI.
 
 ---
 

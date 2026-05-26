@@ -152,12 +152,12 @@ Orchestrator powinien traktować instancję jako gotową tylko przy `status === 
 
 ## Fasady integracji (IDE)
 
-Osobne kontrakty HTTP dla narzędzi IDE; pełny opis operacyjny poza głównym `openapi.json` (kontrakt natywny). Tag **OpenAI API** jest dostępny w Swagger UI dla tras `/api/v1/openai/…`.
+Osobne kontrakty HTTP dla narzędzi IDE; pełny opis operacyjny poza głównym `openapi.json` (kontrakt natywny). Tagi **OpenAI API** i **Anthropic API** są dostępne w Swagger UI dla tras `/api/v1/openai/…` i `/api/v1/anthropic/…`.
 
 | Powierzchnia | Status | Dokumentacja operacyjna |
 |--------------|--------|------------------------|
 | OpenAI (`/api/v1/openai/…`) | **Wdrożone** | `integracja-openai-kontrakt.md` |
-| Anthropic (`/api/v1/anthropic/…`) | W przygotowaniu | `integracja-anthropic-messages.md` |
+| Anthropic (`/api/v1/anthropic/…`) | **Wdrożone** | `integracja-anthropic-messages.md` |
 | Architektura wspólna | — | `integracje.md` |
 
 Wewnętrznie fasady wywołują ten sam **`ChatService`** co `POST /chat`. Pole **`model`** w żądaniu vendora = **`modelAlias`** z YAML. Błędy w kształcie OpenAI / Anthropic (lokalne filtry), nie `ErrorEnvelope`.

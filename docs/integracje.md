@@ -21,7 +21,7 @@ Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzę
 | Eksport `ChatService`, `SmartRateLimitGuard` z `ChatModule` | W repozytorium |
 | `readClientGatewayKey` + aktualizacja `SmartRateLimitGuard` / `StreamCleanupInterceptor` | W repozytorium |
 | **Fasada OpenAI** (`OpenAiModule`) — auth, models, completions JSON + stream | **Wdrożona** — [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md) |
-| **Fasada Anthropic** (`AnthropicModule`) | Szkielet; endpointy **w przygotowaniu** |
+| **Fasada Anthropic** (`AnthropicModule`) — auth, models, messages JSON + stream | **Wdrożona** — [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md) |
 
 Szczegóły konfiguracji klientów (Cursor, Claude Code): **`integracja-openai-kontrakt.md`**, **`integracja-anthropic-messages.md`**.
 

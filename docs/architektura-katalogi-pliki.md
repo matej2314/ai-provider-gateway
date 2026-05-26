@@ -98,7 +98,7 @@ ai-provider-gateway/
 │   │       ├── google.module.ts
 │   │       └── google.adapter.ts
 │   │
-│   ├── integrations/                       # fasady OpenAI / Anthropic API → ChatService (w toku)
+│   ├── integrations/                       # fasady OpenAI / Anthropic API → ChatService (wdrożone)
 │   │   ├── integrations.module.ts
 │   │   ├── integrations.constants.ts       # OPENAI_INTEGRATION_PATH, ANTHROPIC_INTEGRATION_PATH
 │   │   ├── openai/
@@ -130,7 +130,6 @@ ai-provider-gateway/
 │   │       │   ├── anthropic-messages.controller.ts
 │   │       │   └── anthropic-models.controller.ts
 │   │       ├── services/
-│   │       │   ├── anthropic-orchestration.service.ts
 │   │       │   └── anthropic-models-catalog.service.ts
 │   │       ├── mappers/
 │   │       │   ├── anthropic-request.mapper.ts
@@ -317,7 +316,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
 - System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.cache`), graceful shutdown.
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach i DTO, `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
-- **Integracje IDE (w toku):** szkielet `src/integrations/` (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; endpointy fasad — po ukończeniu implementacji (`integracje.md`).
+- **Integracje IDE:** `src/integrations/` — fasady OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`).
 
 **Pozostałość v1:** `npm run config:validate` (placeholder w `scripts/validate-config.ts`), `src/setup.app.ts` (pusty placeholder), opcjonalnie CORS; dokończenie fasad OpenAI / Anthropic (`readClientGatewayKey`, kontrolery, mappery).
 

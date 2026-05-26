@@ -105,6 +105,6 @@ Tag **OpenAI API** w Swagger UI (`/api/v1/api-docs`), gdy `SWAGGER_ENABLED=true`
 ## Powiązane
 
 - [`integracje.md`](integracje.md) — architektura fasad, rate limit, stan wdrożenia
-- [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md) — fasada Anthropic (Claude Code)
+- [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md) — fasada Anthropic (Claude Code; **wdrożona**)
 - [`konfiguracja.md`](konfiguracja.md) — `gateway.config.yaml`, klucze env
 - [`lista_endpointów.md`](lista_endpointów.md)
