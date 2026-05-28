@@ -56,15 +56,15 @@ NFR-1. Konfiguracja powinna być wersjonowana (`schemaVersion`).
 
 NFR-2. Dokumentacja configu musi być spójna z implementacją.
 
-NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`; obecnie **placeholder** bez komendy), który docelowo waliduje `gateway.config.yaml` oraz reguły env **bez uruchamiania serwera**, z niezerowym kodem wyjścia przy błędzie (np. dla CI). Opis użytkowy i status: `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.
+NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`), który waliduje `gateway.config.yaml` oraz reguły env **bez uruchamiania serwera**, z niezerowym kodem wyjścia przy błędzie (np. dla CI). Opis użytkowy: `docs/konfiguracja.md`.
 
 ## Kryteria akceptacji
 
-- [ ] Serwis nie startuje bez **minimum jednego** klucza providera w env (zg. z `env.validation.ts`) oraz bez env wymaganych przez `apiKeyRef` w aktywnej konfiguracji modeli.
+- [x] Serwis nie startuje bez **minimum jednego** klucza providera w env (zg. z `env.validation.ts`) oraz bez env wymaganych przez `apiKeyRef` w aktywnej konfiguracji modeli.
 - [x] Serwis nie startuje z configiem niespójnym: nieznany `providerInstance`, puste `models`, włączony provider bez modeli (F-3b, F-3c).
 - [x] Serwis nie startuje, gdy w `providers` zadeklarowano **dwie lub więcej** instancje o tym samym `type` (jedna instancja per typ — F-3a).
 - [ ] `modelAlias` jest jedyną publiczną metodą wyboru modelu w API (rdzeń MVP — kontrakt na start).
-- [ ] `npm run config:validate` przechodzi na poprawnym zestawie pliku `gateway.config.yaml` + env i kończy się błędem na zestawie świadomie niepoprawnym (zgodnie z NFR-3).
+- [x] `npm run config:validate` przechodzi na poprawnym zestawie pliku `gateway.config.yaml` + env i kończy się błędem na zestawie świadomie niepoprawnym (zgodnie z NFR-3).
 
 ## Poza zakresem (względem rdzenia MVP)
 

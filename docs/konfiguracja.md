@@ -234,11 +234,34 @@ Gateway kończy start m.in. gdy:
 | Zod (surowy YAML)      | `GatewayConfigSchema`         | duplikat `type`; puste `models`; model → provider; provider (aktywny) → ≥1 model; `fallback` istnieje, bez samoodwołania i pętli A↔B |
 | Efektywna konfiguracja | `buildEffectiveGatewayConfig` | filtr `enabled`; ≥1 aktywny model globalnie; aktywny provider → aktywny model; klucz API dla aktywnych providerów                    |
 
-**Poza zakresem obecnej implementacji (plan — krok 5.6, część pozostała):** pełny katalog aliasów wszystkich modeli API Anthropic/Google, aliasy intencjonalne oraz ta sama walidacja w `npm run config:validate` (krok 5.5 — skrypt nadal placeholder).
+**Poza zakresem obecnej implementacji (plan — krok 5.6, część pozostała):** pełny katalog aliasów wszystkich modeli API Anthropic/Google oraz walidacja kompletności aliasów „zwyczajowych” względem ustalonej listy MVP.
 
 ### Skrypt diagnostyczny `npm run config:validate`
 
-Wpis w `package.json` istnieje (`"config:validate": ""`), ale **komenda jest na razie pusta** — nie uruchamia walidacji. Docelowo: walidacja `gateway.config.yaml` + reguł env **bez** podnoszenia serwera HTTP, kod wyjścia ≠ 0 przy błędzie (CI) — opis w `dokumentacja_koncepcyjna.md` i `spec/SPEC-KONFIGURACJA.md` (NFR-3).
+Skrypt waliduje konfigurację **offline** (bez uruchamiania serwera HTTP), używając tej samej logiki co start aplikacji:
+
+- walidacja YAML przez `GatewayConfigSchema` (Zod),
+- walidacja reguł runtime przez `buildEffectiveGatewayConfig` (filtr `enabled` + wymagane klucze `apiKeyRef` dla włączonych providerów),
+- walidacja wymogu klucza master (`masterKeyRef`) jak w `buildGatewayKeyRuntime` (brak → błąd),
+- ostrzeżenia (nie blokują) m.in. dla klientów z pustym env pod `gatewayKeyRef`.
+
+Uruchomienie:
+
+```bash
+npm run config:validate
+```
+
+Opcje przez env:
+
+- `CONFIG_PATH`: ścieżka do pliku YAML (domyślnie `gateway.config.yaml` w `process.cwd()`).
+- `CONFIG_VALIDATE_STRICT=true`: tryb CI — błąd, jeśli po `trim()` brak **obu** `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (szersze niż reguła production-only z `env.validation.ts`).
+
+Exit code:
+
+- `0` gdy `errors.length === 0` (warnings są dozwolone),
+- `1` gdy walidacja wykryje błąd.
+
+Uwaga: skrypt próbuje doładować `.env` przez `dotenv` **jeśli** paczka jest zainstalowana; w CI zwykle env pochodzi z sekretów i `dotenv` nie jest wymagany.
 
 ## 4) Nadpisywanie parametrów per request
 

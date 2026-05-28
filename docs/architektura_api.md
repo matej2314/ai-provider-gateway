@@ -69,7 +69,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Rozszerzenia (pozostałość v1)
 
-- **`npm run config:validate`** — wpis w `package.json` istnieje, skrypt `scripts/validate-config.ts` jest **placeholder** (walidacja offline YAML + env bez HTTP) — `konfiguracja.md`, `dokumentacja_koncepcyjna.md`.
+- **`npm run config:validate`** — walidacja offline `gateway.config.yaml` + reguł env (exit code ≠ 0 przy błędzie); szczegóły: `konfiguracja.md`.
 - **`CORS_ORIGINS`** w `.env.example` — **nie** zaimplementowane w `src/main.ts` (brak middleware CORS); przy wystawieniu do przeglądarki skonfiguruj reverse proxy lub dodaj CORS w kodzie.
 
 **Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.

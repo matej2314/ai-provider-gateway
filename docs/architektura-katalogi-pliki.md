@@ -34,7 +34,7 @@ ai-provider-gateway/
 ├── mcp.json                        # konfiguracja MCP (integracja z IDE; patrz docs/mcp.md)
 │
 ├── scripts/
-│   └── validate-config.ts          # docelowo: npm run config:validate (obecnie placeholder w package.json)
+│   └── validate-config.ts          # npm run config:validate — walidacja gateway.config.yaml + env offline
 │
 ├── test/                           # testy e2e (Jest)
 │   ├── jest-e2e.json
@@ -299,7 +299,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |
 | **`src/health/`** | Liveness i readiness; DTO z dekoratorami `@Api*` dla OpenAPI. |
 | **`src/swagger/`** | Generowanie dokumentu OpenAPI z kodu (`@nestjs/swagger`); UI pod `/api/v1/api-docs`, JSON pod `/api/v1/swagger.json`; eksport statyczny → `openapi.json`. |
-| **`scripts/`** | Walidacja konfiguracji offline (w przygotowaniu). |
+| **`scripts/`** | Walidacja konfiguracji offline (`npm run config:validate`). |
 | **`test/`** | Testy e2e Jest. |
 | **`docs/`** | Dokumentacja i specyfikacje SDD (`spec/`). |
 
@@ -318,6 +318,6 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach i DTO, `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
 - **Integracje IDE:** `src/integrations/` — fasady OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`).
 
-**Pozostałość v1:** `npm run config:validate` (placeholder w `scripts/validate-config.ts`), `src/setup.app.ts` (pusty placeholder), opcjonalnie CORS; dokończenie fasad OpenAI / Anthropic (`readClientGatewayKey`, kontrolery, mappery).
+**Pozostałość v1:** `src/setup.app.ts` (pusty placeholder), opcjonalnie CORS; dokończenie fasad OpenAI / Anthropic (`readClientGatewayKey`, kontrolery, mappery).
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.
