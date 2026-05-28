@@ -66,6 +66,7 @@ export const GatewayConfigSchema = z
         capabilities: z
           .object({
             streaming: z.boolean().optional(),
+            tools: z.boolean().optional(),
           })
           .optional()
           .default({}),

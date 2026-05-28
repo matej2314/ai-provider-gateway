@@ -33,6 +33,7 @@ models:
     modelId: claude-sonnet-4-5-20250929
     capabilities:
       streaming: true
+      tools: true
     policy:
       timeoutMs: 30000
       retry:
@@ -56,6 +57,7 @@ models:
     fallback: chat-default
     capabilities:
       streaming: true
+      tools: true
     policy:
       timeoutMs: 30000
       retry:
@@ -79,6 +81,7 @@ models:
     fallback: chat-default
     capabilities:
       streaming: true
+      tools: true
     policy:
       timeoutMs: 30000
       retry:
