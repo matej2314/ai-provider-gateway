@@ -11,235 +11,52 @@ import {
   readRequiredPrompt,
   tryReadOptionalPrompts,
 } from './configuration.helpers';
-import { PROVIDER_TYPES } from './provider-types';
+
+import {
+  GatewayConfigSchema,
+  GatewayConfig,
+  GatewayModelConfig,
+} from './gateway-config.schema';
+
+export type {
+  GatewayConfig,
+  GatewayClientConfig,
+  GatewayModelConfig,
+  GatewayProviderInstanceConfig,
+  GatewayCapabilitiesConfig,
+  GatewayPolicyConfig,
+  GatewayRetryConfig,
+  GatewayParamsConfig,
+  GatewayParamsBoundConfig,
+} from './gateway-config.schema';
+
+export { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
 
 const MASTER_PROMPT = 'src/config/system-prompt/MASTER_SYSTEM_PROMPT.md';
 const MAIN_PROMPT = 'src/config/system-prompt/MAIN_SYSTEM_PROMPT.md';
 const MODEL_PROMPTS = 'src/config/system-prompt/models/';
 
-export const GatewayConfigSchema = z
-  .object({
-    schemaVersion: z.number().int().min(1),
-    masterKeyRef: z.string().min(1),
-    providers: z
-      .record(
-        z.string(),
-        z.object({
-          type: z.enum(PROVIDER_TYPES),
-          apiKeyRef: z.string(),
-          enabled: z.boolean().optional().default(false),
-        }),
-      )
-      .superRefine((providers, ctx) => {
-        const byType = new Map<string, string[]>();
-        for (const [instanceName, config] of Object.entries(providers)) {
-          const list = byType.get(config.type) ?? [];
-          list.push(instanceName);
-          byType.set(config.type, list);
-        }
-        for (const [type, instances] of byType) {
-          if (instances.length > 1) {
-            ctx.addIssue({
-              code: 'custom',
-              message: `Provider type ${type} is declared more than once (instances: ${instances.join(',')}). Only one instance per type is allowed.`,
-              path: ['providers', type],
-            });
-          }
-        }
-      }),
-    clients: z
-      .record(
-        z.string(),
-        z.object({
-          name: z.string().min(1),
-          type: z.enum([
-            'webapp',
-            'ide',
-            'cli',
-            'service',
-            'backend',
-            'automation',
-          ]),
-          gatewayKeyRef: z.string().min(1),
-          rateLimit: z
-            .object({
-              rps: z.number().int().min(1),
-              burst: z.number().int().min(1),
-              maxConcurrentStreams: z.number().int().min(1),
-            })
-            .optional(),
-        }),
-      )
-      .default({}),
-    models: z.record(
-      z.string(),
-      z.object({
-        providerInstance: z.string(),
-        modelId: z.string(),
-        fallback: z.string().min(1).optional(),
-        capabilities: z
-          .object({
-            streaming: z.boolean().optional(),
-          })
-          .optional()
-          .default({}),
-        policy: z
-          .object({
-            timeoutMs: z.number().int().min(1).optional(),
-            retry: z
-              .object({
-                maxAttempts: z.number().int().min(1).max(5).optional(),
-                onStatus: z.array(z.number().int().min(1)).optional(),
-              })
-              .optional()
-              .default({}),
-            params: z
-              .object({
-                defaults: z
-                  .object({
-                    temperature: z.number().min(0).max(2).optional(),
-                    maxOutputTokens: z.number().int().min(1).optional(),
-                  })
-                  .optional()
-                  .default({}),
-                allowOverrides: z.array(z.string()).optional().default([]),
-                bounds: z
-                  .object({
-                    temperature: z
-                      .object({
-                        min: z.number().min(0),
-                        max: z.number().max(2),
-                      })
-                      .optional(),
-                    maxOutputTokens: z
-                      .object({
-                        min: z.number().min(1),
-                        max: z.number().max(8192),
-                      })
-                      .optional(),
-                  })
-                  .optional()
-                  .default({}),
-              })
-              .optional()
-              .default({
-                defaults: {},
-                allowOverrides: [],
-                bounds: {},
-              }),
-          })
-          .optional()
-          .default({
-            retry: {},
-            params: {
-              defaults: {},
-              allowOverrides: [],
-              bounds: {},
-            },
-          }),
-      }),
-    ),
-  })
-  .superRefine((config, ctx) => {
-    for (const [alias, modelConfig] of Object.entries(config.models)) {
-      const fallback = modelConfig.fallback;
-
-      if (!fallback) continue;
-
-      if (fallback === alias) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `Model alias ${alias} cannot have itself as fallback.`,
-          path: ['models', alias, 'fallback'],
-        });
-        continue;
-      }
-      if (!config.models[fallback]) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `Model alias ${alias} references non-existent fallback ${fallback}`,
-          path: ['models', alias, 'fallback'],
-        });
-        continue;
-      }
-      const fallbackOfFallback = config.models[fallback]?.fallback;
-      if (fallbackOfFallback === alias) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `Circular fallback detected: ${alias} => ${fallback} => ${alias}`,
-          path: ['models', alias, 'fallback'],
-        });
-      }
-    }
-  })
-  .superRefine((data, ctx) => {
-    for (const [alias, model] of Object.entries(data.models)) {
-      if (
-        !Object.prototype.hasOwnProperty.call(
-          data.providers,
-          model.providerInstance,
-        )
-      ) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `Model "${alias}" references unknown provider instance ${model.providerInstance} `,
-          path: ['models', alias, 'providerInstance'],
-        });
-      }
-    }
-
-    if (Object.keys(data.models).length === 0) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Models section must contain at least one model alias.',
-        path: ['models'],
-      });
-      return;
-    }
-
-    const aliasesByProvider = new Map<string, string[]>();
-    for (const [alias, model] of Object.entries(data.models)) {
-      const list = aliasesByProvider.get(model.providerInstance) ?? [];
-      list.push(alias);
-      aliasesByProvider.set(model.providerInstance, list);
-    }
-
-    for (const [instanceId, row] of Object.entries(data.providers)) {
-      if (row.enabled === false) continue;
-
-      if (!aliasesByProvider.has(instanceId)) {
-        ctx.addIssue({
-          code: 'custom',
-          message: `Provider instance ${instanceId} is declared but has no model aliases.`,
-          path: ['providers', instanceId],
-        });
-      }
-    }
-  });
-
-export type GatewayConfig = z.infer<typeof GatewayConfigSchema>;
-export type GatewayClientConfig = GatewayConfig['clients'][string];
-export type GatewayModelConfig = GatewayConfig['models'][string];
-export type GatewayProviderInstanceConfig = GatewayConfig['providers'][string];
-export type GatewayCapabilitiesConfig = GatewayModelConfig['capabilities'];
-export type GatewayPolicyConfig = GatewayModelConfig['policy'];
-export type GatewayRetryConfig = GatewayPolicyConfig['retry'];
-export type GatewayParamsConfig = GatewayPolicyConfig['params'];
-export type GatewayParamsBoundConfig =
-  GatewayParamsConfig['bounds']['temperature'];
-
-function buildGatewayKeyRuntime(
-  config: GatewayConfig,
-): GatewayKeyRuntimeConfig {
-  const masterRaw = (process.env[config.masterKeyRef] ?? '').trim();
-
+export function assertMasterKeyPresent(
+  config: Pick<GatewayConfig, 'masterKeyRef'>,
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  const masterRaw = (env[config.masterKeyRef] ?? '').trim();
   if (!masterRaw) {
     throw new Error('[GatewayKey] Missing master key.');
   }
+}
+
+function buildGatewayKeyRuntime(
+  config: GatewayConfig,
+  env: NodeJS.ProcessEnv = process.env,
+): GatewayKeyRuntimeConfig {
+  assertMasterKeyPresent(config, env);
+
+  const masterRaw = (env[config.masterKeyRef] ?? '').trim();
 
   const clients: ResolvedGatewayClient[] = [];
   for (const [instanceId, row] of Object.entries(config.clients)) {
-    const gatewayKey = (process.env[row.gatewayKeyRef] ?? '').trim();
+    const gatewayKey = (env[row.gatewayKeyRef] ?? '').trim();
     clients.push({
       instanceId,
       name: row.name,
@@ -257,9 +74,7 @@ function buildGatewayKeyRuntime(
   }
   console.log(
     'Registered clients:',
-    clients.map((client) => {
-      return { name: client.name, type: client.type };
-    }),
+    clients.map((c) => ({ name: c.name, type: c.type })),
   );
   return {
     allowList: [...allow],
@@ -268,8 +83,9 @@ function buildGatewayKeyRuntime(
   };
 }
 
-function buildEffectiveGatewayConfig(
+export function buildEffectiveGatewayConfig(
   raw: z.infer<typeof GatewayConfigSchema>,
+  env: NodeJS.ProcessEnv = process.env,
 ): GatewayConfig {
   const effectiveProviderEntries = Object.entries(raw.providers).filter(
     ([, row]) => row.enabled !== false,
@@ -309,7 +125,7 @@ function buildEffectiveGatewayConfig(
   }
 
   for (const [instanceId, row] of Object.entries(effectiveProviders)) {
-    const apiKey = (process.env[row.apiKeyRef] ?? '').trim();
+    const apiKey = (env[row.apiKeyRef] ?? '').trim();
     if (!apiKey) {
       throw new Error(
         `[GatewayConfig] Missing API key for enabled provider instance "${instanceId}" (expected non-empty env ${row.apiKeyRef})`,

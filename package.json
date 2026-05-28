@@ -12,7 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "config:validate": "",
+    "config:validate": "ts-node scripts/validate-config.ts",
     "openapi:export": "npm run build && node dist/swagger/export-openapi.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",

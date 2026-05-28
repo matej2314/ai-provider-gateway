@@ -1,0 +1,144 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import * as yaml from 'js-yaml';
+import { z } from 'zod';
+import {
+  GatewayConfigSchema,
+  EXPECTED_SCHEMA_VERSION,
+  type GatewayConfig,
+} from './gateway-config.schema';
+import {
+  buildEffectiveGatewayConfig,
+  assertMasterKeyPresent,
+} from './configuration';
+
+export interface ValidationResult {
+  success: boolean;
+  effectiveConfig?: GatewayConfig;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ValidationOptions {
+  configPath?: string;
+  env?: NodeJS.ProcessEnv;
+  strictProviderKeys?: boolean;
+}
+
+function formatZodIssues(error: z.ZodError): string[] {
+  return error.issues.map((issue) => {
+    const path = issue.path.length > 0 ? issue.path.join('.') : '(root)';
+    return `${path}: ${issue.message}`;
+  });
+}
+
+function collectInactiveProviderWarnings(
+  raw: z.infer<typeof GatewayConfigSchema>,
+  effective: GatewayConfig,
+): string[] {
+  const warnings: string[] = [];
+  const activeInstances = new Set(Object.keys(effective.providers));
+
+  for (const [instanceId, row] of Object.entries(raw.providers)) {
+    if (row.enabled === false) {
+      warnings.push(
+        `WARN: Provider instance "${instanceId}" is defined but disabled (enabled:false)`,
+      );
+    }
+  }
+  return warnings;
+}
+
+function assertStrictProviderKeysIfRequested(
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  const anthropic = (env.ANTHROPIC_API_KEY ?? '').trim();
+  const google = (env.GOOGLE_API_KEY ?? '').trim();
+  if (!anthropic && !google) {
+    return 'ERROR: [strictProviderKeys]: set at least one of ANTHROPIC_API_KEY or GOOGLE_API_KEY';
+  }
+  return undefined;
+}
+
+export function validateGatewayConfig(
+  options: ValidationOptions = {},
+): ValidationResult {
+  const configPath =
+    options.configPath ?? join(process.cwd(), 'gateway.config.yaml');
+  const env = options.env ?? process.env;
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  let parsedYaml: unknown;
+  try {
+    const fileContent = readFileSync(configPath, 'utf-8');
+    parsedYaml = yaml.load(fileContent);
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
+      errors.push(`ERROR: Configuration file not found: ${configPath}`);
+      return { success: false, errors, warnings };
+    }
+    errors.push(
+      `ERROR: Failed to read or parse YAML: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return { success: false, errors, warnings };
+  }
+
+  const validationResult = GatewayConfigSchema.safeParse(parsedYaml);
+  if (!validationResult.success) {
+    errors.push(
+      ...formatZodIssues(validationResult.error).map((m) => `ERROR: ${m}`),
+    );
+    return { success: false, errors, warnings };
+  }
+  const parsed = validationResult.data;
+
+  if (parsed.schemaVersion < EXPECTED_SCHEMA_VERSION) {
+    warnings.push(
+      `WARN: [schemaVersion]: ${parsed.schemaVersion} is older than expected.`,
+    );
+  }
+
+  try {
+    assertMasterKeyPresent(parsed, env);
+  } catch (err) {
+    errors.push(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    return { success: false, errors, warnings };
+  }
+  let effectiveConfig: GatewayConfig;
+
+  try {
+    effectiveConfig = buildEffectiveGatewayConfig(parsed, env);
+  } catch (err) {
+    errors.push(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    return { success: false, errors, warnings };
+  }
+
+  for (const [instanceId, row] of Object.entries(parsed.clients)) {
+    const gatewayKey = (env[row.gatewayKeyRef] ?? '').trim();
+    if (!gatewayKey) {
+      warnings.push(
+        `WARN: Client "${instanceId}" has no gateway key (expected non-empty env ${row.gatewayKeyRef})`,
+      );
+    }
+  }
+
+  warnings.push(...collectInactiveProviderWarnings(parsed, effectiveConfig));
+
+  const strictError = assertStrictProviderKeysIfRequested(env);
+  if (strictError) {
+    errors.push(strictError);
+    return { success: false, errors, warnings };
+  }
+  return {
+    success: true,
+    effectiveConfig,
+    errors,
+    warnings,
+  };
+}
