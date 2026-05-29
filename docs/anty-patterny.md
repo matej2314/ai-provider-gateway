@@ -141,3 +141,20 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 - mapowanie `model` (vendor) → `modelAlias` (YAML) w warstwie mapperów.
 
 Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
+
+## 14) CLI zależne od `ConfigModule` (deadlock konfiguracji)
+
+**Nie rób**:
+
+- importowania `ConfigModule.forRoot()` w `CliModule` — runtime wymaga już istniejącego, poprawnego `gateway.config.yaml` i `.env`, które CLI ma **utworzyć**,
+- wymuszania `npm run build` przed pierwszym użyciem CLI,
+- importowania `buildEffectiveGatewayConfig()` / `configuration.ts` w warstwie CLI na starcie (wymaga env).
+
+**Rób**:
+
+- osobny entry point (`bin/gateway-cli-wrapper.js` → `CliModule`),
+- `CliConfigLoaderService` z parsowaniem YAML + `GatewayConfigSchema` bez rozwiązywania env,
+- reużycie **tylko** typów/schematów/walidatorów z `src/config/` (kierunek: config → cli, nie odwrotnie),
+- wrapper z fallbackiem `ts-node`, gdy brak `dist/`.
+
+Szczegóły: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).

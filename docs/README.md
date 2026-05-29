@@ -22,6 +22,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 16. **Moduł czatu** — `ChatService` (cache, limity, odpowiedź gateway) + `ChatProviderCallService` (adaptery, metryki, SSE); helpery w `src/chat/helpers/` — `architektura-katalogi-pliki.md`, `data_flow.md`.
 17. **OpenAPI / Swagger** — `@nestjs/swagger` w kontrolerach i DTO (`src/swagger/`); UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport statyczny: `npm run openapi:export` → `openapi.json`; env `SWAGGER_ENABLED` — `konfiguracja.md`, `dokumentacja_api.md`.
 18. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`); **OpenAI** — `integracja-openai-kontrakt.md` (Cursor); **Anthropic** — `integracja-anthropic-messages.md` (Claude Code / klient Messages API); przegląd: `integracje.md`.
+19. **CLI (Faza 0 — infrastruktura)** — osobny entry point `bin/`, moduł `src/cli/` bez `ConfigModule`; `CliConfigLoaderService` ładuje YAML bez `.env`; root command `gateway` / `npm run cli`. Komendy namespace i wizard — *(plan)*; struktura: `architektura-katalogi-pliki.md` (sekcja 2a), architektura: `architektura.md`.
 
 ## Spis plików
 
@@ -40,6 +41,8 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `integracje.md` — architektura fasad OpenAI / Anthropic (IDE), auth, rate limit, stan wdrożenia.
 - `integracja-openai-kontrakt.md` — podłączenie Cursor (Base URL `/api/v1/openai`); models + chat/completions (JSON i stream).
 - `integracja-anthropic-messages.md` — podłączenie Claude Code (Base URL `/api/v1/anthropic`); models + messages (JSON i stream).
+- `architektura-katalogi-pliki.md` — drzewo katalogów repo, w tym **CLI** (`bin/`, `src/cli/`, sekcja 2a).
+- `CLI.md` — *(plan, Faza 8)* — pełna dokumentacja komend `gateway`.
 
 ## Specyfikacje (SDD)
 

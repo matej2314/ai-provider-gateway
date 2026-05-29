@@ -55,6 +55,48 @@ flowchart TB
 | **Rate limit** (`src/rate-limit`) | Jedyna warstwa limitów gateway: smart limiting per `X-Gateway-Key` (Redis) — token bucket (RPS/burst), równoległe streamy, cooldown po 429 od providera (`SmartRateLimitGuard`, `SmartRateLimiterService`). Limity: opcjonalnie `clients[].rateLimit` w YAML, inaczej env; przełącznik `RATE_LIMIT_SMART_ENABLED`. Bez `@nestjs/throttler`. |
 | **Logging / Metrics** | Structured logging (Pino), opcjonalnie Sentry (błędy + spany LLM). |
 | **Swagger / OpenAPI** (`src/swagger`) | Dokumentacja HTTP generowana z dekoratorów `@nestjs/swagger` na kontrolerach i DTO. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport statyczny: `npm run openapi:export` → `openapi.json`. |
+| **CLI** (`src/cli`, `bin/`) | Narzędzie wiersza poleceń dla konfiguracji i operacji developerskich. **Osobny entry point** (`bin/gateway-cli-wrapper.js` → `CommandFactory.run(CliModule)`), **bez** importu `ConfigModule`. Reużywa schematy Zod z `src/config/`, ale ładuje YAML bez rozwiązywania env (`CliConfigLoaderService`). Faza 0: root command + utilities; komendy `gateway <namespace>:<action>` — w kolejnych fazach. Szczegóły struktury: `architektura-katalogi-pliki.md` (sekcja 2a). |
+
+## CLI — izolacja od runtime HTTP
+
+CLI i serwis HTTP współdzielą repozytorium, ale **nie ten sam bootstrap**:
+
+```mermaid
+flowchart LR
+  subgraph cliEntry [CLI]
+    wrapper[bin/gateway-cli-wrapper.js]
+    cliMod[CliModule]
+    loader[CliConfigLoaderService]
+  end
+
+  subgraph httpEntry [HTTP app]
+    main[src/main.ts]
+    appMod[AppModule + ConfigModule]
+    cfg[configuration.ts]
+  end
+
+  configFiles[gateway.config.yaml + .env]
+  schemas[src/config — GatewayConfigSchema]
+
+  wrapper --> cliMod
+  cliMod --> loader
+  loader --> schemas
+  loader -.->|read YAML only| configFiles
+
+  main --> appMod
+  appMod --> cfg
+  cfg --> schemas
+  cfg -->|buildEffectiveGatewayConfig + env| configFiles
+```
+
+Zasady (Faza 0):
+
+- **CLI nie może wymagać `ConfigModule`** — tworzy pliki, których runtime potrzebuje przy starcie (deadlock).
+- **CLI nie wymaga build** — wrapper używa `ts-node`, gdy brak `dist/bin/gateway-cli.js`.
+- **Dozwolone importy:** typy, schematy, `validateGatewayConfig()` z `src/config/`; **zabronione:** modyfikacja logiki runtime przez warstwę CLI.
+- **Walidacja:** wizard może generować niedokończony config; pełna walidacja (identyczna jak przy starcie aplikacji) — na końcu flow CLI *(plan, Faza 2)*.
+
+Uruchomienie: `npm run cli` lub bin `gateway-cli` z `package.json`.
 
 ## Warstwy wewnątrz modułów (konwencja NestJS)
 

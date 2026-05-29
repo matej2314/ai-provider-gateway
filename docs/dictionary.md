@@ -25,6 +25,8 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Resilient executor** | Warstwa retry + fallback + timeout wokół wywołania adaptera. | `src/common/resilience/resilient-executor.ts`; `runOnce` deleguje do `ChatProviderCallService` (`ChatModule`). |
 | **Response cache** | Opcjonalna warstwa zapisu/odczytu odpowiedzi **`POST /api/v1/chat`** (backend `noop` lub `redis`). | Lookup/zapis w `ChatService`; odczyt cache tylko gdy provider i alias są włączone w YAML (`isCachedChatAllowedForModelAlias`). Klucz m.in. z aliasu, `messages`, sygnatury system promptu i efektywnych `params`. Streaming bez cache. |
 | **Walidacja env (klucze)** | Reguły na zmiennych środowiskowych przy starcie aplikacji. | Przy **`NODE_ENV=production`** wymagany jest **co najmniej jeden** niepusty klucz (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W innych środowiskach ta reguła nie blokuje startu (`src/config/env.validation.ts`). Dodatkowo walidowane są opcjonalne pola **`CACHE_*`** / **`REDIS_*`** (typy, wartości domyślne). |
+| **Gateway CLI** | Narzędzie wiersza poleceń do inicjalizacji i zarządzania konfiguracją (`bin/gateway-cli-wrapper.js`, `npm run cli`). | Osobny entry point od HTTP; **nie** importuje `ConfigModule`. Konwencja: `gateway <namespace>:<action>`. Faza 0: infrastruktura + root command; komendy namespace — *(plan)*. |
+| **CliConfigLoader** | Serwis CLI (`CliConfigLoaderService`) ładujący `gateway.config.yaml` przez `GatewayConfigSchema` **bez** wymagania `.env`. | Metody: `loadRawConfig`, `loadWithEnvCheck`, `isBoilerplateConfig`, `configExists`, `envExists`. Nie wywołuje `buildEffectiveGatewayConfig()`. |
 
 ## Kody błędów (stabilne)
 

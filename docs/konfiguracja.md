@@ -263,6 +263,27 @@ Exit code:
 
 Uwaga: skrypt próbuje doładować `.env` przez `dotenv` **jeśli** paczka jest zainstalowana; w CI zwykle env pochodzi z sekretów i `dotenv` nie jest wymagany.
 
+### CLI a ładowanie konfiguracji (Faza 0)
+
+Runtime HTTP i CLI **nie używają tej samej ścieżki** ładowania configu:
+
+| Aspekt | Runtime (`ConfigModule` → `configuration.ts`) | CLI (`CliConfigLoaderService`) |
+|--------|-----------------------------------------------|--------------------------------|
+| Entry point | `src/main.ts` → `AppModule` | `bin/gateway-cli-wrapper.js` → `CliModule` |
+| Wymaga `.env` przy starcie CLI | tak (przy starcie serwera HTTP) | **nie** — CLI startuje bez `.env` |
+| Parsowanie YAML | `yaml.load` + `GatewayConfigSchema` | to samo (`loadRawConfig`) |
+| Rozwiązywanie env | `buildEffectiveGatewayConfig()`, klucze master/provider/client | **pominięte** w `loadRawConfig`; opcjonalny raport braków w `loadWithEnvCheck()` |
+| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP | komendy CLI *(plan)* — wizard / `config:validate` |
+
+Uruchomienie CLI (Faza 0 — root command + lista planowanych komend):
+
+```bash
+npm run cli
+# lub po npm link: gateway-cli
+```
+
+Konwencja komend: `gateway <namespace>:<action>` (np. `gateway config:init` — *(plan, Faza 2)*). Szczegóły architektury: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
+
 ## 4) Nadpisywanie parametrów per request
 
 **DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** w formacie **`conv_<uuid>`** (regex w `ChatRequestDto`; w **response** zawsze echo lub nowe `conv_<uuid>`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation-tracking.md`) oraz opcjonalne zagnieżdżone **`params`** (`temperature`, `maxOutputTokens`). Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
