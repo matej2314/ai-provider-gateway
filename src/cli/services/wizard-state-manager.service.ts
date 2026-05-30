@@ -2,8 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { CliLogger } from '../utils/cli-logger.util';
-import type { GatewayProviderType } from 'src/config/provider-types';
-import type { GatewayClientType } from 'src/config/configuration.types';
+import type { WizardState } from './cli.services.types';
 
 export enum WizardStep {
   MasterKey = 'master-key',
@@ -13,47 +12,6 @@ export enum WizardStep {
   ServerConfig = 'server-config',
   WriteFiles = 'write-files',
   Complete = 'complete',
-}
-
-export interface WizardState {
-  sessionId: string;
-  startedAt: string;
-  currentStep: WizardStep;
-  completedSteps: WizardStep[];
-  data: {
-    masterKey?: string;
-    providers?: Array<{
-      id: string;
-      type: GatewayProviderType;
-      apiKeyRef: string;
-      apiKey: string;
-    }>;
-    models?: Array<{
-      alias: string;
-      providerInstance: string;
-      modelId: string;
-    }>;
-    clients?: Array<{
-      id: string;
-      name: string;
-      type: GatewayClientType;
-      gatewayKeyRef: string;
-      gatewayKey: string;
-      rateLimit?: {
-        rps: number;
-        burst: number;
-        maxConcurrentStreams?: number;
-      };
-    }>;
-    serverConfig?: {
-      port: number;
-      nodeEnv: string;
-    };
-  };
-  files: {
-    created: string[];
-    backedUp: string[];
-  };
 }
 
 @Injectable()

@@ -6,7 +6,6 @@ import {
   GatewayConfigSchema,
   GatewayConfig,
 } from '../../config/gateway-config.schema';
-import { CliLogger } from '../utils/cli-logger.util';
 
 @Injectable()
 export class CliConfigLoaderService {
