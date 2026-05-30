@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "bin": {
-    "gateway-cli": "./bin/gateway-cli-wrapper.js"
+    "gateway": "./bin/gateway-cli-wrapper.js"
   },
   "scripts": {
     "build": "nest build",
