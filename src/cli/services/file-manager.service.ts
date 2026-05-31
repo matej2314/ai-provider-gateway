@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
-import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { CliLogger } from '../utils/cli-logger.util';
 
