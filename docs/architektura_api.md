@@ -84,7 +84,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 ## Walidacja
 
 - Walidacja DTO na brzegu (`ValidationPipe`: m.in. `messages` 1–150, `content` max 3000 znaków, opcjonalne `conversationId` w formacie `conv_<uuid>`, opcjonalne zagnieżdżone `params`, `forbidNonWhitelisted`).
-- Limit rozmiaru JSON body: **1 MB** (`express.json` w `main.ts`).
+- Limit rozmiaru JSON body: **1 MB** (`express.json` w `src/setup.app.ts`).
 - Walidacja konfiguracji przy starcie (fail‑fast) i w runtime (np. unknown `modelAlias` → błąd deterministyczny z kodem `MODEL_ALIAS_NOT_FOUND` przy `POST /chat`).
 
 ## Idempotencja, retry i fallback

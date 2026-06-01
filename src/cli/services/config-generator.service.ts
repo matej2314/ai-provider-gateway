@@ -92,15 +92,25 @@ export class ConfigGeneratorService {
     const envPath = join(cwd, '.env');
 
     const exampleEnv = { ...input };
-    exampleEnv.masterKey = '<your-master-key>';
+
+    exampleEnv.masterKey = '';
     exampleEnv.providers = exampleEnv.providers.map((provider) => ({
       ...provider,
-      apiKey: '<your-api-key>',
+      apiKey: '',
     }));
     exampleEnv.clients = exampleEnv.clients.map((client) => ({
       ...client,
-      gatewayKey: '<your-gateway-key>',
+      gatewayKey: '',
     }));
+
+    if (exampleEnv.cacheBackend === 'redis') {
+      exampleEnv.redisHost = '';
+      exampleEnv.redisPort = undefined;
+    }
+
+    if (exampleEnv.metricsBackend === 'sentry') {
+      exampleEnv.sentryDsn = '';
+    }
 
     await this.fileManager.writeEnv(
       envExamplePath,

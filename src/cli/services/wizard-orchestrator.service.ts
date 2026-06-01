@@ -95,14 +95,12 @@ export class WizardOrchestratorService {
     step: WizardStep,
   ): Promise<void> {
     state.currentStep = step;
-
-    const generateKey = (length: number) =>
-      this.keyGenerator.generateKey(length);
-
+    
     switch (step) {
       case WizardStep.MasterKey:
-        state.data.masterKey =
-          await this.keyPrompt.promptMasterKey(generateKey);
+        state.data.masterKey = await this.keyPrompt.promptMasterKey(
+          this.keyGenerator,
+        );
         break;
       case WizardStep.Providers:
         state.data.providers = await this.providerPrompt.promptProviders();
@@ -113,7 +111,9 @@ export class WizardOrchestratorService {
         );
         break;
       case WizardStep.Clients:
-        state.data.clients = await this.clientPrompt.promptClients(generateKey);
+        state.data.clients = await this.clientPrompt.promptClients(
+          this.keyGenerator,
+        );
         break;
       case WizardStep.ServerConfig:
         state.data.serverConfig = await this.serverPrompt.promptServerConfig();
@@ -146,37 +146,55 @@ export class WizardOrchestratorService {
   }
 
   private buildResult(state: WizardState): WizardResult {
+    const serverConfig = state.data.serverConfig!;
+
+    const envInput: EnvTemplateInput = {
+      masterKeyRef: 'MASTER_KEY',
+      masterKey: state.data.masterKey!,
+      providers: state.data.providers!.map((provider) => ({
+        apiKeyRef: provider.apiKeyRef,
+        apiKey: provider.apiKey,
+      })),
+      clients: state.data.clients!.map((client) => ({
+        gatewayKeyRef: client.gatewayKeyRef,
+        gatewayKey: client.gatewayKey,
+      })),
+      port: serverConfig.port,
+      nodeEnv: serverConfig.nodeEnv,
+      swaggerEnabled: serverConfig.swaggerEnabled,
+      cacheEnabled: serverConfig.cacheEnabled,
+      cacheBackend: serverConfig.cacheBackend,
+      redisHost: serverConfig.redisHost,
+      redisPort: serverConfig.redisPort,
+      redisPassword: serverConfig.redisPassword,
+      rateLimitSmartEnabled: serverConfig.rateLimitSmartEnabled,
+      metricsBackend: serverConfig.metricsBackend,
+      sentryDsn: serverConfig.sentryDsn,
+    };
+
     return {
       configInput: {
         masterKeyRef: 'MASTER_KEY',
-        providers: state.data.providers!.map((p) => ({
-          id: p.id,
-          type: p.type,
-          apiKeyRef: p.apiKeyRef,
+        providers: state.data.providers!.map((provider) => ({
+          id: provider.id,
+          type: provider.type,
+          apiKeyRef: provider.apiKeyRef,
         })),
-        clients: state.data.clients!.map((c) => ({
-          id: c.id,
-          name: c.name,
-          type: c.type,
-          gatewayKeyRef: c.gatewayKeyRef,
-          rateLimit: c.rateLimit,
+        clients: state.data.clients!.map((client) => ({
+          id: client.id,
+          name: client.name,
+          type: client.type,
+          gatewayKeyRef: client.gatewayKeyRef,
+          rateLimit: client.rateLimit,
         })),
-        models: state.data.models!,
+        models: state.data.models!.map((model) => ({
+          alias: model.alias,
+          providerInstance: model.providerInstance,
+          modelId: model.modelId,
+        })),
+        envInput,
       },
-      envInput: {
-        masterKeyRef: 'MASTER_KEY',
-        masterKey: state.data.masterKey!,
-        providers: state.data.providers!.map((p) => ({
-          apiKeyRef: p.apiKeyRef,
-          apiKey: p.apiKey,
-        })),
-        clients: state.data.clients!.map((c) => ({
-          gatewayKeyRef: c.gatewayKeyRef,
-          gatewayKey: c.gatewayKey,
-        })),
-        port: state.data.serverConfig!.port,
-        nodeEnv: state.data.serverConfig!.nodeEnv,
-      },
+      envInput,
     };
   }
 }

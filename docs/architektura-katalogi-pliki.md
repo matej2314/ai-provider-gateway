@@ -16,8 +16,8 @@ Zasady:
 
 ```
 ai-provider-gateway/
-├── openapi.json                    # OpenAPI 3.1 (kontrakt HTTP)
-├── gateway.config.yaml             # aliasy modeli, providery, polityki
+├── openapi.json                    # OpenAPI 3.1 (kontrakt HTTP; generowany: npm run openapi:export)
+├── gateway.config.yaml             # boilerplate w repo — pełna konfig po gateway config:init
 ├── package.json
 ├── package-lock.json
 ├── README.md
@@ -47,8 +47,8 @@ ai-provider-gateway/
 │   └── app.e2e-spec.ts
 │
 ├── src/
-│   ├── main.ts                     # bootstrap NestJS, ValidationPipe, Swagger, graceful shutdown
-│   ├── setup.app.ts                # placeholder pod wspólny setup aplikacji (obecnie pusty)
+│   ├── main.ts                     # bootstrap NestJS, Swagger, graceful shutdown
+│   ├── setup.app.ts                # global prefix api/v1, ValidationPipe, json 1mb, shutdown hooks
 │   ├── instrument.ts               # inicjalizacja Sentry (import przed app)
 │   ├── app.module.ts
 │   │
@@ -158,23 +158,39 @@ ai-provider-gateway/
 │   │   ├── cli.module.ts                   # root module CLI — bez ConfigModule
 │   │   ├── gateway.command.ts              # root command (welcome + lista komend)
 │   │   ├── commands/
-│   │   │   ├── config/                     # *(plan)* namespace config:*
-│   │   │   ├── provider/                   # *(plan)* namespace provider:*
-│   │   │   ├── model/                      # *(plan)* namespace model:*
-│   │   │   ├── client/                     # *(plan)* namespace client:*
-│   │   │   └── key/                        # *(plan)* namespace key:*
+│   │   │   └── config/
+│   │   │       └── config-init.command.ts  # gateway config:init — wizard (wdrożone)
+│   │   ├── constants/
+│   │   │   └── default-models.ts           # domyślne modelId per provider (wizard)
 │   │   ├── services/
-│   │   │   ├── cli-config-loader.service.ts  # YAML + Zod bez wymagania .env
-│   │   │   └── file-manager.service.ts       # backup, read/write YAML i .env
-│   │   ├── utils/
-│   │   │   ├── cli-logger.util.ts          # kolorowy output (chalk, ora)
-│   │   │   └── validation-formatter.util.ts  # format błędów Zod dla terminala
-│   │   └── templates/                      # *(plan)* szablony plików (Faza 1+)
+│   │   │   ├── cli-config-loader.service.ts
+│   │   │   ├── cli.services.types.ts
+│   │   │   ├── config-generator.service.ts # generowanie YAML, .env, promptów
+│   │   │   ├── file-manager.service.ts     # backup, read/write YAML i .env
+│   │   │   ├── key-generator.service.ts
+│   │   │   ├── wizard-orchestrator.service.ts
+│   │   │   ├── wizard-state-manager.service.ts  # .gateway-wizard-state.json
+│   │   │   └── prompts/
+│   │   │       ├── key-prompt.service.ts
+│   │   │       ├── provider-prompt.service.ts
+│   │   │       ├── model-prompt.service.ts
+│   │   │       ├── client-prompt.service.ts
+│   │   │       └── server-prompt.service.ts
+│   │   ├── templates/
+│   │   │   ├── gateway-config.template.ts
+│   │   │   ├── env.template.ts
+│   │   │   ├── master-prompt.template.ts
+│   │   │   └── model-prompt.template.ts
+│   │   └── utils/
+│   │       ├── cli-logger.util.ts          # kolorowy output (chalk, ora)
+│   │       └── validation-formatter.util.ts
 │   │
 │   ├── config/
-│   │   ├── configuration.ts                # gateway.config.yaml + Zod, cache/redis z env
+│   │   ├── configuration.ts                # load YAML, buildEffectiveGatewayConfig, system prompt
 │   │   ├── configuration.types.ts
 │   │   ├── configuration.helpers.ts
+│   │   ├── gateway-config.schema.ts        # GatewayConfigSchema (Zod), EXPECTED_SCHEMA_VERSION
+│   │   ├── config-validator.ts             # validateGatewayConfig() — CLI + npm run config:validate
 │   │   ├── env.validation.ts
 │   │   ├── provider-types.ts
 │   │   └── system-prompt/
@@ -291,7 +307,7 @@ ai-provider-gateway/
     ├── integracja-openai-kontrakt.md
     ├── integracja-anthropic-messages.md
     ├── opis_koncepcyjny.md                 # alias → dokumentacja_koncepcyjna.md
-    ├── CLI.md                              # *(plan, Faza 8)* — dokumentacja komend CLI
+    ├── CLI.md                              # dokumentacja Gateway CLI (wizard, uruchomienie)
     └── spec/
         ├── SPEC-README.md
         ├── SPEC-PLATFORMA-I-KONTRAKTY.md
@@ -315,7 +331,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache, smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi. **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Eksport **`ChatService`**, **`SmartRateLimitGuard`** dla modułu integracji. Helpery: system prompt, provider input, params, retry policy, cache policy, `conversationId`. |
 | **`src/providers/`** | Adaptery Anthropic / Google, `ProviderRegistryService` + moduł rejestru. Jedyna warstwa z bezpośrednim użyciem SDK vendorów. |
 | **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
-| **`src/config/`** | Wczytanie `gateway.config.yaml`, walidacja Zod, `buildEffectiveGatewayConfig`, `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
+| **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
 | **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiRequestIdHeader`), typy Express. |
 | **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). |
@@ -323,15 +339,15 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |
 | **`src/health/`** | Liveness i readiness; DTO z dekoratorami `@Api*` dla OpenAPI. |
 | **`src/swagger/`** | Generowanie dokumentu OpenAPI z kodu (`@nestjs/swagger`); UI pod `/api/v1/api-docs`, JSON pod `/api/v1/swagger.json`; eksport statyczny → `openapi.json`. |
-| **`bin/`** | Entry point CLI: wrapper JS (`gateway-cli-wrapper.js`) uruchamia skompilowany `dist/bin/gateway-cli.js` lub — gdy brak build — TypeScript przez `ts-node` (`gateway-cli.ts` → `CliModule`). Dostęp: `npm run cli`, bin `gateway-cli` z `package.json`. |
-| **`src/cli/`** | Warstwa CLI: **nie importuje** `ConfigModule` (działa przed/pełnej konfiguracji). NestJS tylko dla DI. **`CliConfigLoaderService`** reużywa `GatewayConfigSchema` z `src/config/`, pomija `buildEffectiveGatewayConfig()`. **`FileManagerService`** — operacje na plikach YAML/env. Komendy namespace (`config:*`, `model:*`, …) — *(plan)*, katalogi placeholder w `commands/`. Szczegóły: `architektura.md`. |
+| **`bin/`** | Entry point CLI: wrapper JS (`gateway-cli-wrapper.js`) uruchamia skompilowany `dist/bin/gateway-cli.js` lub — gdy brak build — TypeScript przez `ts-node` (`gateway-cli.ts` → `CliModule`). Dostęp: `npm run cli`, `npx gateway`, bin **`gateway`** z `package.json` (po `npm link` lub instalacji globalnej). |
+| **`src/cli/`** | Warstwa CLI: **nie importuje** `ConfigModule`. NestJS tylko dla DI. **Wdrożone:** `CliConfigLoaderService`, `ConfigGeneratorService`, wizard (`config:init`), prompt services, state manager, szablony. **Planowane:** pozostałe komendy namespace. Szczegóły: `CLI.md`, `architektura.md`. |
 | **`scripts/`** | Walidacja konfiguracji offline (`npm run config:validate`); *(plan)* skrypty generowania klucza (`generate-key.sh` / `.ps1`). |
 | **`test/`** | Testy e2e Jest. |
 | **`docs/`** | Dokumentacja i specyfikacje SDD (`spec/`). |
 
 ---
 
-## 2a) CLI — izolacja runtime (Faza 0)
+## 2a) CLI — izolacja runtime
 
 CLI to **osobna warstwa** z własnym entry pointem, niezależna od bootstrapu HTTP (`src/main.ts` → `AppModule`):
 
@@ -339,18 +355,23 @@ CLI to **osobna warstwa** z własnym entry pointem, niezależna od bootstrapu HT
 |--------|------|
 | **Bez `ConfigModule`** | `CliModule` nie importuje `ConfigModule.forRoot()` — unika deadlocku (CLI tworzy config, którego runtime wymaga przy starcie). |
 | **Bez wymogu build** | Wrapper w `bin/` uruchamia TypeScript przez `ts-node`, gdy brak `dist/` — CLI dostępne po `npm install`. |
-| **Kierunek zależności** | Dozwolone: `src/config/*` → `src/cli/*` (typy, schematy Zod). Zabronione odwrotnie — CLI nie modyfikuje logiki runtime. |
-| **Ładowanie configu** | `CliConfigLoaderService.loadRawConfig()` — parsowanie YAML + `GatewayConfigSchema`; **bez** rozwiązywania env (`buildEffectiveGatewayConfig`, `assertMasterKeyPresent`). Pełna walidacja runtime — dopiero w komendach wizarda / `config:validate` *(plan)*. |
-| **Konwencja komend** | `gateway <namespace>:<action>` (np. `gateway config:init`); root command (`gateway`) wyświetla welcome i listę planowanych komend. |
+| **Kierunek zależności** | Dozwolone: `src/config/*` → `src/cli/*` (typy, schematy Zod, walidatory). Zabronione odwrotnie — CLI nie modyfikuje logiki runtime. |
+| **Ładowanie configu** | `CliConfigLoaderService.loadRawConfig()` — parsowanie YAML + `GatewayConfigSchema`; **bez** rozwiązywania env. Pełna walidacja runtime — w `config:init` na końcu wizarda oraz w `npm run config:validate`. |
+| **Konwencja komend** | `gateway <namespace>:<action>`; root command wyświetla welcome i pełną listę (wdrożone + planowane). |
+| **Stan wizarda** | `.gateway-wizard-state.json` — resume / rollback po przerwaniu (`WizardStateManager`). |
 
 Uruchomienie:
 
 ```bash
-npm run cli              # lokalnie
-npm link && gateway-cli  # po linku (bin: gateway-cli)
+npm run cli                    # root (welcome)
+npm run cli config:init        # wizard konfiguracji
+npx gateway config:init        # alternatywa (lokalny bin)
+npm link && gateway config:init   # opcjonalnie — test jak po instalacji globalnej
 ```
 
 `tsconfig.build.json` uwzględnia `bin/**/*` — build produkuje `dist/bin/gateway-cli.js` (szybszy start CLI).
+
+Pełna dokumentacja komend: **`CLI.md`**.
 
 ---
 
@@ -358,7 +379,7 @@ npm link && gateway-cli  # po linku (bin: gateway-cli)
 
 **Wdrożone w kodzie** (porównuj z `openapi.json` i `src/`):
 
-- Config z YAML (`gateway.config.yaml` w repo: aliasy `chat-default`, `claude-sonnet`, `gemini-flash`; klienci `webapp`, `ide-plugin`), registry, adaptery Anthropic + Google.
+- **Boilerplate** `gateway.config.yaml` w repo (placeholdery, `enabled: false`); pełna konfiguracja przez wizard **`gateway config:init`**. Registry, adaptery Anthropic + Google.
 - Czat standard + SSE, `params`, retry/fallback/`effectiveModelAlias` (`ResilientExecutor`).
 - Error envelope (`GlobalExceptionFilter`), kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
@@ -366,8 +387,8 @@ npm link && gateway-cli  # po linku (bin: gateway-cli)
 - System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.cache`), graceful shutdown.
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach i DTO, `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
 - **Integracje IDE:** `src/integrations/` — fasady OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`).
-- **CLI (Faza 0 — infrastruktura):** `bin/gateway-cli-wrapper.js`, `src/cli/` (`CliModule`, `GatewayCommand`, `CliConfigLoaderService`, `FileManagerService`, utilities). Root command z listą komend; namespace commands w `commands/` — *(plan, Fazy 1–7)*. Dokumentacja architektury: sekcja 2a powyżej, `architektura.md`.
+- **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — infrastruktura, szablony, wizard **`config:init`** (5 kroków, generowanie plików, walidacja końcowa, resume, wykrywanie boilerplate). Pozostałe komendy namespace — planowane. Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
-**Pozostałość v1:** `src/setup.app.ts` (pusty placeholder), opcjonalnie CORS; dokończenie fasad OpenAI / Anthropic (`readClientGatewayKey`, kontrolery, mappery); **CLI** — wizard, komendy namespace, `docs/CLI.md` *(plan, Faza 8)*.
+**Pozostałość v1:** opcjonalnie CORS (`CORS_ORIGINS` w `.env.example` bez middleware); **CLI** — komendy namespace poza `config:init` (`config:validate`, `model:*`, … — patrz `CLI.md`; walidacja offline już jako `npm run config:validate`).
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

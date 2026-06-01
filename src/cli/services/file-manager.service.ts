@@ -20,8 +20,9 @@ export class FileManagerService {
 
   async backupFile(path: string): Promise<string> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = `${path}.backup-${timestamp}`;
+    const backupPath = `backup/${path}.backup-${timestamp}`;
 
+    await this.ensureDir('backup');
     await fs.copyFile(path, backupPath);
     CliLogger.info(`Backup created: ${backupPath}`);
 

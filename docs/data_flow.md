@@ -2,7 +2,7 @@
 
 Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek danych między klientem, warstwą HTTP (NestJS), logiką aplikacyjną oraz adapterami providerów.
 
-**Konfiguracja:** przy starcie ładowany jest `gateway.config.yaml` (`src/config/configuration.ts`). Env: w **production** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`). Opcjonalnie: zmienne cache/Redis — `docs/konfiguracja.md`.
+**Konfiguracja:** przy starcie ładowany jest `gateway.config.yaml` (`gateway-config.schema.ts` + `configuration.ts`). Repozytorium zawiera boilerplate — przed startem: `gateway config:init`. Env: w **production** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`). Opcjonalnie: zmienne cache/Redis — `docs/konfiguracja.md`.
 
 ## Legenda uczestników
 

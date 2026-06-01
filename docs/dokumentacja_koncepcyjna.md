@@ -24,6 +24,8 @@ Projekt powstaje jako ćwiczenie NestJS, architektury i wzorców projektowych, a
 
 Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontrakt HTTP: **`openapi.json`** oraz `dokumentacja_api.md`.
 
+**Pierwsze uruchomienie:** repozytorium zawiera boilerplate `gateway.config.yaml` — przed startem serwera uruchom `gateway config:init` (szczegóły: `konfiguracja.md`, `CLI.md`).
+
 - **Status projektu:** Rdzeń **MVP** (routing + chat + streaming) domknięty w Fazach 1–2 oraz 4; Faza 0 zamknięta. Trwa **v1** (m.in. Fazy 3 oraz 5–7 według tabeli w planie).
 - **Providery (MVP):** Anthropic API + Google Gemini API
 - **Cel MVP:** Działające **kierowanie zapytań do providerów** (registry / routing), działający **chat** synchroniczny (`POST /api/v1/chat`) oraz działający **streaming** (SSE / `POST /api/v1/chat/stream`).
@@ -34,7 +36,7 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 ### Stan realizacji (skrót)
 
 - **Endpoint czatu standardowego** `POST /api/v1/chat` — zaimplementowany; opcjonalnie **cache odpowiedzi** (`src/cache/`, env — `konfiguracja.md`).
-- **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; envelope `ErrorEnvelope` — **wdrożony**. **Gateway key** + opcjonalny **smart rate limit** — **wdrożony** (`@GatewayKeyAndSmartRateLimit()`; kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** — `dictionary.md`). **Readiness**, **logging/metrics** (Pino, Sentry), **graceful shutdown** — **wdrożone** (Faza 6 w planie). **`params` w body**, **policy `timeoutMs` / `retry` + fallback**, **nagłówek odpowiedzi `x-request-id`** — **wdrożone**. **OpenAPI / Swagger** — dekoratory `@nestjs/swagger`, eksport `npm run openapi:export`, UI `/api/v1/api-docs` — **wdrożone** (kontrakt natywny). **Fasady IDE** (`src/integrations/`) — `IntegrationsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` — **wdrożone** (`integracje.md`). **Walidacja offline konfiguracji:** `npm run config:validate` — **wdrożone** (`konfiguracja.md`). **CLI (Faza 0):** infrastruktura w `bin/` + `src/cli/` — root command, `CliConfigLoaderService`, utilities; komendy namespace i wizard — *(plan)* (`architektura-katalogi-pliki.md`, `architektura.md`).
+- **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; envelope `ErrorEnvelope` — **wdrożony**. **Gateway key** + opcjonalny **smart rate limit** — **wdrożony** (`@GatewayKeyAndSmartRateLimit()`; kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** — `dictionary.md`). **Readiness**, **logging/metrics** (Pino, Sentry), **graceful shutdown** — **wdrożone** (Faza 6 w planie). **`params` w body**, **policy `timeoutMs` / `retry` + fallback**, **nagłówek odpowiedzi `x-request-id`** — **wdrożone**. **OpenAPI / Swagger** — dekoratory `@nestjs/swagger`, eksport `npm run openapi:export`, UI `/api/v1/api-docs` — **wdrożone** (kontrakt natywny). **Fasady IDE** (`src/integrations/`) — `IntegrationsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` — **wdrożone** (`integracje.md`). **Walidacja offline konfiguracji:** `npm run config:validate` — **wdrożone** (`konfiguracja.md`). **CLI:** infrastruktura + wizard **`gateway config:init`** — **wdrożone** (`CLI.md`); pozostałe komendy namespace — w planie.
 - **Fasady integracji** — moduł `src/integrations/` (OpenAI API dla Cursor, Anthropic Messages dla Claude Code); wspólny silnik `ChatService` — patrz `integracje.md`.
 - **Providery** Anthropic i Google Gemini — adaptery i rejestr zaimplementowane.
 - **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie zaimplementowane (**Faza 3** w planie; wg nagłówka planu jest to część **v1**, nie rdzenia MVP). Rozszerzona walidacja grafu `providers` ↔ `models` (fail-fast) — `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` (F-3b, F-3c).
@@ -97,7 +99,7 @@ Wszystkie trzy delegują do **`ChatService`** (jeden silnik: cache, retry, fallb
 - **Cache / Redis** — cache odpowiedzi (`src/cache/`) i smart rate limit (`src/rate-limit/`, wspólny `RedisConnectionService` gdy Redis załadowany) — `konfiguracja.md`. Metryki LLM — `MetricsService` / Sentry (Faza 6 wdrożona).
 - OpenAI jako trzeci provider (wymaga płatnego konta API).
 - Retry/circuit‑breaker i metryki per provider.
-- **CLI developerskie** — Faza 0 wdrożona (entry point, izolacja od `ConfigModule`, loader configu); wizard i komendy zarządzania — w planie (`cli-implementation-plan.md`).
+- **CLI developerskie** — infrastruktura, szablony i wizard `config:init` wdrożone (`CLI.md`); komendy zarządzania (`config:validate`, `model:*`, …) — w planie (walidacja offline: `npm run config:validate`).
 - “Policy packs”: profile ustawień per środowisko (dev/prod) i per alias modelu.
 - Opcjonalnie: SDK klienta, OpenAPI, przykłady integracji.
 

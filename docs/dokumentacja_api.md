@@ -17,14 +17,14 @@ Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.
 | Element | Wartość |
 |---------|---------|
 | Bazowy URL (przykład lokalny) | `http://localhost:3000` |
-| Prefiks API | `/api/v1` (`src/main.ts`: `setGlobalPrefix`) |
+| Prefiks API | `/api/v1` (`API_GLOBAL_PREFIX` w `src/setup.app.ts`) |
 | Kodowanie | UTF‑8 |
 | Standard | `application/json` |
 | Streaming | `text/event-stream` (`POST /api/v1/chat/stream`) |
 
 **Konfiguracja przy starcie:**
 
-- **`gateway.config.yaml`** — wczytanie i walidacja Zod + `buildEffectiveGatewayConfig` (`src/config/configuration.ts`): m.in. spójność `providers` ↔ `models` (niepuste `models`, alias → provider, włączony provider → ≥1 model). Szczegóły: `konfiguracja.md`.
+- **`gateway.config.yaml`** — wczytanie i walidacja Zod (`src/config/gateway-config.schema.ts`) + `buildEffectiveGatewayConfig` (`src/config/configuration.ts`): m.in. spójność `providers` ↔ `models` (niepuste `models`, alias → provider, włączony provider → ≥1 model). Repozytorium zawiera boilerplate — przed startem uruchom `gateway config:init`. Szczegóły: `konfiguracja.md`.
 - **Pliki system promptu** — `MASTER_SYSTEM_PROMPT.md` (wymagany), opcjonalnie `MAIN_SYSTEM_PROMPT.md` oraz `models/<modelAlias>.md` dla aliasów z YAML; treść składana w runtime (`composeSystemPrompt` w `src/chat/helpers/system-prompt.ts`). Szczegóły: `konfiguracja.md`.
 - **Env** — w **`NODE_ENV=production`** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`). Opcjonalnie zmienne **`CACHE_*`** / **`REDIS_*`** — `konfiguracja.md`.
 

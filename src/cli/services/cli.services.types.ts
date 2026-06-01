@@ -1,5 +1,6 @@
 import type { GatewayProviderType } from 'src/config/provider-types';
 import type { GatewayClientType } from 'src/config/configuration.types';
+import type { ServerConfigPromptResult } from './prompts/server-prompt.service';
 import type { WizardStep } from './wizard-state-manager.service';
 
 export interface CliRateLimit {
@@ -40,10 +41,7 @@ export interface WizardState {
     providers?: CliAiProvider[];
     models?: CliAiModel[];
     clients?: GatewayClient[];
-    serverConfig?: {
-      port: number;
-      nodeEnv: string;
-    };
+    serverConfig?: ServerConfigPromptResult;
   };
   files: {
     created: string[];

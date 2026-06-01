@@ -55,7 +55,7 @@ flowchart TB
 
 ## Trzy powierzchnie API
 
-Globalny prefiks aplikacji: **`/api/v1`** (`src/main.ts`).
+Globalny prefiks aplikacji: **`/api/v1`** (`API_GLOBAL_PREFIX` w `src/setup.app.ts`).
 
 | Powierzchnia | Base URL (przykład) | Auth klienta | Główne trasy |
 |--------------|---------------------|--------------|--------------|
@@ -67,7 +67,7 @@ IDE ustawia **Base URL** z segmentem integracji; klient dokleja ścieżki ze spe
 
 **Świadomie brak** wspólnej trasy `GET /api/v1/models` — OpenAI i Anthropic mają różny kształt listy modeli.
 
-Stałe ścieżek (docelowo w `src/integrations/integrations.constants.ts`):
+Stałe ścieżek w `src/integrations/integrations.constants.ts`:
 
 - `OPENAI_INTEGRATION_PATH = 'openai'`
 - `ANTHROPIC_INTEGRATION_PATH = 'anthropic'`
@@ -84,8 +84,8 @@ Pole **`model`** w żądaniu fasady (OpenAI / Anthropic) = **`modelAlias`** z `g
 
 Wszystkie trzy powierzchnie weryfikują **tę samą allowlistę** (`gatewayKey.allowList` z `.env` / `gateway.config.yaml`):
 
-| Powierzchnia | Nagłówek | Guard (docelowo) |
-|--------------|----------|------------------|
+| Powierzchnia | Nagłówek | Guard |
+|--------------|----------|-------|
 | Natywna | `X-Gateway-Key` | `GatewayKeyGuard` |
 | OpenAI | `Authorization: Bearer` | `OpenAiBearerAuthGuard` → `req.gatewayKey` |
 | Anthropic | `x-api-key` (priorytet) lub Bearer | `AnthropicApiKeyGuard` → `req.gatewayKey` |

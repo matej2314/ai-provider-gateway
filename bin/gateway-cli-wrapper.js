@@ -17,10 +17,12 @@ const distEntry = path.join(__dirname, '../dist/bin/gateway-cli.js');
 const tsEntry = path.join(__dirname, 'gateway-cli.ts');
 
 if (fs.existsSync(distEntry)) {
-    console.log('[Gateway CLI] Using compiled version');
+    // console.log('[Gateway CLI] Using compiled version');
     require(distEntry);
 } else {
-    console.log('[Gateway CLI] Running via ts-node (no build required)');
+    // console.log('[Gateway CLI] Running via ts-node (no build required)');
+
+    require('tsconfig-paths/register');
 
     require('ts-node').register({
         project: path.join(__dirname, '../tsconfig.json'),

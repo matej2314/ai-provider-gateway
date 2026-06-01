@@ -2,11 +2,12 @@ import { Injectable } from '@nestjs/common';
 import * as inquirer from 'inquirer';
 import chalk from 'chalk';
 import { CliLogger } from '../../utils/cli-logger.util';
+import { KeyGeneratorService } from '../key-generator.service';
 
 @Injectable()
 export class KeyPromptService {
   async promptMasterKey(
-    keyGenerator: (length: number) => string,
+    keyGenerator: KeyGeneratorService,
   ): Promise<string> {
     CliLogger.section('Step 1/5: Master Key');
     console.log(
@@ -25,7 +26,7 @@ export class KeyPromptService {
     ]);
 
     if (!masterKey || masterKey.trim() === '') {
-      const generated = keyGenerator(32);
+      const generated = keyGenerator.generateMasterKey();
 
       const { showKey } = await inquirer.prompt([
         {

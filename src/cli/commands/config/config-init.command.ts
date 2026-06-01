@@ -8,6 +8,7 @@ import boxen from 'boxen';
 import chalk from 'chalk';
 import { CliConfigLoaderService } from 'src/cli/services/cli-config-loader.service';
 import { FileManagerService } from 'src/cli/services/file-manager.service';
+import { validateGatewayConfig } from 'src/config/config-validator';
 
 @Command({
   name: 'config:init',
@@ -101,9 +102,6 @@ export class ConfigInitCommand extends CommandRunner {
   }
 
   private async validateAndFixConfig(): Promise<void> {
-    const { validateGatewayConfig } =
-      await import('../../../config/config-validator.js');
-
     CliLogger.blank();
     CliLogger.section('Final configuration validation');
 

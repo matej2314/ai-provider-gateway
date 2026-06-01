@@ -12,9 +12,10 @@ Użytkownik ma móc skonfigurować gateway bez zmian w kodzie:
 
 ### Scenariusz A — minimalna konfiguracja
 
-1. Użytkownik ustawia **co najmniej jeden** klucz providera w `.env`: `ANTHROPIC_API_KEY` **lub** `GOOGLE_API_KEY` (w środowisku **production** gateway odrzuca start bez żadnego niepustego klucza po `trim()`; w development ta reguła nie jest egzekwowana — patrz `src/config/env.validation.ts`).
-2. W configu dodaje `providerInstance=anthropic` (lub `google`) z `enabled: true` i `modelAlias=chat-default`.
-3. Uruchamia serwis i wywołuje `/chat`.
+1. Użytkownik uruchamia **`gateway config:init`** (zalecane po sklonowaniu — zastępuje boilerplate w repo) **lub** ręcznie ustawia env i YAML.
+2. Ustawia **co najmniej jeden** klucz providera w `.env`: `ANTHROPIC_API_KEY` **lub** `GOOGLE_API_KEY` (w środowisku **production** gateway odrzuca start bez żadnego niepustego klucza po `trim()`; w development ta reguła nie jest egzekwowana — patrz `src/config/env.validation.ts`).
+3. W configu dodaje `providerInstance=anthropic` (lub `google`) z `enabled: true` i `modelAlias=chat-default`.
+4. Uruchamia serwis i wywołuje `/chat`.
 
 ### Scenariusz B — konfiguracja dwóch providerów + streaming
 
@@ -38,11 +39,11 @@ F-2. Plik konfiguracyjny modeli musi wspierać:
 - capabilities (co najmniej `streaming`),
 - opcjonalny **`fallback`** (alias zapasowy — walidacja bez pętli przy starcie).
 
-F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast). Plik `gateway.config.yaml` jest wczytywany i walidowany schematem Zod w `src/config/configuration.ts`.
+F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast). Plik `gateway.config.yaml` jest wczytywany i walidowany schematem Zod w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji — `src/config/configuration.ts`. Walidacja offline: `validateGatewayConfig()` w `src/config/config-validator.ts` (używana przez `npm run config:validate` i wizard `config:init`).
 
-F-3a. W sekcji `providers` w `gateway.config.yaml` każdy `type` (`anthropic`, `google`, …) może wystąpić **co najwyżej raz**. Duplikacja typu (np. dwie instancje `type: anthropic`) jest odrzucana przez walidację schematu (`GatewayConfigSchema.providers.superRefine`) z komunikatem wskazującym zduplikowany typ oraz nazwy zderzających się instancji. Różnice między środowiskami (dev/staging/prod) wyraża się **wartością** zmiennej wskazanej przez `apiKeyRef`, a nie wielokrotnym deklarowaniem instancji tego samego typu.
+F-3a. W sekcji `providers` w `gateway.config.yaml` każdy `type` (`anthropic`, `google`, …) może wystąpić **co najwyżej raz**. Duplikacja typu (np. dwie instancje `type: anthropic`) jest odrzucana przez walidację schematu (`GatewayConfigSchema.providers.superRefine` w `src/config/gateway-config.schema.ts`) z komunikatem wskazującym zduplikowany typ oraz nazwy zderzających się instancji. Różnice między środowiskami (dev/staging/prod) wyraża się **wartością** zmiennej wskazanej przez `apiKeyRef`, a nie wielokrotnym deklarowaniem instancji tego samego typu.
 
-F-3b. Sekcja `models` **nie może być pusta**. Każdy alias musi wskazywać `providerInstance` istniejący w `providers`. Implementacja: `GatewayConfigSchema.superRefine` w `src/config/configuration.ts`.
+F-3b. Sekcja `models` **nie może być pusta**. Każdy alias musi wskazywać `providerInstance` istniejący w `providers`. Implementacja: `GatewayConfigSchema.superRefine` w `src/config/gateway-config.schema.ts`.
 
 F-3c. Dla każdej instancji providera z **`enabled !== false`** w `providers` musi istnieć **co najmniej jeden** wpis w `models` z tym samym `providerInstance`. Instancje z `enabled: false` nie podlegają tej regule. Po filtrze `enabled` reguła jest powtórzona w `buildEffectiveGatewayConfig` dla **aktywnych** providerów i **aktywnych** modeli (modele powiązane z wyłączonym providerem są pomijane).
 

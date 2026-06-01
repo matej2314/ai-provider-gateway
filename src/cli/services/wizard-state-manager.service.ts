@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { CliLogger } from '../utils/cli-logger.util';
 import type { WizardState } from './cli.services.types';
 
@@ -42,6 +42,11 @@ export class WizardStateManager {
     } catch {}
   }
 
+  private resolveOriginalPathFromBackup(backupPath: string): string {
+    const backupFilename = basename(backupPath);
+    return backupFilename.replace(/\.backup-.+$/, '');
+  }
+
   async rollback(state: WizardState): Promise<void> {
     CliLogger.warning('Rolling back wizard changes...');
     CliLogger.blank();
@@ -53,7 +58,7 @@ export class WizardStateManager {
       } catch {}
     }
     for (const backupPath of state.files.backedUp) {
-      const originalPath = backupPath.replace(/\.backup-[^.]+$/, '');
+      const originalPath = this.resolveOriginalPathFromBackup(backupPath);
       try {
         await fs.copyFile(backupPath, originalPath);
         await fs.unlink(backupPath);

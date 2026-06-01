@@ -6,8 +6,19 @@ const chars =
 
 @Injectable()
 export class KeyGeneratorService {
-  generateKey(length: number = 32): string {
-    const bytes = randomBytes(length);
-    return Array.from(bytes, (byte) => chars[byte & chars.length]).join('');
+  private randomSegment(byteLength: number): string {
+    return randomBytes(byteLength).toString('base64url');
+  }
+
+  generateMasterKey(): string {
+    return `gw_mk_${this.randomSegment(24)}`;
+  }
+
+  generateGatewayClientKey(clientId: string): string {
+    const slug = clientId
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_');
+    return `gw_${slug}_${this.randomSegment(24)}`;
   }
 }

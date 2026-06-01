@@ -55,7 +55,7 @@ flowchart TB
 | **Rate limit** (`src/rate-limit`) | Jedyna warstwa limitów gateway: smart limiting per `X-Gateway-Key` (Redis) — token bucket (RPS/burst), równoległe streamy, cooldown po 429 od providera (`SmartRateLimitGuard`, `SmartRateLimiterService`). Limity: opcjonalnie `clients[].rateLimit` w YAML, inaczej env; przełącznik `RATE_LIMIT_SMART_ENABLED`. Bez `@nestjs/throttler`. |
 | **Logging / Metrics** | Structured logging (Pino), opcjonalnie Sentry (błędy + spany LLM). |
 | **Swagger / OpenAPI** (`src/swagger`) | Dokumentacja HTTP generowana z dekoratorów `@nestjs/swagger` na kontrolerach i DTO. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport statyczny: `npm run openapi:export` → `openapi.json`. |
-| **CLI** (`src/cli`, `bin/`) | Narzędzie wiersza poleceń dla konfiguracji i operacji developerskich. **Osobny entry point** (`bin/gateway-cli-wrapper.js` → `CommandFactory.run(CliModule)`), **bez** importu `ConfigModule`. Reużywa schematy Zod z `src/config/`, ale ładuje YAML bez rozwiązywania env (`CliConfigLoaderService`). Faza 0: root command + utilities; komendy `gateway <namespace>:<action>` — w kolejnych fazach. Szczegóły struktury: `architektura-katalogi-pliki.md` (sekcja 2a). |
+| **CLI** (`src/cli`, `bin/`) | Narzędzie wiersza poleceń dla konfiguracji i operacji developerskich. **Osobny entry point** (`bin/gateway-cli-wrapper.js` → `CommandFactory.run(CliModule)`), **bez** importu `ConfigModule`. Reużywa schematy Zod z `src/config/`, ale ładuje YAML bez rozwiązywania env (`CliConfigLoaderService`). **Wdrożone:** root command, wizard `config:init` (5 kroków, generowanie plików, walidacja końcowa, resume). **Planowane:** pozostałe komendy `gateway <namespace>:<action>`. Szczegóły: `CLI.md`, `architektura-katalogi-pliki.md` (sekcja 2a). |
 
 ## CLI — izolacja od runtime HTTP
 
@@ -76,7 +76,7 @@ flowchart LR
   end
 
   configFiles[gateway.config.yaml + .env]
-  schemas[src/config — GatewayConfigSchema]
+  schemas[src/config — gateway-config.schema.ts]
 
   wrapper --> cliMod
   cliMod --> loader
@@ -89,18 +89,18 @@ flowchart LR
   cfg -->|buildEffectiveGatewayConfig + env| configFiles
 ```
 
-Zasady (Faza 0):
+Zasady:
 
 - **CLI nie może wymagać `ConfigModule`** — tworzy pliki, których runtime potrzebuje przy starcie (deadlock).
 - **CLI nie wymaga build** — wrapper używa `ts-node`, gdy brak `dist/bin/gateway-cli.js`.
 - **Dozwolone importy:** typy, schematy, `validateGatewayConfig()` z `src/config/`; **zabronione:** modyfikacja logiki runtime przez warstwę CLI.
-- **Walidacja:** wizard może generować niedokończony config; pełna walidacja (identyczna jak przy starcie aplikacji) — na końcu flow CLI *(plan, Faza 2)*.
+- **Walidacja:** wizard może generować niedokończony config; pełna walidacja (identyczna jak przy starcie aplikacji) — na końcu `config:init` (`validateGatewayConfig()` + interaktywna pętla retry).
 
-Uruchomienie: `npm run cli` lub bin `gateway-cli` z `package.json`.
+Uruchomienie: `npm run cli`, `npx gateway`, opcjonalnie `npm link` → bin **`gateway`** z `package.json`.
 
 ## Warstwy wewnątrz modułów (konwencja NestJS)
 
-1. **Controller** — mapowanie HTTP, statusy, nagłówki; brak logiki biznesowej i brak bezpośrednich wywołań SDK providerów. Kontrolery fasad (`src/integrations/*/controllers/`) delegują wyłącznie do mapperów + `ChatService`. Limit rozmiaru body JSON: **`1mb`** (`express.json` w `src/main.ts`).
+1. **Controller** — mapowanie HTTP, statusy, nagłówki; brak logiki biznesowej i brak bezpośrednich wywołań SDK providerów. Kontrolery fasad (`src/integrations/*/controllers/`) delegują wyłącznie do mapperów + `ChatService`. Limit rozmiaru body JSON: **`1mb`** (`express.json` w `src/setup.app.ts`); globalny prefiks **`/api/v1`** — `API_GLOBAL_PREFIX` w tym samym pliku.
 2. **Service (use case)** — **`ChatService`**: orkiestracja (cache, rate limit, `ResilientExecutor`, envelope odpowiedzi). **`ChatProviderCallService`**: pojedyncze wywołanie providera (`completeOnce` / `streamOnce`), `resolveProviderCallOptions`, metryki.
 3. **Adapters (providers)** — tłumaczenie kontraktu gateway ↔ kontrakt SDK providera; obsługa błędów specyficznych dla SDK.
 4. **DTO + walidacja** — walidacja wejścia i konfiguracji jako brzeg systemu.
@@ -128,7 +128,7 @@ Szerszy kontekst warstw promptu: `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` 
 - Przy starcie w **`NODE_ENV=production`** walidowane jest, że ustawiony jest **co najmniej jeden** klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`env.validation.ts`).
 - Pliki konfiguracyjne opisują **modele, aliasy, limity i polityki** (bez wartości sekretów).
 - Gateway uruchamia się w trybie “plug&play”: jeśli konfiguracja jest błędna → proces kończy się na starcie z czytelną informacją.
-- **Ograniczenie konstrukcyjne — jedna instancja per typ providera.** W `gateway.config.yaml` w sekcji `providers` każdy `type` (`anthropic`, `google`, …) może wystąpić **co najwyżej raz**. Reguła egzekwowana fail-fast przy starcie przez `GatewayConfigSchema.providers.superRefine` w `src/config/configuration.ts`. Różnice między środowiskami (dev/staging/prod) wyrażamy **wartością** zmiennej środowiskowej wskazanej przez `apiKeyRef`, a nie przez deklarowanie wielu instancji tego samego typu w YAML.
+- **Ograniczenie konstrukcyjne — jedna instancja per typ providera.** W `gateway.config.yaml` w sekcji `providers` każdy `type` (`anthropic`, `google`, …) może wystąpić **co najwyżej raz**. Reguła egzekwowana fail-fast przy starcie przez `GatewayConfigSchema.providers.superRefine` w `src/config/gateway-config.schema.ts`. Różnice między środowiskami (dev/staging/prod) wyrażamy **wartością** zmiennej środowiskowej wskazanej przez `apiKeyRef`, a nie przez deklarowanie wielu instancji tego samego typu w YAML.
 - **Spójność `providers` ↔ `models`.** Przy starcie wymuszany jest dwukierunkowy graf konfiguracji: niepuste `models`, każdy alias → istniejący `providerInstance`, każdy **włączony** provider → co najmniej jeden alias (Zod + `buildEffectiveGatewayConfig`). Szczegóły i wyjątki (`enabled: false`): `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` (F-3b, F-3c).
 
 Szczegóły: `konfiguracja.md`.

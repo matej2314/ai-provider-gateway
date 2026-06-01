@@ -8,13 +8,13 @@ Wersja dokumentu: **1.0**.
 | Element | Wartość |
 |--------|---------|
 | **Baza (przykład)** | `http://localhost:3000` |
-| **Prefiks ścieżek** | `/api/v1` (`src/main.ts`: `setGlobalPrefix('api/v1')`) |
+| **Prefiks ścieżek** | `/api/v1` (`API_GLOBAL_PREFIX` w `src/setup.app.ts`) |
 | **Format** | JSON (`application/json`) dla standard; SSE (`text/event-stream`) dla **`POST /api/v1/chat/stream`** |
 | **Błędy (JSON)** | Envelope `ErrorEnvelope` (`{statusCode, code, message, requestId, details?}`) — schema w `openapi.json`, implementacja w `src/common/filters/http-exception.filter.ts` |
 | **`x-request-id`** | Nagłówek odpowiedzi (wszystkie trasy z `RequestIdMiddleware`, w tym health) — echo nagłówka żądania lub `req_<uuid>` |
 
 **Uruchomienie serwisu:** w **`NODE_ENV=production`** walidacja env wymaga **co najmniej jednego** niepustego klucza (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W development ten warunek **nie** jest egzekwowany (`src/config/env.validation.ts`).  
-Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + reguły efektywnej konfiguracji w `src/config/configuration.ts` — m.in. puste `models`, nieznany `providerInstance`, włączony provider bez modeli); brak pliku lub błąd walidacji kończy start aplikacji (`konfiguracja.md`).
+Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod w `src/config/gateway-config.schema.ts` + reguły efektywnej konfiguracji w `src/config/configuration.ts` — m.in. puste `models`, nieznany `providerInstance`, włączony provider bez modeli); brak pliku lub błąd walidacji kończy start aplikacji. Po sklonowaniu repo uruchom `gateway config:init` (boilerplate → pełna konfiguracja) — `konfiguracja.md`.
 
 ---
 

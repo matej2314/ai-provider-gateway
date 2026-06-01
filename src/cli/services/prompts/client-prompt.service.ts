@@ -4,13 +4,14 @@ import chalk from 'chalk';
 import { CliLogger } from '../../utils/cli-logger.util';
 import { GATEWAY_CLIENT_TYPES } from 'src/config/configuration.types';
 import type { GatewayClient } from '../cli.services.types';
+import { KeyGeneratorService } from '../key-generator.service';
 
 export type ClientPromptResult = GatewayClient;
 
 @Injectable()
 export class ClientPromptService {
   async promptClients(
-    keyGenerator: (length: number) => string,
+    keyGenerator: KeyGeneratorService,
   ): Promise<ClientPromptResult[]> {
     CliLogger.section('Step 4/5: Clients');
     console.log(
@@ -122,7 +123,7 @@ export class ClientPromptService {
         };
       }
 
-      const gatewayKey = keyGenerator(32);
+      const gatewayKey = keyGenerator.generateGatewayClientKey(clientAnswers.id.trim());
       console.log(chalk.green(`\n✓ Generated gateway key\n`));
 
       clients.push({

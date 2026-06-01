@@ -157,4 +157,10 @@ Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthr
 - reużycie **tylko** typów/schematów/walidatorów z `src/config/` (kierunek: config → cli, nie odwrotnie),
 - wrapper z fallbackiem `ts-node`, gdy brak `dist/`.
 
-Szczegóły: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
+Szczegóły: `CLI.md`, `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
+
+## 15) Start serwera na boilerplate `gateway.config.yaml`
+
+**Nie rób**: oczekiwania, że `npm run start:dev` zadziała od razu po sklonowaniu repozytorium — domyślny plik ma placeholdery i wyłączone providery.
+
+**Rób**: uruchom `gateway config:init` (lub ręcznie uzupełnij YAML + `.env` zgodnie z `konfiguracja.md`); zweryfikuj przez `npm run config:validate`.

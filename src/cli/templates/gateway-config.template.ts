@@ -1,6 +1,7 @@
 import { GatewayProviderType } from 'src/config/provider-types';
 import { GatewayClientType } from 'src/config/configuration.types';
 import { GatewayConfig } from 'src/config/gateway-config.schema';
+import { EnvTemplateInput } from './env.template';
 
 export interface ConfigTemplateInput {
   masterKeyRef: string;
@@ -25,6 +26,7 @@ export interface ConfigTemplateInput {
     providerInstance: string;
     modelId: string;
   }>;
+  envInput: EnvTemplateInput;
 }
 
 export function generateGatewayConfigTemplate(
