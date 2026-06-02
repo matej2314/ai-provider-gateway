@@ -13,6 +13,7 @@ import { ProviderPromptService } from './services/prompts/provider-prompt.servic
 import { ModelPromptService } from './services/prompts/model-prompt.service';
 import { ClientPromptService } from './services/prompts/client-prompt.service';
 import { ServerPromptService } from './services/prompts/server-prompt.service';
+import { ConfigValidateCommand } from './commands/config/config-validate.command';
 
 @Module({
   providers: [
@@ -29,6 +30,7 @@ import { ServerPromptService } from './services/prompts/server-prompt.service';
     ServerPromptService,
     WizardOrchestratorService,
     ConfigInitCommand,
+    ConfigValidateCommand,
   ],
   exports: [GatewayCommand],
 })
