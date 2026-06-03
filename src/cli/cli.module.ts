@@ -15,6 +15,9 @@ import { ClientPromptService } from './services/prompts/client-prompt.service';
 import { ServerPromptService } from './services/prompts/server-prompt.service';
 import { ConfigValidateCommand } from './commands/config/config-validate.command';
 import { ConfigShowCommand } from './commands/config/config-show.command';
+import { ProviderListCommand } from './commands/provider/provider-list.command';
+import { ProviderTestCommand } from './commands/provider/provider-test.command';
+import { ProviderTestService } from './services/provider-test.service';
 
 @Module({
   providers: [
@@ -33,6 +36,9 @@ import { ConfigShowCommand } from './commands/config/config-show.command';
     ConfigInitCommand,
     ConfigValidateCommand,
     ConfigShowCommand,
+    ProviderListCommand,
+    ProviderTestCommand,
+    ProviderTestService,
   ],
   exports: [GatewayCommand],
 })
