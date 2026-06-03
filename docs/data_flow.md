@@ -13,8 +13,8 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **ChatService** | Cache, smart rate limit (cooldown), `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
 | **ChatProviderCallService** | Pojedyncze wywołanie adaptera: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `MetricsService.observeLlmCall` / `observeLlmStream`, emisja SSE `meta`/`delta`. |
 | **ResilientExecutor** | Retry na aliasie żądanym (`policy.retry`, `policy.timeoutMs`), potem opcjonalnie alias `fallback` z YAML. |
-| **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na adapter + `modelId`. |
-| **Provider** | Adapter Anthropic / Google. |
+| **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na **`providerInstance`** → `AIProvider` + `modelId`. |
+| **Provider** | Instancja `AIProvider` (fabryka + klucz API per wpis w YAML). |
 | **LLM API** | Zewnętrzny serwis providera. |
 | **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha: `modelAlias`, `messages`, sygnatura system promptu, efektywne parametry wywołania); brak wpływu na streaming. |
 | **Metrics** | `MetricsService` + Sentry/noop — span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId`; `messages[]` → atrybuty input/output przy `SENTRY_INCLUDE_PROMPTS` (`conversation-tracking.md`). |
@@ -69,7 +69,7 @@ sequenceDiagram
   H->>+S: executeChat
   S->>S: conversationId response (echo/conv_*)
   S->>+R: resolve(modelAlias)
-  R-->>-S: adapter + policy.params
+  R-->>-S: AIProvider + policy.params
   S->>S: resolveProviderCallOptions(policy, body.params)
   S->>C: getCachedResponse (z efektywnymi params)
   alt trafienie w cache (provider włączony w YAML)
@@ -142,7 +142,7 @@ sequenceDiagram
   H->>+S: executeStream
   S->>S: conversationId response
   S->>+R: resolve
-  R-->>-S: adapter + capabilities
+  R-->>-S: AIProvider + capabilities
   S->>S: ResilientExecutor (retry / fallback / timeout)
   S->>+PC: streamOnce (emit przez callback)
   PC->>PC: buildProviderInputForAlias

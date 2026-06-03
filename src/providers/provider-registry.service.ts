@@ -18,6 +18,12 @@ import { UnsupportedProviderException } from '../common/exceptions/unsupported-p
 import { LoggingService } from '../logging/logging.service';
 import { RETRY_POLICY_DEFAULTS } from 'src/common/retry-policy-defaults';
 
+export interface RegisteredProviderInstance {
+  instanceId: string;
+  type: string;
+  provider: AIProvider;
+}
+
 export interface ResolvedProviderConfig {
   provider: AIProvider;
   providerName: string;
@@ -37,7 +43,7 @@ export interface ResolvedProviderConfig {
 
 @Injectable()
 export class ProviderRegistryService implements OnApplicationBootstrap {
-  private providers = new Map<string, { provider: AIProvider; name: string }>();
+  private instances = new Map<string, RegisteredProviderInstance>();
   private readonly logger: LoggingService;
 
   constructor(
@@ -47,10 +53,15 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
     this.logger = loggingService.child({ module: 'ProviderRegistryService' });
   }
 
-  register(providerName: string, provider: AIProvider) {
-    this.providers.set(providerName, { provider, name: providerName });
-    this.logger.debug('Registered provider:', {
-      provider: providerName,
+  registerInstance(
+    instanceId: string,
+    type: string,
+    provider: AIProvider,
+  ): void {
+    this.instances.set(instanceId, { instanceId, type, provider });
+    this.logger.debug('Registered provider instance:', {
+      instanceId,
+      type,
       adapter: provider.constructor.name,
     });
   }
@@ -93,35 +104,45 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
   private resolveProviderEntry(
     gatewayConfig: GatewayConfig,
     modelConfig: GatewayModelConfig,
-  ) {
-    const providerInstanceConfig =
-      gatewayConfig.providers[modelConfig.providerInstance];
+  ): RegisteredProviderInstance {
+    const instanceId = modelConfig.providerInstance;
+    const providerInstanceConfig = gatewayConfig.providers[instanceId];
 
     if (!providerInstanceConfig) {
       this.logger.warn('Provider instance not found in config:', {
-        providerInstance: modelConfig.providerInstance,
+        providerInstance: instanceId,
       });
       throw new HttpException(
         {
           code: ApiErrorCode.VALIDATION_FAILED,
-          message: `Provider instance ${modelConfig.providerInstance} not found`,
+          message: `Provider instance ${instanceId} not found`,
           details: [],
         },
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    const providerType = providerInstanceConfig.type;
-
-    const entry = this.providers.get(providerType);
+    const entry = this.instances.get(instanceId);
 
     if (!entry) {
-      this.logger.warn('Provider not registered:', { provider: providerType });
+      this.logger.warn('Provider instance not registered:', {
+        instanceId,
+        type: providerInstanceConfig.type,
+      });
       throw new UnsupportedProviderException(
-        `Provider ${providerType} not registered.`,
+        `Provider instance ${instanceId} not registered (type: ${providerInstanceConfig.type})`,
       );
     }
 
+    if (entry.type !== providerInstanceConfig.type) {
+      this.logger.error('Provider instance type mismatch:', {
+        message: `Provider instance ${instanceId} type mismatch: config=${providerInstanceConfig.type} vs registry=${entry.type}`,
+        name: 'ProviderInstanceTypeMismatch',
+      });
+      throw new InternalServerErrorException(
+        `Provider instance "${instanceId}" type mismatch: config=${providerInstanceConfig.type}, registry=${entry.type}`,
+      );
+    }
     return entry;
   }
 
@@ -163,7 +184,7 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
 
     return {
       provider: providerEntry.provider,
-      providerName: providerEntry.name,
+      providerName: providerEntry.instanceId,
       modelId: modelConfig.modelId,
       modelAlias,
       fallbackAlias,
@@ -174,7 +195,7 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
   }
 
   list(): string[] {
-    return Array.from(this.providers.keys());
+    return Array.from(this.instances.keys());
   }
 
   onApplicationBootstrap() {

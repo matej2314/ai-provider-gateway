@@ -1,6 +1,6 @@
 # Fasady integracji (IDE) — AI Provider Gateway
 
-Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzędzi, które oczekują natywnego API vendora (OpenAI lub Anthropic), bez zmiany rdzenia gatewaya (`POST /api/v1/chat`, adaptery w `src/providers/`).
+Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzędzi, które oczekują natywnego API vendora (OpenAI lub Anthropic), bez zmiany rdzenia gatewaya (`POST /api/v1/chat`, warstwa providerów w `src/providers/`).
 
 ## Filozofia
 
@@ -8,7 +8,7 @@ Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzę
 |--------|------|
 | **Trzy kontrakty, jeden silnik** | Kontrolery i mappery tłumaczą HTTP; **`ChatService`** pozostaje jedynym orchestratorem (cache, retry, fallback, limity). |
 | **Anti-corruption layer** | Podmoduły `openai/` i `anthropic/` są izolowane — zmiana formatu OpenAI nie wpływa na Messages API. |
-| **Bez zmiany natywnego API** | `ChatController` / `ChatStreamController` i adaptery providerów pozostają punktem odniesienia dla aplikacji pisanych pod kontrakt gateway. |
+| **Bez zmiany natywnego API** | `ChatController` / `ChatStreamController` i warstwa providerów pozostają punktem odniesienia dla aplikacji pisanych pod kontrakt gateway. |
 | **Separacja kluczy** | Klucze **klientów** (IDE → gateway) ≠ klucze **providerów** (gateway → LLM w `.env`). |
 
 ## Stan wdrożenia
@@ -42,7 +42,7 @@ flowchart TB
 
   subgraph core [Rdzeń gateway]
     chat[ChatService + ChatProviderCallService]
-    providers[Providers Module — adaptery SDK]
+    providers[Providers Module — fabryki + rejestr instancji]
   end
 
   native -->|X-Gateway-Key POST /chat| chat

@@ -76,7 +76,7 @@ Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; *
 
 ## Modele i wybór providera
 
-Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRegistryService.resolve()`; adaptery: typy `anthropic`, `google` (`ProvidersModule`).
+Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRegistryService.resolve()` — lookup po **`models[].providerInstance`**, nie po `type`. Runtime: fabryki `anthropic` / `google` tworzone w `ProviderInstancesBootstrap` (`ProvidersModule`).
 
 **Odporność:** `policy.timeoutMs` i `policy.retry` z YAML są egzekwowane przez **`ResilientExecutor`** (`src/common/resilience/resilient-executor.ts`) w `ChatService.executeChat` i `executeStream` — retry na statusach z `onStatus`, timeout → **504** (`PROVIDER_TIMEOUT`). Opcjonalny **`models[].fallback`** w YAML: po wyczerpaniu prób na aliasie żądanym gateway próbuje alias fallback; przy sukcesie odpowiedź zawiera opcjonalne **`effectiveModelAlias`** (pole **`model`** = żądany `modelAlias`). Szczegóły: `konfiguracja.md`, `openapi.json`.
 
@@ -92,7 +92,7 @@ Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`): zagnieżdżony obi
 
 ### Response (`200`)
 
-`ChatService.executeChat`: `id`, `provider`, `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`** (gdy zadziałał fallback z YAML), `output`, `usage` (opcjonalnie, zależnie od adaptera), `requestId`, **`conversationId`** (echo z body lub `conv_<uuid>` wygenerowane przez gateway — `conversation-tracking.md`).
+`ChatService.executeChat`: `id`, **`provider`** (identyfikator **`providerInstance`** z YAML, np. `google-office`), `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`** (gdy zadziałał fallback z YAML), `output`, `usage` (opcjonalnie, zależnie od SDK), `requestId`, **`conversationId`** (echo z body lub `conv_<uuid>` wygenerowane przez gateway — `conversation-tracking.md`).
 
 **Cache (opcjonalny):** gdy backend cache jest dostępny (`ResponseCacheService` + `CACHE_ENABLED` / `CACHE_BACKEND` — `konfiguracja.md`), przed wywołaniem providera wykonywany jest lookup; przy trafieniu (oraz gdy alias i provider są **włączone** w YAML — `isCachedChatAllowedForModelAlias` w `src/chat/helpers/cache-policy.ts`) zwracany jest zapisany JSON z **`cached: true`** oraz **`cachedAt`** (timestamp ISO). W przeciwnym razie po udanym wywołaniu (`ChatProviderCallService.completeOnce` w ramach `ResilientExecutor`) odpowiedź jest zapisywana pod kluczem zależnym m.in. od `modelAlias`, treści `messages`, sygnatury warstw system promptu (SHA-256) oraz **efektywnych** parametrów wywołania. **Streaming nie jest cache’owany.**
 

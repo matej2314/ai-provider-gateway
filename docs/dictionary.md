@@ -9,11 +9,12 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Gateway / Proxy** | Warstwa pośrednia unifikująca integrację z LLM providerami. | Nie jest “open proxy” do dowolnych URL. |
 | **Fasada integracji** | Warstwa HTTP w `src/integrations/` mapująca kontrakt vendora (OpenAI / Anthropic Messages) na wewnętrzny `ChatRequestDto` i `ChatService`. | Osobne ścieżki `/api/v1/openai/…`, `/api/v1/anthropic/…`; nie zastępuje natywnego `/chat`. |
 | **Klucz klienta** | Sekret z allowlisty gateway (`GATEWAY_KEY_*` / YAML) używany przez aplikację lub IDE. | `X-Gateway-Key`, Bearer (OpenAI fasada) lub `x-api-key` (Anthropic fasada) — ta sama lista, różne nagłówki. |
-| **Klucz providera** | Sekret w `.env` do wywołań SDK (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`). | Adaptery w `src/providers/`; nigdy klucz klienta. |
+| **Klucz providera** | Sekret w `.env` do wywołań SDK; w YAML wskazany przez **`apiKeyRef` per `providerInstance`** (np. `GOOGLE_API_KEY`, `GOOGLE_OFFICE_API_KEY`). | Fabryki w `src/providers/factories/`; bootstrap w `ProviderInstancesBootstrap`; nigdy klucz klienta. |
+| **Provider type** | Wartość z `PROVIDER_TYPES` — wybór fabryki SDK w kodzie (`anthropic`, `google`, …). | W YAML: pole `type` wpisu w `providers:`. |
+| **Provider instance** (`providerInstance`) | Unikalny klucz wpisu w `providers:` w YAML; własny `apiKeyRef`, `enabled`, powiązane modele. | Runtime: klucz w `ProviderRegistryService`; pole `provider` w odpowiedzi HTTP = `instanceId`. |
+| **Provider** | Konkretna instancja runtime (`AIProvider`) powiązana z jednym kluczem API. | Implementacja przez fabrykę + port `AIProvider`. |
+| **Adapter / fabryka providera** | Funkcja tworząca `AIProvider` dla jednego klucza API (np. `createGoogleProvider`). | Ukrywa SDK; bez `@Injectable` / `ConfigService`. |
 | **Integration root** | Segment Base URL w IDE: `.../api/v1/openai` lub `.../api/v1/anthropic`. | Klient dokleja `/models`, `/chat/completions`, `/messages`. |
-| **Provider** | Konkretny dostawca LLM (Anthropic, Google Gemini, ewentualnie OpenAI). | Implementowany jako adapter. |
-| **Adapter** | Implementacja kontraktu gateway dla danego providera. | Ukrywa SDK i szczegóły request/response. |
-| **Model ID** | Vendorowa nazwa modelu (np. `gpt-*`, `claude-*`). | Trafia do requestów providera. |
 | **Model alias** | Zwyczajowa / czytelna nazwa modelu używana w gateway (np. `chat-default`, `claude-sonnet`, `gemini-flash`). | Mapowana do `providerInstance` + vendorowy `modelId` + `policy` w `gateway.config.yaml`. |
 | **Fallback alias** | Opcjonalny alias zapasowy (`models[].fallback` w YAML). | Używany przez `ResilientExecutor` po wyczerpaniu retry na aliasie żądanym. |
 | **Effective model alias** (`effectiveModelAlias`) | Alias faktycznie użyty do wywołania providera. | Obecny w odpowiedzi JSON / SSE `meta` tylko gdy żądany alias różni się od użytego (sukces na fallbacku). Pole `model` = żądany `modelAlias`. |
@@ -39,7 +40,7 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | `VALIDATION_FAILED` | Body requestu lub parametry nie przeszły walidacji. |
 | `MODEL_ALIAS_NOT_FOUND` | Podany `modelAlias` nie istnieje w konfiguracji gateway. |
 | `MODEL_NOT_ALLOWED` | Model, tryb (np. streaming) lub pole w `params` (np. `temperature`) nie jest dozwolone przez policy (`allowOverrides`). |
-| `PROVIDER_UNSUPPORTED` | Provider wskazany w konfiguracji nie ma adaptera w kodzie. |
+| `PROVIDER_UNSUPPORTED` | `providerInstance` z configu nie jest zarejestrowany w runtime (brak fabryki dla `type` lub instancja nie przeszła bootstrapu). |
 | `PROVIDER_AUTH_FAILED` | Błąd uwierzytelnienia do providera (np. zły klucz). |
 | `PROVIDER_RATE_LIMITED` | Provider zwrócił limit (429) — mapowanie SDK w `provider-error.mapper.ts`. |
 | `RATE_LIMITED` | Limit nałożony przez gateway: smart rate limit per `X-Gateway-Key` (`SmartRateLimitGuard`, `ChatService` cooldown po 429 od providera). HTTP **429**. |

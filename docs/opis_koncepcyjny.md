@@ -41,7 +41,7 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 
 ### 2. Abstrakcja providerów AI
 
-- Każdy provider (np. Anthropic, Google Gemini, lokalne modele) jest zaimplementowany jako osobna instancja adaptera.
+- Każda **instancja** providera w YAML (`providerInstance`) to osobny obiekt `AIProvider` z własnym kluczem API; ten sam **`type`** (np. `google`) może wystąpić wielokrotnie z różnymi `apiKeyRef`.
 - Logika biznesowa nie zna szczegółów implementacyjnych zewnętrznych API.
 
 ### 3. Konfigurowalność
@@ -56,7 +56,7 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 - Wyraźny podział na:
   - warstwę API (controllers),
   - warstwę aplikacyjną (services / use cases),
-  - warstwę integracyjną (providers / adapters).
+  - warstwę integracyjną (providers — fabryki, bootstrap, rejestr).
 - Każdy moduł ma jasno określoną odpowiedzialność.
 
 ### 5. Testowalność

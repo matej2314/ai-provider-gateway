@@ -30,7 +30,7 @@ Cursor dokleja standardowe ścieżki OpenAI do Base URL:
 Authorization: Bearer <GATEWAY_KEY_*>
 ```
 
-Gateway weryfikuje token w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` w natywnym API). Token **nie** jest przekazywany do Anthropic ani Google — adaptery używają `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` z `.env`.
+Gateway weryfikuje token w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` w natywnym API). Token **nie** jest przekazywany do Anthropic ani Google — wywołania SDK używają kluczy z `.env` wskazanych przez **`apiKeyRef`** w YAML (per `providerInstance`).
 
 Kolejność guardów na trasach OpenAI: **`OpenAiBearerAuthGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i cooldown, gdy `RATE_LIMIT_SMART_ENABLED=true`). Klucz klienta jest odczytywany przez **`readClientGatewayKey`** (`req.gatewayKey` lub `X-Gateway-Key`).
 

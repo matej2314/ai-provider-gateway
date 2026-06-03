@@ -41,7 +41,7 @@ F-2. Plik konfiguracyjny modeli musi wspierać:
 
 F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast). Plik `gateway.config.yaml` jest wczytywany i walidowany schematem Zod w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji — `src/config/configuration.ts`. Walidacja offline: `validateGatewayConfig()` w `src/config/config-validator.ts` (używana przez `npm run config:validate` i wizard `config:init`).
 
-F-3a. W sekcji `providers` w `gateway.config.yaml` każdy `type` (`anthropic`, `google`, …) może wystąpić **co najwyżej raz**. Duplikacja typu (np. dwie instancje `type: anthropic`) jest odrzucana przez walidację schematu (`GatewayConfigSchema.providers.superRefine` w `src/config/gateway-config.schema.ts`) z komunikatem wskazującym zduplikowany typ oraz nazwy zderzających się instancji. Różnice między środowiskami (dev/staging/prod) wyraża się **wartością** zmiennej wskazanej przez `apiKeyRef`, a nie wielokrotnym deklarowaniem instancji tego samego typu.
+F-3a. W sekcji `providers` w `gateway.config.yaml` **dozwolone** jest wiele wpisów o tym samym `type` (np. `google` i `google-office`), pod warunkiem **unikalnego** `apiKeyRef` na instancję. Duplikat `apiKeyRef` jest odrzucany przez walidację schematu (`GatewayConfigSchema.providers.superRefine`). Runtime rozwiązuje wywołania LLM po **`model.providerInstance`**, nie po `type`.
 
 F-3b. Sekcja `models` **nie może być pusta**. Każdy alias musi wskazywać `providerInstance` istniejący w `providers`. Implementacja: `GatewayConfigSchema.superRefine` w `src/config/gateway-config.schema.ts`.
 
@@ -63,7 +63,8 @@ NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`), 
 
 - [x] Serwis nie startuje bez **minimum jednego** klucza providera w env (zg. z `env.validation.ts`) oraz bez env wymaganych przez `apiKeyRef` w aktywnej konfiguracji modeli.
 - [x] Serwis nie startuje z configiem niespójnym: nieznany `providerInstance`, puste `models`, włączony provider bez modeli (F-3b, F-3c).
-- [x] Serwis nie startuje, gdy w `providers` zadeklarowano **dwie lub więcej** instancje o tym samym `type` (jedna instancja per typ — F-3a).
+- [x] Serwis nie startuje przy **duplikacie `apiKeyRef`** w `providers` (F-3a).
+- [x] W YAML dozwolone są **wiele instancji** z tym samym `type` (multi-instance runtime).
 - [ ] `modelAlias` jest jedyną publiczną metodą wyboru modelu w API (rdzeń MVP — kontrakt na start).
 - [x] `npm run config:validate` przechodzi na poprawnym zestawie pliku `gateway.config.yaml` + env i kończy się błędem na zestawie świadomie niepoprawnym (zgodnie z NFR-3).
 

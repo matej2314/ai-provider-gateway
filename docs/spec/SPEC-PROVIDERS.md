@@ -2,24 +2,49 @@
 
 ## Cel / problem
 
-Zamknąć integracje z providerami LLM w adapterach tak, aby:
+Zamknąć integracje z providerami LLM w warstwie `src/providers/` tak, aby:
 
 - logika aplikacyjna nie zależała od SDK providera,
 - kontrakt request/response gateway był spójny,
-- błędy providerów były mapowane do stabilnych kodów gateway.
+- błędy providerów były mapowane do stabilnych kodów gateway,
+- **wiele instancji tego samego typu** (np. `google` + `google-office`) mogło używać **różnych** kluczy API.
+
+## Model runtime (multi-instance)
+
+| Pojęcie | Znaczenie | Przykład |
+|---------|-----------|----------|
+| **`type`** | Typ adaptera w kodzie (`PROVIDER_TYPES`) — wybór fabryki SDK | `google`, `anthropic` |
+| **`providerInstance`** | Klucz wpisu w `providers:` w YAML — unikalna instancja runtime | `google`, `google-office` |
+| **`AIProvider`** | Obiekt portu (`complete` / `stream`) z własnym klientem SDK | jeden per `providerInstance` |
+
+Przepływ przy starcie:
+
+1. `configuration.ts` buduje mapę runtime `providers: Record<instanceId, ProviderInstanceRuntime>` (klucz API z env per `apiKeyRef`).
+2. `ProviderInstancesBootstrap.onApplicationBootstrap()` iteruje po `gateway.providers` (tylko wpisy z YAML; `enabled: false` pomijane).
+3. Dla każdego `instanceId` wybiera fabrykę po `row.type`, wywołuje `factory(apiKey, logger)` i rejestruje wynik: `ProviderRegistryService.registerInstance(instanceId, type, provider)`.
+4. Przy requeście `ProviderRegistryService.resolve(modelAlias)` czyta `models[alias].providerInstance` i zwraca **AIProvider tej instancji** (pole `providerName` = `instanceId`).
+
+Implementacja: fabryki w `src/providers/factories/` (zwykłe funkcje, bez `@Injectable`), bootstrap w `provider-instances.bootstrap.ts`, rejestr w `provider-registry.service.ts`.
 
 ## Klucze API (env)
 
-Wartości uwierzytelniające są wczytywane z env (w konfiguracji modeli: `apiKeyRef`). W **`NODE_ENV=production`** przy starcie obowiązuje reguła z `src/config/env.validation.ts`: **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (szczegóły: `docs/konfiguracja.md`). W development reguła ta nie blokuje startu, ale wywołanie adaptera bez klucza kończy się błędem konfiguracji.
+Wartości uwierzytelniające są wczytywane z env przez **`apiKeyRef`** w YAML (per **instancja**, nie per typ). W **`NODE_ENV=production`** przy starcie obowiązuje reguła z `src/config/env.validation.ts`: **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (szczegóły: `docs/konfiguracja.md`). Dla każdego **aktywnego** `providerInstance` `buildEffectiveGatewayConfig` wymaga niepustego env wskazanego przez `apiKeyRef`. W development reguła globalna nie blokuje startu, ale brak klucza dla używanej instancji kończy się błędem bootstrapu lub API.
 
 ## Użytkownicy i scenariusze
 
-### Scenariusz A — dodanie nowego providera
+### Scenariusz A — dodanie nowego **typu** providera (np. OpenAI)
 
-1. Implementator tworzy nowy adapter (np. OpenAI).
-2. Rejestruje go w module Providers.
-3. Konfiguracja pozwala wskazać `providerInstance` typu `openai`.
-4. `ChatProviderCallService` wywołuje adapter; `ChatService` orkiestruje bez zmian w kontrolerze.
+1. Implementator dodaje wartość do `PROVIDER_TYPES` i tworzy fabrykę `create-openai-provider.ts` (implementacja portu `AIProvider`).
+2. Rejestruje fabrykę w mapie `FACTORIES` w `provider-instances.bootstrap.ts`.
+3. W YAML dodaje wpis `providers:` z `type: openai` i unikalnym `apiKeyRef`; w `models:` wskazuje `providerInstance`.
+4. `ChatProviderCallService` wywołuje zwrócony `AIProvider`; `ChatService` orkiestruje bez zmian w kontrolerze.
+
+### Scenariusz A2 — dodanie drugiej instancji istniejącego typu (np. `google-office`)
+
+1. W `gateway.config.yaml` dodaje wpis `google-office: { type: google, apiKeyRef: GOOGLE_OFFICE_API_KEY, enabled: true }`.
+2. W `.env` ustawia `GOOGLE_OFFICE_API_KEY`.
+3. Dodaje aliasy modeli z `providerInstance: google-office`.
+4. Po restarcie bootstrap tworzy **drugi** `AIProvider` (drugi klient SDK) — bez zmian w kodzie fabryki.
 
 ### Scenariusz B — ujednolicone błędy
 
@@ -29,7 +54,7 @@ Wartości uwierzytelniające są wczytywane z env (w konfiguracji modeli: `apiKe
 
 ## Wymagania funkcjonalne
 
-F-1. Każdy adapter implementuje wspólny port (interfejs) providera.
+F-1. Każda instancja providera implementuje wspólny port (interfejs) `AIProvider`.
 
 F-2. Adapter musi wspierać co najmniej:
 
@@ -55,7 +80,7 @@ F-4. Adapter mapuje błędy SDK na błędy gateway:
 - timeout → `PROVIDER_TIMEOUT`
 - 5xx → `PROVIDER_UNAVAILABLE`
 
-**Stan implementacji (F-4):** adaptery używają `mapAnthropicSdkError` / `mapGoogleGenAiError` (`provider-error.mapper.ts`) → `HttpException` z kodami m.in. **`PROVIDER_AUTH_FAILED`**, **`PROVIDER_RATE_LIMITED`**, **`PROVIDER_TIMEOUT`**, **`PROVIDER_UNAVAILABLE`**. `GlobalExceptionFilter` zachowuje `code` z payloadu.
+**Stan implementacji (F-4):** fabryki providerów używają `mapAnthropicSdkError` / `mapGoogleGenAiError` (`provider-error.mapper.ts`) → `HttpException` z kodami m.in. **`PROVIDER_AUTH_FAILED`**, **`PROVIDER_RATE_LIMITED`**, **`PROVIDER_TIMEOUT`**, **`PROVIDER_UNAVAILABLE`**. `GlobalExceptionFilter` zachowuje `code` z payloadu.
 
 F-5. Adapter nie loguje sekretów.
 
@@ -72,9 +97,11 @@ Mapowanie `system` na pierwszą wiadomość `user` jest dopuszczalne **tylko** j
 
 ## Kryteria akceptacji
 
-- [ ] Dwa adaptery (Anthropic i Google Gemini) działają zgodnie z portem.
+- [x] Dwa typy providerów (Anthropic i Google Gemini) działają zgodnie z portem `AIProvider` (fabryki + bootstrap).
+- [x] Rejestr providerów jest indeksowany po **`providerInstance`**, nie po `type`.
+- [x] W YAML dozwolone są **wiele wpisów** z tym samym `type` (unikalne `apiKeyRef` per instancja).
 - [ ] Błędy 429/timeout są mapowane na te same `code`.
-- [ ] Dodanie trzeciego adaptera (np. OpenAI) nie wymaga zmian w kontrolerach.
+- [ ] Dodanie trzeciego **typu** (np. OpenAI) wymaga tylko fabryki + wpisu w `FACTORIES`, bez zmian w kontrolerach.
 
 ## Poza zakresem (względem rdzenia MVP)
 

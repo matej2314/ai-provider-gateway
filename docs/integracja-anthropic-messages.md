@@ -31,7 +31,7 @@ Priorytet nagłówków (`AnthropicApiKeyGuard`):
 1. **`x-api-key: <GATEWAY_KEY_*>`**
 2. **`Authorization: Bearer <GATEWAY_KEY_*>`** (fallback)
 
-Gateway weryfikuje klucz w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` / Bearer OpenAI). Klucz klienta **nie** trafia do wywołań SDK providera — adaptery używają `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` z `.env`.
+Gateway weryfikuje klucz w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` / Bearer OpenAI). Klucz klienta **nie** trafia do wywołań SDK providera — klucze z `.env` są rozwiązywane per **`providerInstance`** (`apiKeyRef` w YAML).
 
 Kolejność guardów na trasach Anthropic: **`AnthropicApiKeyGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i cooldown, gdy `RATE_LIMIT_SMART_ENABLED=true`). Klucz klienta jest odczytywany przez **`readClientGatewayKey`**.
 

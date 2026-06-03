@@ -4,7 +4,7 @@ Ten dokument opisuje **strukturę katalogów i plików** projektu *AI Provider G
 
 Zasady:
 
-- Struktura jest **modułowa** (NestJS); adaptery LLM — `src/providers/`; fasady HTTP dla IDE — `src/integrations/`.
+- Struktura jest **modułowa** (NestJS); warstwa providerów LLM (fabryki + rejestr) — `src/providers/`; fasady HTTP dla IDE — `src/integrations/`.
 - Elementy oznaczone *(plan)* nie istnieją w kodzie lub są poza rdzeniem MVP.
 - **Pominięte w drzewie:** `node_modules/`, `dist/`, `.git/`, lokalne `.env` (nie commitować).
 - Pliki **`*.spec.ts`** — testy jednostkowe obok modułów; wypisane zbiorczo tam, gdzie występują.
@@ -91,18 +91,16 @@ ai-provider-gateway/
 │   │       └── sse.serializer.ts
 │   │
 │   ├── providers/
-│   │   ├── providers.module.ts             # dynamiczna rejestracja adapterów
+│   │   ├── providers.module.ts             # ProviderRegistryModule + bootstrap instancji
 │   │   ├── provider-registry.module.ts
-│   │   ├── provider-registry.service.ts
+│   │   ├── provider-registry.service.ts    # rejestr po providerInstance (instanceId)
+│   │   ├── provider-instances.bootstrap.ts # onApplicationBootstrap: fabryki + registerInstance
 │   │   ├── provider-registry.service.spec.ts
-│   │   ├── interfaces/
-│   │   │   └── ai-provider.interface.ts
-│   │   ├── anthropic/
-│   │   │   ├── anthropic.module.ts
-│   │   │   └── anthropic.adapter.ts
-│   │   └── google/
-│   │       ├── google.module.ts
-│   │       └── google.adapter.ts
+│   │   ├── factories/
+│   │   │   ├── create-anthropic-provider.ts
+│   │   │   └── create-google-provider.ts
+│   │   └── interfaces/
+│   │       └── ai-provider.interface.ts
 │   │
 │   ├── integrations/                       # fasady OpenAI / Anthropic API → ChatService (wdrożone)
 │   │   ├── integrations.module.ts
@@ -329,7 +327,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | Katalog | Odpowiedzialność |
 |---------|------------------|
 | **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache, smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi. **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Eksport **`ChatService`**, **`SmartRateLimitGuard`** dla modułu integracji. Helpery: system prompt, provider input, params, retry policy, cache policy, `conversationId`. |
-| **`src/providers/`** | Adaptery Anthropic / Google, `ProviderRegistryService` + moduł rejestru. Jedyna warstwa z bezpośrednim użyciem SDK vendorów. |
+| **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API. |
 | **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
@@ -379,7 +377,7 @@ Pełna dokumentacja komend: **`CLI.md`**.
 
 **Wdrożone w kodzie** (porównuj z `openapi.json` i `src/`):
 
-- **Boilerplate** `gateway.config.yaml` w repo (placeholdery, `enabled: false`); pełna konfiguracja przez wizard **`gateway config:init`**. Registry, adaptery Anthropic + Google.
+- **Boilerplate** `gateway.config.yaml` w repo (placeholdery, `enabled: false`); pełna konfiguracja przez wizard **`gateway config:init`**. Runtime providerów: fabryki per typ + bootstrap per **`providerInstance`** (Anthropic, Google).
 - Czat standard + SSE, `params`, retry/fallback/`effectiveModelAlias` (`ResilientExecutor`).
 - Error envelope (`GlobalExceptionFilter`), kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.

@@ -31,7 +31,7 @@ Zmienne providerów (Anthropic + Google Gemini — bieżący zestaw w repozytori
 **Walidacja przy starcie (`src/config/env.validation.ts`):**
 
 - W **`NODE_ENV=production`** wymagane jest, aby **co najmniej jedna** z powyższych zmiennych była niepusta po `trim()`. W przeciwnym razie start się nie powiedzie.
-- W środowisku innym niż production ta reguła **nie jest sprawdzana** — nadal potrzebujesz jednak realnego klucza dla providera, którego alias wywołujesz (adapter rzuci błąd konfiguracji lub API).
+- W środowisku innym niż production ta reguła **nie jest sprawdzana** — nadal potrzebujesz jednak realnego klucza dla **instancji** providera powiązanej z aliasem (bootstrap / wywołanie API zakończy się błędem bez klucza).
 
 W repo powinien istnieć `.env.example` bez wartości sekretów.
 
@@ -214,14 +214,39 @@ models:
           maxOutputTokens: { min: 1, max: 8192 }
 ```
 
+**Przykład multi-instance** (dwa konta Google, ten sam `type`):
+
+```yaml
+providers:
+  google:
+    type: google
+    apiKeyRef: GOOGLE_API_KEY
+    enabled: true
+  google-office:
+    type: google
+    apiKeyRef: GOOGLE_OFFICE_API_KEY
+    enabled: true
+
+models:
+  gemini-flash:
+    providerInstance: google
+    modelId: gemini-2.5-flash
+    # ...
+  gemini-flash-office:
+    providerInstance: google-office
+    modelId: gemini-2.5-flash
+    # ...
+```
+
+W `.env`: osobne wartości dla `GOOGLE_API_KEY` i `GOOGLE_OFFICE_API_KEY`. Runtime tworzy **dwa** obiekty `AIProvider` (fabryka `createGoogleProvider` wywołana dwukrotnie).
+
 Uwagi:
 
 - `apiKeyRef` to **nazwa** zmiennej env, nie wartość.
 - `masterKeyRef` oraz każde `gatewayKeyRef` w `clients` to **nazwy** zmiennych env z wartościami kluczy gateway — ustawiane w `.env` (szablon: `.env.example`).
 - Aliasy pod `models` są publicznym API (`modelAlias`).
-- **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic`, `google`) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach.
-- **Fallback aliasu (`models[].fallback`):** opcjonalny klucz wskazujący inny alias z sekcji `models`. Po wyczerpaniu retry na aliasie żądanym `ResilientExecutor` (`src/common/resilience/resilient-executor.ts`) próbuje alias fallback (z tą samą polityką retry/timeout z aliasu **pierwszego**). Walidacja Zod przy starcie: fallback musi istnieć, nie może wskazywać samego siebie ani tworzyć pętli A→B→A. Przy sukcesie na fallbacku odpowiedź HTTP zawiera opcjonalne **`effectiveModelAlias`** (alias faktycznie użyty); pole **`model`** pozostaje żądanym `modelAlias`.
-- **Ograniczenie: jedna instancja per typ providera.** W `providers` może wystąpić **co najwyżej jeden** wpis o danym `type` (np. tylko jeden `type: anthropic`). Walidacja Zod (`GatewayConfigSchema.providers.superRefine` w `src/config/gateway-config.schema.ts`) **odrzuca start** z czytelnym komunikatem przy duplikacie (komunikat wskazuje zduplikowany typ i nazwy zderzających się instancji). Różnice między środowiskami (dev/staging/prod) wyraża się **wartością** zmiennej środowiskowej wskazanej przez `apiKeyRef`, a nie przez deklarowanie wielu instancji tego samego typu w YAML.
+- **Mapowanie kluczy do runtime:** `configuration.ts` buduje mapę `providersByInstance` (typ + `apiKeyRef` + rozwiązany `apiKey` z env) dla **każdego** klucza w sekcji `providers:` YAML. W obiekcie konfiguracji Nest (`ConfigService`) jest dostępna pod kluczem **`providers`** (np. `configService.get('providers')['google-office']`). Bootstrap (`ProviderInstancesBootstrap`) tworzy osobny `AIProvider` per wpis z własnym kluczem API.
+- **Wiele instancji tego samego `type`:** w `providers:` może być np. `google` i `google-office`, oba z `type: google`, każdy z **unikalnym** `apiKeyRef`. Walidacja Zod (`GatewayConfigSchema.providers.superRefine`) odrzuca **duplikat `apiKeyRef`**, nie duplikat `type`. Różne środowiska / konta API wyraża się osobnymi instancjami + zmiennymi env, nie współdzielonym kluczem per typ.
 - **Spójność grafu `providers` ↔ `models` (fail-fast przy starcie):**
   - sekcja `models` **nie może być pusta**;
   - każdy wpis w `models` musi wskazywać **istniejący** klucz w `providers` (`providerInstance`);
@@ -235,7 +260,7 @@ Uwagi:
 Gateway kończy start m.in. gdy:
 
 - **`gateway.config.yaml`** nie istnieje lub nie przechodzi walidacji Zod (`GatewayConfigSchema` w `src/config/gateway-config.schema.ts` + `buildEffectiveGatewayConfig` w `src/config/configuration.ts`),
-- w `providers` występują **dwa lub więcej** wpisy o tym samym `type` (jedna instancja per typ — patrz pkt 2),
+- w `providers` występują **dwa lub więcej** wpisy z tym samym **`apiKeyRef`** (unikalność referencji env per plik),
 - sekcja **`models` jest pusta**,
 - alias w `models` wskazuje **nieznany** `providerInstance`,
 - **włączony** provider (`enabled !== false`) **nie ma** żadnego aliasu w `models` z tym `providerInstance`,
@@ -248,7 +273,7 @@ Gateway kończy start m.in. gdy:
 
 | Warstwa                | Gdzie                         | Przykładowe reguły                                                                                                                   |
 | ---------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Zod (surowy YAML)      | `GatewayConfigSchema`         | duplikat `type`; puste `models`; model → provider; provider (aktywny) → ≥1 model; `fallback` istnieje, bez samoodwołania i pętli A↔B |
+| Zod (surowy YAML)      | `GatewayConfigSchema`         | duplikat `apiKeyRef`; puste `models`; model → provider; provider (aktywny) → ≥1 model; `fallback` istnieje, bez samoodwołania i pętli A↔B |
 | Efektywna konfiguracja | `buildEffectiveGatewayConfig` | filtr `enabled`; ≥1 aktywny model globalnie; aktywny provider → aktywny model; klucz API dla aktywnych providerów                    |
 
 **Poza zakresem obecnej implementacji (plan — krok 5.6, część pozostała):** pełny katalog aliasów wszystkich modeli API Anthropic/Google oraz walidacja kompletności aliasów „zwyczajowych” względem ustalonej listy MVP.
