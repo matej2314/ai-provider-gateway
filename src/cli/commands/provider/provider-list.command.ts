@@ -37,6 +37,9 @@ export class ProviderListCommand extends CommandRunner {
         console.log(
           chalk.dim(`    Enabled: ${provider.enabled ? 'Yes' : 'No'}`),
         );
+        console.log(
+          chalk.dim(`Models count: ${Object.keys(config.models).length}`),
+        );
         console.log('');
       });
     } catch (err) {

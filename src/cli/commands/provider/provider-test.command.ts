@@ -12,7 +12,7 @@ interface ProviderTestOptions {
 @Command({
   name: 'provider:test',
   description: 'Test connection to AI providers.',
-  arguments: '[provider]',
+  arguments: '[instanceId]',
   argsDescription: {
     provider:
       'Specific provider to test (anthropic,google). Test all if omitted.',
@@ -59,7 +59,7 @@ export class ProviderTestCommand extends CommandRunner {
   }
 
   @Option({
-    flags: '-p, --provider <name>',
+    flags: '-p, --provider <instanceId>',
     description: 'Specific provider to test',
   })
   parseProvider(val: string): string {
@@ -67,17 +67,17 @@ export class ProviderTestCommand extends CommandRunner {
   }
 
   private async testSingleProvider(
-    name: string,
+    instanceId: string,
     config: GatewayConfig,
   ): Promise<void> {
-    const provider = config.providers[name];
+    const provider = config.providers[instanceId];
     if (!provider) {
-      CliLogger.error(`Provider "${name}" not found in configuration.`);
+      CliLogger.error(`Provider "${instanceId}" not found in configuration.`);
       process.exit(1);
     }
 
-    CliLogger.section(`Testing provider: ${name}`);
-    const spinner = CliLogger.spinner(`Connecting to ${name}...`);
+    CliLogger.section(`Testing provider: ${instanceId}`);
+    const spinner = CliLogger.spinner(`Connecting to ${instanceId}...`);
 
     const apiKey = process.env[provider.apiKeyRef];
     if (!apiKey) {
@@ -94,15 +94,15 @@ export class ProviderTestCommand extends CommandRunner {
     } else if (provider.type === 'google') {
       success = await this.tester.testGoogle(apiKey);
     } else {
-      spinner.fail(`Unknown provider type: ${provider.type}`);
+      spinner.fail(`Unknown provider type: ${provider.apiKeyRef}`);
       process.exit(1);
     }
 
     if (success) {
-      spinner.succeed(`${name} connection successful!`);
+      spinner.succeed(`${instanceId} connection successful!`);
       CliLogger.blank();
     } else {
-      spinner.fail(`${name} connection failed.`);
+      spinner.fail(`${instanceId} connection failed.`);
       CliLogger.blank();
       process.exit(1);
     }
