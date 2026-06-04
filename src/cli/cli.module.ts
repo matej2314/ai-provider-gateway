@@ -25,6 +25,10 @@ import { ProviderAddCommand } from './commands/provider/provider-add.command';
 import { ProviderRemoveCommand } from './commands/provider/provider-remove.command';
 import { ProviderEditCommand } from './commands/provider/provider-edit.command';
 import { ModelManagerService } from './services/model-manager.service';
+import { ModelAddCommand } from './commands/model/model-add.command';
+import { ModelListCommand } from './commands/model/model-list.command';
+import { ModelRemoveCommand } from './commands/model/model-remove.command';
+import { ModelEditCommand } from './commands/model/model-edit.command';
 
 @Module({
   providers: [
@@ -53,6 +57,10 @@ import { ModelManagerService } from './services/model-manager.service';
     ProviderAddCommand,
     ProviderRemoveCommand,
     ProviderEditCommand,
+    ModelAddCommand,
+    ModelListCommand,
+    ModelRemoveCommand,
+    ModelEditCommand,
   ],
   exports: [GatewayCommand],
 })

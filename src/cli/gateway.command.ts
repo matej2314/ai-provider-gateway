@@ -29,7 +29,9 @@ export class GatewayCommand extends CommandRunner {
         chalk.yellow('  gateway model:list') +
         '       - List all models\n' +
         chalk.yellow('  gateway model:remove') +
-        '    - Remove a model\n\n' +
+        '    - Remove a model\n' +
+        chalk.yellow('  gateway model:edit') +
+        '     - Edit a model\n\n' +
         chalk.bold('Client Management:') +
         '\n' +
         chalk.yellow('  gateway client:add') +
