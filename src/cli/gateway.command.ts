@@ -44,6 +44,12 @@ export class GatewayCommand extends CommandRunner {
         '    - Test provider connection\n' +
         chalk.yellow('  gateway provider:list') +
         '   - List configured providers\n\n' +
+        chalk.yellow('  gateway provider:add') +
+        '    - Add new provider instance\n' +
+        chalk.yellow('  gateway provider:remove') +
+        '    - Remove provider instance\n' +
+        chalk.yellow('  gateway provider:edit') +
+        '    - Edit provider instance\n\n' +
         chalk.bold('Security:') +
         '\n' +
         chalk.yellow('  gateway key:generate') +

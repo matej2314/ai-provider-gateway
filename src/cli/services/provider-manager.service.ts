@@ -17,7 +17,7 @@ export class ProviderManagerService {
     private readonly modelManager: ModelManagerService,
   ) {}
 
-  deriveApiKeyRef(instanceId: string, type: string): string {
+  deriveApiKeyRef(instanceId: string): string {
     const slug = instanceId
       .trim()
       .toUpperCase()
@@ -61,7 +61,7 @@ export class ProviderManagerService {
       },
     ]);
 
-    const apiKeyRef = this.deriveApiKeyRef(id, type);
+    const apiKeyRef = this.deriveApiKeyRef(id);
 
     const { apiKey } = await inquirer.prompt([
       {

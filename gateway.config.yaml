@@ -1,39 +1,42 @@
+# AI Provider Gateway - Configuration File (BOILERPLATE)
+# 
+# To jest plik z wartościami placeholder.
+# Uruchom 'gateway config:init' aby zastąpić placeholders prawdziwymi wartościami.
+#
+# UWAGA: Ten boilerplate config przechodzi schema validation, ale ma:
+# - Disabled providers (enabled: false)
+# - Placeholder refs zamiast prawdziwych nazw env vars
+# - Dummy IDs i nazwy modeli
+#
+# Aplikacja NIE WYSTARTUJE z tym boilerplate config (brak valid env vars).
+# Musisz użyć CLI do konfiguracji przed pierwszym uruchomieniem.
+
 schemaVersion: 1
-masterKeyRef: MASTER_KEY
+masterKeyRef: "PLACEHOLDER_MASTER_KEY_REF"
 
 providers:
-  anthropic:
-    type: anthropic
-    apiKeyRef: ANTHROPIC_API_KEY
-    enabled: true
-  google:
-    type: google
-    apiKeyRef: GOOGLE_API_KEY
-    enabled: true
-# Configuration for gateway clients
+  placeholder-anthropic:
+    type: "anthropic"
+    apiKeyRef: "PLACEHOLDER_ANTHROPIC_API_KEY"
+    enabled: false  # disabled 
+
+  placeholder-google:
+    type: "google"
+    apiKeyRef: "PLACEHOLDER_GOOGLE_API_KEY"
+    enabled: false  # disabled 
 
 clients:
-  webapp:
-    name: My web app
-    type: webapp
-    gatewayKeyRef: GATEWAY_KEY_WEBAPP
-    rateLimit:
-      rps: 10
-      burst: 10
-      maxConcurrentStreams: 3
-  ide-plugin:
-    name: IDE INTEGRATION
-    type: ide
-    gatewayKeyRef: GATEWAY_KEY_IDE_PLUGIN
+  placeholder-client:
+    name: "Placeholder Client (replace via CLI)"
+    type: "webapp"
+    gatewayKeyRef: "PLACEHOLDER_GATEWAY_KEY"
 
 models:
-
-  chat-default:
-    providerInstance: anthropic
-    modelId: claude-sonnet-4-5-20250929
+  placeholder-model:
+    providerInstance: "placeholder-anthropic"
+    modelId: "placeholder-model-id"
     capabilities:
       streaming: true
-      tools: true
     policy:
       timeoutMs: 30000
       retry:
@@ -41,58 +44,13 @@ models:
         onStatus: [429, 500, 502, 503, 504]
       params:
         defaults:
-          temperature: 0.4
-          maxOutputTokens: 500
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-        bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-
-
-  claude-sonnet:
-    providerInstance: anthropic
-    modelId: claude-sonnet-4-5-20250929
-    fallback: chat-default
-    capabilities:
-      streaming: true
-      tools: true
-    policy:
-      timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
-      params:
-        defaults:
-          temperature: 0.4
+          temperature: 0.7
           maxOutputTokens: 1024
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
+        allowOverrides: ["temperature", "maxOutputTokens"]
         bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-
-  gemini-flash:
-    providerInstance: google
-    modelId: gemini-2.5-flash
-    fallback: chat-default
-    capabilities:
-      streaming: true
-      tools: true
-    policy:
-      timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
-      params:
-        defaults:
-          temperature: 0.4
-          maxOutputTokens: 1024
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-        bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
+          temperature:
+            min: 0
+            max: 2
+          maxOutputTokens:
+            min: 1
+            max: 8192
