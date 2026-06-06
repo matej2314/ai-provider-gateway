@@ -22,6 +22,14 @@ export class ConfigValidateCommand extends CommandRunner {
         process.exit(1);
       }
 
+      if (this.cliLoader.isBoilerplateConfig()) {
+        CliLogger.warning('Boilerplate configuration detected.');
+        CliLogger.info(
+          'Run "gateway config:init" to create a full configuration.',
+        );
+        process.exit(1);
+      }
+
       const spinner = CliLogger.spinner('Checking YAML structure...');
       const { config, missingEnvVars } = this.cliLoader.loadWithEnvCheck();
       spinner.succeed('YAML structure is valid.');

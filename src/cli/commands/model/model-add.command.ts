@@ -27,6 +27,14 @@ export class ModelAddCommand extends CommandRunner {
         process.exit(1);
       }
 
+      if (this.cliLoader.isBoilerplateConfig()) {
+        CliLogger.warning('Boilerplate configuration detected.');
+        CliLogger.info(
+          'Run "gateway config:init" to create a full configuration.',
+        );
+        process.exit(1);
+      }
+
       const config = this.cliLoader.loadRawConfig();
       const cwd = process.cwd();
 

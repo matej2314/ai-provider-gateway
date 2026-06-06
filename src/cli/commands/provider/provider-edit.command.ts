@@ -30,6 +30,12 @@ export class ProviderEditCommand extends CommandRunner {
         );
         process.exit(1);
       }
+      if (this.cliLoader.isBoilerplateConfig()) {
+        CliLogger.warning(
+          'Boilerplate configuration detected. Run gateway config:init to create a full configuration.',
+        );
+        process.exit(1);
+      }
       const config = this.cliLoader.loadRawConfig();
       await this.providerManager.editProvider(
         config,

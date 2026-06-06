@@ -159,8 +159,8 @@ Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthr
 
 Szczegóły: `CLI.md`, `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
 
-## 15) Start serwera na boilerplate `gateway.config.yaml`
+## 15) Start serwera bez właściwego pliku konfiguracyjnego
 
-**Nie rób**: oczekiwania, że `npm run start:dev` zadziała od razu po sklonowaniu repozytorium — domyślny plik ma placeholdery i wyłączone providery.
+**Nie rób**: oczekiwania, że `npm run start:dev` zadziała od razu po sklonowaniu repozytorium — w repo znajduje się `gateway.config.placeholder.yaml` z placeholderami i wyłączonymi providerami. Serwer potrzebuje właściwego pliku `gateway.config.yaml`.
 
-**Rób**: uruchom `gateway config:init` (lub ręcznie uzupełnij YAML + `.env` zgodnie z `konfiguracja.md`); zweryfikuj przez `npm run config:validate`.
+**Rób**: uruchom `gateway config:init`, aby wygenerować właściwy plik `gateway.config.yaml` (lub ręcznie uzupełnij YAML + `.env` zgodnie z `konfiguracja.md`); zweryfikuj przez `npm run config:validate`.

@@ -27,6 +27,7 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 | Struktura katalogów         | [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md)               |
 | Fasada OpenAI (Cursor IDE)  | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md)                  |
 | Architektura fasad IDE      | [`docs/integracje.md`](docs/integracje.md)                                                  |
+| Gateway CLI                 | [`docs/CLI.md`](docs/CLI.md)                                                                |
 
 ## Integracje API
 
@@ -46,7 +47,7 @@ Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 
 ## Szybki start (lokalnie)
 
-Wymagania: Node.js + npm, plik [`gateway.config.yaml`](gateway.config.yaml) w katalogu roboczym.
+Wymagania: Node.js + npm.
 
 1. Instalacja:
 
@@ -54,13 +55,25 @@ Wymagania: Node.js + npm, plik [`gateway.config.yaml`](gateway.config.yaml) w ka
 npm install
 ```
 
-2. Konfiguracja env (szablon: [`.env.example`](.env.example)):
+2. Konfiguracja (wymagane po sklonowaniu — w repozytorium znajduje się [`gateway.config.placeholder.yaml`](gateway.config.placeholder.yaml) jako punkt startowy):
 
 ```bash
-copy .env.example .env
+npm run cli config:init
+# lub: npx gateway config:init
 ```
 
-Uzupełnij m.in. `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`, `MASTER_KEY`, klucze klientów (`GATEWAY_KEY_*`). W **`NODE_ENV=production`** przy starcie wymagany jest **co najmniej jeden** niepusty klucz providera (po `trim()`). W development start nie jest blokowany — nadal potrzebujesz klucza dla używanego providera.
+Wizard generuje właściwy plik konfiguracyjny `gateway.config.yaml`, `.env`, `.env.example` oraz pliki system prompt. Alternatywnie: ręcznie skopiuj [`.env.example`](.env.example) i uzupełnij YAML — szczegóły: [`docs/konfiguracja.md`](docs/konfiguracja.md).
+
+Zweryfikuj konfigurację:
+
+```bash
+npm run cli config:validate
+# alternatywa: npm run config:validate
+```
+
+W **`NODE_ENV=production`** przy starcie wymagany jest **co najmniej jeden** niepusty klucz providera (po `trim()`). W development start nie jest blokowany — nadal potrzebujesz klucza dla używanego providera.
+
+**Uwaga:** Repozytorium zawiera `gateway.config.placeholder.yaml` z wartościami przykładowymi. Przed pierwszym uruchomieniem wykonaj `npm run cli config:init`, aby wygenerować właściwy plik `gateway.config.yaml`.
 
 3. Uruchomienie:
 
@@ -106,7 +119,7 @@ curl -i -X POST "http://localhost:3000/api/v1/chat/stream" ^
 
 ## Auth i limity
 
-- **Auth:** nagłówek **`X-Gateway-Key`** — allowlista z [`gateway.config.yaml`](gateway.config.yaml) + env ([`docs/konfiguracja.md`](docs/konfiguracja.md)).
+- **Auth:** nagłówek **`X-Gateway-Key`** — allowlista z `gateway.config.yaml` + env ([`docs/konfiguracja.md`](docs/konfiguracja.md)).
 - **Smart rate limit** (opcjonalnie): `RATE_LIMIT_SMART_ENABLED=true` + Redis — [`src/rate-limit/`](src/rate-limit/). Kody **429**: **`RATE_LIMITED`** (gateway) vs **`PROVIDER_RATE_LIMITED`** (upstream) — [`docs/dictionary.md`](docs/dictionary.md).
 - **Cooldown** po 429 od providera — tylko `POST /api/v1/chat`, nie streaming.
 
@@ -129,6 +142,22 @@ W `messages[]` dozwolone są wyłącznie role **`user`** i **`assistant`**. Inst
 
 Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md).
 
+## Gateway CLI
+
+Osobny entry point od serwera HTTP — działa **bez build** (ts-node), bin: `gateway`.
+
+```bash
+npm run cli                              # lista komend
+npm run cli config:init                  # wizard konfiguracji (pierwsze uruchomienie)
+npm run cli config:validate              # walidacja YAML + env
+npm run cli provider:test                # test połączeń z providerami
+npm run cli model:list                   # lista aliasów modeli
+npm run cli client:add                   # dodaj klienta (interaktywnie)
+npm run cli key:generate -- --type master
+```
+
+Pełna dokumentacja komend (config, provider, model, client, key): [`docs/CLI.md`](docs/CLI.md).
+
 ## Skrypty
 
 ```bash
@@ -136,7 +165,8 @@ npm run start:dev       # development
 npm run build
 npm run start:prod      # po build
 npm run openapi:export  # openapi.json z dekoratorów @nestjs/swagger
-npm run config:validate # placeholder (scripts/validate-config.ts)
+npm run cli             # Gateway CLI (alias: npx gateway)
+npm run config:validate # walidacja offline (scripts/validate-config.ts)
 npm test
 npm run test:e2e
 ```

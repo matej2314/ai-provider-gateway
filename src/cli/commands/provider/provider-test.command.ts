@@ -33,6 +33,13 @@ export class ProviderTestCommand extends CommandRunner {
     try {
       const { config, missingEnvVars } = this.cliLoader.loadWithEnvCheck();
 
+      if (this.cliLoader.isBoilerplateConfig()) {
+        CliLogger.warning(
+          'Boilerplate configuration detected. Run gateway config:init to create a full configuration.',
+        );
+        process.exit(1);
+      }
+
       if (missingEnvVars.length > 0) {
         CliLogger.error('Missing environment variables:');
         missingEnvVars.forEach((v) => {

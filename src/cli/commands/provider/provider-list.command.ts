@@ -14,6 +14,13 @@ export class ProviderListCommand extends CommandRunner {
 
   async run(): Promise<void> {
     try {
+      if (this.cliLoader.isBoilerplateConfig()) {
+        CliLogger.warning(
+          'Boilerplate configuration detected. Run gateway config:init to create a full configuration.',
+        );
+        process.exit(1);
+      }
+
       const config = this.cliLoader.loadRawConfig();
 
       CliLogger.section('Configured AI Providers:');

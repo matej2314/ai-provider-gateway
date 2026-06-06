@@ -54,6 +54,14 @@ export class ConfigShowCommand extends CommandRunner {
       console.log(chalk.bold('\nMaster key:'));
       console.log(chalk.dim(`  Reference: ${config.masterKeyRef}`));
 
+      if (this.cliLoader.isBoilerplateConfig()) {
+        CliLogger.blank();
+        CliLogger.warning('Boilerplate configuration detected.');
+        CliLogger.info(
+          'Run "gateway config:init" to create a full configuration.',
+        );
+      }
+
       CliLogger.blank();
     } catch (error) {
       CliLogger.error(

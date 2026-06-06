@@ -14,6 +14,12 @@ export class ModelListCommand extends CommandRunner {
 
   async run(): Promise<void> {
     try {
+      if (this.cliLoader.isBoilerplateConfig()) {
+        CliLogger.warning('Boilerplate configuration detected. Run gateway config:init to create a full configuration.');
+        CliLogger.blank();
+        return;
+      }
+
       const config = this.cliLoader.loadRawConfig();
 
       CliLogger.section('Configured AI Models');

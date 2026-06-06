@@ -1,8 +1,10 @@
-# Gateway CLI — dokumentacja
+﻿# Gateway CLI — dokumentacja
 
-Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya i operacji developerskich. **Osobny entry point** od serwisu HTTP — szczegóły architektury: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
+Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya, zarządzania providerami, modelami i klientami oraz operacji developerskich. **Osobny entry point** od serwisu HTTP — szczegóły architektury: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
 
 **Konwencja komend:** `gateway <namespace>:<action>` (np. `gateway config:init`).
+
+**Tryb v1:** wszystkie komendy mutujące konfigurację działają w trybie **interaktywnym** (prompty w terminalu). Tryb non-interactive — planowany na przyszłość.
 
 ## Stan wdrożenia
 
@@ -12,7 +14,11 @@ Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya i operacji de
 | System szablonów (`templates/`, generatory plików) | **wdrożone** |
 | Wizard `config:init` (5 kroków + walidacja końcowa) | **wdrożone** |
 | Resume / rollback stanu wizarda | **wdrożone** |
-| Pozostałe komendy z listy root (`config:validate`, `model:*`, …) | **planowane** — wyświetlane w welcome, brak implementacji |
+| `config:validate`, `config:show` | **wdrożone** |
+| `provider:add`, `provider:remove`, `provider:edit`, `provider:list`, `provider:test` | **wdrożone** |
+| `model:add`, `model:list`, `model:remove`, `model:edit` | **wdrożone** |
+| `client:add`, `client:list`, `client:edit`, `client:remove` | **wdrożone** |
+| `key:generate` | **wdrożone** |
 
 ## Uruchomienie
 
@@ -41,6 +47,8 @@ Wrapper `bin/gateway-cli-wrapper.js`:
 1. Preferuje skompilowany `dist/bin/gateway-cli.js` (po `npm run build`).
 2. Gdy brak `dist/` — uruchamia TypeScript przez `ts-node` (`bin/gateway-cli.ts` → `CliModule`).
 
+CLI **nie wymaga** `npm run build` przed pierwszym użyciem.
+
 ### Instalacja globalna (docelowo, użytkownik końcowy)
 
 ```bash
@@ -55,9 +63,39 @@ npm run cli
 # lub: gateway
 ```
 
-Wyświetla welcome (boxen) z listą **wszystkich planowanych** komend — zarówno wdrożonych, jak i jeszcze niezaimplementowanych.
+Wyświetla welcome (boxen) z listą wszystkich komend. Pomoc per komenda: `gateway <command> --help`.
 
-## Wdrożone komendy
+## Quick start
+
+1. Po sklonowaniu repozytorium (placeholder w `gateway.config.placeholder.yaml`):
+
+   ```bash
+   npm install
+   gateway config:init
+   ```
+   
+   Wizard wygeneruje właściwy plik `gateway.config.yaml`.
+
+2. Zweryfikuj konfigurację:
+
+   ```bash
+   gateway config:validate
+   # alternatywa: npm run config:validate
+   ```
+
+3. Przetestuj połączenia z providerami:
+
+   ```bash
+   gateway provider:test
+   ```
+
+4. Uruchom serwer:
+
+   ```bash
+   npm run start:dev
+   ```
+
+## Komendy — konfiguracja
 
 ### `gateway config:init`
 
@@ -68,9 +106,9 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
 **Flow:**
 
 1. **Wykrycie istniejącej konfiguracji**
-   - Brak pliku → wizard od początku.
-   - **Boilerplate** (`isBoilerplateConfig()` — `PLACEHOLDER` / `placeholder` w `masterKeyRef`, kluczach providerów lub klientów) → informacja i start wizarda bez pytania o nadpisanie.
-   - Skonfigurowany config (po wizardzie) → pytanie o nadpisanie; przy „tak” backup `gateway.config.yaml` i `.env`.
+   - Brak pliku `gateway.config.yaml` → wizard od początku (użyje `gateway.config.placeholder.yaml` jako wzorca, jeśli istnieje).
+   - **Placeholder** (`isBoilerplateConfig()` — `PLACEHOLDER` / `placeholder` w `masterKeyRef`, kluczach providerów lub klientów w `gateway.config.yaml`) → informacja i start wizarda bez pytania o nadpisanie.
+   - Skonfigurowany `gateway.config.yaml` (po wizardzie) → pytanie o nadpisanie; przy „tak” backup pliku i `.env`.
 
 2. **Wizard (5 kroków)** — `WizardOrchestratorService`:
    - **1/5** Master key (`KeyPromptService` + `KeyGeneratorService` — format `gw_mk_<base64url>`)
@@ -98,45 +136,246 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
 
 **Wymagania:** CLI **nie wymaga** istniejącego `.env` na starcie wizarda — pełna walidacja runtime dopiero na końcu flow.
 
-**Uwaga:** komunikat sukcesu wizarda sugeruje `gateway config:validate` — ta komenda CLI jest jeszcze planowana; użyj **`npm run config:validate`**.
+### `gateway config:validate`
 
-## Planowane komendy (jeszcze bez implementacji)
-
-Wyświetlane w root command (`src/cli/gateway.command.ts`):
-
-| Namespace | Komendy |
-|-----------|---------|
-| **config** | `config:validate`, `config:show` |
-| **model** | `model:add`, `model:list`, `model:remove` |
-| **client** | `client:add`, `client:list`, `client:remove` |
-| **provider** | `provider:test`, `provider:list` |
-| **key** | `key:generate` |
-
-Do walidacji offline **już teraz** można użyć skryptu npm (poza CLI):
+Walidacja `gateway.config.yaml` (struktura Zod) oraz sprawdzenie obecności wymaganych zmiennych env (`loadWithEnvCheck()`).
 
 ```bash
-npm run config:validate
+gateway config:validate
 ```
 
-Szczegóły: `konfiguracja.md`.
+- Brak pliku `gateway.config.yaml` → exit `1` z podpowiedzią `gateway config:init`.
+- Błąd schematu YAML → exit `1`.
+- Brakujące zmienne env (master, włączone providery, klienci) → exit `1` z listą.
+- Sukces → podsumowanie (schema version, liczba providerów/modeli/klientów).
+
+**Uwaga:** Komenda sprawdza plik `gateway.config.yaml`, nie `gateway.config.placeholder.yaml`.
+
+**Alternatywa offline (identyczna logika walidacji runtime):** `npm run config:validate` — skrypt `scripts/validate-config.ts` (szczegóły: `konfiguracja.md`).
+
+### `gateway config:show`
+
+Wyświetla sparsowaną konfigurację z YAML (bez rozwiązywania wartości sekretów z `.env`):
+
+```bash
+gateway config:show
+```
+
+Sekcje: providery (typ, `enabled`, `apiKeyRef`), modele (alias → `providerInstance`/`modelId`, fallback), klienci (typ, nazwa, `gatewayKeyRef`, rate limit), master key ref.
+
+## Komendy — providery
+
+Operacje na **`providerInstance`** — kluczach mapy `providers` w YAML (np. `anthropic`, `google-office`). Wiele instancji tego samego typu adaptera (`type: anthropic` | `type: google`) jest dozwolone.
+
+### `gateway provider:list`
+
+Lista skonfigurowanych instancji providerów.
+
+```bash
+gateway provider:list
+```
+
+### `gateway provider:test [instanceId]`
+
+Test połączenia z providerami przez SDK (`ProviderTestService` — lekki request, bez importu z `src/integrations/`).
+
+```bash
+gateway provider:test              # wszystkie instancje
+gateway provider:test anthropic    # konkretna instancja
+gateway provider:test --provider google-office
+```
+
+Wymaga uzupełnionego `.env` (klucze API dla testowanych instancji). Brakujące zmienne → exit `1`.
+
+### `gateway provider:add`
+
+Interaktywne dodanie nowej instancji providera:
+
+- ID instancji (unikalne, np. `google-office`)
+- Typ adaptera (`PROVIDER_TYPES`: `anthropic`, `google`)
+- Klucz API (zapis do `.env` pod `deriveApiKeyRef()` → np. `GOOGLE_OFFICE_API_KEY`)
+- Flaga `enabled`
+
+Jeśli brak modeli powiązanych z nową instancją → **obowiązkowy** pod-flow dodania co najmniej jednego modelu (`ModelManagerService.addModelForProvider`) w tej samej sesji.
+
+```bash
+gateway provider:add
+```
+
+Zapis: backup YAML + `ConfigPersistenceService.persistConfig()` + `EnvPatchService.setVar()`.
+
+### `gateway provider:remove <instanceId>`
+
+Usuwa instancję, **wszystkie** modele z `providerInstance === id` oraz wpis `apiKeyRef` z `.env`.
+
+```bash
+gateway provider:remove google-office
+```
+
+Przy usuwaniu **jedynej aktywnej** instancji (`enabled !== false`) — ostrzeżenie (boxen) i confirm (domyślnie: nie). Pliki promptów modeli (`models/<alias>.md`) **nie są** usuwane automatycznie.
+
+### `gateway provider:edit <instanceId>`
+
+Edycja istniejącej instancji:
+
+- włącz/wyłącz (`enabled`) — włączenie wymaga co najmniej jednego powiązanego modelu
+- rotacja klucza API (ten sam `apiKeyRef` w `.env`)
+
+```bash
+gateway provider:edit anthropic
+```
+
+## Komendy — modele
+
+### `gateway model:list`
+
+Lista aliasów modeli z `providerInstance`, `modelId`, streaming, fallback.
+
+```bash
+gateway model:list
+```
+
+### `gateway model:add`
+
+Interaktywne dodanie modelu — wybór `providerInstance`, alias, `modelId` (domyślnie z `DEFAULT_MODELS`), opcjonalnie kolejne modele dla tej samej instancji. Tworzy plik promptu `src/config/system-prompt/models/<alias>.md` gdy brak.
+
+```bash
+gateway model:add
+```
+
+### `gateway model:remove <alias>`
+
+Usuwa alias z `gateway.config.yaml` (z backupem). Plik promptu modelu pozostaje na dysku.
+
+```bash
+gateway model:remove chat-default
+```
+
+### `gateway model:edit <alias>`
+
+Edycja pól modelu (checkbox w terminalu): `modelId`, `providerInstance`, `fallback`, streaming, `policy` (timeout, retry, params).
+
+```bash
+gateway model:edit chat-default
+```
+
+## Komendy — klienci
+
+### `gateway client:list`
+
+Lista klientów z typem, nazwą, `gatewayKeyRef`, opcjonalnym rate limitem.
+
+```bash
+gateway client:list
+```
+
+### `gateway client:add`
+
+Interaktywne dodanie klienta:
+
+- ID, nazwa wyświetlana, typ (`GATEWAY_CLIENT_TYPES`)
+- opcjonalny rate limit (`rps`, `burst`, `maxConcurrentStreams`)
+- automatyczne wygenerowanie klucza `gw_<slug>_<base64url>` i zapis do `.env` pod `GATEWAY_KEY_<ID>`
+
+```bash
+gateway client:add
+```
+
+### `gateway client:edit <clientId>`
+
+Edycja klienta:
+
+- nazwa wyświetlana
+- typ klienta
+- rate limit (ustaw / zmień / usuń)
+- rotacja klucza gateway (unieważnia stary klucz w `.env`)
+
+```bash
+gateway client:edit webapp
+```
+
+### `gateway client:remove <clientId>`
+
+Usuwa klienta z YAML i wpis `gatewayKeyRef` z `.env` (po confirm).
+
+```bash
+gateway client:remove webapp
+```
+
+## Komendy — klucze
+
+### `gateway key:generate`
+
+Generuje kryptograficznie losowy klucz (Node.js `crypto.randomBytes`).
+
+```bash
+# Master key → gw_mk_<base64url>
+gateway key:generate --type master
+gateway key:generate master
+
+# Klucz klienta → gw_<slug>_<base64url>
+gateway key:generate --type client --client-id webapp
+gateway key:generate client webapp
+```
+
+Opcje:
+
+- `-t, --type <master|client>` — typ klucza (wymagane)
+- `-c, --client-id <id>` — ID klienta (wymagane dla typu `client`)
+
+Komenda **nie zapisuje** klucza do `.env` — wyświetla wartość w terminalu z podpowiedzią zmiennej env i ostrzeżeniem o widoczności na ekranie.
+
+Formaty (zgodne z wizardem):
+
+| Typ | Format | Przykład env |
+|-----|--------|--------------|
+| Master | `gw_mk_<segment>` | `MASTER_KEY` |
+| Klient | `gw_<slug>_<segment>` | `GATEWAY_KEY_<ID>` |
+
+## Wzorzec mutacji konfiguracji
+
+Komendy add/edit/remove (poza samym wizardem) stosują wspólny wzorzec:
+
+1. `CliConfigLoaderService.loadRawConfig()` — odczyt YAML
+2. Mutacja w pamięci
+3. `GatewayConfigSchema.safeParse()` — walidacja struktury
+4. Backup `gateway.config.yaml` — `FileManagerService.backupFile()`
+5. Zapis YAML — `ConfigPersistenceService.persistConfig()`
+6. Sekrety — `EnvPatchService` (`setVar` / `removeVar` w `.env`)
+
+Kierunek zależności: **config → cli** (typy, schematy, `validateGatewayConfig()`); CLI **nie** importuje `ConfigModule` ani `buildEffectiveGatewayConfig()`.
 
 ## Warstwa CLI — skrót
 
 | Komponent | Rola |
 |-----------|------|
 | `CliModule` | Root NestJS module — **bez** `ConfigModule` |
-| `CliConfigLoaderService` | YAML + `GatewayConfigSchema`, bez `buildEffectiveGatewayConfig()` |
+| `CliConfigLoaderService` | YAML + `GatewayConfigSchema`; `loadWithEnvCheck()` raportuje braki env |
 | `FileManagerService` | read/write YAML, `.env`, backup |
-| `ConfigGeneratorService` | Generowanie plików z szablonów |
+| `ConfigGeneratorService` | Generowanie plików z szablonów (wizard) |
+| `ConfigPersistenceService` | Walidacja Zod + backup + zapis YAML po mutacjach |
+| `EnvPatchService` | Aktualizacja pojedynczych zmiennych w `.env` |
 | `WizardOrchestratorService` | Orkiestracja kroków wizarda |
 | `WizardStateManager` | Persistencja `.gateway-wizard-state.json`, rollback |
-| `KeyGeneratorService` | Kryptograficznie losowe klucze: master `gw_mk_*`, klient `gw_<slug>_*` |
+| `ProviderManagerService` | add / remove / edit instancji providera |
+| `ModelManagerService` | add / remove / edit aliasów modeli |
+| `ClientManagerService` | add / remove / edit klientów |
+| `ProviderTestService` | Lekkie testy SDK Anthropic / Google |
+| `KeyGeneratorService` | Klucze master `gw_mk_*`, klient `gw_<slug>_*` |
 
-Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `PROVIDER_TYPES` — kierunek zależności: **config → cli** (nie odwrotnie). Patrz `anty-patterny.md` (§14).
+Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Patrz `anty-patterny.md` (§14).
+
+## Wskazówki
+
+- `gateway --help` — lista komend nest-commander
+- `gateway <command> --help` — opcje per komenda
+- Komendy mutujące tworzą backup `gateway.config.yaml` przed zapisem
+- Po zmianach env uruchom `gateway config:validate` przed startem serwera
+- Pliki promptów modeli nie są automatycznie usuwane przy `model:remove` / `provider:remove` — usuń ręcznie, jeśli potrzeba
 
 ## Powiązane dokumenty
 
-- `konfiguracja.md` — runtime vs CLI loader, `npm run config:validate`, boilerplate
+- `konfiguracja.md` — runtime vs CLI loader, `npm run config:validate`, placeholder config, multi-instance
 - `architektura.md` — diagram izolacji CLI / HTTP
 - `architektura-katalogi-pliki.md` — drzewo `src/cli/`
-- `dictionary.md` — terminy *Gateway CLI*, *CliConfigLoader*, *boilerplate config*
+- `dictionary.md` — terminy *Gateway CLI*, *CliConfigLoader*, *placeholder config*, *providerInstance*

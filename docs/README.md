@@ -4,7 +4,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 
 ## Jak czytać tę dokumentację
 
-0. **Po sklonowaniu repozytorium:** uruchom `gateway config:init` — domyślny `gateway.config.yaml` to boilerplate (`konfiguracja.md` sekcja 0, `CLI.md`).
+0. **Po sklonowaniu repozytorium:** uruchom `gateway config:init` — w repozytorium znajduje się `gateway.config.placeholder.yaml` jako punkt startowy; wizard wygeneruje właściwy plik `gateway.config.yaml` (`konfiguracja.md` sekcja 0, `CLI.md`).
 1. Zacznij od `dokumentacja_koncepcyjna.md` (WHAT/WHY).
 2. Następnie `architektura.md` (moduły i granice) oraz `architektura_api.md` (konwencje API).
 3. Dla szczegółów HTTP: **kontrakt** w `openapi.json` (katalog główny repo; generowany z kodu — `npm run openapi:export`), interaktywnie **Swagger UI** (`/api/v1/api-docs`), oraz opis ludzki: `lista_endpointów.md` i `dokumentacja_api.md`.
@@ -23,7 +23,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 16. **Moduł czatu** — `ChatService` (cache, limity, odpowiedź gateway) + `ChatProviderCallService` (adaptery, metryki, SSE); helpery w `src/chat/helpers/` — `architektura-katalogi-pliki.md`, `data_flow.md`.
 17. **OpenAPI / Swagger** — `@nestjs/swagger` w kontrolerach i DTO (`src/swagger/`); UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport statyczny: `npm run openapi:export` → `openapi.json`; env `SWAGGER_ENABLED` — `konfiguracja.md`, `dokumentacja_api.md`.
 18. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`); **OpenAI** — `integracja-openai-kontrakt.md` (Cursor); **Anthropic** — `integracja-anthropic-messages.md` (Claude Code / klient Messages API); przegląd: `integracje.md`.
-19. **CLI** — osobny entry point `bin/`, moduł `src/cli/` bez `ConfigModule`; wizard **`gateway config:init`** wdrożony (boilerplate → pełna konfig, szablony, resume, walidacja końcowa); pozostałe komendy namespace — planowane. Uruchomienie: `npm run cli`, `npx gateway`, opcjonalnie `npm link` → `gateway`. Szczegóły: **`CLI.md`**, `architektura-katalogi-pliki.md` (sekcja 2a), `architektura.md`.
+19. **CLI** — osobny entry point `bin/`, moduł `src/cli/` bez `ConfigModule`; wizard **`gateway config:init`**, walidacja/wyświetlanie configu, zarządzanie providerami (multi-instance), modelami, klientami, testy SDK, generowanie kluczy. Uruchomienie: `npm run cli`, `npx gateway`, opcjonalnie `npm link` → `gateway`. Szczegóły: **`CLI.md`**, `architektura-katalogi-pliki.md` (sekcja 2a), `architektura.md`.
 
 ## Spis plików
 
@@ -34,7 +34,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `lista_endpointów.md` — szybka lista endpointów (standard + streaming).
 - `dokumentacja_api.md` — szczegółowy kontrakt endpointów, przykłady payloadów.
 - `conversation-tracking.md` — `conversationId`, tryby Sentry (pojedyncza wiadomość vs konwersacja), przepływ tura 1→2, obowiązki klienta.
-- `konfiguracja.md` — env + `gateway.config.yaml` (boilerplate w repo, wizard `config:init`, wczytywanie przy starcie, walidacja Zod w `gateway-config.schema.ts` i spójność `providers` ↔ `models`); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — walidacja offline (YAML + reguły env) bez uruchamiania serwera.
+- `konfiguracja.md` — env + `gateway.config.yaml` (punkt startowy: `gateway.config.placeholder.yaml` w repo; pełna konfiguracja: wizard `config:init`, wczytywanie przy starcie, walidacja Zod w `gateway-config.schema.ts` i spójność `providers` ↔ `models`); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — walidacja offline (YAML + reguły env) bez uruchamiania serwera.
 - `mcp.md` — integracja MCP (konfiguracja i granice odpowiedzialności).
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.
 - `dictionary.md` — słownik pojęć i kody błędów.
@@ -43,7 +43,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `integracja-openai-kontrakt.md` — podłączenie Cursor (Base URL `/api/v1/openai`); models + chat/completions (JSON i stream).
 - `integracja-anthropic-messages.md` — podłączenie Claude Code (Base URL `/api/v1/anthropic`); models + messages (JSON i stream).
 - `architektura-katalogi-pliki.md` — drzewo katalogów repo, w tym **CLI** (`bin/`, `src/cli/`, sekcja 2a).
-- `CLI.md` — dokumentacja Gateway CLI (wdrożone komendy, wizard, uruchomienie; planowane namespace).
+- `CLI.md` — dokumentacja Gateway CLI (komendy config / provider / model / client / key, wizard, uruchomienie).
 
 ## Specyfikacje (SDD)
 

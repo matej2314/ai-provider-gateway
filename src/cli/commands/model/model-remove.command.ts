@@ -21,6 +21,14 @@ export class ModelRemoveCommand extends CommandRunner {
 
   async run(passedParams: string[]): Promise<void> {
     try {
+      if (this.cliLoader.isBoilerplateConfig()) {
+        CliLogger.warning(
+          'Boilerplate configuration detected. Run gateway config:init to create a full configuration.',
+        );
+        CliLogger.blank();
+        return;
+      }
+
       const alias = passedParams[0]?.trim();
       if (!alias) {
         CliLogger.error('Model alias is required.');

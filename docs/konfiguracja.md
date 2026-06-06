@@ -2,22 +2,24 @@
 
 Cel: “plug&play” — użytkownik wypełnia env + pliki konfiguracyjne i uruchamia gateway bez zmian w kodzie.
 
-## 0) Pierwsze uruchomienie (boilerplate → wizard)
+## 0) Pierwsze uruchomienie (placeholder → pełna konfiguracja)
 
-Repozytorium zawiera **`gateway.config.yaml` w wersji boilerplate** — plik przechodzi walidację schematu Zod, ale ma:
+Repozytorium zawiera **`gateway.config.placeholder.yaml`** jako punkt startowy — plik przechodzi walidację schematu Zod, ale ma:
 
 - `PLACEHOLDER_*` zamiast nazw zmiennych env,
 - providery z `enabled: false`,
 - fikcyjne aliasy modeli i klientów.
 
-**Serwis HTTP nie wystartuje** z tym plikiem bez uruchomienia wizarda (brak realnych wartości w env, wyłączeni providerzy). Przed pierwszym `npm run start:dev`:
+**Serwis HTTP nie wystartuje** bez właściwego pliku `gateway.config.yaml`. Przed pierwszym `npm run start:dev` wygeneruj konfigurację:
 
 ```bash
 npm run cli config:init
 # lub: npx gateway config:init
 ```
 
-Wizard wykrywa boilerplate (`CliConfigLoaderService.isBoilerplateConfig()` — klucze/nazwy zawierające `placeholder` lub `PLACEHOLDER`) i uruchamia konfigurację od początku bez pytania o nadpisanie. Po zakończeniu powstaje pełny `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt. Szczegóły flow: **`CLI.md`**.
+Wizard wykrywa placeholder (`CliConfigLoaderService.isBoilerplaceConfig()` — klucze/nazwy zawierające `placeholder` lub `PLACEHOLDER`) i automatycznie generuje właściwy plik `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt. 
+
+**Ważne:** Po wygenerowaniu konfiguracji plik `gateway.config.yaml` jest właściwym plikiem roboczym projektu. Plik `gateway.config.placeholder.yaml` pozostaje w repo jako wzorzec i nie jest używany przez aplikację. Szczegóły flow: **`CLI.md`**.
 
 ## 1) Sekrety i env (`.env`)
 
@@ -123,7 +125,7 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 
 **Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji i rozwiązywanie env — `src/config/configuration.ts`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
 
-W repozytorium leży **boilerplate** (sekcja 0). Poniższy przykład ilustruje typowy wynik wizarda `config:init`, nie stan pliku w git.
+**W repozytorium** znajduje się `gateway.config.placeholder.yaml` jako punkt startowy (sekcja 0). **Właściwy plik roboczy** `gateway.config.yaml` jest generowany przez `config:init`. Poniższy przykład ilustruje typowy wynik wizarda, nie zawartość pliku placeholder w git.
 
 ### Schemat (zgodny z walidatorem Zod)
 
@@ -317,7 +319,7 @@ Runtime HTTP i CLI **nie używają tej samej ścieżki** ładowania configu:
 | Wymaga `.env` przy starcie CLI | tak (przy starcie serwera HTTP) | **nie** — CLI startuje bez `.env` |
 | Parsowanie YAML | `yaml.load` + `GatewayConfigSchema` | to samo (`loadRawConfig`) |
 | Rozwiązywanie env | `buildEffectiveGatewayConfig()`, klucze master/provider/client | **pominięte** w `loadRawConfig`; opcjonalny raport braków w `loadWithEnvCheck()` |
-| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP | **`gateway config:init`** — na końcu wizarda (`validateGatewayConfig()`); offline także `npm run config:validate` |
+| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP | **`gateway config:init`** — na końcu wizarda; **`gateway config:validate`** lub `npm run config:validate` |
 
 #### Inicjalizacja konfiguracji (wizard)
 
@@ -329,7 +331,9 @@ npm run cli config:init
 
 Wizard (`ConfigInitCommand`) zbiera dane interaktywnie (master key, providery, modele, klienci, serwer), generuje `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt, a następnie uruchamia walidację końcową z pętlą retry. Stan niedokończonej sesji: `.gateway-wizard-state.json` (resume po ponownym uruchomieniu).
 
-Szczegóły flow, resume i planowane komendy: **`CLI.md`**. Architektura: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
+Po inicjalizacji konfigurację można rozszerzać bez ponownego wizarda: `gateway provider:add`, `model:add`, `client:add` itd. — **`CLI.md`**.
+
+Szczegóły flow, resume i pełna lista komend: **`CLI.md`**. Architektura: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
 
 ## 4) Nadpisywanie parametrów per request
 

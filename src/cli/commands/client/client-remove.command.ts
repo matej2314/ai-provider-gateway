@@ -36,6 +36,14 @@ export class ClientRemoveCommand extends CommandRunner {
         process.exit(1);
       }
 
+      if (this.cliLoader.isBoilerplateConfig()) {
+        CliLogger.warning(
+          'Boilerplate configuration detected. Run gateway config:init to create a full configuration.',
+        );
+        CliLogger.blank();
+        return;
+      }
+
       const config = this.cliLoader.loadRawConfig();
       await this.clientManager.removeClient(config, clientId, process.cwd());
     } catch (error) {
