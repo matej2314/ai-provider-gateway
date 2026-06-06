@@ -89,6 +89,7 @@ export class ChatStreamController {
         },
       );
     } finally {
+      
       res.end();
     }
   }

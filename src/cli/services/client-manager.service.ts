@@ -150,6 +150,166 @@ export class ClientManagerService {
     CliLogger.success(`Client ${clientId} added to configuration.`);
   }
 
+  async editClient(
+    config: GatewayConfig,
+    clientId: string,
+    cwd: string,
+  ): Promise<void> {
+    const row = config.clients[clientId];
+    if (!row) throw new Error(`Client ${clientId} not found.`);
+
+    CliLogger.section(`Edit client: ${clientId}`);
+    CliLogger.dim(
+      `Name: ${row.name} | type: ${row.type} | gatewayKeyRef: ${row.gatewayKeyRef}`,
+    );
+
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'What do you want to change?',
+        choices: [
+          { value: 'name', name: 'Change display name' },
+          { value: 'type', name: 'Change client type' },
+          { value: 'rateLimit', name: 'Change client rate limit' },
+          {
+            value: 'rotateKey',
+            name: 'Rotate client gateway key (invalidates old key)',
+          },
+          { value: 'cancel', name: 'Cancel' },
+        ],
+      },
+    ]);
+
+    switch (action) {
+      case 'cancel':
+        return;
+      case 'name': {
+        const { name } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'name',
+            message: 'New display name:',
+            default: row.name,
+            validate: (value: string) => {
+              value?.trim() ? true : 'Client name is required.';
+            },
+          },
+        ]);
+        row.name = name.trim();
+        await this.persistence.persistConfig(config, cwd);
+        CliLogger.success(`Client ${clientId} name updated.`);
+        return;
+      }
+      case 'type': {
+        const { type } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'type',
+            message: 'Client type:',
+            choices: GATEWAY_CLIENT_TYPES.map((type) => ({
+              value: type,
+              name: type,
+            })),
+            default: row.type,
+          },
+        ]);
+        row.type = type.trim();
+        await this.persistence.persistConfig(config, cwd);
+        CliLogger.success(`Client ${clientId} type updated to ${type}.`);
+        return;
+      }
+      case 'rateLimit': {
+        const choices = [
+          {
+            value: 'set',
+            name: row.rateLimit ? 'Change rate limit' : 'Set rate limit',
+          },
+          ...(row.rateLimit
+            ? [{ value: 'remove', name: 'Remove rate limit' }]
+            : []),
+          { value: 'cancel', name: 'Cancel' },
+        ];
+        const { rateLimitAction } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'rateLimitAction',
+            message: 'Rate limit:',
+            choices,
+          },
+        ]);
+        if (rateLimitAction === 'cancel') return;
+        if (rateLimitAction === 'remove') {
+          delete row.rateLimit;
+          await this.persistence.persistConfig(config, cwd);
+          CliLogger.success(`Rate limit removed for client ${clientId}`);
+          return;
+        }
+        const rateLimitAnswers = await inquirer.prompt([
+          {
+            type: 'number',
+            name: 'rps',
+            message: 'Requests per second (rps):',
+            default: row.rateLimit?.rps ?? 10,
+            validate: (input: number) => {
+              if (!Number.isFinite(input)) return 'RPS must be a number.';
+              return input > 0 ? true : 'RPS must be greater than 0.';
+            },
+          },
+          {
+            type: 'number',
+            name: 'burst',
+            message: 'Burst capacity (max queued requests):',
+            default: row.rateLimit?.burst ?? 20,
+            validate: (input: number) => {
+              if (!Number.isFinite(input)) return 'Burst must be a number.';
+              return input > 0 ? true : 'Burst must be greater than 0.';
+            },
+          },
+          {
+            type: 'number',
+            name: 'maxConcurrentStreams',
+            message: 'Max concurrent streams (0 to default = 3):',
+            default: row.rateLimit?.maxConcurrentStreams ?? 3,
+            validate: (input: number) => {
+              if (!Number.isFinite(input))
+                return 'Max concurrent streams must be a number.';
+              return input < 0
+                ? true
+                : 'Max concurrent streams must be 0 or positive.';
+            },
+          },
+        ]);
+        row.rateLimit = {
+          rps: rateLimitAnswers.rps,
+          burst: rateLimitAnswers.burst,
+          ...(rateLimitAnswers.maxConcurrentStreams && {
+            maxConcurrentStreams: rateLimitAnswers.maxConcurrentStreams,
+          }),
+        };
+        await this.persistence.persistConfig(config, cwd);
+        CliLogger.success(`Rate limit updated for client ${clientId}.`);
+        return;
+      }
+
+      case 'rotateKey': {
+        const { confirm } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'confirm',
+            message:
+              'Generate new gateway key for this client? Old key will be invalidated.',
+            default: false,
+          },
+        ]);
+        if (!confirm) return;
+        const newKey = this.keyGenerator.generateGatewayClientKey(clientId);
+        await this.envPatch.setVar(cwd, row.gatewayKeyRef, newKey);
+        CliLogger.success(`New key written to ${row.gatewayKeyRef}`);
+      }
+    }
+  }
+
   async removeClient(
     config: GatewayConfig,
     clientId: string,

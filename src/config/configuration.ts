@@ -79,7 +79,7 @@ function buildGatewayKeyRuntime(
   for (const client of clients) {
     if (client.gatewayKey) allow.add(client.gatewayKey);
   }
-  console.log(
+  console.error(
     'Registered clients:',
     clients.map((c) => ({ name: c.name, type: c.type })),
   );
