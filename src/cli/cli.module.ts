@@ -34,6 +34,7 @@ import { ClientAddCommand } from './commands/client/client-add.command';
 import { ClientListCommand } from './commands/client/client-list.command';
 import { ClientEditCommand } from './commands/client/client-edit.command';
 import { ClientRemoveCommand } from './commands/client/client-remove.command';
+import { KeyGenerateCommand } from './commands/key/key-generate.command';
 
 @Module({
   providers: [
@@ -71,6 +72,7 @@ import { ClientRemoveCommand } from './commands/client/client-remove.command';
     ModelListCommand,
     ModelRemoveCommand,
     ModelEditCommand,
+    KeyGenerateCommand,
   ],
   exports: [GatewayCommand],
 })
