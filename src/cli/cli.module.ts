@@ -12,6 +12,7 @@ import { KeyPromptService } from './services/prompts/key-prompt.service';
 import { ProviderPromptService } from './services/prompts/provider-prompt.service';
 import { ModelPromptService } from './services/prompts/model-prompt.service';
 import { ClientPromptService } from './services/prompts/client-prompt.service';
+import { ClientManagerService } from './services/client-manager.service';
 import { ServerPromptService } from './services/prompts/server-prompt.service';
 import { ConfigValidateCommand } from './commands/config/config-validate.command';
 import { ConfigShowCommand } from './commands/config/config-show.command';
@@ -29,6 +30,10 @@ import { ModelAddCommand } from './commands/model/model-add.command';
 import { ModelListCommand } from './commands/model/model-list.command';
 import { ModelRemoveCommand } from './commands/model/model-remove.command';
 import { ModelEditCommand } from './commands/model/model-edit.command';
+import { ClientAddCommand } from './commands/client/client-add.command';
+import { ClientListCommand } from './commands/client/client-list.command';
+import { ClientEditCommand } from './commands/client/client-edit.command';
+import { ClientRemoveCommand } from './commands/client/client-remove.command';
 
 @Module({
   providers: [
@@ -43,6 +48,11 @@ import { ModelEditCommand } from './commands/model/model-edit.command';
     ModelPromptService,
     ModelManagerService,
     ClientPromptService,
+    ClientManagerService,
+    ClientAddCommand,
+    ClientListCommand,
+    ClientEditCommand,
+    ClientRemoveCommand,
     ServerPromptService,
     WizardOrchestratorService,
     ConfigInitCommand,

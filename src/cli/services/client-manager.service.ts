@@ -192,7 +192,7 @@ export class ClientManagerService {
             message: 'New display name:',
             default: row.name,
             validate: (value: string) => {
-              value?.trim() ? true : 'Client name is required.';
+              return value?.trim() ? true : 'Client name is required.';
             },
           },
         ]);
@@ -214,7 +214,7 @@ export class ClientManagerService {
             default: row.type,
           },
         ]);
-        row.type = type.trim();
+        row.type = type;
         await this.persistence.persistConfig(config, cwd);
         CliLogger.success(`Client ${clientId} type updated to ${type}.`);
         return;
@@ -274,7 +274,7 @@ export class ClientManagerService {
             validate: (input: number) => {
               if (!Number.isFinite(input))
                 return 'Max concurrent streams must be a number.';
-              return input < 0
+              return input >= 0
                 ? true
                 : 'Max concurrent streams must be 0 or positive.';
             },
@@ -283,9 +283,10 @@ export class ClientManagerService {
         row.rateLimit = {
           rps: rateLimitAnswers.rps,
           burst: rateLimitAnswers.burst,
-          ...(rateLimitAnswers.maxConcurrentStreams && {
-            maxConcurrentStreams: rateLimitAnswers.maxConcurrentStreams,
-          }),
+          maxConcurrentStreams:
+            rateLimitAnswers.maxConcurrentStreams > 0
+              ? rateLimitAnswers.maxConcurrentStreams
+              : 3,
         };
         await this.persistence.persistConfig(config, cwd);
         CliLogger.success(`Rate limit updated for client ${clientId}.`);

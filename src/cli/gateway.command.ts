@@ -38,6 +38,8 @@ export class GatewayCommand extends CommandRunner {
         '       - Add new client\n' +
         chalk.yellow('  gateway client:list') +
         '      - List all clients\n' +
+        chalk.yellow('  gateway client:edit') +
+        '     - Edit a client\n' +
         chalk.yellow('  gateway client:remove') +
         '   - Remove a client\n\n' +
         chalk.bold('Provider Operations:') +
