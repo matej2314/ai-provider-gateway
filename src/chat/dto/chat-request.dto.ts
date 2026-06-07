@@ -12,6 +12,7 @@ import { Type } from 'class-transformer';
 
 import { ChatMessageDto } from './chat-message.dto';
 import { ChatParamsDto } from './chat-params.dto';
+import { ChatToolingDto } from './chat-tooling.dto';
 
 const MAX_MESSAGES = 150;
 
@@ -66,4 +67,10 @@ export class ChatRequestDto {
     },
   )
   conversationId?: string;
+
+  @ApiPropertyOptional({ type: ChatToolingDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ChatToolingDto)
+  tooling?: ChatToolingDto;
 }
