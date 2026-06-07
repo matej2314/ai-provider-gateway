@@ -10,11 +10,26 @@ import { composeSystemPrompt } from './system-prompt';
 export function toProviderTurns(
   messages: ChatMessageDto[],
 ): ProviderChatTurn[] {
-  return messages
-    .filter(
-      (m): m is ProviderChatTurn => m.role === 'user' || m.role === 'assistant',
-    )
-    .map((m) => ({ role: m.role, content: m.content }));
+  const turns: ProviderChatTurn[] = [];
+
+  for (const message of messages) {
+    if (message.role === 'user') {
+      turns.push({ role: 'user', content: message.content });
+    } else if (message.role === 'assistant') {
+      turns.push({
+        role: 'assistant',
+        content: message.content,
+        ...(message.toolCalls?.length ? { toolCalls: message.toolCalls } : {}),
+      });
+    } else if (message.role === 'tool' && message.toolCallId) {
+      turns.push({
+        role: 'tool',
+        toolCallId: message.toolCallId,
+        content: message.content,
+      });
+    }
+  }
+  return turns;
 }
 
 export function buildProviderInputForAlias(
@@ -22,8 +37,16 @@ export function buildProviderInputForAlias(
   alias: string,
   resolvedPrompts: ResolvedSystemPrompts,
 ): ProviderChatInput {
-  return {
+  const input: ProviderChatInput = {
     system: composeSystemPrompt(resolvedPrompts, alias),
     messages: toProviderTurns(request.messages),
   };
+
+  if (request.tooling?.definitions?.length) {
+    input.tools = request.tooling.definitions;
+    if (request.tooling.toolChoice) {
+      input.toolChoice = request.tooling.toolChoice;
+    }
+  }
+  return input;
 }
