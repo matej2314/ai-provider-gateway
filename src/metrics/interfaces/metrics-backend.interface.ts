@@ -1,5 +1,5 @@
 export interface LlmCallMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'tool';
   content: string;
 }
 
