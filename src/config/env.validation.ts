@@ -10,12 +10,20 @@ import {
   Min,
   Max,
   IsNumber,
+  ValidateIf,
 } from 'class-validator';
 
 const isProduction = (config: Record<string, unknown>): boolean => {
   const nodeEnv = config.NODE_ENV as string;
   return nodeEnv === 'production';
 };
+
+function isRedisCacheBackend(obj: EnvironmentVariables): boolean {
+  return (
+    obj.CACHE_BACKEND === 'redis' &&
+    (obj.CACHE_BACKEND ?? 'noop').toLowerCase() === 'redis'
+  );
+}
 
 function hasAtLeastOneProviderKey(env: EnvironmentVariables): boolean {
   const anthropic = (env.ANTHROPIC_API_KEY ?? '').trim();
@@ -53,20 +61,24 @@ class EnvironmentVariables {
   @IsOptional()
   CACHE_KEY_PREFIX?: string = 'aigw:';
 
+  @ValidateIf((obj) => isRedisCacheBackend(obj))
   @IsString()
   @IsOptional()
   REDIS_HOST?: string = 'localhost';
 
+  @ValidateIf((obj) => isRedisCacheBackend(obj))
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
   @Min(1)
   @IsOptional()
   REDIS_PORT?: number = 6379;
 
+  @ValidateIf((obj) => isRedisCacheBackend(obj))
   @IsString()
   @IsOptional()
   REDIS_PASSWORD?: string = '';
 
+  @ValidateIf((obj) => isRedisCacheBackend(obj))
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
   @Min(0)

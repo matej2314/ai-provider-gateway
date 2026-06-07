@@ -29,6 +29,8 @@ ai-provider-gateway/
 ├── .prettierrc
 ├── .env.example
 ├── .env                            # lokalnie — nie commitować
+├── .gateway-wizard-state.json      # lokalnie — stan niedokończonego config:init (resume)
+├── backup/                         # lokalnie — backupi YAML/.env z CLI (backup/* w .gitignore)
 ├── .gitignore
 ├── Dockerfile
 ├── docker-compose.yml
@@ -187,7 +189,7 @@ ai-provider-gateway/
 │   │   │   ├── config-generator.service.ts # generowanie YAML, .env, promptów (wizard)
 │   │   │   ├── config-persistence.service.ts # backup + zapis YAML po mutacjach
 │   │   │   ├── env-patch.service.ts        # setVar / removeVar w .env
-│   │   │   ├── file-manager.service.ts     # backup, read/write YAML i .env
+│   │   │   ├── file-manager.service.ts     # backup do backup/, read/write YAML i .env
 │   │   │   ├── key-generator.service.ts
 │   │   │   ├── provider-manager.service.ts # add / remove / edit providerInstance
 │   │   │   ├── model-manager.service.ts      # add / remove / edit aliasów
@@ -384,6 +386,7 @@ CLI to **osobna warstwa** z własnym entry pointem, niezależna od bootstrapu HT
 | **Ładowanie configu** | `CliConfigLoaderService.loadRawConfig()` — parsowanie YAML + `GatewayConfigSchema`; **bez** rozwiązywania env. Pełna walidacja runtime — w `config:init` na końcu wizarda, w `gateway config:validate` oraz w `npm run config:validate`. |
 | **Konwencja komend** | `gateway <namespace>:<action>`; root command wyświetla welcome i pełną listę komend. |
 | **Stan wizarda** | `.gateway-wizard-state.json` — resume / rollback po przerwaniu (`WizardStateManager`). |
+| **Backup mutacji** | `FileManagerService.backupFile()` → `backup/<nazwa-pliku>.backup-<timestamp>` (katalog w `.gitignore`). |
 
 Uruchomienie:
 

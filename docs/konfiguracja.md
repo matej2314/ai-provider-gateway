@@ -331,7 +331,7 @@ npm run cli config:init
 
 Wizard (`ConfigInitCommand`) zbiera dane interaktywnie (master key, providery, modele, klienci, serwer), generuje `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt, a następnie uruchamia walidację końcową z pętlą retry. Stan niedokończonej sesji: `.gateway-wizard-state.json` (resume po ponownym uruchomieniu).
 
-Po inicjalizacji konfigurację można rozszerzać bez ponownego wizarda: `gateway provider:add`, `model:add`, `client:add` itd. — **`CLI.md`**.
+Po inicjalizacji konfigurację można rozszerzać bez ponownego wizarda: `gateway provider:add`, `model:add`, `client:add` itd. — **`CLI.md`**. Komendy mutujące robią backup `gateway.config.yaml` w katalogu `backup/` przed zapisem.
 
 Szczegóły flow, resume i pełna lista komend: **`CLI.md`**. Architektura: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
 

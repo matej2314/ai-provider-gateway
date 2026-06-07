@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { CommandFactory } from 'nest-commander';
 import { CliModule } from '../src/cli/cli.module';
 

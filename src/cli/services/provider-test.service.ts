@@ -10,7 +10,7 @@ export class ProviderTestService {
       const client = new Anthropic({ apiKey });
 
       await client.messages.create({
-        model: 'claude-4-5-sonnet-20260319',
+        model: 'claude-sonnet-4-5-20250929',
         max_tokens: 10,
         messages: [{ role: 'user', content: 'Hi' }],
       });

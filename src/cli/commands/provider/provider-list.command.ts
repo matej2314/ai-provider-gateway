@@ -35,7 +35,7 @@ export class ProviderListCommand extends CommandRunner {
         const statusColor = provider.enabled ? 'green' : 'red';
 
         console.log(
-          chalk[statusColor] +
+          chalk[statusColor]('•') +
             ' ' +
             chalk.cyan(id) +
             chalk.dim(` (${provider.type})`),

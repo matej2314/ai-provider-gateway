@@ -147,16 +147,32 @@ Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalog
 Osobny entry point od serwera HTTP — działa **bez build** (ts-node), bin: `gateway`.
 
 ```bash
-npm run cli                              # lista komend
+npm run cli                              # welcome + lista komend
 npm run cli config:init                  # wizard konfiguracji (pierwsze uruchomienie)
 npm run cli config:validate              # walidacja YAML + env
-npm run cli provider:test                # test połączeń z providerami
+npm run cli config:show                  # podgląd sparsowanego YAML
+
+npm run cli provider:list                # lista instancji providerów
+npm run cli provider:test                # test połączeń SDK (opcjonalnie: [instanceId] lub --provider)
+npm run cli provider:add                 # dodaj instancję providera (interaktywnie)
+npm run cli provider:edit <instanceId>   # włącz/wyłącz lub rotacja klucza API
+npm run cli provider:remove <instanceId> # usuń instancję, modele i klucz z .env
+
 npm run cli model:list                   # lista aliasów modeli
+npm run cli model:add                    # dodaj alias (interaktywnie)
+npm run cli model:edit <alias>           # edycja pól modelu
+npm run cli model:remove <alias>         # usuń alias z YAML
+
+npm run cli client:list                  # lista klientów gateway
 npm run cli client:add                   # dodaj klienta (interaktywnie)
+npm run cli client:edit <clientId>       # edycja klienta / rotacja klucza
+npm run cli client:remove <clientId>     # usuń klienta
+
 npm run cli key:generate -- --type master
+npm run cli key:generate -- --type client --client-id webapp
 ```
 
-Pełna dokumentacja komend (config, provider, model, client, key): [`docs/CLI.md`](docs/CLI.md).
+Mutacje YAML tworzą backup w katalogu `backup/` (ignorowany przez git). Pełna dokumentacja komend: [`docs/CLI.md`](docs/CLI.md).
 
 ## Skrypty
 

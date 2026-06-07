@@ -6,6 +6,29 @@ Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya, zarządzania
 
 **Tryb v1:** wszystkie komendy mutujące konfigurację działają w trybie **interaktywnym** (prompty w terminalu). Tryb non-interactive — planowany na przyszłość.
 
+## Pełna lista komend
+
+| Namespace | Komenda | Opis |
+|-----------|---------|------|
+| *(root)* | `gateway` | Welcome + lista komend (`npm run cli`) |
+| config | `config:init` | Wizard inicjalizacji |
+| config | `config:validate` | Walidacja YAML + env |
+| config | `config:show` | Podgląd sparsowanego YAML |
+| provider | `provider:list` | Lista instancji providerów |
+| provider | `provider:test [instanceId]` | Test połączenia SDK |
+| provider | `provider:add` | Dodaj instancję (interaktywnie) |
+| provider | `provider:remove <instanceId>` | Usuń instancję + modele + klucz z `.env` |
+| provider | `provider:edit <instanceId>` | Włącz/wyłącz lub rotacja klucza API |
+| model | `model:list` | Lista aliasów modeli |
+| model | `model:add` | Dodaj alias (interaktywnie) |
+| model | `model:remove <alias>` | Usuń alias z YAML |
+| model | `model:edit <alias>` | Edycja pól modelu (checkbox) |
+| client | `client:list` | Lista klientów gateway |
+| client | `client:add` | Dodaj klienta (interaktywnie) |
+| client | `client:edit <clientId>` | Edycja klienta / rotacja klucza |
+| client | `client:remove <clientId>` | Usuń klienta + klucz z `.env` |
+| key | `key:generate` | Wygeneruj klucz master lub klienta (bez zapisu do `.env`) |
+
 ## Stan wdrożenia
 
 | Obszar | Status |
@@ -106,9 +129,13 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
 **Flow:**
 
 1. **Wykrycie istniejącej konfiguracji**
-   - Brak pliku `gateway.config.yaml` → wizard od początku (użyje `gateway.config.placeholder.yaml` jako wzorca, jeśli istnieje).
-   - **Placeholder** (`isBoilerplateConfig()` — `PLACEHOLDER` / `placeholder` w `masterKeyRef`, kluczach providerów lub klientów w `gateway.config.yaml`) → informacja i start wizarda bez pytania o nadpisanie.
-   - Skonfigurowany `gateway.config.yaml` (po wizardzie) → pytanie o nadpisanie; przy „tak” backup pliku i `.env`.
+   - Brak pliku `gateway.config.yaml` → wizard od początku.
+   - **Boilerplate** (`isBoilerplateConfig()` w `CliConfigLoaderService`) — wykrywany, gdy w `gateway.config.yaml`:
+     - `masterKeyRef` zawiera `PLACEHOLDER` lub `placeholder`, **lub**
+     - klucz (ID) wpisu w `providers:` zawiera `placeholder`, **lub**
+     - klucz (ID) wpisu w `clients:` zawiera `placeholder`.
+     → komunikat i start wizarda **bez** pytania o nadpisanie.
+   - Skonfigurowany plik (po wizardzie) → pytanie o nadpisanie; przy „tak” backup `gateway.config.yaml` i `.env` do katalogu `backup/`.
 
 2. **Wizard (5 kroków)** — `WizardOrchestratorService`:
    - **1/5** Master key (`KeyPromptService` + `KeyGeneratorService` — format `gw_mk_<base64url>`)
@@ -145,6 +172,7 @@ gateway config:validate
 ```
 
 - Brak pliku `gateway.config.yaml` → exit `1` z podpowiedzią `gateway config:init`.
+- Wykryty boilerplate (`isBoilerplateConfig()`) → exit `1` z podpowiedzią `gateway config:init`.
 - Błąd schematu YAML → exit `1`.
 - Brakujące zmienne env (master, włączone providery, klienci) → exit `1` z listą.
 - Sukces → podsumowanie (schema version, liczba providerów/modeli/klientów).
@@ -163,29 +191,53 @@ gateway config:show
 
 Sekcje: providery (typ, `enabled`, `apiKeyRef`), modele (alias → `providerInstance`/`modelId`, fallback), klienci (typ, nazwa, `gatewayKeyRef`, rate limit), master key ref.
 
+Przy boilerplate wyświetla konfigurację, a na końcu **ostrzeżenie** (bez exit `1`).
+
+## Konfiguracja boilerplate a komendy
+
+Większość komend CRUD wymaga pełnej konfiguracji (nie boilerplate). Zachowanie przy `isBoilerplateConfig()`:
+
+| Komenda | Zachowanie |
+|---------|------------|
+| `config:init` | Start wizarda (bez pytania o nadpisanie) |
+| `config:validate`, `provider:*` | Ostrzeżenie + exit `1` |
+| `config:show` | Wyświetla YAML + ostrzeżenie na końcu |
+| `model:list`, `model:remove`, `client:list` | Ostrzeżenie + **return** (exit `0`) |
+| `model:add`, `model:edit`, `client:add`, `client:edit`, `client:remove` | Ostrzeżenie + exit `1` |
+| `key:generate` | Działa bez `gateway.config.yaml` |
+
 ## Komendy — providery
 
 Operacje na **`providerInstance`** — kluczach mapy `providers` w YAML (np. `anthropic`, `google-office`). Wiele instancji tego samego typu adaptera (`type: anthropic` | `type: google`) jest dozwolone.
 
 ### `gateway provider:list`
 
-Lista skonfigurowanych instancji providerów.
+Lista skonfigurowanych instancji providerów (ID, typ, `apiKeyRef`, `enabled`).
 
 ```bash
 gateway provider:list
 ```
 
+Wymaga pełnej konfiguracji (nie boilerplate). Przy braku providerów — komunikat ostrzegawczy.
+
 ### `gateway provider:test [instanceId]`
 
-Test połączenia z providerami przez SDK (`ProviderTestService` — lekki request, bez importu z `src/integrations/`).
+Test połączenia z providerami przez SDK (`ProviderTestService` — lekki request, bez importu z `src/integrations/`). Identyfikator argumentu to **`providerInstance`** (klucz w `providers:`), nie typ adaptera.
 
 ```bash
 gateway provider:test              # wszystkie instancje
-gateway provider:test anthropic    # konkretna instancja
+gateway provider:test anthropic    # konkretna instancja (np. anthropic)
 gateway provider:test --provider google-office
 ```
 
-Wymaga uzupełnionego `.env` (klucze API dla testowanych instancji). Brakujące zmienne → exit `1`.
+Testy używają stałych modeli SDK (nie aliasów z YAML):
+
+| Typ adaptera | Model w teście |
+|--------------|------------------|
+| `anthropic` | `claude-sonnet-4-5-20250929` |
+| `google` | `gemini-2.5-flash` |
+
+Wymaga pełnej konfiguracji oraz uzupełnionego `.env` (`loadWithEnvCheck()`). Brakujące zmienne → exit `1`. Przy teście wszystkich instancji brak klucza dla jednej instancji kończy się statusem Failed dla tej pozycji (bez natychmiastowego exit).
 
 ### `gateway provider:add`
 
@@ -212,7 +264,7 @@ Usuwa instancję, **wszystkie** modele z `providerInstance === id` oraz wpis `ap
 gateway provider:remove google-office
 ```
 
-Przy usuwaniu **jedynej aktywnej** instancji (`enabled !== false`) — ostrzeżenie (boxen) i confirm (domyślnie: nie). Pliki promptów modeli (`models/<alias>.md`) **nie są** usuwane automatycznie.
+Przed usunięciem — confirm z listą powiązanych aliasów modeli. Przy usuwaniu **jedynej aktywnej** instancji (`enabled !== false`) — dodatkowe ostrzeżenie (boxen) i confirm (domyślnie: nie). Pliki promptów modeli (`models/<alias>.md`) **nie są** usuwane automatycznie — CLI wypisuje ich ścieżki po sukcesie.
 
 ### `gateway provider:edit <instanceId>`
 
@@ -245,7 +297,9 @@ gateway model:add
 
 ### `gateway model:remove <alias>`
 
-Usuwa alias z `gateway.config.yaml` (z backupem). Plik promptu modelu pozostaje na dysku.
+Usuwa alias z `gateway.config.yaml` (z backupem w `backup/`). Plik promptu modelu pozostaje na dysku — po sukcesie CLI przypomina o ręcznym usunięciu `models/<alias>.md`.
+
+Przy błędzie walidacji Zod po mutacji (`validation failed`) YAML **nie jest** zapisywany — komunikat informuje, że alias nie został usunięty.
 
 ```bash
 gateway model:remove chat-default
@@ -339,7 +393,7 @@ Komendy add/edit/remove (poza samym wizardem) stosują wspólny wzorzec:
 1. `CliConfigLoaderService.loadRawConfig()` — odczyt YAML
 2. Mutacja w pamięci
 3. `GatewayConfigSchema.safeParse()` — walidacja struktury
-4. Backup `gateway.config.yaml` — `FileManagerService.backupFile()`
+4. Backup `gateway.config.yaml` — `FileManagerService.backupFile()` → katalog `backup/` (np. `backup/gateway.config.yaml.backup-<timestamp>`; katalog w `.gitignore`)
 5. Zapis YAML — `ConfigPersistenceService.persistConfig()`
 6. Sekrety — `EnvPatchService` (`setVar` / `removeVar` w `.env`)
 
@@ -351,7 +405,7 @@ Kierunek zależności: **config → cli** (typy, schematy, `validateGatewayConfi
 |-----------|------|
 | `CliModule` | Root NestJS module — **bez** `ConfigModule` |
 | `CliConfigLoaderService` | YAML + `GatewayConfigSchema`; `loadWithEnvCheck()` raportuje braki env |
-| `FileManagerService` | read/write YAML, `.env`, backup |
+| `FileManagerService` | read/write YAML, `.env`, backup do `backup/` |
 | `ConfigGeneratorService` | Generowanie plików z szablonów (wizard) |
 | `ConfigPersistenceService` | Walidacja Zod + backup + zapis YAML po mutacjach |
 | `EnvPatchService` | Aktualizacja pojedynczych zmiennych w `.env` |
@@ -369,7 +423,7 @@ Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `PROVIDE
 
 - `gateway --help` — lista komend nest-commander
 - `gateway <command> --help` — opcje per komenda
-- Komendy mutujące tworzą backup `gateway.config.yaml` przed zapisem
+- Komendy mutujące tworzą backup `gateway.config.yaml` w `backup/` przed zapisem (wizard przy nadpisaniu istniejącej konfiguracji robi to samo dla YAML i `.env`)
 - Po zmianach env uruchom `gateway config:validate` przed startem serwera
 - Pliki promptów modeli nie są automatycznie usuwane przy `model:remove` / `provider:remove` — usuń ręcznie, jeśli potrzeba
 

@@ -3,7 +3,6 @@ import {
   HttpException,
   HttpStatus,
   InternalServerErrorException,
-  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIProvider } from './interfaces/ai-provider.interface';
@@ -42,7 +41,7 @@ export interface ResolvedProviderConfig {
 }
 
 @Injectable()
-export class ProviderRegistryService implements OnApplicationBootstrap {
+export class ProviderRegistryService {
   private instances = new Map<string, RegisteredProviderInstance>();
   private readonly logger: LoggingService;
 
@@ -59,11 +58,6 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
     provider: AIProvider,
   ): void {
     this.instances.set(instanceId, { instanceId, type, provider });
-    this.logger.debug('Registered provider instance:', {
-      instanceId,
-      type,
-      adapter: provider.constructor.name,
-    });
   }
 
   private getGatewayConfig(): GatewayConfig {
@@ -196,11 +190,5 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
 
   list(): string[] {
     return Array.from(this.instances.keys());
-  }
-
-  onApplicationBootstrap() {
-    this.logger.info(
-      `Registered providers: ${this.list().join(', ') || '(none)'}`,
-    );
   }
 }

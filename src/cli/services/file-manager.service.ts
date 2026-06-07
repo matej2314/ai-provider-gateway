@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
+import { basename, join } from 'path';
 import * as yaml from 'js-yaml';
 import { CliLogger } from '../utils/cli-logger.util';
 
@@ -20,7 +21,8 @@ export class FileManagerService {
 
   async backupFile(path: string): Promise<string> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = `backup/${path}.backup-${timestamp}`;
+    const fileName = basename(path);
+    const backupPath = join('backup', `${fileName}.backup-${timestamp}`);
 
     await this.ensureDir('backup');
     await fs.copyFile(path, backupPath);

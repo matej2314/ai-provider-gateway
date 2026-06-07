@@ -45,9 +45,20 @@ export class ModelRemoveCommand extends CommandRunner {
       const config = this.cliLoader.loadRawConfig();
       await this.modelManager.removeModel(config, alias, process.cwd());
     } catch (error) {
-      CliLogger.error(
-        error instanceof Error ? error.message : 'Unknown error occurred.',
-      );
+      const message =
+        error instanceof Error ? error.message : 'Unknown error occurred.';
+
+      CliLogger.error(message);
+      const alias = passedParams[0]?.trim();
+      if (
+        alias &&
+        error instanceof Error &&
+        message.toLowerCase().includes('validation failed')
+      ) {
+        CliLogger.info(
+          `Model ${alias} was not removed. gateway.config.yaml was not changed.`,
+        );
+      }
       process.exit(1);
     }
   }
