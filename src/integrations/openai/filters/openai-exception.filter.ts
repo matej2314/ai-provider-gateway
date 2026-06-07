@@ -17,6 +17,10 @@ export class OpenAiExceptionFilter implements ExceptionFilter {
       return 'rate_limit_error';
     }
 
+    if (code === ApiErrorCode.TOOLS_NOT_SUPPORTED) {
+      return 'invalid_request_error';
+    }
+
     if (status === 401 || status === 403) return 'authentication_error';
     if (status === 400) return 'invalid_request_error';
     if (status >= 500) return 'server_error';

@@ -5,17 +5,36 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiErrorCode } from 'src/common/errors/api-error.code';
 
 @Catch()
 export class AnthropicExceptionFilter implements ExceptionFilter {
+  private mapType(status: number, code: string | null): string {
+    if (
+      code === ApiErrorCode.RATE_LIMITED ||
+      code === ApiErrorCode.PROVIDER_RATE_LIMITED
+    ) {
+      return 'rate_limit_error';
+    }
+
+    if (code === ApiErrorCode.TOOLS_NOT_SUPPORTED) {
+      return 'invalid_request_error';
+    }
+    if (status === 401 || status === 403) return 'authentication_error';
+    if (status === 429) return 'rate_limit_error';
+    if (status === 400) return 'invalid_request_error';
+    if (status >= 500) return 'api_error';
+    return 'api_error';
+  }
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const req = ctx.getRequest();
     const res = ctx.getResponse();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'An unexpected error occurred.';
     let type = 'api_error';
+    let code: string | null = null;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -28,12 +47,10 @@ export class AnthropicExceptionFilter implements ExceptionFilter {
         const mess = object.message;
         if (Array.isArray(mess)) message = mess.join('; ');
         else if (typeof mess === 'string') message = mess;
+        if (typeof object.code === 'string') code = object.code;
       }
 
-      if (status === 401 || status === 403) type = 'authentication_error';
-      if (status === 429) type = 'rate_limit_error';
-      if (status === 400) type = 'invalid_request_error';
-      if (status >= 500) type = 'api_error';
+      type = this.mapType(status, code);
     }
 
     res.status(status).json({
