@@ -1,15 +1,43 @@
+import type {
+  GatewayToolChoice,
+  GatewayToolDefinition,
+  GatewayToolCall,
+} from '../types/tooling-types';
+
 export type UserChatMessage = { role: 'user'; content: string };
 export type AssistantChatMessage = { role: 'assistant'; content: string };
+export type ProviderToolDefinition = GatewayToolDefinition;
+export type ProviderToolCall = GatewayToolCall;
 
-export type ProviderChatTurn = UserChatMessage | AssistantChatMessage;
+export type ProviderAssistantTurn = {
+  role: 'assistant';
+  content: string;
+  toolCalls?: ProviderToolCall[];
+};
+
+export type ProviderToolResultTurn = {
+  role: 'tool';
+  toolCallId: string;
+  content: string;
+};
+
+export type ProviderChatTurn =
+  | UserChatMessage
+  | AssistantChatMessage
+  | ProviderAssistantTurn
+  | ProviderToolResultTurn;
 
 export interface ProviderChatInput {
   system?: string;
   messages: ProviderChatTurn[];
+  tools?: ProviderToolDefinition[];
+  toolChoice?: GatewayToolChoice;
 }
 
 export interface ProviderChatResponse {
   text: string;
+  toolCalls?: ProviderToolCall[];
+  stopReason?: 'end_turn' | 'tool_use' | 'max_tokens' | 'stop_sequence';
   model?: string;
   usage?: {
     inputTokens: number;
@@ -27,6 +55,8 @@ export interface StreamResult {
       }
     | undefined
   >;
+  getFinalToolCalls?: () => Promise<ProviderToolCall[] | undefined>;
+  getStopReason?: () => Promise<ProviderChatResponse['stopReason']>;
 }
 
 export interface ProviderCallOptions {
@@ -45,5 +75,5 @@ export interface AIProvider {
     input: ProviderChatInput,
     modelId: string,
     options?: ProviderCallOptions,
-  ):StreamResult;
+  ): StreamResult;
 }
