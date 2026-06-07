@@ -1,0 +1,116 @@
+schemaVersion: 1
+masterKeyRef: MASTER_KEY
+providers:
+  anthropic:
+    type: anthropic
+    apiKeyRef: ANTHROPIC_API_KEY
+    enabled: true
+  google:
+    type: google
+    apiKeyRef: GOOGLE_API_KEY
+    enabled: true
+  google-office:
+    type: google
+    apiKeyRef: GOOGLE_OFFICE_API_KEY
+    enabled: true
+clients:
+  webapp:
+    name: mywebapp
+    type: webapp
+    gatewayKeyRef: GATEWAY_KEY_WEBAPP
+    rateLimit:
+      rps: 45
+      burst: 20
+      maxConcurrentStreams: 3
+  myIDE:
+    name: mycursor
+    type: ide
+    gatewayKeyRef: GATEWAY_KEY_MYIDE
+models:
+  chat-default:
+    providerInstance: anthropic
+    modelId: claude-sonnet-4-5-20250929
+    capabilities:
+      streaming: true
+    policy:
+      timeoutMs: 30000
+      retry:
+        maxAttempts: 3
+        onStatus:
+          - 429
+          - 500
+          - 502
+          - 503
+          - 504
+      params:
+        defaults:
+          temperature: 0.7
+          maxOutputTokens: 1024
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+        bounds:
+          temperature:
+            min: 0
+            max: 2
+          maxOutputTokens:
+            min: 1
+            max: 8192
+  google-model:
+    providerInstance: google
+    modelId: gemini-2.5-flash
+    capabilities:
+      streaming: true
+    policy:
+      timeoutMs: 30000
+      retry:
+        maxAttempts: 3
+        onStatus:
+          - 429
+          - 500
+          - 502
+          - 503
+          - 504
+      params:
+        defaults:
+          temperature: 0.7
+          maxOutputTokens: 1024
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+        bounds:
+          temperature:
+            min: 0
+            max: 2
+          maxOutputTokens:
+            min: 1
+            max: 8192
+  google-office-model:
+    providerInstance: google-office
+    modelId: gemini-2.5-flash
+    capabilities:
+      streaming: true
+    policy:
+      timeoutMs: 30000
+      retry:
+        maxAttempts: 3
+        onStatus:
+          - 429
+          - 500
+          - 502
+          - 503
+          - 504
+      params:
+        defaults:
+          temperature: 0.7
+          maxOutputTokens: 1024
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+        bounds:
+          temperature:
+            min: 0
+            max: 2
+          maxOutputTokens:
+            min: 1
+            max: 8192
