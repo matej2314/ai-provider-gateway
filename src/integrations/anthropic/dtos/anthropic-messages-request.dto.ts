@@ -56,4 +56,12 @@ export class AnthropicMessagesRequestDto {
   @Min(0)
   @Max(1)
   temperature?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  tools?: unknown[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  tool_choice?: unknown;
 }
