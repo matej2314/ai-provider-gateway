@@ -11,6 +11,12 @@ import {
   ProviderChatResponse,
   StreamResult,
 } from '../interfaces/ai-provider.interface';
+import {
+  mapToolChoiceToAnthropic,
+  mapToolsToAnthropic,
+  mapTurnsToAnthropicMessages,
+  parseAnthropicResponseWithTools,
+} from '../anthropic/anthropic-tools.mapper';
 
 export function createAnthropicProvider(
   apiKey: string,
@@ -36,12 +42,26 @@ export function createAnthropicProvider(
       });
 
       try {
+        if (input.tools?.length) {
+          const params = {
+            model: modelId,
+            max_tokens: options?.maxOutputTokens ?? 1024,
+            temperature: options?.temperature,
+            system: input.system,
+            tools: mapToolsToAnthropic(input.tools),
+            tool_choice: mapToolChoiceToAnthropic(input.toolChoice),
+            messages: mapTurnsToAnthropicMessages(input.messages),
+          };
+          const response = await client.messages.create(params);
+          return parseAnthropicResponseWithTools(response);
+        }
+
         const response = await client.messages.create({
           model: modelId,
           max_tokens: options?.maxOutputTokens ?? 1024,
           temperature: options?.temperature ?? undefined,
           system: input.system,
-          messages: input.messages,
+          messages: mapTurnsToAnthropicMessages(input.messages),
         });
 
         let text = '';
@@ -83,7 +103,7 @@ export function createAnthropicProvider(
             max_tokens: options?.maxOutputTokens ?? 1024,
             temperature: options?.temperature ?? undefined,
             system: input.system,
-            messages: input.messages,
+            messages: mapTurnsToAnthropicMessages(input.messages),
             stream: true,
           });
 
