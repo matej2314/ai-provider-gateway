@@ -77,4 +77,20 @@ export class OpenAiChatCompletionRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
   user?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  paralel_tool_calls?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  top_p?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  presence_penalty?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  frequency_penalty?: number;
 }
