@@ -15,7 +15,9 @@ import { getOrCreateConversationIdForResponse } from './helpers/conversation-id'
 import { getResolvedSystemPrompts } from './helpers/system-prompt';
 import { isCachedChatAllowedForModelAlias } from './helpers/cache-policy';
 import { buildRetryPolicyFromResolved } from './helpers/retry-policy';
+import { isToolingRequest } from './helpers/tooling-request';
 import type { GatewayConfig } from '../config/configuration';
+import type { ResolvedProviderConfig } from 'src/providers/provider-registry.service';
 
 @Injectable()
 export class ChatService {
@@ -90,6 +92,10 @@ export class ChatService {
 
     const primaryResolved = this.registry.resolve(requestBody.modelAlias);
 
+    this.validateTooling(requestBody, primaryResolved);
+
+    const skipCache = isToolingRequest(requestBody);
+
     const options = resolveProviderCallOptions(
       primaryResolved.params,
       requestBody.params,
@@ -120,20 +126,22 @@ export class ChatService {
         );
       }
 
-      const cachedResponse = await this.cacheService.getCachedResponse(
-        requestBody,
-        options,
-      );
+      if (!skipCache) {
+        const cachedResponse = await this.cacheService.getCachedResponse(
+          requestBody,
+          options,
+        );
 
-      if (
-        cachedResponse &&
-        isCachedChatAllowedForModelAlias(
-          this.config.get<GatewayConfig>('gateway'),
-          requestBody.modelAlias,
-        )
-      ) {
-        log.info('Chat cache hit');
-        return cachedResponse;
+        if (
+          cachedResponse &&
+          isCachedChatAllowedForModelAlias(
+            this.config.get<GatewayConfig>('gateway'),
+            requestBody.modelAlias,
+          )
+        ) {
+          log.info('Chat cache hit');
+          return cachedResponse;
+        }
       }
     }
 
@@ -153,7 +161,9 @@ export class ChatService {
     try {
       const result = await this.resilientExecutor.executeWithRetryAndFallback({
         primaryAlias: requestBody.modelAlias,
-        fallbackAlias: primaryResolved.fallbackAlias,
+        fallbackAlias: isToolingRequest(requestBody)
+          ? undefined
+          : primaryResolved.fallbackAlias,
         retry: buildRetryPolicyFromResolved(primaryResolved),
         runOnce,
         requestId,
@@ -175,15 +185,25 @@ export class ChatService {
         usage: response.usage,
         requestId: requestId,
         conversationId: responseConversationId,
+
+        ...(response.toolCalls?.length && { toolCalls: response.toolCalls }),
+        ...(response.stopReason === 'tool_use' && {
+          finishReason: 'tool_calls',
+        }),
+        ...(response.stopReason === 'end_turn' &&
+          !response.toolCalls?.length && { finishReason: 'stop' }),
       };
 
       const latency = Date.now() - startedAt;
 
-      await this.cacheService.setCachedResponse(
-        requestBody,
-        chatResult,
-        options,
-      );
+      if (!skipCache) {
+        await this.cacheService.setCachedResponse(
+          requestBody,
+          chatResult,
+          options,
+        );
+      }
+
       log.info('Chat completed successfully', {
         provider: resolved.providerName,
         modelId: resolved.modelId,
@@ -208,6 +228,24 @@ export class ChatService {
         gatewayKey,
       );
       throw error;
+    }
+  }
+
+  private validateTooling(
+    requestBody: ChatRequestDto,
+    resolved: ResolvedProviderConfig,
+  ): void {
+    if (!isToolingRequest(requestBody)) return;
+
+    if (!resolved.capabilities?.tools) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.TOOLS_NOT_SUPPORTED,
+          message: 'Tools are not supported for this model alias.',
+          details: [],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
@@ -267,12 +305,14 @@ export class ChatService {
 
     const primaryResolved = this.registry.resolve(requestBody.modelAlias);
 
+    this.validateTooling(requestBody, primaryResolved);
+
     const startedAt = Date.now();
     const id = `gw_${uuidv4()}`;
     const metaEmitted = { value: false };
 
-    const runOnce = async (alias: string, attemptNo: number) => {
-      const { assembledText, usageMetadata } =
+    const runOnce = async (alias: string, _attemptNo: number) => {
+      const { assembledText, usageMetadata, toolCalls, stopReason } =
         await this.providerCallService.streamOnce({
           requestBody,
           alias,
@@ -287,7 +327,7 @@ export class ChatService {
           },
         });
       const resolved = this.registry.resolve(alias);
-      return { resolved, assembledText, usageMetadata };
+      return { resolved, assembledText, usageMetadata, toolCalls, stopReason };
     };
 
     try {
@@ -299,11 +339,21 @@ export class ChatService {
         requestId,
       });
 
-      const { resolved } = result.value;
+      const { resolved, toolCalls, stopReason } = result.value;
       const usedAlias = result.usedAlias;
       const didFallback = result.didFallback;
 
-      emit({ name: 'done', data: {} });
+      emit({
+        name: 'done',
+        data: {
+          ...(toolCalls?.length && { toolCalls }),
+          ...(stopReason === 'tool_use' && {
+            finishReason: 'tool_calls' as const,
+          }),
+          ...(stopReason === 'end_turn' &&
+            !toolCalls?.length && { finishReason: 'stop' as const }),
+        },
+      });
 
       const latency = Date.now() - startedAt;
 

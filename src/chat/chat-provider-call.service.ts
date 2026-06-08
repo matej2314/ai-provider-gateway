@@ -5,7 +5,10 @@ import { resolveProviderCallOptions } from './helpers/resolve-provider-call-opti
 import { buildProviderInputForAlias } from './helpers/provider-input';
 import { buildLlmMetricsContext } from './helpers/metrics';
 import type { ResolvedSystemPrompts } from '../config/configuration.types';
-import type { ProviderChatResponse } from '../providers/interfaces/ai-provider.interface';
+import type {
+  ProviderChatResponse,
+  ProviderToolCall,
+} from '../providers/interfaces/ai-provider.interface';
 import type { ChatRequestDto } from './dto/chat-request.dto';
 import type { SseEvent } from './sse/sse-event.type';
 import type { ResolvedProviderConfig } from '../providers/provider-registry.service';
@@ -16,6 +19,15 @@ export interface CompleteOnceResult {
   providerName: string;
   modelId: string;
   resolved: ResolvedProviderConfig;
+}
+
+export interface StreamOnceResult {
+  providerName: string;
+  modelId: string;
+  assembledText: string;
+  usageMetadata: UsageMetadata | undefined;
+  toolCalls?: ProviderToolCall[];
+  stopReason?: ProviderChatResponse['stopReason'];
 }
 
 export interface StreamOnceParams {
@@ -93,12 +105,7 @@ export class ChatProviderCallService {
   }
 
   // runOnce from executeStream
-  async streamOnce(params: StreamOnceParams): Promise<{
-    providerName: string;
-    modelId: string;
-    assembledText: string;
-    usageMetadata: UsageMetadata | undefined;
-  }> {
+  async streamOnce(params: StreamOnceParams): Promise<StreamOnceResult> {
     const { requestBody, alias, requestId, resolvedPrompts, emit, streamMeta } =
       params;
 
@@ -154,6 +161,13 @@ export class ChatProviderCallService {
       emit({ name: 'delta', data: { text: textChunk } });
     }
 
+    const toolCalls = streamResult.getFinalToolCalls
+      ? await streamResult.getFinalToolCalls()
+      : undefined;
+    const stopReason = streamResult.getStopReason
+      ? await streamResult.getStopReason()
+      : undefined;
+
     const usageMetadata = await streamResult.getUsageMetadata();
     spanController.end({
       outputText: assembledText || undefined,
@@ -170,6 +184,8 @@ export class ChatProviderCallService {
       modelId: resolved.modelId,
       assembledText: assembledText || '',
       usageMetadata: usageMetadata as UsageMetadata | undefined,
+      ...(toolCalls?.length && { toolCalls }),
+      ...(stopReason && { stopReason }),
     };
   }
 }

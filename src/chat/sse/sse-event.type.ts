@@ -1,3 +1,5 @@
+import type { GatewayToolCall } from '../../providers/types/tooling-types';
+
 export type SseMetaEvent = {
   id: string;
   provider: string;
@@ -16,6 +18,8 @@ export type SseDoneEvent = {
     outputTokens: number;
     totalTokens?: number;
   };
+  toolCalls?: GatewayToolCall[];
+  finishReason?: 'stop' | 'tool_calls' | 'length' | 'content_filter';
 };
 
 export type SseEvent =
