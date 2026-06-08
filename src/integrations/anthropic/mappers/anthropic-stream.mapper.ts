@@ -5,6 +5,8 @@ export type AnthropicStreamState = {
   model: string;
   messageSent: boolean;
   contentBlockSent: boolean;
+  blockIndex: number;
+  toolBlockStarted: boolean;
 };
 
 export function createAnthropicStreamState(
@@ -15,6 +17,8 @@ export function createAnthropicStreamState(
     model,
     messageSent: false,
     contentBlockSent: false,
+    blockIndex: 0,
+    toolBlockStarted: false,
   };
 }
 
@@ -68,21 +72,61 @@ export function mapSseEventToAnthropic(
         }),
       ];
 
-    case 'done':
-      return [
-        eventLine('content_block_stop', {
-          type: 'content_block_stop',
-          index: 0,
-        }),
+    case 'done': {
+      const lines: string[] = [];
+      const hasToolCalls = (event.data.toolCalls?.length ?? 0) > 0;
+      const stopReason =
+        event.data.finishReason === 'tool_calls' ? 'tool_use' : 'end_turn';
+
+      if (state.contentBlockSent) {
+        lines.push(
+          eventLine('content_block_stop', {
+            type: 'content_block_stop',
+            index: state.blockIndex,
+          }),
+        );
+      }
+
+      if (hasToolCalls) {
+        for (const toolCall of event.data.toolCalls!) {
+          const toolIndex = state.blockIndex + 1;
+          lines.push(
+            eventLine('content_block_start', {
+              type: 'content_block_start',
+              index: toolIndex,
+              content_block: {
+                type: 'tool_use',
+                id: toolCall.id,
+                name: toolCall.name,
+                input: {},
+              },
+            }),
+            eventLine('content_block_delta', {
+              type: 'content_block_delta',
+              index: toolIndex,
+              delta: {
+                type: 'input_json_delta',
+                partial_json: toolCall.arguments,
+              },
+            }),
+            eventLine('content_block_stop', {
+              type: 'content_block_stop',
+              index: toolIndex,
+            }),
+          );
+        }
+      }
+
+      lines.push(
         eventLine('message_delta', {
           type: 'message_delta',
-          delta: { stop_reason: 'end_turn', stop_sequence: null },
-          usage: { output_tokens: 0 },
+          delta: { stop_reason: stopReason, stop_sequence: null },
+          usage: { output_tokens: event.data.usage?.outputTokens ?? 0 },
         }),
-        eventLine('message_stop', {
-          type: 'message_stop',
-        }),
-      ];
+        eventLine('message_stop', { type: 'message_stop' }),
+      );
+      return lines;
+    }
 
     default:
       return [];
