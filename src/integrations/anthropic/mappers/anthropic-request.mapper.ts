@@ -1,5 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiErrorCode } from 'src/common/errors/api-error.code';
+import {
+  mapAnthropicContentBlockToGateway,
+  mapAnthropicToolChoice,
+  mapAnthropicToolsToGateway,
+} from './anthropic-tools.mapper';
 import type { ChatRequestDto } from 'src/chat/dto/chat-request.dto';
 import type { ChatMessageDto } from 'src/chat/dto/chat-message.dto';
 import type { AnthropicMessagesRequestDto } from '../dtos/anthropic-messages-request.dto';
@@ -9,29 +14,19 @@ export function mapAnthropicRequestToGateway(
 ): ChatRequestDto {
   const gatewayMessages: ChatMessageDto[] = [];
 
-  for (const msg of body.messages) {
-    const textBlock = msg.content.find(
-      (block) => block.type === 'text' && block.text,
+  for (const message of body.messages) {
+    const mapped = mapAnthropicContentBlockToGateway(
+      message.role,
+      message.content,
     );
-    if (!textBlock?.text) {
-      throw new BadRequestException({
-        code: ApiErrorCode.VALIDATION_FAILED,
-        message: 'Each message must have at least one text content block.',
-        details: [],
-      });
-    }
+    gatewayMessages.push(...mapped);
+  }
 
-    if (msg.content.some((block) => block.type === 'image')) {
-      throw new BadRequestException({
-        code: ApiErrorCode.VALIDATION_FAILED,
-        message: 'Image content blocks are not supported.',
-        details: [],
-      });
-    }
-
-    gatewayMessages.push({
-      role: msg.role,
-      content: textBlock.text,
+  if (gatewayMessages.length === 0) {
+    throw new BadRequestException({
+      code: ApiErrorCode.VALIDATION_FAILED,
+      message: 'At least one message is required.',
+      details: [],
     });
   }
 
@@ -42,15 +37,24 @@ export function mapAnthropicRequestToGateway(
 
   if (body.temperature !== undefined || body.max_tokens !== undefined) {
     dto.params = {};
-
     if (body.temperature !== undefined) {
       dto.params.temperature = body.temperature;
     }
-
     if (body.max_tokens !== undefined) {
       dto.params.maxOutputTokens = body.max_tokens;
     }
   }
 
+  const definitions = body.tools?.length
+    ? mapAnthropicToolsToGateway(body.tools)
+    : undefined;
+  const toolChoice = mapAnthropicToolChoice(body.tool_choice);
+
+  if (definitions?.length || toolChoice !== undefined) {
+    dto.tooling = {
+      ...(definitions?.length && { definitions }),
+      ...(toolChoice !== undefined && { toolChoice }),
+    };
+  }
   return dto;
 }
