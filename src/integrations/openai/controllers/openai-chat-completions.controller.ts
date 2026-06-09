@@ -19,6 +19,7 @@ import {
   createOpenAiStreamState,
   mapSseEventToOpenAi,
 } from '../mappers/openai-stream.mapper';
+
 import type { Request, Response } from 'express';
 import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
 import type { SseEvent } from 'src/chat/sse/sse-event.type';
@@ -60,7 +61,10 @@ export class OpenAiChatCompletionsController {
     }
 
     const gatewayRequest = mapOpenAiChatRequestToGateway(body);
-    const state = createOpenAiStreamState(body.model);
+    const includeUsage =
+      body.stream_options?.include_usage === true ||
+      body.include_usage === true;
+    const state = createOpenAiStreamState(body.model, includeUsage);
 
     res.status(200);
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');

@@ -80,7 +80,7 @@ export class OpenAiChatCompletionRequestDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  paralel_tool_calls?: boolean;
+  parallel_tool_calls?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

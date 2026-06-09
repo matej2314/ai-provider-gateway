@@ -18,7 +18,7 @@ function mapGatewayToolCallsToOpenAi(
   }));
 }
 
-function mapFinishReason(
+export function mapFinishReasontoOpenAI(
   finishReason?: ChatResponseDto['finishReason'],
 ): OpenAiChatCompletionResponseDto['choices'][0]['finish_reason'] {
   switch (finishReason) {
@@ -64,7 +64,7 @@ export function mapChatResponseToOpenAi(
             tool_calls: mapGatewayToolCallsToOpenAi(result.toolCalls!),
           }),
         },
-        finish_reason: mapFinishReason(result.finishReason),
+        finish_reason: mapFinishReasontoOpenAI(result.finishReason),
       },
     ],
     usage: {

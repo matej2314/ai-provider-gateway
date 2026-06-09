@@ -12,7 +12,6 @@ import type {
 import type { ChatRequestDto } from './dto/chat-request.dto';
 import type { SseEvent } from './sse/sse-event.type';
 import type { ResolvedProviderConfig } from '../providers/provider-registry.service';
-import { UsageMetadata } from '@google/genai';
 
 export interface CompleteOnceResult {
   response: ProviderChatResponse;
@@ -25,7 +24,13 @@ export interface StreamOnceResult {
   providerName: string;
   modelId: string;
   assembledText: string;
-  usageMetadata: UsageMetadata | undefined;
+  usageMetadata:
+    | {
+        inputTokens: number;
+        outputTokens: number;
+        model?: string;
+      }
+    | undefined;
   toolCalls?: ProviderToolCall[];
   stopReason?: ProviderChatResponse['stopReason'];
 }
@@ -183,7 +188,13 @@ export class ChatProviderCallService {
       providerName: resolved.providerName,
       modelId: resolved.modelId,
       assembledText: assembledText || '',
-      usageMetadata: usageMetadata as UsageMetadata | undefined,
+      usageMetadata: usageMetadata as
+        | {
+            inputTokens: number;
+            outputTokens: number;
+            model?: string;
+          }
+        | undefined,
       ...(toolCalls?.length && { toolCalls }),
       ...(stopReason && { stopReason }),
     };

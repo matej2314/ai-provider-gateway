@@ -15,6 +15,7 @@ import { getOrCreateConversationIdForResponse } from './helpers/conversation-id'
 import { getResolvedSystemPrompts } from './helpers/system-prompt';
 import { isCachedChatAllowedForModelAlias } from './helpers/cache-policy';
 import { buildRetryPolicyFromResolved } from './helpers/retry-policy';
+import { mapStopReasonToFinishReason } from './helpers/map-provider-finish-reason';
 import { isToolingRequest } from './helpers/tooling-request';
 import type { GatewayConfig } from '../config/configuration';
 import type { ResolvedProviderConfig } from 'src/providers/provider-registry.service';
@@ -185,13 +186,11 @@ export class ChatService {
         usage: response.usage,
         requestId: requestId,
         conversationId: responseConversationId,
-
         ...(response.toolCalls?.length && { toolCalls: response.toolCalls }),
-        ...(response.stopReason === 'tool_use' && {
-          finishReason: 'tool_calls',
-        }),
-        ...(response.stopReason === 'end_turn' &&
-          !response.toolCalls?.length && { finishReason: 'stop' }),
+        finishReason: mapStopReasonToFinishReason(
+          response.stopReason,
+          response.toolCalls,
+        ),
       };
 
       const latency = Date.now() - startedAt;
@@ -339,19 +338,23 @@ export class ChatService {
         requestId,
       });
 
-      const { resolved, toolCalls, stopReason } = result.value;
+      const { resolved, toolCalls, stopReason, usageMetadata } = result.value;
       const usedAlias = result.usedAlias;
       const didFallback = result.didFallback;
 
       emit({
         name: 'done',
         data: {
-          ...(toolCalls?.length && { toolCalls }),
-          ...(stopReason === 'tool_use' && {
-            finishReason: 'tool_calls' as const,
+          ...(usageMetadata && {
+            usage: {
+              inputTokens: usageMetadata.inputTokens,
+              outputTokens: usageMetadata.outputTokens,
+              totalTokens:
+                usageMetadata.inputTokens + usageMetadata.outputTokens,
+            },
           }),
-          ...(stopReason === 'end_turn' &&
-            !toolCalls?.length && { finishReason: 'stop' as const }),
+          ...(toolCalls?.length && { toolCalls }),
+          finishReason: mapStopReasonToFinishReason(stopReason, toolCalls),
         },
       });
 
