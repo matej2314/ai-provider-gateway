@@ -11,6 +11,12 @@ import {
   ProviderChatResponse,
   StreamResult,
 } from '../interfaces/ai-provider.interface';
+import {
+  mapToolsToGemini,
+  mapToolChoiceToGemini,
+  mapTurnsToGeminiContents,
+  parseGeminiResponseWithTools,
+} from '../google/google-tools.mapper';
 
 export function createGoogleProvider(
   apiKey: string,
@@ -25,15 +31,6 @@ export function createGoogleProvider(
 
   logger.info('Google provider instance created.');
 
-  function prepareContents(messages: Record<string, string>[]) {
-    return messages.map((mess) => {
-      return {
-        role: mess.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: mess.content }],
-      };
-    });
-  }
-
   return {
     async complete(
       input: ProviderChatInput,
@@ -46,9 +43,29 @@ export function createGoogleProvider(
       });
 
       try {
+        if (input.tools?.length) {
+          const toolChoiceConfig = mapToolChoiceToGemini(input.toolChoice);
+          const response = await client.models.generateContent({
+            model: modelId,
+            contents: mapTurnsToGeminiContents(input.messages),
+            config: {
+              ...(input.system?.trim()
+                ? { systemInstruction: input.system }
+                : {}),
+              temperature: options?.temperature ?? undefined,
+              maxOutputTokens: options?.maxOutputTokens ?? 1024,
+              tools: [{ functionDeclarations: mapToolsToGemini(input.tools) }],
+              ...(toolChoiceConfig && {
+                toolConfig: { functionCallingConfig: toolChoiceConfig },
+              }),
+            },
+          });
+          return parseGeminiResponseWithTools(response, modelId);
+        }
+
         const response = await client.models.generateContent({
           model: modelId,
-          contents: prepareContents(input.messages),
+          contents: mapTurnsToGeminiContents(input.messages),
           config: {
             ...(input.system?.trim()
               ? { systemInstruction: input.system }
@@ -95,15 +112,27 @@ export function createGoogleProvider(
             messagesCount: input.messages.length,
           });
 
+          const toolChoiceConfig = input.tools?.length
+            ? mapToolChoiceToGemini(input.toolChoice)
+            : undefined;
+
           const stream = await client.models.generateContentStream({
             model: modelId,
-            contents: prepareContents(input.messages),
+            contents: mapTurnsToGeminiContents(input.messages),
             config: {
               ...(input.system?.trim()
                 ? { systemInstruction: input.system }
                 : {}),
               temperature: options?.temperature ?? undefined,
               maxOutputTokens: options?.maxOutputTokens ?? 1024,
+              ...(input.tools?.length && {
+                tools: [
+                  { functionDeclarations: mapToolsToGemini(input.tools) },
+                ],
+                ...(toolChoiceConfig && {
+                  toolConfig: { functionCallingConfig: toolChoiceConfig },
+                }),
+              }),
             },
           });
 
@@ -133,9 +162,24 @@ export function createGoogleProvider(
           model: lastChunk.modelVersion ?? modelId,
         };
       }
+
+      async function getFinalToolCalls() {
+        if (!lastChunk) return undefined;
+        const parsed = parseGeminiResponseWithTools(lastChunk, modelId);
+        return parsed.toolCalls;
+      }
+
+      async function getStopReason() {
+        if (!lastChunk) return undefined;
+        const parsed = parseGeminiResponseWithTools(lastChunk, modelId);
+        return parsed.stopReason;
+      }
+
       return {
         textStream: textStream(),
         getUsageMetadata,
+        getFinalToolCalls,
+        getStopReason,
       };
     },
   };
