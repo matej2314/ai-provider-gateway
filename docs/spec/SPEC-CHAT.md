@@ -47,9 +47,11 @@ F-1. Endpoint przyjmuje request zawierający:
 
 F-1a. Niedozwolony override w `params` → `400` z `code=MODEL_NOT_ALLOWED` (`resolveProviderCallOptions`).
 
-F-2. `messages[]` wspiera role wyłącznie: `user`, `assistant` (rola `system` w API jest zablokowana).
+F-2. `messages[]` wspiera role: `user`, `assistant`, `tool` (rola `system` w API jest zablokowana). Asystent może zawierać `toolCalls[]`; rola `tool` wymaga `toolCallId`.
 
-F-2a. Gateway buduje `system` dla adaptera **wyłącznie z plików** w `src/config/system-prompt/` (warstwy MASTER / MAIN / opcjonalnie `models/<modelAlias>.md`), zgodnie z `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`) i `configuration.ts`. Wywołanie adaptera: `ChatProviderCallService`. Do adaptera trafia `messages[]` zawierające wyłącznie `user` i `assistant`.
+F-2a. Gateway buduje `system` dla adaptera **wyłącznie z plików** w `src/config/system-prompt/`. Do adaptera trafia `messages[]` z turami użytkownika, asystenta i wyników narzędzi. Opcjonalne **`tooling`** w body (`definitions`, `toolChoice`) wymaga `capabilities.tools: true` w YAML — inaczej `TOOLS_NOT_SUPPORTED`.
+
+F-2b. Odpowiedź może zawierać `toolCalls`, `finishReason`. Żądania z toolingiem pomijają cache i fallback YAML w czacie standardowym.
 
 F-3. Gateway musi zwrócić odpowiedź w spójnym formacie niezależnym od providera.
 

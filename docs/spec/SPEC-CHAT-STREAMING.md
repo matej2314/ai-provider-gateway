@@ -33,7 +33,7 @@ F-3. Gateway musi wysłać `event: meta` na początku strumienia (w tym **`conve
 
 F-4. Gateway musi wysyłać `event: delta` dla kolejnych fragmentów tekstu.
 
-F-5. Gateway musi wysłać `event: done` na końcu strumienia. Obecna implementacja: `data` dla `done` to pusty obiekt `{}`; **usage** w `done` może zostać dodane w kolejnej iteracji.
+F-5. Gateway musi wysłać `event: done` na końcu strumienia. Payload `done` może zawierać `usage`, `toolCalls`, `finishReason` (function calling).
 
 F-6. Jeśli `modelAlias` nie wspiera streamingu lub adapter nie implementuje `stream` → `STREAMING_NOT_SUPPORTED` / `MODEL_ALIAS_NOT_FOUND` z **`validateForStreaming`** (**przed** `flushHeaders`) — JSON `ErrorEnvelope`. Błędy providera w **`executeStream`** mogą powstać **po** rozpoczęciu SSE.
 

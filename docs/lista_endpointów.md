@@ -14,7 +14,7 @@ Wersja dokumentu: **1.0**.
 | **`x-request-id`** | Nagłówek odpowiedzi (wszystkie trasy z `RequestIdMiddleware`, w tym health) — echo nagłówka żądania lub `req_<uuid>` |
 
 **Uruchomienie serwisu:** w **`NODE_ENV=production`** walidacja env wymaga **co najmniej jednego** niepustego klucza (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W development ten warunek **nie** jest egzekwowany (`src/config/env.validation.ts`).  
-Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod w `src/config/gateway-config.schema.ts` + reguły efektywnej konfiguracji w `src/config/configuration.ts` — m.in. puste `models`, nieznany `providerInstance`, włączony provider bez modeli); brak pliku lub błąd walidacji kończy start aplikacji. Po sklonowaniu repo uruchom `gateway config:init`, aby wygenerować właściwy plik `gateway.config.yaml` z wzorca `gateway.config.placeholder.yaml` — `konfiguracja.md`.
+Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + `buildEffectiveGatewayConfig`). Po sklonowaniu uzupełnij `.env` i YAML albo uruchom `gateway config:init` — `konfiguracja.md`.
 
 ---
 
@@ -42,8 +42,8 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 
 | | |
 |--|--|
-| **200** | odpowiedź gateway (`dokumentacja_api.md`); **`conversationId`** w body; opcjonalnie **`effectiveModelAlias`** (fallback); opcjonalnie **`cached: true`**, **`cachedAt`** |
-| **400** | walidacja DTO (m.in. `conversationId` ≠ `conv_<uuid>`); `MODEL_ALIAS_NOT_FOUND`; `MODEL_NOT_ALLOWED`; inne jawne `code` |
+| **200** | odpowiedź gateway; opcjonalnie `toolCalls`, `finishReason`, `effectiveModelAlias`, `cached` |
+| **400** | walidacja DTO; `MODEL_ALIAS_NOT_FOUND`; `MODEL_NOT_ALLOWED`; `TOOLS_NOT_SUPPORTED`; inne jawne `code` |
 | **401** | brak `X-Gateway-Key` — `GATEWAY_KEY_MISSING` |
 | **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |
 | **429** | `RATE_LIMITED` (smart limit / cooldown po 429 upstream — cooldown tylko w tej ścieżce) lub `PROVIDER_RATE_LIMITED` (upstream) |

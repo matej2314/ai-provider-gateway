@@ -161,6 +161,6 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura-katalogi-pliki.md` (sekc
 
 ## 15) Start serwera bez właściwego pliku konfiguracyjnego
 
-**Nie rób**: oczekiwania, że `npm run start:dev` zadziała od razu po sklonowaniu repozytorium — w repo znajduje się `gateway.config.placeholder.yaml` z placeholderami i wyłączonymi providerami. Serwer potrzebuje właściwego pliku `gateway.config.yaml`.
+**Nie rób**: oczekiwania, że `npm run start:dev` zadziała od razu po sklonowaniu bez uzupełnionego `.env` (klucze providerów + `MASTER_KEY`) i poprawnego `gateway.config.yaml`.
 
-**Rób**: uruchom `gateway config:init`, aby wygenerować właściwy plik `gateway.config.yaml` (lub ręcznie uzupełnij YAML + `.env` zgodnie z `konfiguracja.md`); zweryfikuj przez `npm run config:validate`.
+**Rób**: uruchom `gateway config:init` albo ręcznie uzupełnij YAML + `.env` (`konfiguracja.md`); zweryfikuj przez `npm run config:validate`.

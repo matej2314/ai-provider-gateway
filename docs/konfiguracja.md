@@ -2,24 +2,18 @@
 
 Cel: “plug&play” — użytkownik wypełnia env + pliki konfiguracyjne i uruchamia gateway bez zmian w kodzie.
 
-## 0) Pierwsze uruchomienie (placeholder → pełna konfiguracja)
+## 0) Pierwsze uruchomienie (wizard konfiguracji)
 
-Repozytorium zawiera **`gateway.config.placeholder.yaml`** jako punkt startowy — plik przechodzi walidację schematu Zod, ale ma:
-
-- `PLACEHOLDER_*` zamiast nazw zmiennych env,
-- providery z `enabled: false`,
-- fikcyjne aliasy modeli i klientów.
-
-**Serwis HTTP nie wystartuje** bez właściwego pliku `gateway.config.yaml`. Przed pierwszym `npm run start:dev` wygeneruj konfigurację:
+Repozytorium może zawierać przykładowy **`gateway.config.yaml`**. Przed pierwszym `npm run start:dev` uzupełnij **`.env`** (klucze providerów, `MASTER_KEY`, opcjonalnie `GATEWAY_KEY_*`) albo uruchom wizard:
 
 ```bash
 npm run cli config:init
 # lub: npx gateway config:init
 ```
 
-Wizard wykrywa placeholder (`CliConfigLoaderService.isBoilerplaceConfig()` — klucze/nazwy zawierające `placeholder` lub `PLACEHOLDER`) i automatycznie generuje właściwy plik `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt. 
+Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt (szablony: `src/cli/templates/`). Wykrywa konfigurację boilerplate przez **`CliConfigLoaderService.isBoilerplateConfig()`** — gdy `masterKeyRef` lub ID wpisów w `providers:` / `clients:` zawierają `placeholder` / `PLACEHOLDER`.
 
-**Ważne:** Po wygenerowaniu konfiguracji plik `gateway.config.yaml` jest właściwym plikiem roboczym projektu. Plik `gateway.config.placeholder.yaml` pozostaje w repo jako wzorzec i nie jest używany przez aplikację. Szczegóły flow: **`CLI.md`**.
+**Ważne:** Runtime wczytuje wyłącznie **`gateway.config.yaml`** z katalogu roboczego. Szczegóły flow: **`CLI.md`**.
 
 ## 1) Sekrety i env (`.env`)
 
@@ -125,7 +119,7 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 
 **Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji i rozwiązywanie env — `src/config/configuration.ts`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
 
-**W repozytorium** znajduje się `gateway.config.placeholder.yaml` jako punkt startowy (sekcja 0). **Właściwy plik roboczy** `gateway.config.yaml` jest generowany przez `config:init`. Poniższy przykład ilustruje typowy wynik wizarda, nie zawartość pliku placeholder w git.
+**W repozytorium** może być przykładowy `gateway.config.yaml`. Wizard **`config:init`** generuje pełną konfigurację operacyjną. Poniższy przykład ilustruje typowy wynik wizarda.
 
 ### Schemat (zgodny z walidatorem Zod)
 
@@ -161,6 +155,7 @@ models:
     modelId: claude-sonnet-4-5-20250929
     capabilities:
       streaming: true
+      tools: true
     policy:
       timeoutMs: 30000
       retry:
@@ -181,6 +176,7 @@ models:
     fallback: chat-default
     capabilities:
       streaming: true
+      tools: true
     policy:
       timeoutMs: 30000
       retry:
@@ -201,6 +197,7 @@ models:
     fallback: chat-default
     capabilities:
       streaming: true
+      tools: true
     policy:
       timeoutMs: 30000
       retry:
@@ -255,7 +252,7 @@ Uwagi:
   - każda instancja providera z **`enabled !== false`** (w praktyce w YAML ustaw **`enabled: true`** dla providerów używanych w runtime; pominięte `enabled` → po parsowaniu Zod domyślnie **`false`**, wtedy instancja jest wyłączona) musi mieć **co najmniej jeden** alias w `models` z tym samym `providerInstance`;
   - po filtrze `enabled` funkcja `buildEffectiveGatewayConfig` ponownie wymusza, że każdy **aktywny** provider ma ≥1 **aktywny** model (modele powiązane z providerem `enabled: false` są pomijane z ostrzeżeniem w logu).
   - Instancja z **`enabled: false`** **nie wymaga** wpisów w `models` (może pozostać w YAML jako wyłączona rezerwa).
-- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`policy.params`** — merge w `resolveProviderCallOptions`. **`timeoutMs`** i **`retry`** — egzekwowane w `ResilientExecutor` przy wywołaniu adaptera (timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` lub `RETRY_POLICY_DEFAULTS`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`.
+- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`capabilities`**: `streaming` (wymagane dla SSE), opcjonalnie **`tools: true`** — bez tego flagi żądania z `tooling` / turami `tool` zwracają **`TOOLS_NOT_SUPPORTED`**. **`policy.params`** — merge w `resolveProviderCallOptions`. **`timeoutMs`** i **`retry`** — egzekwowane w `ResilientExecutor` przy wywołaniu adaptera (timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` lub `RETRY_POLICY_DEFAULTS`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`.
 
 ## 3) Walidacja i fail-fast
 

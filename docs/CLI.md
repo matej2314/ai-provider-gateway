@@ -90,14 +90,14 @@ Wyświetla welcome (boxen) z listą wszystkich komend. Pomoc per komenda: `gatew
 
 ## Quick start
 
-1. Po sklonowaniu repozytorium (placeholder w `gateway.config.placeholder.yaml`):
+1. Po sklonowaniu repozytorium uzupełnij konfigurację:
 
    ```bash
    npm install
    gateway config:init
    ```
-   
-   Wizard wygeneruje właściwy plik `gateway.config.yaml`.
+
+   Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env` i pliki prompt (szablony w `src/cli/templates/`).
 
 2. Zweryfikuj konfigurację:
 
@@ -177,7 +177,7 @@ gateway config:validate
 - Brakujące zmienne env (master, włączone providery, klienci) → exit `1` z listą.
 - Sukces → podsumowanie (schema version, liczba providerów/modeli/klientów).
 
-**Uwaga:** Komenda sprawdza plik `gateway.config.yaml`, nie `gateway.config.placeholder.yaml`.
+**Uwaga:** Komenda sprawdza plik `gateway.config.yaml` w katalogu roboczym.
 
 **Alternatywa offline (identyczna logika walidacji runtime):** `npm run config:validate` — skrypt `scripts/validate-config.ts` (szczegóły: `konfiguracja.md`).
 

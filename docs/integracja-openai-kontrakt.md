@@ -42,16 +42,17 @@ W polu **`model`** żądania OpenAI podaj **`modelAlias`** z YAML (np. `chat-def
 
 Lista dostępnych ID: `GET /api/v1/openai/models`.
 
-## Parametry żądania (MVP)
+## Parametry żądania
 
 | Pole | Opis |
 |------|------|
-| `messages` | Wymagane; `content` musi być **stringiem** |
+| `messages` | Wymagane; `content` string; role `user`, `assistant`, `tool` (`tool_call_id` wymagane); `assistant` może mieć `tool_calls` |
+| `tools`, `tool_choice` | Opcjonalnie — mapowane na `tooling` gateway; wymaga `capabilities.tools: true` na aliasie |
 | `stream` | `true` — SSE OpenAI; `false` lub brak — JSON `chat.completion` |
-| `temperature` | Opcjonalnie (0–2), mapowane na `params.temperature` gateway |
+| `temperature` | Opcjonalnie (0–2), mapowane na `params.temperature` |
 | `max_tokens` | Opcjonalnie, mapowane na `params.maxOutputTokens` |
 
-Role **`system`** i **`tool`** w `messages` są **ignorowane** — instrukcja systemowa z plików w `src/config/system-prompt/`.
+Role **`system`** w `messages` są **pomijane** — instrukcja systemowa z plików w `src/config/system-prompt/`.
 
 ## Przykład (non-stream)
 
@@ -87,11 +88,11 @@ Jeśli budujesz własną aplikację pod kontrakt gateway:
 - `POST /api/v1/chat` — nagłówek **`X-Gateway-Key`**
 - `POST /api/v1/chat/stream` — natywny SSE (`meta` / `delta` / `done`)
 
-## Ograniczenia MVP
+## Ograniczenia
 
-- Wiadomości **`role: system`** z klienta są **ignorowane** — instrukcja systemowa pochodzi z plików w `src/config/system-prompt/`.
-- Brak **tools** / function calling.
+- Wiadomości **`role: system`** z klienta są **pomijane** — instrukcja systemowa pochodzi z plików w `src/config/system-prompt/`.
 - **`messages[].content`** musi być stringiem (brak tablicy multimodalnej).
+- Function calling wymaga `capabilities.tools: true` na aliasie w YAML.
 - Odpowiedzi fasady **nie** zawierają pól gateway (`provider`, `cached`, `conversationId`).
 
 ## Błędy

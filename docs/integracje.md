@@ -115,7 +115,7 @@ Fasady muszą współdzielić **`SmartRateLimiterService`** z natywnym API.
 ## Przepływ żądania (docelowy)
 
 1. HTTP → kontroler fasady + walidacja DTO vendora.
-2. Mapper request → `ChatRequestDto` (`modelAlias`, `messages`, opcjonalnie `params`).
+2. Mapper request → `ChatRequestDto` (`modelAlias`, `messages`, opcjonalnie `params`, `tooling` — tools/tool_calls z kontraktu vendora).
 3. `ChatService.executeChat` / `executeStream` z `req.gatewayKey` i `req.requestId`.
 4. Mapper response / stream → format OpenAI lub Anthropic.
 5. Pola specyficzne dla gateway (`provider`, `cached`, `conversationId`) **nie** są eksponowane w fasadach MVP.

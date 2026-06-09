@@ -4,7 +4,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 
 ## Jak czytać tę dokumentację
 
-0. **Po sklonowaniu repozytorium:** uruchom `gateway config:init` — w repozytorium znajduje się `gateway.config.placeholder.yaml` jako punkt startowy; wizard wygeneruje właściwy plik `gateway.config.yaml` (`konfiguracja.md` sekcja 0, `CLI.md`).
+0. **Po sklonowaniu repozytorium:** uzupełnij `.env` i `gateway.config.yaml` albo uruchom `gateway config:init` — wizard generuje konfigurację z szablonów CLI (`konfiguracja.md` sekcja 0, `CLI.md`).
 1. Zacznij od `dokumentacja_koncepcyjna.md` (WHAT/WHY).
 2. Następnie `architektura.md` (moduły i granice) oraz `architektura_api.md` (konwencje API).
 3. Dla szczegółów HTTP: **kontrakt** w `openapi.json` (katalog główny repo; generowany z kodu — `npm run openapi:export`), interaktywnie **Swagger UI** (`/api/v1/api-docs`), oraz opis ludzki: `lista_endpointów.md` i `dokumentacja_api.md`.
@@ -12,7 +12,8 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 5. Dla przepływów: `data_flow.md`.
 6. Dla ryzyk: `anty-patterny.md`.
 7. Dla pracy spec‑first: katalog `spec/`.
-8. **System prompt po stronie serwera** (wyłączenie `role=system` w API, pliki w `src/config/system-prompt/`) — opis warstw i ścieżek: `konfiguracja.md`, `architektura.md`, `dokumentacja_api.md`.
+8. **System prompt po stronie serwera** (brak `role=system` w API, pliki w `src/config/system-prompt/`) — opis warstw: `konfiguracja.md`, `architektura.md`, `dokumentacja_api.md`.
+8a. **Tool calling** — role `tool`, pole `tooling`, `toolCalls` / `finishReason` w odpowiedzi; `capabilities.tools` w YAML; kody `TOOLS_NOT_SUPPORTED` — `dokumentacja_api.md`, `dictionary.md`.
 9. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`.
 10. **Smart rate limiting** (`src/rate-limit/`, Redis; bez `@nestjs/throttler`), kody błędów **`RATE_LIMITED`** vs **`PROVIDER_RATE_LIMITED`** — `dictionary.md`; limity: YAML `clients[].rateLimit` lub env; szczegóły: `konfiguracja.md`, `architektura.md`.
 11. **Request ID** — propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`).
@@ -34,7 +35,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `lista_endpointów.md` — szybka lista endpointów (standard + streaming).
 - `dokumentacja_api.md` — szczegółowy kontrakt endpointów, przykłady payloadów.
 - `conversation-tracking.md` — `conversationId`, tryby Sentry (pojedyncza wiadomość vs konwersacja), przepływ tura 1→2, obowiązki klienta.
-- `konfiguracja.md` — env + `gateway.config.yaml` (punkt startowy: `gateway.config.placeholder.yaml` w repo; pełna konfiguracja: wizard `config:init`, wczytywanie przy starcie, walidacja Zod w `gateway-config.schema.ts` i spójność `providers` ↔ `models`); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — walidacja offline (YAML + reguły env) bez uruchamiania serwera.
+- `konfiguracja.md` — env + `gateway.config.yaml` (wizard `config:init`, wczytywanie przy starcie, walidacja Zod w `gateway-config.schema.ts` i spójność `providers` ↔ `models`); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — walidacja offline (YAML + reguły env) bez uruchamiania serwera.
 - `mcp.md` — integracja MCP (konfiguracja i granice odpowiedzialności).
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.
 - `dictionary.md` — słownik pojęć i kody błędów.

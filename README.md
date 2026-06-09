@@ -55,14 +55,14 @@ Wymagania: Node.js + npm.
 npm install
 ```
 
-2. Konfiguracja (wymagane po sklonowaniu — w repozytorium znajduje się [`gateway.config.placeholder.yaml`](gateway.config.placeholder.yaml) jako punkt startowy):
+2. Konfiguracja (wymagane po sklonowaniu — repozytorium zawiera przykładowy [`gateway.config.yaml`](gateway.config.yaml); uzupełnij `.env` kluczami providerów i gateway):
 
 ```bash
 npm run cli config:init
 # lub: npx gateway config:init
 ```
 
-Wizard generuje właściwy plik konfiguracyjny `gateway.config.yaml`, `.env`, `.env.example` oraz pliki system prompt. Alternatywnie: ręcznie skopiuj [`.env.example`](.env.example) i uzupełnij YAML — szczegóły: [`docs/konfiguracja.md`](docs/konfiguracja.md).
+Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env`, `.env.example` oraz pliki system prompt (szablony w `src/cli/templates/`). Wykrywa też konfigurację boilerplate (`isBoilerplateConfig()` — ID/nazwy z `placeholder` / `PLACEHOLDER`). Alternatywnie: ręcznie skopiuj [`.env.example`](.env.example) i uzupełnij YAML — szczegóły: [`docs/konfiguracja.md`](docs/konfiguracja.md).
 
 Zweryfikuj konfigurację:
 
@@ -73,7 +73,7 @@ npm run cli config:validate
 
 W **`NODE_ENV=production`** przy starcie wymagany jest **co najmniej jeden** niepusty klucz providera (po `trim()`). W development start nie jest blokowany — nadal potrzebujesz klucza dla używanego providera.
 
-**Uwaga:** Repozytorium zawiera `gateway.config.placeholder.yaml` z wartościami przykładowymi. Przed pierwszym uruchomieniem wykonaj `npm run cli config:init`, aby wygenerować właściwy plik `gateway.config.yaml`.
+**Uwaga:** Przed pierwszym uruchomieniem uzupełnij `.env` (klucze providerów + `MASTER_KEY` / `GATEWAY_KEY_*`) albo uruchom `npm run cli config:init`. Bez poprawnego YAML i env start aplikacji kończy się błędem walidacji.
 
 3. Uruchomienie:
 
@@ -125,11 +125,17 @@ curl -i -X POST "http://localhost:3000/api/v1/chat/stream" ^
 
 ## Cache odpowiedzi
 
-Opcjonalny cache tylko dla **`POST /api/v1/chat`** (`CACHE_ENABLED`, `CACHE_BACKEND=redis`) — [`src/cache/`](src/cache/). Odpowiedź może zawierać `cached: true`, `cachedAt`.
+Opcjonalny cache tylko dla **`POST /api/v1/chat`** (`CACHE_ENABLED`, `CACHE_BACKEND=redis`) — [`src/cache/`](src/cache/). Pomijany dla żądań z toolingiem. Odpowiedź może zawierać `cached: true`, `cachedAt`.
 
-## System prompt
+## System prompt i tool calling
 
-W `messages[]` dozwolone są wyłącznie role **`user`** i **`assistant`**. Instrukcja systemowa jest składana po stronie serwera z [`src/config/system-prompt/`](src/config/system-prompt/) — szczegóły: [`docs/architektura.md`](docs/architektura.md).
+Rola **`system`** w `messages[]` jest zablokowana — instrukcja systemowa jest składana po stronie serwera z [`src/config/system-prompt/`](src/config/system-prompt/) (`composeSystemPrompt`).
+
+W `messages[]` dozwolone są role **`user`**, **`assistant`** i **`tool`** (wynik wywołania narzędzia — wymaga `toolCallId`). Asystent może zwracać **`toolCalls`** w odpowiedzi. Opcjonalne pole **`tooling`** w body (`definitions`, `toolChoice`) włącza function calling — wymaga `capabilities.tools: true` dla aliasu w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
+
+Odpowiedź JSON / SSE `done` może zawierać **`toolCalls`**, **`finishReason`** (`stop` | `tool_calls` | `length` | `content_filter`). Cache i fallback YAML są **wyłączone** dla żądań z toolingiem w czacie standardowym; streaming nadal używa fallbacku z YAML.
+
+Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/architektura.md`](docs/architektura.md).
 
 ## Struktura kodu
 
@@ -137,7 +143,7 @@ W `messages[]` dozwolone są wyłącznie role **`user`** i **`assistant`**. Inst
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Orkiestracja czatu         | [`ChatService`](src/chat/chat.service.ts)                                                                                                       |
 | Wywołania providerów + SSE | [`ChatProviderCallService`](src/chat/chat-provider-call.service.ts)                                                                             |
-| Adaptery LLM               | [`src/providers/`](src/providers/)                                                                                                              |
+| Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`)                                                   |
 | Błędy / `requestId`        | [`GlobalExceptionFilter`](src/common/filters/http-exception.filter.ts), [`RequestIdMiddleware`](src/common/middleware/request-id.middleware.ts) |
 
 Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md).

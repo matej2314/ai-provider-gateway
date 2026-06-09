@@ -36,7 +36,7 @@ F-2. Plik konfiguracyjny modeli musi wspierać:
 - definicję provider instances (`type`, `apiKeyRef`),
 - definicję `modelAlias` → (`providerInstance`, `modelId`),
 - polityki (timeout, retry, allowlista parametrów, bounds),
-- capabilities (co najmniej `streaming`),
+- capabilities (co najmniej `streaming`; opcjonalnie `tools` dla function calling),
 - opcjonalny **`fallback`** (alias zapasowy — walidacja bez pętli przy starcie).
 
 F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast). Plik `gateway.config.yaml` jest wczytywany i walidowany schematem Zod w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji — `src/config/configuration.ts`. Walidacja offline: `validateGatewayConfig()` w `src/config/config-validator.ts` (używana przez `npm run config:validate` i wizard `config:init`).

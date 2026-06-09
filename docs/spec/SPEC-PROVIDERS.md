@@ -64,7 +64,8 @@ F-2. Adapter musi wspierać co najmniej:
 F-2a. Port providera przyjmuje **znormalizowane** wejście rozmowy:
 
 - `system?: string` — instrukcja systemowa przekazywana osobno,
-- `messages[]` — wyłącznie role `user` i `assistant` (bez `system`).
+- `messages[]` — role `user`, `assistant`, `tool` (oraz opcjonalne `toolCalls` na turze assistenta); bez `system` w body HTTP.
+- `tools?`, `toolChoice?` — opcjonalne definicje narzędzi (port `ProviderChatInput`); mapowanie SDK w `anthropic-tools.mapper.ts` / `google-tools.mapper.ts`.
 
 Uwaga: kontrakt HTTP **nie** przekazuje roli `system` w `messages[]`; pole `system` w porcie providera pochodzi z polityki gatewaya (pliki promptów), nie z body żądania.
 
@@ -119,7 +120,8 @@ Tabela referencyjna pokazująca jak port providera (`ProviderChatInput` + `model
 | Port providera | Pole SDK |
 |----------------|----------|
 | `system` | `messages.create({ system })` — osobne pole, nie wiadomość |
-| `messages[]` (`user` / `assistant`) | `messages.create({ messages })` — te same role |
+| `messages[]` (`user` / `assistant` / `tool`) | `messages.create({ messages })` — mapowanie tool turns przez `anthropic-tools.mapper.ts` |
+| `tools`, `toolChoice` | `tools`, `tool_choice` w `messages.create` |
 | `modelId` | `messages.create({ model })` |
 | `response.text` | konkatenacja `response.content[*].text` (gdzie `type === 'text'`) |
 | `usage.inputTokens` / `usage.outputTokens` | `response.usage.input_tokens` / `response.usage.output_tokens` |
@@ -132,7 +134,8 @@ SDK `@google/genai` zastąpiło wcześniejszy pakiet `@google/generative-ai`. Ad
 |----------------|----------------------|
 | inicjalizacja | `new GoogleGenAI({ apiKey })` |
 | `system` | `config.systemInstruction` w `ai.chats.create({ config })` lub `ai.models.generateContent({ config })` |
-| `messages[]` (`user` / `assistant`) | `Content[]` z `role: 'user' \| 'model'` (`assistant` → `model`) i `parts: [{ text }]`; historia musi naprzemiennie zawierać `user`/`model` i zaczynać się od `user` |
+| `messages[]` (`user` / `assistant` / `tool`) | `Content[]` + `functionCall` / `functionResponse` parts — `google-tools.mapper.ts` |
+| `tools`, `toolChoice` | `tools: [{ functionDeclarations }]`, `toolConfig` w `config` |
 | `modelId` | `ai.chats.create({ model })` lub `ai.models.generateContent({ model })` |
 | wywołanie sync | `chat.sendMessage({ message })` — zwraca `GenerateContentResponse` bezpośrednio (nie zagnieżdżone w `result.response`) |
 | wywołanie stream | `chat.sendMessageStream({ message })` — zwraca `AsyncGenerator<GenerateContentResponse>`; iterujemy bez `.stream` |

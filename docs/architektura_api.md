@@ -49,12 +49,13 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 - `requestId` — korelacja z logami.
 - `conversationId` — ID rozmowy (echo lub `conv_<uuid>` z gateway) — tylko czat; szczegóły: `conversation-tracking.md`.
 - `effectiveModelAlias` — opcjonalnie, gdy `ResilientExecutor` obsłużył żądanie na aliasie `fallback` z YAML (pole `model` = żądany alias).
+- `toolCalls`, `finishReason` — opcjonalnie przy function calling (`capabilities.tools` w YAML).
 
 ## Streaming (SSE)
 
 Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/event-stream`), zdarzenia `meta` → `delta*` → `done`.
 
-**Stan kodu:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream` + `ChatProviderCallService.streamOnce` (`meta` → `delta*` → `done`; `done` ma pusty payload — `openapi.json`).
+**Stan kodu:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream` + `ChatProviderCallService.streamOnce` (`meta` → `delta*` → `done`; `done` może zawierać `usage`, `toolCalls`, `finishReason`).
 
 - Gateway nie gwarantuje identycznego zachowania token‑po‑token między providerami.
 - Klient powinien traktować SSE jako strumień fragmentów + metadane z `meta`.
@@ -65,14 +66,14 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Parametry generacji (`params` w body)
 
-**Stan kodu:** opcjonalne **`params`** (`temperature`, `maxOutputTokens`) w `ChatRequestDto`; merge z `policy.params` w YAML (`defaults`, `allowOverrides`, `bounds`) w `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`); ten sam kontrakt dla standard i stream. Niedozwolony override → **`MODEL_NOT_ALLOWED`** (400). Klucz cache uwzględnia efektywne parametry (`ResponseCacheService`).
+**Stan kodu:** opcjonalne **`params`** (`temperature`, `maxOutputTokens`) w `ChatRequestDto`; merge z `policy.params` w YAML. Opcjonalne **`tooling`** (`definitions`, `toolChoice`) — wymaga `capabilities.tools` na aliasie. Niedozwolony override params → **`MODEL_NOT_ALLOWED`**; tooling bez capability → **`TOOLS_NOT_SUPPORTED`**. Cache pomijany dla żądań z toolingiem.
 
 ## Rozszerzenia (pozostałość v1)
 
 - **`npm run config:validate`** — walidacja offline `gateway.config.yaml` + reguł env (exit code ≠ 0 przy błędzie); szczegóły: `konfiguracja.md`.
 - **`CORS_ORIGINS`** w `.env.example` — **nie** zaimplementowane w `src/main.ts` (brak middleware CORS); przy wystawieniu do przeglądarki skonfiguruj reverse proxy lub dodaj CORS w kodzie.
 
-**Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.
+**Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TOOLS_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.
 
 ## Opcjonalne śledzenie rozmowy (`conversationId`)
 

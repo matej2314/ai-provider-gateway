@@ -24,7 +24,7 @@ Projekt powstaje jako ćwiczenie NestJS, architektury i wzorców projektowych, a
 
 Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontrakt HTTP: **`openapi.json`** oraz `dokumentacja_api.md`.
 
-**Pierwsze uruchomienie:** repozytorium zawiera `gateway.config.placeholder.yaml` jako wzorzec — przed startem serwera uruchom `gateway config:init`, aby wygenerować właściwy plik `gateway.config.yaml` (szczegóły: `konfiguracja.md`, `CLI.md`).
+**Pierwsze uruchomienie:** uzupełnij `.env` i `gateway.config.yaml` albo uruchom `gateway config:init` przed startem serwera (szczegóły: `konfiguracja.md`, `CLI.md`).
 
 - **Status projektu:** Rdzeń **MVP** (routing + chat + streaming) domknięty w Fazach 1–2 oraz 4; Faza 0 zamknięta. Trwa **v1** (m.in. Fazy 3 oraz 5–7 według tabeli w planie).
 - **Providery (MVP):** Anthropic API + Google Gemini API

@@ -17,8 +17,7 @@ Zasady:
 ```
 ai-provider-gateway/
 ├── openapi.json                    # OpenAPI 3.1 (kontrakt HTTP; generowany: npm run openapi:export)
-├── gateway.config.placeholder.yaml # wzorzec konfiguracji w repo
-├── gateway.config.yaml             # właściwy plik roboczy (generowany przez gateway config:init; dodaj do .gitignore)
+├── gateway.config.yaml             # konfiguracja robocza (przykład w repo; generowana/aktualizowana przez gateway config:init)
 ├── package.json
 ├── package-lock.json
 ├── README.md
@@ -73,6 +72,7 @@ ai-provider-gateway/
 │   │   │   ├── chat-request.dto.ts
 │   │   │   ├── chat-params.dto.ts
 │   │   │   ├── chat-message.dto.ts
+│   │   │   ├── chat-tooling.dto.ts
 │   │   │   ├── chat-response.dto.ts
 │   │   │   ├── chat-output-text.dto.ts
 │   │   │   ├── chat-usage.dto.ts
@@ -88,6 +88,8 @@ ai-provider-gateway/
 │   │   │   ├── resolve-provider-call-options.ts
 │   │   │   ├── resolve-provider-call-options.spec.ts
 │   │   │   ├── retry-policy.ts
+│   │   │   ├── tooling-request.ts
+│   │   │   ├── map-provider-finish-reason.ts
 │   │   │   └── system-prompt.ts
 │   │   └── sse/
 │   │       ├── sse-event.type.ts
@@ -102,6 +104,12 @@ ai-provider-gateway/
 │   │   ├── factories/
 │   │   │   ├── create-anthropic-provider.ts
 │   │   │   └── create-google-provider.ts
+│   │   ├── anthropic/
+│   │   │   └── anthropic-tools.mapper.ts
+│   │   ├── google/
+│   │   │   └── google-tools.mapper.ts
+│   │   ├── types/
+│   │   │   └── tooling-types.ts
 │   │   └── interfaces/
 │   │       └── ai-provider.interface.ts
 │   │
@@ -119,7 +127,9 @@ ai-provider-gateway/
 │   │   │   ├── mappers/
 │   │   │   │   ├── openai-request.mapper.ts
 │   │   │   │   ├── openai-response.mapper.ts
-│   │   │   │   └── openai-stream.mapper.ts
+│   │   │   │   ├── openai-stream.mapper.ts
+│   │   │   │   ├── openai-tools.mapper.ts
+│   │   │   │   └── openai-messages.mapper.ts
 │   │   │   ├── guards/
 │   │   │   │   └── openai-bearer-auth.guard.ts
 │   │   │   ├── filters/
@@ -294,7 +304,9 @@ ai-provider-gateway/
 │       │   ├── api-gateway-error-responses.decorator.ts
 │       │   └── api-request-id-header.decorator.ts
 │       ├── dtos/
-│       │   └── error-envelope.dto.ts
+│       │   ├── error-envelope.dto.ts
+│       │   ├── gateway-tool-call.dto.ts
+│       │   └── gateway-tool-definition.dto.ts
 │       ├── errors/
 │       │   ├── api-error.code.ts
 │       │   ├── api-error.dto.ts
@@ -355,7 +367,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 
 | Katalog | Odpowiedzialność |
 |---------|------------------|
-| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache, smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi. **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Eksport **`ChatService`**, **`SmartRateLimitGuard`** dla modułu integracji. Helpery: system prompt, provider input, params, retry policy, cache policy, `conversationId`. |
+| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache (pomijany przy tooling), smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi (`toolCalls`, `finishReason`). **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Helpery: system prompt, provider input, params, tooling, retry policy, cache policy, `conversationId`. |
 | **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API. |
 | **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
@@ -409,7 +421,7 @@ Pełna dokumentacja komend: **`CLI.md`**.
 
 **Wdrożone w kodzie** (porównuj z `openapi.json` i `src/`):
 
-- **Wzorzec konfiguracji:** `gateway.config.placeholder.yaml` w repo (placeholdery, `enabled: false`); właściwy plik roboczy `gateway.config.yaml` generowany przez wizard **`gateway config:init`**. Runtime providerów: fabryki per typ + bootstrap per **`providerInstance`** (Anthropic, Google).
+- **Konfiguracja:** przykładowy `gateway.config.yaml` w repo; pełna konfiguracja operacyjna przez wizard **`gateway config:init`**. Runtime providerów: fabryki per typ + bootstrap per **`providerInstance`** (Anthropic, Google) + tool mappers.
 - Czat standard + SSE, `params`, retry/fallback/`effectiveModelAlias` (`ResilientExecutor`).
 - Error envelope (`GlobalExceptionFilter`), kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
