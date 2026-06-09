@@ -1,6 +1,19 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { GatewayToolCallDto } from 'src/common/dtos/gateway-tool-call.dto';
 
 export class SseDonePayloadDto {
-  @ApiPropertyOptional({ description: 'done event has empty payload' })
-  _placeholder: never;
+  @ApiPropertyOptional()
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens?: number;
+  };
+
+  @ApiPropertyOptional({ type: [GatewayToolCallDto] })
+  toolCalls?: GatewayToolCallDto[];
+
+  @ApiPropertyOptional({
+    enum: ['stop', 'tool_calls', 'length', 'content_filter'],
+  })
+  finishReason?: 'stop' | 'tool_calls' | 'length' | 'content_filter';
 }
