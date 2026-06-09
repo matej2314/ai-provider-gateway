@@ -98,14 +98,20 @@ export function createAnthropicProvider(
         try {
           logger.debug('Streaming', { model: modelId });
 
-          streamObject = client.messages.stream({
+          const streamParams = {
             model: modelId,
             max_tokens: options?.maxOutputTokens ?? 1024,
             temperature: options?.temperature ?? undefined,
             system: input.system,
             messages: mapTurnsToAnthropicMessages(input.messages),
-            stream: true,
-          });
+            stream: true as const,
+            ...(input.tools?.length && {
+              tools: mapToolsToAnthropic(input.tools),
+              tool_choice: mapToolChoiceToAnthropic(input.toolChoice),
+            }),
+          };
+
+          streamObject = client.messages.stream(streamParams);
 
           for await (const event of streamObject) {
             if (
@@ -141,9 +147,25 @@ export function createAnthropicProvider(
           return undefined;
         }
       }
+
+      async function getFinalToolCalls() {
+        if (!streamObject) return undefined;
+        const finalMessage = await streamObject.finalMessage();
+        return parseAnthropicResponseWithTools(finalMessage).toolCalls;
+      }
+
+      async function getStopReason() {
+        if (!streamObject) return undefined;
+        const finalMessage = await streamObject.finalMessage();
+        const mapped = parseAnthropicResponseWithTools(finalMessage);
+        return mapped.stopReason;
+      }
+
       return {
         textStream: textStream(),
         getUsageMetadata: getUsageMetadata,
+        getFinalToolCalls: getFinalToolCalls,
+        getStopReason: getStopReason,
       };
     },
   };

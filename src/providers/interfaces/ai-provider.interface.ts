@@ -13,6 +13,7 @@ export type ProviderAssistantTurn = {
   role: 'assistant';
   content: string;
   toolCalls?: ProviderToolCall[];
+  stopReason?: ProviderChatResponse['stopReason'];
 };
 
 export type ProviderToolResultTurn = {
