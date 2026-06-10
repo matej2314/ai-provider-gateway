@@ -55,6 +55,9 @@ export function resolveProviderCallOptions(
   let maxOutputTokens = defaults.maxOutputTokens;
   let topP = defaults.topP;
   let stop = bodyParams?.stop;
+  let frequencyPenalty = defaults.frequencyPenalty;
+  let presencePenalty = defaults.presencePenalty;
+  let seed = defaults.seed;
 
   if (bodyParams?.temperature !== undefined) {
     temperature = bodyParams.temperature;
@@ -66,6 +69,18 @@ export function resolveProviderCallOptions(
 
   if (bodyParams?.topP !== undefined) {
     topP = Number(bodyParams.topP);
+  }
+
+  if (bodyParams?.frequencyPenalty !== undefined) {
+    frequencyPenalty = bodyParams.frequencyPenalty;
+  }
+
+  if (bodyParams?.presencePenalty !== undefined) {
+    presencePenalty = bodyParams.presencePenalty;
+  }
+
+  if (bodyParams?.seed !== undefined) {
+    seed = bodyParams.seed;
   }
 
   if (temperature !== undefined && bounds.temperature) {
@@ -85,7 +100,23 @@ export function resolveProviderCallOptions(
   }
 
   if (topP !== undefined && bounds.topP) {
-    topP = clamp(bounds.topP.min, bounds.topP.max, topP);
+    topP = clamp(topP, bounds.topP.min, bounds.topP.max);
+  }
+
+  if (frequencyPenalty !== undefined && bounds.frequencyPenalty) {
+    frequencyPenalty = clamp(
+      frequencyPenalty,
+      bounds.frequencyPenalty.min,
+      bounds.frequencyPenalty.max,
+    );
+  }
+
+  if (presencePenalty !== undefined && bounds.presencePenalty) {
+    presencePenalty = clamp(
+      presencePenalty,
+      bounds.presencePenalty.min,
+      bounds.presencePenalty.max,
+    );
   }
 
   return {
@@ -93,5 +124,8 @@ export function resolveProviderCallOptions(
     ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
     ...(topP !== undefined ? { topP } : {}),
     ...(stop !== undefined ? { stop } : {}),
+    ...(frequencyPenalty !== undefined ? { frequencyPenalty } : {}),
+    ...(presencePenalty !== undefined ? { presencePenalty } : {}),
+    ...(seed !== undefined ? { seed } : {}),
   };
 }
