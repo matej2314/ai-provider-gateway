@@ -68,6 +68,7 @@ export class ChatParamsDto {
     example: 0.5,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(-2)
   @Max(2)
@@ -81,6 +82,7 @@ export class ChatParamsDto {
     example: 0.5,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(-2)
   @Max(2)
@@ -94,5 +96,7 @@ export class ChatParamsDto {
   })
   @IsOptional()
   @IsInt()
+  @Min(0)
+  @Max(2 ** 32 - 1)
   seed?: number;
 }
