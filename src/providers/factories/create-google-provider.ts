@@ -31,6 +31,7 @@ function buildGenerationConfig(options?: ProviderCallOptions) {
     maxOutputTokens: options?.maxOutputTokens ?? 1024,
     topP: options?.topP,
     stopSequences: mapStopSequences(options?.stop),
+    seed: options?.seed,
   };
 }
 
