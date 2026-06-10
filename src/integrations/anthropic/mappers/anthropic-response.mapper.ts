@@ -29,7 +29,7 @@ export function mapGatewayResultToAnthropic(
 ): AnthropicMessagesResponseDto {
   const content: AnthropicContentBlock[] = [];
 
-  if (result.output.text) {
+  if (result.output.text !== undefined) {
     content.push({ type: 'text', text: result.output.text });
   }
 

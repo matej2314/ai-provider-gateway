@@ -88,14 +88,19 @@ export function mapAnthropicContentBlockToGateway(
       });
     }
   }
+
+  if (role === 'user' && textContent) {
+    if (textContent) {
+      messages.push({ role: 'user', content: textContent });
+    }
+  }
+
   if (role === 'assistant' || textContent || toolCalls.length) {
     messages.push({
       role: 'assistant',
       content: textContent,
       ...(toolCalls.length && { toolCalls }),
     });
-  } else if (role === 'user' && textContent) {
-    messages.push({ role: 'user', content: textContent });
   }
   messages.push(...toolMessages);
 
