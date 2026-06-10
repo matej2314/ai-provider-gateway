@@ -7,7 +7,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | Termin | Definicja | Uwagi |
 |--------|-----------|------|
 | **Gateway / Proxy** | Warstwa pośrednia unifikująca integrację z LLM providerami. | Nie jest “open proxy” do dowolnych URL. |
-| **Fasada integracji** | Warstwa HTTP w `src/integrations/` mapująca kontrakt vendora (OpenAI / Anthropic Messages) na wewnętrzny `ChatRequestDto` i `ChatService`. | Osobne ścieżki `/api/v1/openai/…`, `/api/v1/anthropic/…`; nie zastępuje natywnego `/chat`. |
+| **Fasada integracji** | Warstwa HTTP w `src/integrations/` mapująca kontrakt vendora (OpenAI / Anthropic Messages) na wewnętrzny `ChatRequestDto` i `ChatService`. | Osobne ścieżki `/api/v1/openai/…`, `/api/v1/anthropic/…`; nie zastępuje natywnego `/chat`. Trasy i schematy błędów vendora są w `openapi.json` (tagi OpenAI API / Anthropic API). |
 | **Klucz klienta** | Sekret z allowlisty gateway (`GATEWAY_KEY_*` / YAML) używany przez aplikację lub IDE. | `X-Gateway-Key`, Bearer (OpenAI fasada) lub `x-api-key` (Anthropic fasada) — ta sama lista, różne nagłówki. |
 | **Klucz providera** | Sekret w `.env` do wywołań SDK; w YAML wskazany przez **`apiKeyRef` per `providerInstance`** (np. `GOOGLE_API_KEY`, `GOOGLE_OFFICE_API_KEY`). | Fabryki w `src/providers/factories/`; bootstrap w `ProviderInstancesBootstrap`; nigdy klucz klienta. |
 | **Provider type** | Wartość z `PROVIDER_TYPES` — wybór fabryki SDK w kodzie (`anthropic`, `google`, …). | W YAML: pole `type` wpisu w `providers:`. |

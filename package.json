@@ -18,7 +18,7 @@
     "config:validate": "ts-node scripts/validate-config.ts",
     "cli": "node bin/gateway-cli-wrapper.js",
     "build:cli": "npm run build",
-    "openapi:export": "npm run build && node dist/swagger/export-openapi.js",
+    "openapi:export": "npm run build && node dist/src/swagger/export-openapi.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",

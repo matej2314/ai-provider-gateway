@@ -99,7 +99,7 @@ sequenceDiagram
 
 ## 2. Standard `POST /api/v1/chat` — błąd
 
-Odpowiedzi JSON błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polami `{statusCode, code, message, requestId, details?}` — `GlobalExceptionFilter` (global). **`code`** pochodzi z payloadu wyjątku (m.in. auth brzegowy, `MODEL_NOT_ALLOWED`, `MODEL_ALIAS_NOT_FOUND`) lub z domyślnego mapowania statusu; pełny słownik: `dictionary.md`.
+Odpowiedzi JSON błędów **natywnego czatu** są w envelope **`ErrorEnvelope`** (`openapi.json`) z polami `{statusCode, code, message, requestId, details?}` — `GlobalExceptionFilter` (global). Fasady OpenAI/Anthropic używają lokalnych filtrów i własnych kształtów błędów (schematy w `openapi.json`). **`code`** (natywny czat) pochodzi z payloadu wyjątku lub z domyślnego mapowania statusu; pełny słownik: `dictionary.md`.
 
 ```mermaid
 sequenceDiagram

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsIn,
   IsOptional,
@@ -25,18 +25,28 @@ export class OpenAiChatMessageDto {
   @MaxLength(CONTENT_MAX)
   content: string;
 
+  @ApiPropertyOptional({ example: 'user-42' })
   @IsOptional()
   @IsString()
   name?: string;
 
+  @ApiPropertyOptional({
+    example: 'call_abc123',
+    description: 'Required when role is "tool".',
+  })
   @IsOptional()
   @IsString()
   tool_call_id?: string;
 
+  @ApiPropertyOptional({
+    type: 'array',
+    description: 'Tool calls when role is assistant.',
+  })
   @IsOptional()
   @IsArray()
   tool_calls?: unknown[];
 
+  @ApiPropertyOptional({ description: 'Model refusal message (OpenAI spec).' })
   @IsOptional()
   @IsString()
   refusal?: string;

@@ -101,7 +101,7 @@ Odpowiedź: strumień SSE (`Content-Type: text/event-stream; charset=utf-8`, nag
 
 ## Test manualny bez Claude Code
 
-Wystarczy curl, Postman lub Swagger UI (`/api/v1/api-docs`, tag **Anthropic API**). Szczegółową checklistę curl (w tym regresję natywnego API) zobacz w planie integracji — sekcja ETAP 3 w `integrations-plan.md`.
+Wystarczy curl, Postman lub Swagger UI (`/api/v1/api-docs`, tag **Anthropic API** — trasy w `openapi.json` z security `ApiKeyAuth`).
 
 ## Natywne API (bez zmian)
 
@@ -145,9 +145,9 @@ Format JSON jak w Anthropic API:
 
 **`AnthropicExceptionFilter`** na kontrolerach (`@AnthropicAuth()`). Korelacja: nagłówek **`x-request-id`**.
 
-## Swagger
+## Swagger / OpenAPI
 
-Tag **Anthropic API** w Swagger UI (`/api/v1/api-docs`), gdy `SWAGGER_ENABLED=true`.
+Trasy Anthropic są w **`openapi.json`** (tag **Anthropic API**, security `ApiKeyAuth`) oraz w Swagger UI (`/api/v1/api-docs`), gdy `SWAGGER_ENABLED=true`. Schematy żądań/odpowiedzi i błędów (`AnthropicErrorResponseDto`) pochodzą z dekoratorów `@Api*`; eksport: `npm run openapi:export`.
 
 ## Powiązane
 

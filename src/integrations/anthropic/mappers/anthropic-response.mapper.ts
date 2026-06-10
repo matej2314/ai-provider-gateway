@@ -1,6 +1,6 @@
 import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
 import type {
-  AnthropicMessagesResponse,
+  AnthropicMessagesResponseDto,
   AnthropicContentBlock,
 } from '../dtos/anthropic-messages-response.dto';
 import type { GatewayToolCall } from 'src/providers/types/tooling-types';
@@ -18,7 +18,7 @@ function mapGatewayToolCallsToAnthropic(
 
 function mapStopReason(
   finishReason?: ChatResponseDto['finishReason'],
-): AnthropicMessagesResponse['stop_reason'] {
+): AnthropicMessagesResponseDto['stop_reason'] {
   if (finishReason === 'tool_calls') return 'tool_use';
   return 'end_turn';
 }
@@ -26,7 +26,7 @@ function mapStopReason(
 export function mapGatewayResultToAnthropic(
   result: ChatResponseDto,
   requestedModel: string,
-): AnthropicMessagesResponse {
+): AnthropicMessagesResponseDto {
   const content: AnthropicContentBlock[] = [];
 
   if (result.output.text) {

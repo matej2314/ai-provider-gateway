@@ -140,10 +140,10 @@ Wewnętrznie fasady korzystają z `ChatProviderCallService.streamOnce` i mapują
 | Temat | Decyzja |
 |-------|---------|
 | `system` w messages klienta | Ignorowane — prompt z `src/config/system-prompt/` |
-| Tools / function calling | Nieobsługiwane |
-| Multimodal (obrazy) | Nieobsługiwane — 400 przy blokach `image` |
+| Tools / function calling | Mapowane na wewnętrzne `tooling` (`openai-tools.mapper.ts`, `anthropic-tools.mapper.ts`); wymaga `capabilities.tools: true` na aliasie |
+| Multimodal (obrazy) | Nieobsługiwane — 400 przy blokach `image` (Anthropic) |
 | Cache odpowiedzi | Działa przez `ChatService` dla wywołań non-stream; pola `cached` ukryte w odpowiedzi fasady |
-| OpenAPI / Swagger | Docelowo osobne tagi; obecnie kontrakt natywny w `openapi.json` |
+| OpenAPI / Swagger | Tagi **OpenAI API** i **Anthropic API** w `openapi.json` i Swagger UI; osobne schematy błędów (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`) |
 
 ## Struktura plików
 
@@ -154,19 +154,21 @@ src/integrations/
 ├── openai/
 │   ├── controllers/     # models, chat/completions
 │   ├── services/        # orchestration, models catalog
-│   ├── mappers/         # request, response, stream
+│   ├── mappers/         # request, response, stream, tools, messages
+│   ├── helpers/         # normalize-openai-content, openai-stream-api-description
 │   ├── guards/          # Bearer auth
 │   ├── filters/         # OpenAI-shaped errors
 │   ├── decorators/      # @OpenAiAuth()
-│   └── dtos/
+│   └── dtos/            # w tym openai-error-response.dto.ts
 └── anthropic/
     ├── controllers/     # models, messages
     ├── services/
-    ├── mappers/
+    ├── mappers/         # request, response, stream, tools
+    ├── helpers/         # anthropic-stream-api-description
     ├── guards/          # x-api-key auth
     ├── filters/
     ├── decorators/      # @AnthropicAuth()
-    └── dtos/
+    └── dtos/            # w tym anthropic-error-response.dto.ts
 ```
 
 ## Powiązane dokumenty

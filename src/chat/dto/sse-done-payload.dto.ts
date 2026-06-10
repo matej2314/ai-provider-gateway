@@ -1,13 +1,20 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { GatewayToolCallDto } from 'src/common/dtos/gateway-tool-call.dto';
 
+export class SseDoneUsageDto {
+  @ApiPropertyOptional({ minimum: 0, example: 12 })
+  inputTokens?: number;
+
+  @ApiPropertyOptional({ minimum: 0, example: 48 })
+  outputTokens?: number;
+
+  @ApiPropertyOptional({ minimum: 0, example: 60 })
+  totalTokens?: number;
+}
+
 export class SseDonePayloadDto {
-  @ApiPropertyOptional()
-  usage?: {
-    inputTokens: number;
-    outputTokens: number;
-    totalTokens?: number;
-  };
+  @ApiPropertyOptional({ type: SseDoneUsageDto })
+  usage?: SseDoneUsageDto;
 
   @ApiPropertyOptional({ type: [GatewayToolCallDto] })
   toolCalls?: GatewayToolCallDto[];

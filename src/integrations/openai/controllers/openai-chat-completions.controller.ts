@@ -7,7 +7,15 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiOperation,
+  ApiSecurity,
+  ApiTags,
+  ApiOkResponse,
+  ApiProduces,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { ChatService } from 'src/chat/chat.service';
 import { SmartRateLimiterService } from 'src/rate-limit/smart-rate-limiter.service';
 import { OpenAiAuth } from '../decorators/openai-auth.decorator';
@@ -19,12 +27,17 @@ import {
   createOpenAiStreamState,
   mapSseEventToOpenAi,
 } from '../mappers/openai-stream.mapper';
+import { OPENAI_STREAM_API_DESCRIPTION } from '../helpers/openai-stream-api-description';
 
 import type { Request, Response } from 'express';
 import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
 import type { SseEvent } from 'src/chat/sse/sse-event.type';
 
 import { OPENAI_INTEGRATION_PATH } from 'src/integrations/integrations.constants';
+import { OpenAiErrorResponseDto } from '../dtos/openai-error-response.dto';
+import { ApiRequestIdHeader } from 'src/common/decorators/api-request-id-header.decorator';
+import { ApiOpenAiErrorResponses } from 'src/common/decorators/api-openai-error-response.decorator';
+import { OpenAiChatCompletionResponseDto } from '../dtos/openai-chat-completion-response.dto';
 
 @ApiTags('OpenAI API')
 @ApiSecurity('BearerAuth')
@@ -93,8 +106,41 @@ export class OpenAiChatCompletionsController {
   }
 
   @Post('chat/completions')
-  @ApiOperation({ summary: 'Create chat completion (OPENAI API spec)' })
+  @ApiOperation({
+    summary: 'Create chat completion (OPENAI API spec)',
+    description:
+      'JSON completion when `stream` is false/omitted. SSE chunks when `stream: true`',
+  })
   @ApiBody({ type: OpenAiChatCompletionRequestDto })
+  @ApiOkResponse({
+    type: OpenAiChatCompletionResponseDto,
+    description: 'Non-streaming response.',
+  })
+  @ApiProduces('text/event-stream')
+  @ApiResponse({
+    status: 200,
+    description: OPENAI_STREAM_API_DESCRIPTION.join('\n\n'),
+    content: {
+      'text/event-stream': {
+        schema: {
+          type: 'string',
+          description:
+            'OpenAI chunk lines: `data: <json>\\n\\n`, terminated with `data: [DONE]\\n\\n`.',
+        },
+        examples: {
+          chunk: {
+            value:
+              'data: {"id":"chatcmpl_...","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"Hi"}}]}\n\n',
+          },
+          done: {
+            value: 'data: [DONE]\n\n',
+          },
+        },
+      },
+    },
+  })
+  @ApiOpenAiErrorResponses()
+  @ApiRequestIdHeader()
   async completions(
     @Req() req: Request,
     @Body() body: OpenAiChatCompletionRequestDto,

@@ -57,11 +57,17 @@ export class AnthropicMessagesRequestDto {
   @Max(1)
   temperature?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    type: 'array',
+    description:
+      'Anthropic tools array. Requires capabilities.tools on model alias.',
+  })
   @IsOptional()
   tools?: unknown[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Tool choice per Anthropic API (auto, any, tool, ...).',
+  })
   @IsOptional()
   tool_choice?: unknown;
 }

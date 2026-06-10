@@ -12,6 +12,18 @@ Gateway udostępnia **trzy powierzchnie HTTP** pod prefiksem `/api/v1`:
 
 Szczegóły fasad (mapowanie `model` → `modelAlias`, błędy vendora, stan wdrożenia): **`integracje.md`**.
 
+### OpenAPI / Swagger (wszystkie powierzchnie)
+
+Jeden plik **`openapi.json`** (v0.12.0, OpenAPI 3.1) generowany z kodu (`npm run openapi:export`). Zawiera trasy health, czatu natywnego oraz fasad OpenAI i Anthropic. Schematy bezpieczeństwa:
+
+| Scheme | Nagłówek | Trasy |
+|--------|----------|-------|
+| `GatewayKeyAuth` | `X-Gateway-Key` | `POST /chat`, `POST /chat/stream` |
+| `BearerAuth` | `Authorization: Bearer` | `/openai/*` |
+| `ApiKeyAuth` | `x-api-key` | `/anthropic/*` |
+
+Błędy w spec: natywny czat — `ErrorEnvelope`; fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (runtime: lokalne filtry, nie `GlobalExceptionFilter`). Swagger UI: `/api/v1/api-docs` (`SWAGGER_ENABLED` — `konfiguracja.md`).
+
 ### Natywny kontrakt (rdzeń)
 
 - Spójne REST API nad zasobem *chat* (konwersacja).

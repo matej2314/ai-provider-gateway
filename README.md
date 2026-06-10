@@ -18,8 +18,8 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 
 | Temat                       | Plik                                                                                       |
 | --------------------------- | ------------------------------------------------------------------------------------------ |
-| Kontrakt HTTP (OpenAPI 3.1) | [`openapi.json`](openapi.json) — generowany: `npm run openapi:export`                      |
-| Swagger UI (runtime)        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`) |
+| Kontrakt HTTP (OpenAPI 3.1) | [`openapi.json`](openapi.json) — natywny czat + health + fasady OpenAI/Anthropic; generowany: `npm run openapi:export` |
+| Swagger UI (runtime)        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`); tagi: Health, Chat, OpenAI API, Anthropic API |
 | API (ludzki opis)           | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md)                                     |
 | Konfiguracja env + YAML     | [`docs/konfiguracja.md`](docs/konfiguracja.md)                                             |
 | Kody błędów                 | [`docs/dictionary.md`](docs/dictionary.md)                                                 |

@@ -99,9 +99,9 @@ Jeśli budujesz własną aplikację pod kontrakt gateway:
 
 Format JSON jak w OpenAI API (`error.message`, `error.type`, `error.code`) — **`OpenAiExceptionFilter`**. Wewnętrzne kody gateway (`RATE_LIMITED`, `MODEL_ALIAS_NOT_FOUND`, …) są mapowane na typy OpenAI (np. `rate_limit_error`, `invalid_request_error`). Korelacja: nagłówek **`x-request-id`**.
 
-## Swagger
+## Swagger / OpenAPI
 
-Tag **OpenAI API** w Swagger UI (`/api/v1/api-docs`), gdy `SWAGGER_ENABLED=true`. Kontrakt natywny pozostaje w `openapi.json` z eksportu `npm run openapi:export`.
+Trasy OpenAI są w **`openapi.json`** (tag **OpenAI API**, security `BearerAuth`) oraz w Swagger UI (`/api/v1/api-docs`), gdy `SWAGGER_ENABLED=true`. Schematy żądań/odpowiedzi i błędów (`OpenAiErrorResponseDto`) pochodzą z dekoratorów `@Api*` na kontrolerach; eksport statyczny: `npm run openapi:export`.
 
 ## Powiązane
 

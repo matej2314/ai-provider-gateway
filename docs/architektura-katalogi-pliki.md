@@ -130,6 +130,9 @@ ai-provider-gateway/
 │   │   │   │   ├── openai-stream.mapper.ts
 │   │   │   │   ├── openai-tools.mapper.ts
 │   │   │   │   └── openai-messages.mapper.ts
+│   │   │   ├── helpers/
+│   │   │   │   ├── normalize-openai-content.ts
+│   │   │   │   └── openai-stream-api-description.ts
 │   │   │   ├── guards/
 │   │   │   │   └── openai-bearer-auth.guard.ts
 │   │   │   ├── filters/
@@ -140,7 +143,8 @@ ai-provider-gateway/
 │   │   │       ├── openai-chat-message.dto.ts
 │   │   │       ├── openai-chat-completion-request.dto.ts
 │   │   │       ├── openai-chat-completion-response.dto.ts
-│   │   │       └── openai-models-list-response.dto.ts
+│   │   │       ├── openai-models-list-response.dto.ts
+│   │   │       └── openai-error-response.dto.ts
 │   │   └── anthropic/
 │   │       ├── anthropic.module.ts
 │   │       ├── controllers/
@@ -151,7 +155,10 @@ ai-provider-gateway/
 │   │       ├── mappers/
 │   │       │   ├── anthropic-request.mapper.ts
 │   │       │   ├── anthropic-response.mapper.ts
-│   │       │   └── anthropic-stream.mapper.ts
+│   │       │   ├── anthropic-stream.mapper.ts
+│   │       │   └── anthropic-tools.mapper.ts
+│   │       ├── helpers/
+│   │       │   └── anthropic-stream-api-description.ts
 │   │       ├── guards/
 │   │       │   └── anthropic-api-key.guard.ts
 │   │       ├── filters/
@@ -163,7 +170,8 @@ ai-provider-gateway/
 │   │           ├── anthropic-message.dto.ts
 │   │           ├── anthropic-messages-request.dto.ts
 │   │           ├── anthropic-messages-response.dto.ts
-│   │           └── anthropic-models-list-response.dto.ts
+│   │           ├── anthropic-models-list-response.dto.ts
+│   │           └── anthropic-error-response.dto.ts
 │   │
 │   ├── cli/                                # CLI developerskie (osobny entry point — patrz bin/)
 │   │   ├── cli.module.ts                   # root module CLI — bez ConfigModule
@@ -302,6 +310,8 @@ ai-provider-gateway/
 │       ├── decorators/
 │       │   ├── gateway-key-and-smart-rate-limit.decorator.ts
 │       │   ├── api-gateway-error-responses.decorator.ts
+│       │   ├── api-openai-error-response.decorator.ts
+│       │   ├── api-anthropic-error-response.decorator.ts
 │       │   └── api-request-id-header.decorator.ts
 │       ├── dtos/
 │       │   ├── error-envelope.dto.ts
@@ -372,12 +382,12 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
-| **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiRequestIdHeader`), typy Express. |
+| **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), typy Express. |
 | **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). |
 | **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez `RateLimitModule` → `RedisCacheModule`. |
 | **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |
 | **`src/health/`** | Liveness i readiness; DTO z dekoratorami `@Api*` dla OpenAPI. |
-| **`src/swagger/`** | Generowanie dokumentu OpenAPI z kodu (`@nestjs/swagger`); UI pod `/api/v1/api-docs`, JSON pod `/api/v1/swagger.json`; eksport statyczny → `openapi.json`. |
+| **`src/swagger/`** | Generowanie jednego dokumentu OpenAPI 3.1 z kodu (`@nestjs/swagger`) — czat natywny, health, fasady OpenAI/Anthropic; `extraModels` + trzy `securitySchemes` w `swagger.setup.ts`. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport → `openapi.json`. |
 | **`bin/`** | Entry point CLI: wrapper JS (`gateway-cli-wrapper.js`) uruchamia skompilowany `dist/bin/gateway-cli.js` lub — gdy brak build — TypeScript przez `ts-node` (`gateway-cli.ts` → `CliModule`). Dostęp: `npm run cli`, `npx gateway`, bin **`gateway`** z `package.json` (po `npm link` lub instalacji globalnej). |
 | **`src/cli/`** | Warstwa CLI: **nie importuje** `ConfigModule`. NestJS tylko dla DI. Wizard (`config:init`), walidacja/wyświetlanie configu, CRUD providerów (multi-instance), modeli, klientów, testy SDK, generowanie kluczy. Szczegóły: `CLI.md`, `architektura.md`. |
 | **`scripts/`** | Walidacja konfiguracji offline (`npm run config:validate` → `validateGatewayConfig()`); generowanie kluczy — **`gateway key:generate`**. |
@@ -427,7 +437,7 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
 - System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.cache`), graceful shutdown.
-- OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach i DTO, `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
+- OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad IDE; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
 - **Integracje IDE:** `src/integrations/` — fasady OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`).
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
