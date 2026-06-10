@@ -83,6 +83,7 @@ export const GatewayConfigSchema = z
                   .object({
                     temperature: z.number().min(0).max(2).optional(),
                     maxOutputTokens: z.number().int().min(1).optional(),
+                    topP: z.number().min(0).max(1).optional(),
                   })
                   .optional()
                   .default({}),
@@ -100,6 +101,9 @@ export const GatewayConfigSchema = z
                         min: z.number().min(1),
                         max: z.number().max(8192),
                       })
+                      .optional(),
+                    topP: z
+                      .object({ min: z.number(), max: z.number() })
                       .optional(),
                   })
                   .optional()
