@@ -3,7 +3,6 @@ import {
   HttpException,
   HttpStatus,
   InternalServerErrorException,
-  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIProvider } from './interfaces/ai-provider.interface';
@@ -17,6 +16,13 @@ import { ApiErrorCode } from '../common/errors/api-error.code';
 import { UnsupportedProviderException } from '../common/exceptions/unsupported-provider.exception';
 import { LoggingService } from '../logging/logging.service';
 import { RETRY_POLICY_DEFAULTS } from 'src/common/retry-policy-defaults';
+import type { ProviderToolCall } from './interfaces/ai-provider.interface';
+
+export interface RegisteredProviderInstance {
+  instanceId: string;
+  type: string;
+  provider: AIProvider;
+}
 
 export interface ResolvedProviderConfig {
   provider: AIProvider;
@@ -33,11 +39,13 @@ export interface ResolvedProviderConfig {
     };
   };
   params?: GatewayParamsConfig;
+  toolCalls?: ProviderToolCall[];
+
 }
 
 @Injectable()
-export class ProviderRegistryService implements OnApplicationBootstrap {
-  private providers = new Map<string, { provider: AIProvider; name: string }>();
+export class ProviderRegistryService {
+  private instances = new Map<string, RegisteredProviderInstance>();
   private readonly logger: LoggingService;
 
   constructor(
@@ -47,12 +55,12 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
     this.logger = loggingService.child({ module: 'ProviderRegistryService' });
   }
 
-  register(providerName: string, provider: AIProvider) {
-    this.providers.set(providerName, { provider, name: providerName });
-    this.logger.debug('Registered provider:', {
-      provider: providerName,
-      adapter: provider.constructor.name,
-    });
+  registerInstance(
+    instanceId: string,
+    type: string,
+    provider: AIProvider,
+  ): void {
+    this.instances.set(instanceId, { instanceId, type, provider });
   }
 
   private getGatewayConfig(): GatewayConfig {
@@ -93,35 +101,45 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
   private resolveProviderEntry(
     gatewayConfig: GatewayConfig,
     modelConfig: GatewayModelConfig,
-  ) {
-    const providerInstanceConfig =
-      gatewayConfig.providers[modelConfig.providerInstance];
+  ): RegisteredProviderInstance {
+    const instanceId = modelConfig.providerInstance;
+    const providerInstanceConfig = gatewayConfig.providers[instanceId];
 
     if (!providerInstanceConfig) {
       this.logger.warn('Provider instance not found in config:', {
-        providerInstance: modelConfig.providerInstance,
+        providerInstance: instanceId,
       });
       throw new HttpException(
         {
           code: ApiErrorCode.VALIDATION_FAILED,
-          message: `Provider instance ${modelConfig.providerInstance} not found`,
+          message: `Provider instance ${instanceId} not found`,
           details: [],
         },
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    const providerType = providerInstanceConfig.type;
-
-    const entry = this.providers.get(providerType);
+    const entry = this.instances.get(instanceId);
 
     if (!entry) {
-      this.logger.warn('Provider not registered:', { provider: providerType });
+      this.logger.warn('Provider instance not registered:', {
+        instanceId,
+        type: providerInstanceConfig.type,
+      });
       throw new UnsupportedProviderException(
-        `Provider ${providerType} not registered.`,
+        `Provider instance ${instanceId} not registered (type: ${providerInstanceConfig.type})`,
       );
     }
 
+    if (entry.type !== providerInstanceConfig.type) {
+      this.logger.error('Provider instance type mismatch:', {
+        message: `Provider instance ${instanceId} type mismatch: config=${providerInstanceConfig.type} vs registry=${entry.type}`,
+        name: 'ProviderInstanceTypeMismatch',
+      });
+      throw new InternalServerErrorException(
+        `Provider instance "${instanceId}" type mismatch: config=${providerInstanceConfig.type}, registry=${entry.type}`,
+      );
+    }
     return entry;
   }
 
@@ -163,7 +181,7 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
 
     return {
       provider: providerEntry.provider,
-      providerName: providerEntry.name,
+      providerName: providerEntry.instanceId,
       modelId: modelConfig.modelId,
       modelAlias,
       fallbackAlias,
@@ -174,12 +192,6 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
   }
 
   list(): string[] {
-    return Array.from(this.providers.keys());
-  }
-
-  onApplicationBootstrap() {
-    this.logger.info(
-      `Registered providers: ${this.list().join(', ') || '(none)'}`,
-    );
+    return Array.from(this.instances.keys());
   }
 }

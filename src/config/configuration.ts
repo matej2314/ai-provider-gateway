@@ -29,8 +29,15 @@ export type {
   GatewayParamsConfig,
   GatewayParamsBoundConfig,
 } from './gateway-config.schema';
+import { GatewayProviderType } from './provider-types';
 
 export { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
+
+export interface ProviderInstanceRuntime {
+  type: GatewayProviderType;
+  apiKeyRef: string;
+  apiKey: string;
+}
 
 const MASTER_PROMPT = 'src/config/system-prompt/MASTER_SYSTEM_PROMPT.md';
 const MAIN_PROMPT = 'src/config/system-prompt/MAIN_SYSTEM_PROMPT.md';
@@ -72,7 +79,7 @@ function buildGatewayKeyRuntime(
   for (const client of clients) {
     if (client.gatewayKey) allow.add(client.gatewayKey);
   }
-  console.log(
+  console.error(
     'Registered clients:',
     clients.map((c) => ({ name: c.name, type: c.type })),
   );
@@ -203,11 +210,13 @@ export default () => {
     perModelByAlias,
   };
 
-  const providersByType: Record<string, { apiKey: string }> = {};
+  const providersByInstance: Record<string, ProviderInstanceRuntime> = {};
 
-  for (const instance of Object.values(gatewayConfig.providers)) {
-    providersByType[instance.type] = {
-      apiKey: process.env[instance.apiKeyRef] ?? '',
+  for (const [instanceId, row] of Object.entries(gatewayConfig.providers)) {
+    providersByInstance[instanceId] = {
+      type: row.type,
+      apiKeyRef: row.apiKeyRef,
+      apiKey: (process.env[row.apiKeyRef] ?? '').trim(),
     };
   }
 
@@ -233,7 +242,7 @@ export default () => {
     gatewayKey,
     port: parseInt(process.env.PORT || '3000', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
-    providers: providersByType,
+    providers: providersByInstance,
     resolvedSystemPrompts: systemPromptsResolved,
     cache: cacheConfig,
     redis: redisConfig,

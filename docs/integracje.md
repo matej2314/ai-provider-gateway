@@ -1,6 +1,6 @@
 # Fasady integracji (IDE) — AI Provider Gateway
 
-Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzędzi, które oczekują natywnego API vendora (OpenAI lub Anthropic), bez zmiany rdzenia gatewaya (`POST /api/v1/chat`, adaptery w `src/providers/`).
+Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzędzi, które oczekują natywnego API vendora (OpenAI lub Anthropic), bez zmiany rdzenia gatewaya (`POST /api/v1/chat`, warstwa providerów w `src/providers/`).
 
 ## Filozofia
 
@@ -8,7 +8,7 @@ Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzę
 |--------|------|
 | **Trzy kontrakty, jeden silnik** | Kontrolery i mappery tłumaczą HTTP; **`ChatService`** pozostaje jedynym orchestratorem (cache, retry, fallback, limity). |
 | **Anti-corruption layer** | Podmoduły `openai/` i `anthropic/` są izolowane — zmiana formatu OpenAI nie wpływa na Messages API. |
-| **Bez zmiany natywnego API** | `ChatController` / `ChatStreamController` i adaptery providerów pozostają punktem odniesienia dla aplikacji pisanych pod kontrakt gateway. |
+| **Bez zmiany natywnego API** | `ChatController` / `ChatStreamController` i warstwa providerów pozostają punktem odniesienia dla aplikacji pisanych pod kontrakt gateway. |
 | **Separacja kluczy** | Klucze **klientów** (IDE → gateway) ≠ klucze **providerów** (gateway → LLM w `.env`). |
 
 ## Stan wdrożenia
@@ -42,7 +42,7 @@ flowchart TB
 
   subgraph core [Rdzeń gateway]
     chat[ChatService + ChatProviderCallService]
-    providers[Providers Module — adaptery SDK]
+    providers[Providers Module — fabryki + rejestr instancji]
   end
 
   native -->|X-Gateway-Key POST /chat| chat
@@ -55,7 +55,7 @@ flowchart TB
 
 ## Trzy powierzchnie API
 
-Globalny prefiks aplikacji: **`/api/v1`** (`src/main.ts`).
+Globalny prefiks aplikacji: **`/api/v1`** (`API_GLOBAL_PREFIX` w `src/setup.app.ts`).
 
 | Powierzchnia | Base URL (przykład) | Auth klienta | Główne trasy |
 |--------------|---------------------|--------------|--------------|
@@ -67,7 +67,7 @@ IDE ustawia **Base URL** z segmentem integracji; klient dokleja ścieżki ze spe
 
 **Świadomie brak** wspólnej trasy `GET /api/v1/models` — OpenAI i Anthropic mają różny kształt listy modeli.
 
-Stałe ścieżek (docelowo w `src/integrations/integrations.constants.ts`):
+Stałe ścieżek w `src/integrations/integrations.constants.ts`:
 
 - `OPENAI_INTEGRATION_PATH = 'openai'`
 - `ANTHROPIC_INTEGRATION_PATH = 'anthropic'`
@@ -84,8 +84,8 @@ Pole **`model`** w żądaniu fasady (OpenAI / Anthropic) = **`modelAlias`** z `g
 
 Wszystkie trzy powierzchnie weryfikują **tę samą allowlistę** (`gatewayKey.allowList` z `.env` / `gateway.config.yaml`):
 
-| Powierzchnia | Nagłówek | Guard (docelowo) |
-|--------------|----------|------------------|
+| Powierzchnia | Nagłówek | Guard |
+|--------------|----------|-------|
 | Natywna | `X-Gateway-Key` | `GatewayKeyGuard` |
 | OpenAI | `Authorization: Bearer` | `OpenAiBearerAuthGuard` → `req.gatewayKey` |
 | Anthropic | `x-api-key` (priorytet) lub Bearer | `AnthropicApiKeyGuard` → `req.gatewayKey` |
@@ -115,7 +115,7 @@ Fasady muszą współdzielić **`SmartRateLimiterService`** z natywnym API.
 ## Przepływ żądania (docelowy)
 
 1. HTTP → kontroler fasady + walidacja DTO vendora.
-2. Mapper request → `ChatRequestDto` (`modelAlias`, `messages`, opcjonalnie `params`).
+2. Mapper request → `ChatRequestDto` (`modelAlias`, `messages`, opcjonalnie `params`, `tooling` — tools/tool_calls z kontraktu vendora).
 3. `ChatService.executeChat` / `executeStream` z `req.gatewayKey` i `req.requestId`.
 4. Mapper response / stream → format OpenAI lub Anthropic.
 5. Pola specyficzne dla gateway (`provider`, `cached`, `conversationId`) **nie** są eksponowane w fasadach MVP.
@@ -140,10 +140,10 @@ Wewnętrznie fasady korzystają z `ChatProviderCallService.streamOnce` i mapują
 | Temat | Decyzja |
 |-------|---------|
 | `system` w messages klienta | Ignorowane — prompt z `src/config/system-prompt/` |
-| Tools / function calling | Nieobsługiwane |
-| Multimodal (obrazy) | Nieobsługiwane — 400 przy blokach `image` |
+| Tools / function calling | Mapowane na wewnętrzne `tooling` (`openai-tools.mapper.ts`, `anthropic-tools.mapper.ts`); wymaga `capabilities.tools: true` na aliasie |
+| Multimodal (obrazy) | Nieobsługiwane — 400 przy blokach `image` (Anthropic) |
 | Cache odpowiedzi | Działa przez `ChatService` dla wywołań non-stream; pola `cached` ukryte w odpowiedzi fasady |
-| OpenAPI / Swagger | Docelowo osobne tagi; obecnie kontrakt natywny w `openapi.json` |
+| OpenAPI / Swagger | Tagi **OpenAI API** i **Anthropic API** w `openapi.json` i Swagger UI; osobne schematy błędów (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`) |
 
 ## Struktura plików
 
@@ -154,19 +154,21 @@ src/integrations/
 ├── openai/
 │   ├── controllers/     # models, chat/completions
 │   ├── services/        # orchestration, models catalog
-│   ├── mappers/         # request, response, stream
+│   ├── mappers/         # request, response, stream, tools, messages
+│   ├── helpers/         # normalize-openai-content, openai-stream-api-description
 │   ├── guards/          # Bearer auth
 │   ├── filters/         # OpenAI-shaped errors
 │   ├── decorators/      # @OpenAiAuth()
-│   └── dtos/
+│   └── dtos/            # w tym openai-error-response.dto.ts
 └── anthropic/
     ├── controllers/     # models, messages
     ├── services/
-    ├── mappers/
+    ├── mappers/         # request, response, stream, tools
+    ├── helpers/         # anthropic-stream-api-description
     ├── guards/          # x-api-key auth
     ├── filters/
     ├── decorators/      # @AnthropicAuth()
-    └── dtos/
+    └── dtos/            # w tym anthropic-error-response.dto.ts
 ```
 
 ## Powiązane dokumenty

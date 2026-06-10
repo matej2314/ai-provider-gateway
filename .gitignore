@@ -56,6 +56,9 @@ pids
 *.seed
 *.pid.lock
 
+gateway.config.old.yaml
+.env.old
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 PLAN_IMPLEMENTACJI.md
@@ -69,3 +72,5 @@ integrations-plan.md
 gateway-to-contracts.md
 tools_implementation.md
 cli-implementation-plan.md
+backup/*
+secret-management-implementation.md

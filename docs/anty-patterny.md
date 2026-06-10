@@ -87,7 +87,7 @@ Ten plik zbiera typowe pułapki w projektach “LLM gateway”.
 
 - cienkie kontrolery,
 - use-case w serwisach,
-- adaptery jako jedyne miejsce kontaktu z SDK providerów.
+- fabryki providerów (`src/providers/factories/`) jako jedyne miejsce kontaktu z SDK LLM.
 
 ## 9) Brak testów kontraktu
 
@@ -104,7 +104,7 @@ Ten plik zbiera typowe pułapki w projektach “LLM gateway”.
 
 **Nie rób**: zwalniania **produkcyjnej** instancji do ruchu, gdy w env nie ma **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`NODE_ENV=production`; reguła w `src/config/env.validation.ts`).
 
-**Rób**: fail-fast w production przy starcie; lokalnie pamiętaj, że wywołanie adaptera i tak wymaga realnego klucza dla używanego providera (szczegóły: `docs/konfiguracja.md`).
+**Rób**: fail-fast w production przy starcie; lokalnie pamiętaj, że wywołanie providera i tak wymaga realnego klucza dla używanej **instancji** (`apiKeyRef` w YAML — szczegóły: `docs/konfiguracja.md`).
 
 ## 11) Mylenie kodów limitów (`RATE_LIMITED` vs `PROVIDER_RATE_LIMITED`)
 
@@ -130,7 +130,7 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 **Nie rób**:
 
 - wystawiania jednej trasy `GET /api/v1/models` dla wszystkich klientów (OpenAI i Anthropic mają różny kształt listy),
-- przekazywania klucza klienta (Bearer / `x-api-key`) do adapterów providerów zamiast kluczy z `.env`,
+- przekazywania klucza klienta (Bearer / `x-api-key`) do warstwy providerów zamiast kluczy z `.env` (per `apiKeyRef`),
 - duplikowania logiki cache/retry/fallback w kontrolerach fasad zamiast delegacji do `ChatService`,
 - oczekiwania `ErrorEnvelope` z fasad OpenAI/Anthropic — mają własne filtry błędów.
 
@@ -141,3 +141,26 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 - mapowanie `model` (vendor) → `modelAlias` (YAML) w warstwie mapperów.
 
 Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
+
+## 14) CLI zależne od `ConfigModule` (deadlock konfiguracji)
+
+**Nie rób**:
+
+- importowania `ConfigModule.forRoot()` w `CliModule` — runtime wymaga już istniejącego, poprawnego `gateway.config.yaml` i `.env`, które CLI ma **utworzyć**,
+- wymuszania `npm run build` przed pierwszym użyciem CLI,
+- importowania `buildEffectiveGatewayConfig()` / `configuration.ts` w warstwie CLI na starcie (wymaga env).
+
+**Rób**:
+
+- osobny entry point (`bin/gateway-cli-wrapper.js` → `CliModule`),
+- `CliConfigLoaderService` z parsowaniem YAML + `GatewayConfigSchema` bez rozwiązywania env,
+- reużycie **tylko** typów/schematów/walidatorów z `src/config/` (kierunek: config → cli, nie odwrotnie),
+- wrapper z fallbackiem `ts-node`, gdy brak `dist/`.
+
+Szczegóły: `CLI.md`, `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
+
+## 15) Start serwera bez właściwego pliku konfiguracyjnego
+
+**Nie rób**: oczekiwania, że `npm run start:dev` zadziała od razu po sklonowaniu bez uzupełnionego `.env` (klucze providerów + `MASTER_KEY`) i poprawnego `gateway.config.yaml`.
+
+**Rób**: uruchom `gateway config:init` albo ręcznie uzupełnij YAML + `.env` (`konfiguracja.md`); zweryfikuj przez `npm run config:validate`.

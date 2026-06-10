@@ -4,7 +4,7 @@ Ten dokument opisuje **strukturę katalogów i plików** projektu *AI Provider G
 
 Zasady:
 
-- Struktura jest **modułowa** (NestJS); adaptery LLM — `src/providers/`; fasady HTTP dla IDE — `src/integrations/`.
+- Struktura jest **modułowa** (NestJS); warstwa providerów LLM (fabryki + rejestr) — `src/providers/`; fasady HTTP dla IDE — `src/integrations/`.
 - Elementy oznaczone *(plan)* nie istnieją w kodzie lub są poza rdzeniem MVP.
 - **Pominięte w drzewie:** `node_modules/`, `dist/`, `.git/`, lokalne `.env` (nie commitować).
 - Pliki **`*.spec.ts`** — testy jednostkowe obok modułów; wypisane zbiorczo tam, gdzie występują.
@@ -16,8 +16,8 @@ Zasady:
 
 ```
 ai-provider-gateway/
-├── openapi.json                    # OpenAPI 3.1 (kontrakt HTTP)
-├── gateway.config.yaml             # aliasy modeli, providery, polityki
+├── openapi.json                    # OpenAPI 3.1 (kontrakt HTTP; generowany: npm run openapi:export)
+├── gateway.config.yaml             # konfiguracja robocza (przykład w repo; generowana/aktualizowana przez gateway config:init)
 ├── package.json
 ├── package-lock.json
 ├── README.md
@@ -28,21 +28,29 @@ ai-provider-gateway/
 ├── .prettierrc
 ├── .env.example
 ├── .env                            # lokalnie — nie commitować
+├── .gateway-wizard-state.json      # lokalnie — stan niedokończonego config:init (resume)
+├── backup/                         # lokalnie — backupi YAML/.env z CLI (backup/* w .gitignore)
 ├── .gitignore
 ├── Dockerfile
 ├── docker-compose.yml
 ├── mcp.json                        # konfiguracja MCP (integracja z IDE; patrz docs/mcp.md)
 │
+├── bin/                            # entry point CLI (osobny od HTTP app)
+│   ├── gateway-cli-wrapper.js      # npm bin — compiled dist/ lub fallback ts-node (bez build)
+│   └── gateway-cli.ts              # CommandFactory.run(CliModule)
+│
 ├── scripts/
-│   └── validate-config.ts          # npm run config:validate — walidacja gateway.config.yaml + env offline
+│   ├── validate-config.ts          # npm run config:validate — walidacja gateway.config.yaml + env offline
+│   ├── generate-key.sh             # *(plan)* wrapper generowania klucza (Faza 7)
+│   └── generate-key.ps1            # *(plan)* wrapper generowania klucza (Faza 7)
 │
 ├── test/                           # testy e2e (Jest)
 │   ├── jest-e2e.json
 │   └── app.e2e-spec.ts
 │
 ├── src/
-│   ├── main.ts                     # bootstrap NestJS, ValidationPipe, Swagger, graceful shutdown
-│   ├── setup.app.ts                # placeholder pod wspólny setup aplikacji (obecnie pusty)
+│   ├── main.ts                     # bootstrap NestJS, Swagger, graceful shutdown
+│   ├── setup.app.ts                # global prefix api/v1, ValidationPipe, json 1mb, shutdown hooks
 │   ├── instrument.ts               # inicjalizacja Sentry (import przed app)
 │   ├── app.module.ts
 │   │
@@ -64,6 +72,7 @@ ai-provider-gateway/
 │   │   │   ├── chat-request.dto.ts
 │   │   │   ├── chat-params.dto.ts
 │   │   │   ├── chat-message.dto.ts
+│   │   │   ├── chat-tooling.dto.ts
 │   │   │   ├── chat-response.dto.ts
 │   │   │   ├── chat-output-text.dto.ts
 │   │   │   ├── chat-usage.dto.ts
@@ -79,24 +88,30 @@ ai-provider-gateway/
 │   │   │   ├── resolve-provider-call-options.ts
 │   │   │   ├── resolve-provider-call-options.spec.ts
 │   │   │   ├── retry-policy.ts
+│   │   │   ├── tooling-request.ts
+│   │   │   ├── map-provider-finish-reason.ts
 │   │   │   └── system-prompt.ts
 │   │   └── sse/
 │   │       ├── sse-event.type.ts
 │   │       └── sse.serializer.ts
 │   │
 │   ├── providers/
-│   │   ├── providers.module.ts             # dynamiczna rejestracja adapterów
+│   │   ├── providers.module.ts             # ProviderRegistryModule + bootstrap instancji
 │   │   ├── provider-registry.module.ts
-│   │   ├── provider-registry.service.ts
+│   │   ├── provider-registry.service.ts    # rejestr po providerInstance (instanceId)
+│   │   ├── provider-instances.bootstrap.ts # onApplicationBootstrap: fabryki + registerInstance
 │   │   ├── provider-registry.service.spec.ts
-│   │   ├── interfaces/
-│   │   │   └── ai-provider.interface.ts
+│   │   ├── factories/
+│   │   │   ├── create-anthropic-provider.ts
+│   │   │   └── create-google-provider.ts
 │   │   ├── anthropic/
-│   │   │   ├── anthropic.module.ts
-│   │   │   └── anthropic.adapter.ts
-│   │   └── google/
-│   │       ├── google.module.ts
-│   │       └── google.adapter.ts
+│   │   │   └── anthropic-tools.mapper.ts
+│   │   ├── google/
+│   │   │   └── google-tools.mapper.ts
+│   │   ├── types/
+│   │   │   └── tooling-types.ts
+│   │   └── interfaces/
+│   │       └── ai-provider.interface.ts
 │   │
 │   ├── integrations/                       # fasady OpenAI / Anthropic API → ChatService (wdrożone)
 │   │   ├── integrations.module.ts
@@ -112,7 +127,12 @@ ai-provider-gateway/
 │   │   │   ├── mappers/
 │   │   │   │   ├── openai-request.mapper.ts
 │   │   │   │   ├── openai-response.mapper.ts
-│   │   │   │   └── openai-stream.mapper.ts
+│   │   │   │   ├── openai-stream.mapper.ts
+│   │   │   │   ├── openai-tools.mapper.ts
+│   │   │   │   └── openai-messages.mapper.ts
+│   │   │   ├── helpers/
+│   │   │   │   ├── normalize-openai-content.ts
+│   │   │   │   └── openai-stream-api-description.ts
 │   │   │   ├── guards/
 │   │   │   │   └── openai-bearer-auth.guard.ts
 │   │   │   ├── filters/
@@ -123,7 +143,8 @@ ai-provider-gateway/
 │   │   │       ├── openai-chat-message.dto.ts
 │   │   │       ├── openai-chat-completion-request.dto.ts
 │   │   │       ├── openai-chat-completion-response.dto.ts
-│   │   │       └── openai-models-list-response.dto.ts
+│   │   │       ├── openai-models-list-response.dto.ts
+│   │   │       └── openai-error-response.dto.ts
 │   │   └── anthropic/
 │   │       ├── anthropic.module.ts
 │   │       ├── controllers/
@@ -134,7 +155,10 @@ ai-provider-gateway/
 │   │       ├── mappers/
 │   │       │   ├── anthropic-request.mapper.ts
 │   │       │   ├── anthropic-response.mapper.ts
-│   │       │   └── anthropic-stream.mapper.ts
+│   │       │   ├── anthropic-stream.mapper.ts
+│   │       │   └── anthropic-tools.mapper.ts
+│   │       ├── helpers/
+│   │       │   └── anthropic-stream-api-description.ts
 │   │       ├── guards/
 │   │       │   └── anthropic-api-key.guard.ts
 │   │       ├── filters/
@@ -146,12 +170,72 @@ ai-provider-gateway/
 │   │           ├── anthropic-message.dto.ts
 │   │           ├── anthropic-messages-request.dto.ts
 │   │           ├── anthropic-messages-response.dto.ts
-│   │           └── anthropic-models-list-response.dto.ts
+│   │           ├── anthropic-models-list-response.dto.ts
+│   │           └── anthropic-error-response.dto.ts
+│   │
+│   ├── cli/                                # CLI developerskie (osobny entry point — patrz bin/)
+│   │   ├── cli.module.ts                   # root module CLI — bez ConfigModule
+│   │   ├── gateway.command.ts              # root command (welcome + lista komend)
+│   │   ├── commands/
+│   │   │   ├── config/
+│   │   │   │   ├── config-init.command.ts      # gateway config:init — wizard
+│   │   │   │   ├── config-validate.command.ts  # gateway config:validate
+│   │   │   │   └── config-show.command.ts      # gateway config:show
+│   │   │   ├── provider/
+│   │   │   │   ├── provider-add.command.ts
+│   │   │   │   ├── provider-remove.command.ts
+│   │   │   │   ├── provider-edit.command.ts
+│   │   │   │   ├── provider-list.command.ts
+│   │   │   │   └── provider-test.command.ts
+│   │   │   ├── model/
+│   │   │   │   ├── model-add.command.ts
+│   │   │   │   ├── model-list.command.ts
+│   │   │   │   ├── model-remove.command.ts
+│   │   │   │   └── model-edit.command.ts
+│   │   │   ├── client/
+│   │   │   │   ├── client-add.command.ts
+│   │   │   │   ├── client-list.command.ts
+│   │   │   │   ├── client-edit.command.ts
+│   │   │   │   └── client-remove.command.ts
+│   │   │   └── key/
+│   │   │       └── key-generate.command.ts
+│   │   ├── constants/
+│   │   │   └── default-models.ts           # domyślne modelId per provider (wizard)
+│   │   ├── services/
+│   │   │   ├── cli-config-loader.service.ts
+│   │   │   ├── cli.services.types.ts
+│   │   │   ├── config-generator.service.ts # generowanie YAML, .env, promptów (wizard)
+│   │   │   ├── config-persistence.service.ts # backup + zapis YAML po mutacjach
+│   │   │   ├── env-patch.service.ts        # setVar / removeVar w .env
+│   │   │   ├── file-manager.service.ts     # backup do backup/, read/write YAML i .env
+│   │   │   ├── key-generator.service.ts
+│   │   │   ├── provider-manager.service.ts # add / remove / edit providerInstance
+│   │   │   ├── model-manager.service.ts      # add / remove / edit aliasów
+│   │   │   ├── client-manager.service.ts     # add / remove / edit klientów
+│   │   │   ├── provider-test.service.ts      # lekkie testy SDK Anthropic / Google
+│   │   │   ├── wizard-orchestrator.service.ts
+│   │   │   ├── wizard-state-manager.service.ts  # .gateway-wizard-state.json
+│   │   │   └── prompts/                    # prompty wizarda config:init
+│   │   │       ├── key-prompt.service.ts
+│   │   │       ├── provider-prompt.service.ts
+│   │   │       ├── model-prompt.service.ts
+│   │   │       ├── client-prompt.service.ts
+│   │   │       └── server-prompt.service.ts
+│   │   ├── templates/
+│   │   │   ├── gateway-config.template.ts
+│   │   │   ├── env.template.ts
+│   │   │   ├── master-prompt.template.ts
+│   │   │   └── model-prompt.template.ts
+│   │   └── utils/
+│   │       ├── cli-logger.util.ts          # kolorowy output (chalk, ora)
+│   │       └── validation-formatter.util.ts
 │   │
 │   ├── config/
-│   │   ├── configuration.ts                # gateway.config.yaml + Zod, cache/redis z env
+│   │   ├── configuration.ts                # load YAML, buildEffectiveGatewayConfig, system prompt
 │   │   ├── configuration.types.ts
 │   │   ├── configuration.helpers.ts
+│   │   ├── gateway-config.schema.ts        # GatewayConfigSchema (Zod), EXPECTED_SCHEMA_VERSION
+│   │   ├── config-validator.ts             # validateGatewayConfig() — CLI + npm run config:validate
 │   │   ├── env.validation.ts
 │   │   ├── provider-types.ts
 │   │   └── system-prompt/
@@ -226,9 +310,13 @@ ai-provider-gateway/
 │       ├── decorators/
 │       │   ├── gateway-key-and-smart-rate-limit.decorator.ts
 │       │   ├── api-gateway-error-responses.decorator.ts
+│       │   ├── api-openai-error-response.decorator.ts
+│       │   ├── api-anthropic-error-response.decorator.ts
 │       │   └── api-request-id-header.decorator.ts
 │       ├── dtos/
-│       │   └── error-envelope.dto.ts
+│       │   ├── error-envelope.dto.ts
+│       │   ├── gateway-tool-call.dto.ts
+│       │   └── gateway-tool-definition.dto.ts
 │       ├── errors/
 │       │   ├── api-error.code.ts
 │       │   ├── api-error.dto.ts
@@ -268,6 +356,7 @@ ai-provider-gateway/
     ├── integracja-openai-kontrakt.md
     ├── integracja-anthropic-messages.md
     ├── opis_koncepcyjny.md                 # alias → dokumentacja_koncepcyjna.md
+    ├── CLI.md                              # dokumentacja Gateway CLI (wizard, uruchomienie)
     └── spec/
         ├── SPEC-README.md
         ├── SPEC-PLATFORMA-I-KONTRAKTY.md
@@ -288,20 +377,53 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 
 | Katalog | Odpowiedzialność |
 |---------|------------------|
-| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache, smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi. **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Eksport **`ChatService`**, **`SmartRateLimitGuard`** dla modułu integracji. Helpery: system prompt, provider input, params, retry policy, cache policy, `conversationId`. |
-| **`src/providers/`** | Adaptery Anthropic / Google, `ProviderRegistryService` + moduł rejestru. Jedyna warstwa z bezpośrednim użyciem SDK vendorów. |
+| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache (pomijany przy tooling), smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi (`toolCalls`, `finishReason`). **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Helpery: system prompt, provider input, params, tooling, retry policy, cache policy, `conversationId`. |
+| **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API. |
 | **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
-| **`src/config/`** | Wczytanie `gateway.config.yaml`, walidacja Zod, `buildEffectiveGatewayConfig`, `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
+| **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
-| **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiRequestIdHeader`), typy Express. |
+| **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), typy Express. |
 | **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). |
 | **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez `RateLimitModule` → `RedisCacheModule`. |
 | **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |
 | **`src/health/`** | Liveness i readiness; DTO z dekoratorami `@Api*` dla OpenAPI. |
-| **`src/swagger/`** | Generowanie dokumentu OpenAPI z kodu (`@nestjs/swagger`); UI pod `/api/v1/api-docs`, JSON pod `/api/v1/swagger.json`; eksport statyczny → `openapi.json`. |
-| **`scripts/`** | Walidacja konfiguracji offline (`npm run config:validate`). |
+| **`src/swagger/`** | Generowanie jednego dokumentu OpenAPI 3.1 z kodu (`@nestjs/swagger`) — czat natywny, health, fasady OpenAI/Anthropic; `extraModels` + trzy `securitySchemes` w `swagger.setup.ts`. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport → `openapi.json`. |
+| **`bin/`** | Entry point CLI: wrapper JS (`gateway-cli-wrapper.js`) uruchamia skompilowany `dist/bin/gateway-cli.js` lub — gdy brak build — TypeScript przez `ts-node` (`gateway-cli.ts` → `CliModule`). Dostęp: `npm run cli`, `npx gateway`, bin **`gateway`** z `package.json` (po `npm link` lub instalacji globalnej). |
+| **`src/cli/`** | Warstwa CLI: **nie importuje** `ConfigModule`. NestJS tylko dla DI. Wizard (`config:init`), walidacja/wyświetlanie configu, CRUD providerów (multi-instance), modeli, klientów, testy SDK, generowanie kluczy. Szczegóły: `CLI.md`, `architektura.md`. |
+| **`scripts/`** | Walidacja konfiguracji offline (`npm run config:validate` → `validateGatewayConfig()`); generowanie kluczy — **`gateway key:generate`**. |
 | **`test/`** | Testy e2e Jest. |
 | **`docs/`** | Dokumentacja i specyfikacje SDD (`spec/`). |
+
+---
+
+## 2a) CLI — izolacja runtime
+
+CLI to **osobna warstwa** z własnym entry pointem, niezależna od bootstrapu HTTP (`src/main.ts` → `AppModule`):
+
+| Zasada | Opis |
+|--------|------|
+| **Bez `ConfigModule`** | `CliModule` nie importuje `ConfigModule.forRoot()` — unika deadlocku (CLI tworzy config, którego runtime wymaga przy starcie). |
+| **Bez wymogu build** | Wrapper w `bin/` uruchamia TypeScript przez `ts-node`, gdy brak `dist/` — CLI dostępne po `npm install`. |
+| **Kierunek zależności** | Dozwolone: `src/config/*` → `src/cli/*` (typy, schematy Zod, walidatory). Zabronione odwrotnie — CLI nie modyfikuje logiki runtime. |
+| **Ładowanie configu** | `CliConfigLoaderService.loadRawConfig()` — parsowanie YAML + `GatewayConfigSchema`; **bez** rozwiązywania env. Pełna walidacja runtime — w `config:init` na końcu wizarda, w `gateway config:validate` oraz w `npm run config:validate`. |
+| **Konwencja komend** | `gateway <namespace>:<action>`; root command wyświetla welcome i pełną listę komend. |
+| **Stan wizarda** | `.gateway-wizard-state.json` — resume / rollback po przerwaniu (`WizardStateManager`). |
+| **Backup mutacji** | `FileManagerService.backupFile()` → `backup/<nazwa-pliku>.backup-<timestamp>` (katalog w `.gitignore`). |
+
+Uruchomienie:
+
+```bash
+npm run cli                    # root (welcome)
+npm run cli config:init        # wizard konfiguracji
+npm run cli config:validate    # walidacja YAML + env
+npm run cli provider:test      # test SDK providerów
+npx gateway config:init        # alternatywa (lokalny bin)
+npm link && gateway config:init   # opcjonalnie — test jak po instalacji globalnej
+```
+
+`tsconfig.build.json` uwzględnia `bin/**/*` — build produkuje `dist/bin/gateway-cli.js` (szybszy start CLI).
+
+Pełna dokumentacja komend: **`CLI.md`**.
 
 ---
 
@@ -309,15 +431,16 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 
 **Wdrożone w kodzie** (porównuj z `openapi.json` i `src/`):
 
-- Config z YAML (`gateway.config.yaml` w repo: aliasy `chat-default`, `claude-sonnet`, `gemini-flash`; klienci `webapp`, `ide-plugin`), registry, adaptery Anthropic + Google.
+- **Konfiguracja:** przykładowy `gateway.config.yaml` w repo; pełna konfiguracja operacyjna przez wizard **`gateway config:init`**. Runtime providerów: fabryki per typ + bootstrap per **`providerInstance`** (Anthropic, Google) + tool mappers.
 - Czat standard + SSE, `params`, retry/fallback/`effectiveModelAlias` (`ResilientExecutor`).
 - Error envelope (`GlobalExceptionFilter`), kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
 - System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.cache`), graceful shutdown.
-- OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach i DTO, `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
+- OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad IDE; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
 - **Integracje IDE:** `src/integrations/` — fasady OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`).
+- **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
-**Pozostałość v1:** `src/setup.app.ts` (pusty placeholder), opcjonalnie CORS; dokończenie fasad OpenAI / Anthropic (`readClientGatewayKey`, kontrolery, mappery).
+**Pozostałość v1:** opcjonalnie CORS (`CORS_ORIGINS` w `.env.example` bez middleware); tryb non-interactive CLI; opcjonalne testy e2e CLI.
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

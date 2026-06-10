@@ -12,6 +12,15 @@ export type GatewayClientType =
   | 'backend'
   | 'automation';
 
+export const GATEWAY_CLIENT_TYPES = [
+  'webapp',
+  'ide',
+  'cli',
+  'service',
+  'backend',
+  'automation',
+] as const;
+
 export type ResolvedGatewayClient = {
   instanceId: string;
   name: string;

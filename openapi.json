@@ -122,7 +122,7 @@
     },
     "/api/v1/chat/stream": {
       "post": {
-        "description": "SSE (`text/event-stream`): event sequence `meta` → `delta`* → `done` (empty `{}`).\n\nSame body as POST /chat. JSON errors (ErrorEnvelope) only **before** flushHeaders.\n\nAfter stream starts, errors may be partial SSE.",
+        "description": "SSE (`text/event-stream`): event sequence `meta` → `delta`* → `done` (empty `{}`).\n\n`done` may include `toolCalls` and `finishReason` when tooling is used.\n\nSame body as POST /chat. JSON errors (ErrorEnvelope) only **before** flushHeaders.\n\nAfter stream starts, errors may be partial SSE.",
         "operationId": "ChatStreamController_streamChat",
         "parameters": [
           {
@@ -312,6 +312,784 @@
           "Health"
         ]
       }
+    },
+    "/api/v1/openai/models": {
+      "get": {
+        "operationId": "OpenAiModelsController_list",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiModelsListResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, MODEL_ALIAS_NOT_FOUND, MODEL_NOT_ALLOWED, …",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing Bearer token (GATEWAY_KEY_MISSING).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid Bearer token (GATEWAY_KEY_INVALID).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED / PROVIDER_RATE_LIMITED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_SERVER_ERROR, GATEWAY_KEY_NOT_CONFIGURED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "PROVIDER_UNSUPPORTED, PROVIDER_UNAVAILABLE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PROVIDER_UNAVAILABLE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "PROVIDER_TIMEOUT.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List available models (OPENAI API spec)",
+        "tags": [
+          "OpenAI API"
+        ]
+      }
+    },
+    "/api/v1/openai/models/{model}": {
+      "get": {
+        "operationId": "OpenAiModelsController_getOne",
+        "parameters": [
+          {
+            "name": "model",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "chat-default",
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiModelDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, MODEL_ALIAS_NOT_FOUND, MODEL_NOT_ALLOWED, …",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing Bearer token (GATEWAY_KEY_MISSING).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid Bearer token (GATEWAY_KEY_INVALID).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Model alias not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED / PROVIDER_RATE_LIMITED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_SERVER_ERROR, GATEWAY_KEY_NOT_CONFIGURED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "PROVIDER_UNSUPPORTED, PROVIDER_UNAVAILABLE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PROVIDER_UNAVAILABLE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "PROVIDER_TIMEOUT.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get model details (OPENAI API spec)",
+        "tags": [
+          "OpenAI API"
+        ]
+      }
+    },
+    "/api/v1/openai/chat/completions": {
+      "post": {
+        "description": "JSON completion when `stream` is false/omitted. SSE chunks when `stream: true`",
+        "operationId": "OpenAiChatCompletionsController_completions",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenAiChatCompletionRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "When `stream: true`, returns `text/event-stream` with OpenAI chunk format.\n\nEach line: `data: <json>\\n\\n`, terminated with `data: [DONE]\\n\\n`.\n\nJSON errors (OpenAiErrorResponseDto) only **before** flushHeaders.\n\nNon-streaming response.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiChatCompletionResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, MODEL_ALIAS_NOT_FOUND, MODEL_NOT_ALLOWED, …",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing Bearer token (GATEWAY_KEY_MISSING).",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid Bearer token (GATEWAY_KEY_INVALID).",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED / PROVIDER_RATE_LIMITED.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_SERVER_ERROR, GATEWAY_KEY_NOT_CONFIGURED.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "PROVIDER_UNSUPPORTED, PROVIDER_UNAVAILABLE.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PROVIDER_UNAVAILABLE.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "PROVIDER_TIMEOUT.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAiErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create chat completion (OPENAI API spec)",
+        "tags": [
+          "OpenAI API"
+        ]
+      }
+    },
+    "/api/v1/anthropic/models": {
+      "get": {
+        "operationId": "AnthropicModelsController_list",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicModelsListResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, MODEL_ALIAS_NOT_FOUND, MODEL_NOT_ALLOWED, …",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing x-api-key / Bearer (GATEWAY_KEY_MISSING).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid API key (GATEWAY_KEY_INVALID).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED / PROVIDER_RATE_LIMITED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_SERVER_ERROR, GATEWAY_KEY_NOT_CONFIGURED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "PROVIDER_UNSUPPORTED, PROVIDER_UNAVAILABLE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PROVIDER_UNAVAILABLE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "PROVIDER_TIMEOUT.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List available models (Anthropic API spec)",
+        "tags": [
+          "Anthropic API"
+        ]
+      }
+    },
+    "/api/v1/anthropic/models/{model}": {
+      "get": {
+        "operationId": "AnthropicModelsController_getOne",
+        "parameters": [
+          {
+            "name": "model",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "chat-default",
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicModelDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, MODEL_ALIAS_NOT_FOUND, MODEL_NOT_ALLOWED, …",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing x-api-key / Bearer (GATEWAY_KEY_MISSING).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid API key (GATEWAY_KEY_INVALID).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Model alias not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED / PROVIDER_RATE_LIMITED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_SERVER_ERROR, GATEWAY_KEY_NOT_CONFIGURED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "PROVIDER_UNSUPPORTED, PROVIDER_UNAVAILABLE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PROVIDER_UNAVAILABLE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "PROVIDER_TIMEOUT.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get model default (Anthropic API)",
+        "tags": [
+          "Anthropic API"
+        ]
+      }
+    },
+    "/api/v1/anthropic/messages": {
+      "post": {
+        "description": "JSON message when `stream` is false/omitted. Anthropic SSE when `stream: true`",
+        "operationId": "AnthropicMessagesController_createMessage",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
+            }
+          },
+          {
+            "name": "anthropic-version",
+            "in": "header",
+            "description": "Set to \"2023-06-01\" on stream.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "2023-06-01"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnthropicMessagesRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "When `stream: true`, returns Anthropic SSE events.\n\nFormat: `event: <name>\\ndata: <json>\\n\\n` (message_start, content_block_*, message_delta, message_stop).\n\nResponse header `anthropic-version: 2023-06-01` is set on stream.\n\nNon-streaming response.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicMessagesResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation, MODEL_ALIAS_NOT_FOUND, MODEL_NOT_ALLOWED, …",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing x-api-key / Bearer (GATEWAY_KEY_MISSING).",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid API key (GATEWAY_KEY_INVALID).",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED / PROVIDER_RATE_LIMITED.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_SERVER_ERROR, GATEWAY_KEY_NOT_CONFIGURED.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "PROVIDER_UNSUPPORTED, PROVIDER_UNAVAILABLE.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PROVIDER_UNAVAILABLE.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "PROVIDER_TIMEOUT.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthropicErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create message (Anthropic API)",
+        "tags": [
+          "Anthropic API"
+        ]
+      }
     }
   },
   "info": {
@@ -328,6 +1106,14 @@
     {
       "name": "Chat",
       "description": "Chat completions (standard + streaming SSE)."
+    },
+    {
+      "name": "OpenAI API",
+      "description": ""
+    },
+    {
+      "name": "Anthropic API",
+      "description": ""
     }
   ],
   "servers": [
@@ -343,9 +1129,46 @@
         "in": "header",
         "name": "X-Gateway-Key",
         "description": "Client key. Required for POST /chat and POST /chat/stream."
+      },
+      "BearerAuth": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "description": "OpenAI-compatible Bearer token Required for /openai/* endpopints."
+      },
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Anthropic API key. Required for /anthropic/* endpoints."
       }
     },
     "schemas": {
+      "GatewayToolCallDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the tool call.",
+            "example": "call_abc123"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the tool.",
+            "example": "get_weather"
+          },
+          "arguments": {
+            "type": "string",
+            "description": "JSON-encoded arguments of the tool call.",
+            "example": "{ \"city\": \"New York\" }"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "arguments"
+        ]
+      },
       "ChatMessageDto": {
         "type": "object",
         "properties": {
@@ -353,15 +1176,28 @@
             "type": "string",
             "enum": [
               "user",
-              "assistant"
+              "assistant",
+              "tool"
             ],
-            "description": "Role of the message. Must be either \"user\" or \"assistant\".",
+            "description": "Role of the message. Must be either \"user\", \"assistant\" or \"tool\".",
             "example": "user"
+          },
+          "toolCallId": {
+            "type": "string",
+            "description": "Required when role is \"tool\".",
+            "example": "call_abc123"
+          },
+          "toolCalls": {
+            "description": "Optional when role is \"assistant\". Tool calls requested by the model.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayToolCallDto"
+            }
           },
           "content": {
             "type": "string",
             "maxLength": 3000,
-            "description": "Content of the message. Must be a string with a maximum length of 3000 characters.",
+            "description": "Content of the message. Max 3000 characters for \"user\" and \"assistant\", 32000 characters for \"tool\".",
             "example": "Hello, how are you?"
           }
         },
@@ -386,6 +1222,53 @@
             "maximum": 8192,
             "description": "Override max output tokens. Allowed only if listed in allowOverrides for modelAlias.",
             "example": 1024
+          }
+        }
+      },
+      "GatewayToolDefinitionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "name",
+          "parameters"
+        ]
+      },
+      "ChatToolingDto": {
+        "type": "object",
+        "properties": {
+          "definitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayToolDefinitionDto"
+            }
+          },
+          "toolChoice": {
+            "description": "Optional tool choice. If not provided, the model will decide which tool to use.",
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "none",
+                  "required"
+                ]
+              },
+              {
+                "$ref": "#/components/schemas/GatewayNamedToolChoiceDto"
+              }
+            ],
+            "example": "auto"
           }
         }
       },
@@ -425,6 +1308,9 @@
             "pattern": "^conv_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
             "description": "Optional conversation ID to group multiple requests into a single conversation for metrics tracking. Generate unique ID on the client side and reuse it for all requests in the same conversation.",
             "example": "conv_123e4567-e89b-12d3-a456-426614174000"
+          },
+          "tooling": {
+            "$ref": "#/components/schemas/ChatToolingDto"
           }
         },
         "required": [
@@ -444,8 +1330,8 @@
           },
           "text": {
             "type": "string",
-            "description": "Odpowiedź wygenerowana przez model.",
-            "example": "Odpowiedź modelu...."
+            "description": "Response text generated by the model.",
+            "example": "Model response text...."
           }
         },
         "required": [
@@ -475,11 +1361,17 @@
         "properties": {
           "id": {
             "type": "string",
-            "example": "gw_01HZZZZZZZZZZZZZZZZZZZZZZ"
+            "example": "gw_01HZZZZZZZZZZZZZZZZZZZZZZ",
+            "description": "Gateway-generated unique response ID (prefix: gw_)."
           },
           "provider": {
             "type": "string",
-            "example": "anthropic"
+            "example": "anthropic",
+            "description": "Provider that fulfilled the request.",
+            "enum": [
+              "anthropic",
+              "google"
+            ]
           },
           "model": {
             "type": "string",
@@ -490,6 +1382,21 @@
             "type": "string",
             "description": "Only after successful fallback in YAML",
             "example": "claude-sonnet"
+          },
+          "toolCalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayToolCallDto"
+            }
+          },
+          "finishReason": {
+            "type": "string",
+            "enum": [
+              "stop",
+              "tool_calls",
+              "length",
+              "content_filter"
+            ]
           },
           "output": {
             "$ref": "#/components/schemas/ChatOutputTextDto"
@@ -660,6 +1567,654 @@
           "checks"
         ]
       },
+      "OpenAiModelDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "chat-default"
+          },
+          "object": {
+            "type": "string",
+            "example": "model"
+          },
+          "created": {
+            "type": "number",
+            "example": 1710000000
+          },
+          "owned_by": {
+            "type": "string",
+            "example": "anthropic"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "created",
+          "owned_by"
+        ]
+      },
+      "OpenAiModelsListResponseDto": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "example": "list"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpenAiModelDto"
+            }
+          }
+        },
+        "required": [
+          "object",
+          "data"
+        ]
+      },
+      "OpenAiErrorBodyDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Invalid model alias."
+          },
+          "type": {
+            "type": "string",
+            "example": "invalid_request_error",
+            "enum": [
+              "invalid_request_error",
+              "authentication_error",
+              "rate_limit_error",
+              "server_error"
+            ]
+          },
+          "param": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "code": {
+            "type": "string",
+            "nullable": true,
+            "example": "MODEL_ALIAS_NOT_FOUND",
+            "description": "Internal gateway code mapped by OpenAiExceptionFilter."
+          }
+        },
+        "required": [
+          "message",
+          "type"
+        ]
+      },
+      "OpenAiErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/OpenAiErrorBodyDto"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "OpenAiChatMessageDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant",
+              "tool"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 128000,
+            "description": "Parts of the message. Must be a string with a maximum length of 3000 characters."
+          },
+          "name": {
+            "type": "string",
+            "example": "user-42"
+          },
+          "tool_call_id": {
+            "type": "string",
+            "example": "call_abc123",
+            "description": "Required when role is \"tool\"."
+          },
+          "tool_calls": {
+            "type": "array",
+            "description": "Tool calls when role is assistant."
+          },
+          "refusal": {
+            "type": "string",
+            "description": "Model refusal message (OpenAI spec)."
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ]
+      },
+      "OpenAiStreamOptionsDto": {
+        "type": "object",
+        "properties": {
+          "include_usage": {
+            "type": "boolean",
+            "default": false,
+            "description": "Include usage in the final stream chunk."
+          }
+        }
+      },
+      "OpenAiChatCompletionRequestDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "example": "chat-default"
+          },
+          "messages": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpenAiChatMessageDto"
+            }
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false
+          },
+          "temperature": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "max_tokens": {
+            "type": "number",
+            "minimum": 1
+          },
+          "include_usage": {
+            "type": "boolean",
+            "description": "Include usage in non-stream respose."
+          },
+          "tools": {
+            "type": "array",
+            "description": "OpenAI tools array. Requires capabilities.tools on model alias."
+          },
+          "tool_choice": {
+            "type": "object",
+            "description": "Tool choice: \"auto\" | \"none\" | \"required\" | { type: \"function\"; function: { name: string } }"
+          },
+          "stream_options": {
+            "$ref": "#/components/schemas/OpenAiStreamOptionsDto"
+          },
+          "user": {
+            "type": "string"
+          },
+          "parallel_tool_calls": {
+            "type": "boolean"
+          },
+          "top_p": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "example": 0.95,
+            "description": "Nucleus sampling parameter."
+          },
+          "presence_penalty": {
+            "type": "number",
+            "minimum": -2,
+            "maximum": 2,
+            "example": 0.5,
+            "description": "Penalize new tokens based on their presence"
+          },
+          "frequency_penalty": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "model",
+          "messages"
+        ]
+      },
+      "OpenAiToolCallFunctionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "get_weather"
+          },
+          "arguments": {
+            "type": "string",
+            "example": "{ \"city\": \"New York\" }"
+          }
+        },
+        "required": [
+          "name",
+          "arguments"
+        ]
+      },
+      "OpenAiToolCallDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "call_abc123"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "function"
+            ],
+            "example": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/OpenAiToolCallFunctionDto"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "function"
+        ]
+      },
+      "OpenAiChatCompletionMessageDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "assistant"
+            ],
+            "example": "assistant"
+          },
+          "content": {
+            "type": "string",
+            "nullable": true,
+            "example": "Hello, how are you?",
+            "description": "null when response contains tool_calls only."
+          },
+          "tool_calls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpenAiToolCallDto"
+            }
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "OpenAiChatCompletionChoiceDto": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "number",
+            "example": 0
+          },
+          "message": {
+            "$ref": "#/components/schemas/OpenAiChatCompletionMessageDto"
+          },
+          "finish_reason": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "stop",
+              "tool_calls",
+              "length",
+              "content_filter"
+            ],
+            "example": "stop"
+          }
+        },
+        "required": [
+          "index",
+          "message",
+          "finish_reason"
+        ]
+      },
+      "OpenAiChatCompletionUsageDto": {
+        "type": "object",
+        "properties": {
+          "prompt_tokens": {
+            "type": "number",
+            "example": 12
+          },
+          "completion_tokens": {
+            "type": "number",
+            "example": 48
+          },
+          "total_tokens": {
+            "type": "number",
+            "example": 60
+          }
+        },
+        "required": [
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens"
+        ]
+      },
+      "OpenAiChatCompletionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "cmpl_01HZZZZZZZZZZZZZZZZZZZZZZ"
+          },
+          "object": {
+            "type": "string",
+            "enum": [
+              "chat.completion"
+            ],
+            "example": "chat.completion"
+          },
+          "created": {
+            "type": "number",
+            "example": 1717862400
+          },
+          "model": {
+            "type": "string",
+            "example": "chat-default"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpenAiChatCompletionChoiceDto"
+            }
+          },
+          "usage": {
+            "$ref": "#/components/schemas/OpenAiChatCompletionUsageDto"
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "created",
+          "model",
+          "choices"
+        ]
+      },
+      "AnthropicModelDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "model"
+          },
+          "id": {
+            "type": "string",
+            "example": "chat-default"
+          },
+          "display_name": {
+            "type": "string",
+            "example": "Chat default "
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2025-01-01T00:00:00Z"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "display_name",
+          "created_at"
+        ]
+      },
+      "AnthropicModelsListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnthropicModelDto"
+            }
+          },
+          "first_id": {
+            "type": "string",
+            "example": "chat-default"
+          },
+          "last_id": {
+            "type": "string",
+            "example": "chat-default"
+          },
+          "has_more": {
+            "type": "boolean",
+            "example": false
+          }
+        },
+        "required": [
+          "data",
+          "first_id",
+          "last_id",
+          "has_more"
+        ]
+      },
+      "AnthropicErrorBodyDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "invalid_request_error",
+            "enum": [
+              "invalid_request_error",
+              "authentication_error",
+              "rate_limit_error",
+              "api_error"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "example": "Invalid model alias."
+          }
+        },
+        "required": [
+          "type",
+          "message"
+        ]
+      },
+      "AnthropicErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "error"
+            ],
+            "example": "error"
+          },
+          "error": {
+            "$ref": "#/components/schemas/AnthropicErrorBodyDto"
+          }
+        },
+        "required": [
+          "type",
+          "error"
+        ]
+      },
+      "AnthropicContentBlockDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image",
+              "tool_use",
+              "tool_result"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 128000
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "input": {
+            "type": "object"
+          },
+          "tool_use_id": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 128000
+          }
+        }
+      },
+      "AnthropicMessageDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "content": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnthropicContentBlockDto"
+            }
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ]
+      },
+      "AnthropicMessagesRequestDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "example": "chat-default"
+          },
+          "messages": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnthropicMessageDto"
+            }
+          },
+          "system": {
+            "type": "string",
+            "maxLength": 128000
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false
+          },
+          "max_tokens": {
+            "type": "number",
+            "minimum": 1
+          },
+          "temperature": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "tools": {
+            "type": "array",
+            "description": "Anthropic tools array. Requires capabilities.tools on model alias."
+          },
+          "tool_choice": {
+            "type": "object",
+            "description": "Tool choice per Anthropic API (auto, any, tool, ...)."
+          }
+        },
+        "required": [
+          "model",
+          "messages"
+        ]
+      },
+      "AnthropicMessagesUsageDto": {
+        "type": "object",
+        "properties": {
+          "input_tokens": {
+            "type": "number",
+            "example": 12
+          },
+          "output_tokens": {
+            "type": "number",
+            "example": 48
+          }
+        },
+        "required": [
+          "input_tokens",
+          "output_tokens"
+        ]
+      },
+      "AnthropicMessagesResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "msg_01HZZZZZZZZZZZZZZZZZZZZZZ"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "message"
+            ],
+            "example": "message"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "assistant"
+            ],
+            "example": "assistant"
+          },
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnthropicContentBlockDto"
+            }
+          },
+          "model": {
+            "type": "string",
+            "example": "chat-default"
+          },
+          "stop_reason": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "end_turn",
+              "tool_use",
+              "max_tokens"
+            ],
+            "example": "end_turn"
+          },
+          "stop_sequence": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "usage": {
+            "$ref": "#/components/schemas/AnthropicMessagesUsageDto"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "role",
+          "content",
+          "model",
+          "stop_reason",
+          "stop_sequence",
+          "usage"
+        ]
+      },
       "SseMetaPayloadDto": {
         "type": "object",
         "properties": {
@@ -702,6 +2257,73 @@
         "required": [
           "text"
         ]
+      },
+      "SseDoneUsageDto": {
+        "type": "object",
+        "properties": {
+          "inputTokens": {
+            "type": "number",
+            "minimum": 0,
+            "example": 12
+          },
+          "outputTokens": {
+            "type": "number",
+            "minimum": 0,
+            "example": 48
+          },
+          "totalTokens": {
+            "type": "number",
+            "minimum": 0,
+            "example": 60
+          }
+        }
+      },
+      "SseDonePayloadDto": {
+        "type": "object",
+        "properties": {
+          "usage": {
+            "$ref": "#/components/schemas/SseDoneUsageDto"
+          },
+          "toolCalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayToolCallDto"
+            }
+          },
+          "finishReason": {
+            "type": "string",
+            "enum": [
+              "stop",
+              "tool_calls",
+              "length",
+              "content_filter"
+            ]
+          }
+        }
+      },
+      "GatewayNamedToolChoiceFunctionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "get_weather"
+          }
+        }
+      },
+      "GatewayNamedToolChoiceDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "function"
+            ],
+            "example": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/GatewayNamedToolChoiceFunctionDto"
+          }
+        }
       }
     }
   }

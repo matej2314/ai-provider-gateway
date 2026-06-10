@@ -1,13 +1,84 @@
-export type AnthropicMessagesResponse = {
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class AnthropicTextContentBlockDto {
+  @ApiProperty({ enum: ['text'], example: 'text' })
+  type: 'text';
+
+  @ApiProperty({ example: 'Hello, how are you?' })
+  text: string;
+}
+
+export class AnthropicToolUseContentBlockDto {
+  @ApiProperty({ enum: ['tool_use'], example: 'tool_use' })
+  type: 'tool_use';
+
+  @ApiProperty({ example: 'call_abc123' })
   id: string;
+
+  @ApiProperty({ example: 'get_weather' })
+  name: string;
+
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: true,
+    example: { city: 'New York' },
+  })
+  input: Record<string, unknown>;
+}
+
+export class AnthropicContentBlockDto {
+  @ApiProperty({ enum: ['text', 'tool_use'] })
+  type: 'text' | 'tool_use';
+
+  @ApiPropertyOptional()
+  text?: string;
+
+  @ApiPropertyOptional()
+  id?: string;
+
+  @ApiPropertyOptional()
+  name?: string;
+
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
+  input?: Record<string, unknown>;
+}
+
+export class AnthropicMessagesUsageDto {
+  @ApiProperty({ example: 12 })
+  input_tokens: number;
+
+  @ApiProperty({ example: 48 })
+  output_tokens: number;
+}
+
+export class AnthropicMessagesResponseDto {
+  @ApiProperty({ example: 'msg_01HZZZZZZZZZZZZZZZZZZZZZZ' })
+  id: string;
+
+  @ApiProperty({ enum: ['message'], example: 'message' })
   type: 'message';
+
+  @ApiProperty({ enum: ['assistant'], example: 'assistant' })
   role: 'assistant';
-  content: Array<{ type: 'text'; text: string }>;
+
+  @ApiProperty({ type: [AnthropicContentBlockDto] })
+  content: AnthropicContentBlockDto[];
+
+  @ApiProperty({ example: 'chat-default' })
   model: string;
-  stop_reason: 'end_turn' | 'max_tokens' | null;
+
+  @ApiProperty({
+    nullable: true,
+    enum: ['end_turn', 'tool_use', 'max_tokens'],
+    example: 'end_turn',
+  })
+  stop_reason: 'end_turn' | 'tool_use' | 'max_tokens' | null;
+
+  @ApiProperty({ nullable: true, example: null })
   stop_sequence: string | null;
-  usage: {
-    input_tokens: number;
-    output_tokens: number;
-  };
-};
+
+  @ApiProperty({ type: AnthropicMessagesUsageDto })
+  usage: AnthropicMessagesUsageDto;
+}
+
+export type AnthropicContentBlock = AnthropicContentBlockDto;

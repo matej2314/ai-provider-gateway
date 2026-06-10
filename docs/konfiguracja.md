@@ -2,6 +2,19 @@
 
 Cel: “plug&play” — użytkownik wypełnia env + pliki konfiguracyjne i uruchamia gateway bez zmian w kodzie.
 
+## 0) Pierwsze uruchomienie (wizard konfiguracji)
+
+Repozytorium może zawierać przykładowy **`gateway.config.yaml`**. Przed pierwszym `npm run start:dev` uzupełnij **`.env`** (klucze providerów, `MASTER_KEY`, opcjonalnie `GATEWAY_KEY_*`) albo uruchom wizard:
+
+```bash
+npm run cli config:init
+# lub: npx gateway config:init
+```
+
+Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt (szablony: `src/cli/templates/`). Wykrywa konfigurację boilerplate przez **`CliConfigLoaderService.isBoilerplateConfig()`** — gdy `masterKeyRef` lub ID wpisów w `providers:` / `clients:` zawierają `placeholder` / `PLACEHOLDER`.
+
+**Ważne:** Runtime wczytuje wyłącznie **`gateway.config.yaml`** z katalogu roboczego. Szczegóły flow: **`CLI.md`**.
+
 ## 1) Sekrety i env (`.env`)
 
 Zasada: **sekrety tylko w env**. Pliki konfiguracyjne nie zawierają wartości kluczy — jedynie **nazwy** zmiennych (`apiKeyRef`).
@@ -14,7 +27,7 @@ Zmienne providerów (Anthropic + Google Gemini — bieżący zestaw w repozytori
 **Walidacja przy starcie (`src/config/env.validation.ts`):**
 
 - W **`NODE_ENV=production`** wymagane jest, aby **co najmniej jedna** z powyższych zmiennych była niepusta po `trim()`. W przeciwnym razie start się nie powiedzie.
-- W środowisku innym niż production ta reguła **nie jest sprawdzana** — nadal potrzebujesz jednak realnego klucza dla providera, którego alias wywołujesz (adapter rzuci błąd konfiguracji lub API).
+- W środowisku innym niż production ta reguła **nie jest sprawdzana** — nadal potrzebujesz jednak realnego klucza dla **instancji** providera powiązanej z aliasem (bootstrap / wywołanie API zakończy się błędem bez klucza).
 
 W repo powinien istnieć `.env.example` bez wartości sekretów.
 
@@ -58,7 +71,7 @@ Implementacja: **`RateLimitModule`**, **`SmartRateLimiterService`**, **`SmartRat
 
 **Kolejność limitów (per wartość `X-Gateway-Key`):**
 
-1. Jeśli klient w runtime ma sekcję **`clients[].rateLimit`** w `gateway.config.yaml` → używane są `rps`, `burst`, `maxConcurrentStreams` z YAML (mapowanie po faktycznej wartości klucza z env, nie po nazwie wpisu `webapp`).
+1. Jeśli klient w runtime ma sekcję **`clients[].rateLimit`** w `gateway.config.yaml` → używane są `rps`, `burst`, `maxConcurrentStreams` z YAML (mapowanie po faktycznej wartości klucza z env, nie po ID wpisu klienta).
 2. W przeciwnym razie → domyślne wartości z env (tabela poniżej).
 
 | Zmienna                         | Domyślnie | Znaczenie                                                                                                                                                         |
@@ -69,7 +82,7 @@ Implementacja: **`RateLimitModule`**, **`SmartRateLimiterService`**, **`SmartRat
 | `RATE_LIMIT_STREAMS_CONCURRENT` | `3`       | Maks. równoległych streamów per klucz.                                                                                                                            |
 | `RATE_LIMIT_COOLDOWN_AFTER_429` | `60`      | Sekundy blokady per klucz+provider po 429 od upstream (`ChatService.executeChat` → `SmartRateLimiterService.setCooldown`; tylko czat standardowy, nie streaming). |
 
-W **`gateway.config.yaml`** opcjonalna sekcja **`clients.<id>.rateLimit`** (przykład: `webapp` w repozytoryjnym pliku; klient `ide-plugin` bez `rateLimit` → limity z env).
+W **`gateway.config.yaml`** opcjonalna sekcja **`clients.<id>.rateLimit`**. Wizard `config:init` pozwala skonfigurować limity per klient; klient bez `rateLimit` korzysta z wartości env.
 
 **Health** (`GET /api/v1/health`, `GET /api/v1/health/ready`) — bez guardów czatu i bez limitów gateway.
 
@@ -91,7 +104,7 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 | `SENTRY_INCLUDE_PROMPTS`                                                          | Brak w walidatorze; gdy `true` — `gen_ai.input.messages` / `gen_ai.output.messages` na spanach (wymagane m.in. dla widoku Conversations). |
 | `APP_VERSION`                                                                     | W readiness (`GET /api/v1/health/ready`); fallback `dev` w logach.                                                |
 | `CORS_ORIGINS`                                                                    | W `.env.example` — **nie** podłączone w `src/main.ts` (brak middleware CORS).                                     |
-| `SWAGGER_ENABLED`                                                                 | Domyślnie włączone poza production (`SWAGGER_ENABLED !== 'false'`). W **production** Swagger UI/JSON tylko gdy **`SWAGGER_ENABLED=true`** (`src/swagger/swagger.setup.ts`). UI: `/api/v1/api-docs`, spec JSON: `/api/v1/swagger.json`. |
+| `SWAGGER_ENABLED`                                                                 | Domyślnie włączone poza production (`SWAGGER_ENABLED !== 'false'`). W **production** Swagger UI/JSON tylko gdy **`SWAGGER_ENABLED=true`** (`src/swagger/swagger.setup.ts`). UI: `/api/v1/api-docs`, spec JSON: `/api/v1/swagger.json` — obejmuje tagi **Health**, **Chat**, **OpenAI API**, **Anthropic API** (ten sam dokument co `openapi.json` z `npm run openapi:export`). |
 | `PORT`                                                                            | `3000`; używany też przy eksporcie OpenAPI (`openapi:export`).                                                    |
 | `NODE_ENV`                                                                        | W **production** wymusza regułę co najmniej jednego klucza providera (sekcja 1).                                  |
 
@@ -104,9 +117,9 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 
 ## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
 
-**Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/configuration.ts`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
+**Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji i rozwiązywanie env — `src/config/configuration.ts`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
 
-Repozytoryjny przykład: `gateway.config.yaml` w katalogu głównym projektu.
+**W repozytorium** może być przykładowy `gateway.config.yaml`. Wizard **`config:init`** generuje pełną konfigurację operacyjną. Poniższy przykład ilustruje typowy wynik wizarda.
 
 ### Schemat (zgodny z walidatorem Zod)
 
@@ -119,9 +132,9 @@ masterKeyRef: MASTER_KEY
 clients:
   webapp:
     name: My web app
-    type: webapp
+    type: webapp          # dozwolone: webapp | ide | cli | service | backend | automation
     gatewayKeyRef: GATEWAY_KEY_WEBAPP
-    rateLimit:
+    rateLimit:            # opcjonalne; brak → limity z env
       rps: 10
       burst: 10
       maxConcurrentStreams: 3
@@ -142,6 +155,7 @@ models:
     modelId: claude-sonnet-4-5-20250929
     capabilities:
       streaming: true
+      tools: true
     policy:
       timeoutMs: 30000
       retry:
@@ -162,6 +176,7 @@ models:
     fallback: chat-default
     capabilities:
       streaming: true
+      tools: true
     policy:
       timeoutMs: 30000
       retry:
@@ -182,6 +197,7 @@ models:
     fallback: chat-default
     capabilities:
       streaming: true
+      tools: true
     policy:
       timeoutMs: 30000
       retry:
@@ -197,28 +213,53 @@ models:
           maxOutputTokens: { min: 1, max: 8192 }
 ```
 
+**Przykład multi-instance** (dwa konta Google, ten sam `type`):
+
+```yaml
+providers:
+  google:
+    type: google
+    apiKeyRef: GOOGLE_API_KEY
+    enabled: true
+  google-office:
+    type: google
+    apiKeyRef: GOOGLE_OFFICE_API_KEY
+    enabled: true
+
+models:
+  gemini-flash:
+    providerInstance: google
+    modelId: gemini-2.5-flash
+    # ...
+  gemini-flash-office:
+    providerInstance: google-office
+    modelId: gemini-2.5-flash
+    # ...
+```
+
+W `.env`: osobne wartości dla `GOOGLE_API_KEY` i `GOOGLE_OFFICE_API_KEY`. Runtime tworzy **dwa** obiekty `AIProvider` (fabryka `createGoogleProvider` wywołana dwukrotnie).
+
 Uwagi:
 
 - `apiKeyRef` to **nazwa** zmiennej env, nie wartość.
 - `masterKeyRef` oraz każde `gatewayKeyRef` w `clients` to **nazwy** zmiennych env z wartościami kluczy gateway — ustawiane w `.env` (szablon: `.env.example`).
 - Aliasy pod `models` są publicznym API (`modelAlias`).
-- **Mapowanie kluczy do adapterów:** `configuration.ts` buduje obiekt `providers` jako `Record<type, { apiKey }>` iterując wpisy w `gateway.config.providers` i ustawiając `providersByType[instance.type]`. Nazwy instancji (np. `anthropic`, `google` w repozytoryjnym pliku) mogą być dowolne pod warunkiem unikalnego `providerInstance` w modelach.
-- **Fallback aliasu (`models[].fallback`):** opcjonalny klucz wskazujący inny alias z sekcji `models`. Po wyczerpaniu retry na aliasie żądanym `ResilientExecutor` (`src/common/resilience/resilient-executor.ts`) próbuje alias fallback (z tą samą polityką retry/timeout z aliasu **pierwszego**). Walidacja Zod przy starcie: fallback musi istnieć, nie może wskazywać samego siebie ani tworzyć pętli A→B→A. Przy sukcesie na fallbacku odpowiedź HTTP zawiera opcjonalne **`effectiveModelAlias`** (alias faktycznie użyty); pole **`model`** pozostaje żądanym `modelAlias`.
-- **Ograniczenie: jedna instancja per typ providera.** W `providers` może wystąpić **co najwyżej jeden** wpis o danym `type` (np. tylko jeden `type: anthropic`). Walidacja Zod (`GatewayConfigSchema.providers.superRefine` w `src/config/configuration.ts`) **odrzuca start** z czytelnym komunikatem przy duplikacie (komunikat wskazuje zduplikowany typ i nazwy zderzających się instancji). Różnice między środowiskami (dev/staging/prod) wyraża się **wartością** zmiennej środowiskowej wskazanej przez `apiKeyRef`, a nie przez deklarowanie wielu instancji tego samego typu w YAML.
+- **Mapowanie kluczy do runtime:** `configuration.ts` buduje mapę `providersByInstance` (typ + `apiKeyRef` + rozwiązany `apiKey` z env) dla **każdego** klucza w sekcji `providers:` YAML. W obiekcie konfiguracji Nest (`ConfigService`) jest dostępna pod kluczem **`providers`** (np. `configService.get('providers')['google-office']`). Bootstrap (`ProviderInstancesBootstrap`) tworzy osobny `AIProvider` per wpis z własnym kluczem API.
+- **Wiele instancji tego samego `type`:** w `providers:` może być np. `google` i `google-office`, oba z `type: google`, każdy z **unikalnym** `apiKeyRef`. Walidacja Zod (`GatewayConfigSchema.providers.superRefine`) odrzuca **duplikat `apiKeyRef`**, nie duplikat `type`. Różne środowiska / konta API wyraża się osobnymi instancjami + zmiennymi env, nie współdzielonym kluczem per typ.
 - **Spójność grafu `providers` ↔ `models` (fail-fast przy starcie):**
   - sekcja `models` **nie może być pusta**;
   - każdy wpis w `models` musi wskazywać **istniejący** klucz w `providers` (`providerInstance`);
   - każda instancja providera z **`enabled !== false`** (w praktyce w YAML ustaw **`enabled: true`** dla providerów używanych w runtime; pominięte `enabled` → po parsowaniu Zod domyślnie **`false`**, wtedy instancja jest wyłączona) musi mieć **co najmniej jeden** alias w `models` z tym samym `providerInstance`;
   - po filtrze `enabled` funkcja `buildEffectiveGatewayConfig` ponownie wymusza, że każdy **aktywny** provider ma ≥1 **aktywny** model (modele powiązane z providerem `enabled: false` są pomijane z ostrzeżeniem w logu).
   - Instancja z **`enabled: false`** **nie wymaga** wpisów w `models` (może pozostać w YAML jako wyłączona rezerwa).
-- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`policy.params`** — merge w `resolveProviderCallOptions`. **`timeoutMs`** i **`retry`** — egzekwowane w `ResilientExecutor` przy wywołaniu adaptera (timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` lub `RETRY_POLICY_DEFAULTS`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`.
+- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`capabilities`**: `streaming` (wymagane dla SSE), opcjonalnie **`tools: true`** — bez tego flagi żądania z `tooling` / turami `tool` zwracają **`TOOLS_NOT_SUPPORTED`**. **`policy.params`** — merge w `resolveProviderCallOptions`. **`timeoutMs`** i **`retry`** — egzekwowane w `ResilientExecutor` przy wywołaniu adaptera (timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` lub `RETRY_POLICY_DEFAULTS`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`.
 
 ## 3) Walidacja i fail-fast
 
 Gateway kończy start m.in. gdy:
 
-- **`gateway.config.yaml`** nie istnieje lub nie przechodzi walidacji Zod (`GatewayConfigSchema` + `buildEffectiveGatewayConfig` w `src/config/configuration.ts`),
-- w `providers` występują **dwa lub więcej** wpisy o tym samym `type` (jedna instancja per typ — patrz pkt 2),
+- **`gateway.config.yaml`** nie istnieje lub nie przechodzi walidacji Zod (`GatewayConfigSchema` w `src/config/gateway-config.schema.ts` + `buildEffectiveGatewayConfig` w `src/config/configuration.ts`),
+- w `providers` występują **dwa lub więcej** wpisy z tym samym **`apiKeyRef`** (unikalność referencji env per plik),
 - sekcja **`models` jest pusta**,
 - alias w `models` wskazuje **nieznany** `providerInstance`,
 - **włączony** provider (`enabled !== false`) **nie ma** żadnego aliasu w `models` z tym `providerInstance`,
@@ -231,19 +272,20 @@ Gateway kończy start m.in. gdy:
 
 | Warstwa                | Gdzie                         | Przykładowe reguły                                                                                                                   |
 | ---------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Zod (surowy YAML)      | `GatewayConfigSchema`         | duplikat `type`; puste `models`; model → provider; provider (aktywny) → ≥1 model; `fallback` istnieje, bez samoodwołania i pętli A↔B |
+| Zod (surowy YAML)      | `GatewayConfigSchema`         | duplikat `apiKeyRef`; puste `models`; model → provider; provider (aktywny) → ≥1 model; `fallback` istnieje, bez samoodwołania i pętli A↔B |
 | Efektywna konfiguracja | `buildEffectiveGatewayConfig` | filtr `enabled`; ≥1 aktywny model globalnie; aktywny provider → aktywny model; klucz API dla aktywnych providerów                    |
 
 **Poza zakresem obecnej implementacji (plan — krok 5.6, część pozostała):** pełny katalog aliasów wszystkich modeli API Anthropic/Google oraz walidacja kompletności aliasów „zwyczajowych” względem ustalonej listy MVP.
 
 ### Skrypt diagnostyczny `npm run config:validate`
 
-Skrypt waliduje konfigurację **offline** (bez uruchamiania serwera HTTP), używając tej samej logiki co start aplikacji:
+Skrypt (`scripts/validate-config.ts`) waliduje konfigurację **offline** (bez uruchamiania serwera HTTP) przez `validateGatewayConfig()` z `src/config/config-validator.ts`:
 
 - walidacja YAML przez `GatewayConfigSchema` (Zod),
 - walidacja reguł runtime przez `buildEffectiveGatewayConfig` (filtr `enabled` + wymagane klucze `apiKeyRef` dla włączonych providerów),
 - walidacja wymogu klucza master (`masterKeyRef`) jak w `buildGatewayKeyRuntime` (brak → błąd),
-- ostrzeżenia (nie blokują) m.in. dla klientów z pustym env pod `gatewayKeyRef`.
+- **wymóg co najmniej jednego** niepustego klucza providera (`ANTHROPIC_API_KEY` lub `GOOGLE_API_KEY`) — zawsze w tym skrypcie (szersze niż reguła production-only w `env.validation.ts`),
+- ostrzeżenia (nie blokują) m.in. dla klientów z pustym env pod `gatewayKeyRef` i wyłączonych providerów.
 
 Uruchomienie:
 
@@ -254,7 +296,8 @@ npm run config:validate
 Opcje przez env:
 
 - `CONFIG_PATH`: ścieżka do pliku YAML (domyślnie `gateway.config.yaml` w `process.cwd()`).
-- `CONFIG_VALIDATE_STRICT=true`: tryb CI — błąd, jeśli po `trim()` brak **obu** `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (szersze niż reguła production-only z `env.validation.ts`).
+
+Zmienna `CONFIG_VALIDATE_STRICT` w `.env.example` jest zarezerwowana na przyszłe rozszerzenia CLI; obecnie skrypt npm nie odczytuje tej flagi — reguła kluczy providerów jest zawsze egzekwowana w `validateGatewayConfig()`.
 
 Exit code:
 
@@ -262,6 +305,32 @@ Exit code:
 - `1` gdy walidacja wykryje błąd.
 
 Uwaga: skrypt próbuje doładować `.env` przez `dotenv` **jeśli** paczka jest zainstalowana; w CI zwykle env pochodzi z sekretów i `dotenv` nie jest wymagany.
+
+### CLI a ładowanie konfiguracji
+
+Runtime HTTP i CLI **nie używają tej samej ścieżki** ładowania configu:
+
+| Aspekt | Runtime (`ConfigModule` → `configuration.ts`) | CLI (`CliConfigLoaderService`) |
+|--------|-----------------------------------------------|--------------------------------|
+| Entry point | `src/main.ts` → `AppModule` | `bin/gateway-cli-wrapper.js` → `CliModule` |
+| Wymaga `.env` przy starcie CLI | tak (przy starcie serwera HTTP) | **nie** — CLI startuje bez `.env` |
+| Parsowanie YAML | `yaml.load` + `GatewayConfigSchema` | to samo (`loadRawConfig`) |
+| Rozwiązywanie env | `buildEffectiveGatewayConfig()`, klucze master/provider/client | **pominięte** w `loadRawConfig`; opcjonalny raport braków w `loadWithEnvCheck()` |
+| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP | **`gateway config:init`** — na końcu wizarda; **`gateway config:validate`** lub `npm run config:validate` |
+
+#### Inicjalizacja konfiguracji (wizard)
+
+```bash
+npm run cli config:init
+# lub: npx gateway config:init
+# lub po npm link: gateway config:init
+```
+
+Wizard (`ConfigInitCommand`) zbiera dane interaktywnie (master key, providery, modele, klienci, serwer), generuje `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt, a następnie uruchamia walidację końcową z pętlą retry. Stan niedokończonej sesji: `.gateway-wizard-state.json` (resume po ponownym uruchomieniu).
+
+Po inicjalizacji konfigurację można rozszerzać bez ponownego wizarda: `gateway provider:add`, `model:add`, `client:add` itd. — **`CLI.md`**. Komendy mutujące robią backup `gateway.config.yaml` w katalogu `backup/` przed zapisem.
+
+Szczegóły flow, resume i pełna lista komend: **`CLI.md`**. Architektura: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
 
 ## 4) Nadpisywanie parametrów per request
 

@@ -31,7 +31,7 @@ Priorytet nagłówków (`AnthropicApiKeyGuard`):
 1. **`x-api-key: <GATEWAY_KEY_*>`**
 2. **`Authorization: Bearer <GATEWAY_KEY_*>`** (fallback)
 
-Gateway weryfikuje klucz w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` / Bearer OpenAI). Klucz klienta **nie** trafia do wywołań SDK providera — adaptery używają `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` z `.env`.
+Gateway weryfikuje klucz w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` / Bearer OpenAI). Klucz klienta **nie** trafia do wywołań SDK providera — klucze z `.env` są rozwiązywane per **`providerInstance`** (`apiKeyRef` w YAML).
 
 Kolejność guardów na trasach Anthropic: **`AnthropicApiKeyGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i cooldown, gdy `RATE_LIMIT_SMART_ENABLED=true`). Klucz klienta jest odczytywany przez **`readClientGatewayKey`**.
 
@@ -58,7 +58,8 @@ Treść tekstowa jest mapowana na `messages[]` kontraktu gateway (`role` + `cont
 | `messages` | Wymagane; `content` = tablica bloków z co najmniej jednym `type: text` |
 | `stream` | `true` — SSE Anthropic; `false` lub brak — JSON `Message` |
 | `temperature` | Opcjonalnie (0–1), mapowane na `params.temperature` gateway |
-| `max_tokens` | Opcjonalnie (w oficjalnym API wymagane); mapowane na `params.maxOutputTokens`; bez wartości — domyślne z YAML |
+| `max_tokens` | Opcjonalnie; mapowane na `params.maxOutputTokens`; bez wartości — domyślne z YAML |
+| `tools`, `tool_choice` | Opcjonalnie — mapowane na `tooling` gateway; wymaga `capabilities.tools: true` na aliasie |
 | `system` | **Ignorowane** — instrukcja systemowa z `src/config/system-prompt/` |
 
 ## Przykład (non-stream)
@@ -100,7 +101,7 @@ Odpowiedź: strumień SSE (`Content-Type: text/event-stream; charset=utf-8`, nag
 
 ## Test manualny bez Claude Code
 
-Wystarczy curl, Postman lub Swagger UI (`/api/v1/api-docs`, tag **Anthropic API**). Szczegółową checklistę curl (w tym regresję natywnego API) zobacz w planie integracji — sekcja ETAP 3 w `integrations-plan.md`.
+Wystarczy curl, Postman lub Swagger UI (`/api/v1/api-docs`, tag **Anthropic API** — trasy w `openapi.json` z security `ApiKeyAuth`).
 
 ## Natywne API (bez zmian)
 
@@ -117,17 +118,18 @@ Fasada MVP celuje w prosty czat tekstowy i klienty IDE — **nie** jest drop-in 
 |-------|------------|---------------|
 | `model` w odpowiedzi | ID modelu Anthropic | **Echo aliasu** z żądania (`chat-default`, …) |
 | `usage` | m.in. cache, `service_tier` | Tylko `input_tokens`, `output_tokens` |
-| `stop_reason` | m.in. `tool_use`, `max_tokens`, `refusal` | Przy sukcesie zwykle **`end_turn`** (mapper) |
-| `system`, `tools`, obrazy | Obsługiwane | **Poza zakresem** — `system` ignorowany, `image` → 400, brak tools |
+| `stop_reason` | m.in. `tool_use`, `max_tokens` | Mapowane z gateway (`tool_calls` → `tool_use`) |
+| `system`, obrazy | Obsługiwane oficjalnie | `system` ignorowany; `image` → 400 |
+| `tools` | Obsługiwane oficjalnie | Mapowane przez fasadę gdy alias ma `capabilities.tools` |
 | `messages[].content` | string lub tablica | Tylko tablica bloków `text` |
 
 Pełne dopasowanie kontraktu — kolejne iteracje (poza ETAP 2.5).
 
-## Ograniczenia MVP
+## Ograniczenia
 
 - Pole **`system`** w żądaniu klienta — ignorowane (prompt z `src/config/system-prompt/`).
-- Brak **tools** / function calling w fasadzie.
-- Brak obrazów w content blocks.
+- Brak obrazów w content blocks (`type: image` → 400).
+- Function calling wymaga `capabilities.tools: true` na aliasie w YAML.
 - Odpowiedzi **nie** zawierają pól gateway (`provider`, `cached`, `conversationId`).
 
 ## Błędy
@@ -143,9 +145,9 @@ Format JSON jak w Anthropic API:
 
 **`AnthropicExceptionFilter`** na kontrolerach (`@AnthropicAuth()`). Korelacja: nagłówek **`x-request-id`**.
 
-## Swagger
+## Swagger / OpenAPI
 
-Tag **Anthropic API** w Swagger UI (`/api/v1/api-docs`), gdy `SWAGGER_ENABLED=true`.
+Trasy Anthropic są w **`openapi.json`** (tag **Anthropic API**, security `ApiKeyAuth`) oraz w Swagger UI (`/api/v1/api-docs`), gdy `SWAGGER_ENABLED=true`. Schematy żądań/odpowiedzi i błędów (`AnthropicErrorResponseDto`) pochodzą z dekoratorów `@Api*`; eksport: `npm run openapi:export`.
 
 ## Powiązane
 

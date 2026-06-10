@@ -12,6 +12,18 @@ Gateway udostępnia **trzy powierzchnie HTTP** pod prefiksem `/api/v1`:
 
 Szczegóły fasad (mapowanie `model` → `modelAlias`, błędy vendora, stan wdrożenia): **`integracje.md`**.
 
+### OpenAPI / Swagger (wszystkie powierzchnie)
+
+Jeden plik **`openapi.json`** (v0.12.0, OpenAPI 3.1) generowany z kodu (`npm run openapi:export`). Zawiera trasy health, czatu natywnego oraz fasad OpenAI i Anthropic. Schematy bezpieczeństwa:
+
+| Scheme | Nagłówek | Trasy |
+|--------|----------|-------|
+| `GatewayKeyAuth` | `X-Gateway-Key` | `POST /chat`, `POST /chat/stream` |
+| `BearerAuth` | `Authorization: Bearer` | `/openai/*` |
+| `ApiKeyAuth` | `x-api-key` | `/anthropic/*` |
+
+Błędy w spec: natywny czat — `ErrorEnvelope`; fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (runtime: lokalne filtry, nie `GlobalExceptionFilter`). Swagger UI: `/api/v1/api-docs` (`SWAGGER_ENABLED` — `konfiguracja.md`).
+
 ### Natywny kontrakt (rdzeń)
 
 - Spójne REST API nad zasobem *chat* (konwersacja).
@@ -49,12 +61,13 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 - `requestId` — korelacja z logami.
 - `conversationId` — ID rozmowy (echo lub `conv_<uuid>` z gateway) — tylko czat; szczegóły: `conversation-tracking.md`.
 - `effectiveModelAlias` — opcjonalnie, gdy `ResilientExecutor` obsłużył żądanie na aliasie `fallback` z YAML (pole `model` = żądany alias).
+- `toolCalls`, `finishReason` — opcjonalnie przy function calling (`capabilities.tools` w YAML).
 
 ## Streaming (SSE)
 
 Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/event-stream`), zdarzenia `meta` → `delta*` → `done`.
 
-**Stan kodu:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream` + `ChatProviderCallService.streamOnce` (`meta` → `delta*` → `done`; `done` ma pusty payload — `openapi.json`).
+**Stan kodu:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream` + `ChatProviderCallService.streamOnce` (`meta` → `delta*` → `done`; `done` może zawierać `usage`, `toolCalls`, `finishReason`).
 
 - Gateway nie gwarantuje identycznego zachowania token‑po‑token między providerami.
 - Klient powinien traktować SSE jako strumień fragmentów + metadane z `meta`.
@@ -65,14 +78,14 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Parametry generacji (`params` w body)
 
-**Stan kodu:** opcjonalne **`params`** (`temperature`, `maxOutputTokens`) w `ChatRequestDto`; merge z `policy.params` w YAML (`defaults`, `allowOverrides`, `bounds`) w `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`); ten sam kontrakt dla standard i stream. Niedozwolony override → **`MODEL_NOT_ALLOWED`** (400). Klucz cache uwzględnia efektywne parametry (`ResponseCacheService`).
+**Stan kodu:** opcjonalne **`params`** (`temperature`, `maxOutputTokens`) w `ChatRequestDto`; merge z `policy.params` w YAML. Opcjonalne **`tooling`** (`definitions`, `toolChoice`) — wymaga `capabilities.tools` na aliasie. Niedozwolony override params → **`MODEL_NOT_ALLOWED`**; tooling bez capability → **`TOOLS_NOT_SUPPORTED`**. Cache pomijany dla żądań z toolingiem.
 
 ## Rozszerzenia (pozostałość v1)
 
 - **`npm run config:validate`** — walidacja offline `gateway.config.yaml` + reguł env (exit code ≠ 0 przy błędzie); szczegóły: `konfiguracja.md`.
 - **`CORS_ORIGINS`** w `.env.example` — **nie** zaimplementowane w `src/main.ts` (brak middleware CORS); przy wystawieniu do przeglądarki skonfiguruj reverse proxy lub dodaj CORS w kodzie.
 
-**Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.
+**Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TOOLS_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.
 
 ## Opcjonalne śledzenie rozmowy (`conversationId`)
 
@@ -84,7 +97,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 ## Walidacja
 
 - Walidacja DTO na brzegu (`ValidationPipe`: m.in. `messages` 1–150, `content` max 3000 znaków, opcjonalne `conversationId` w formacie `conv_<uuid>`, opcjonalne zagnieżdżone `params`, `forbidNonWhitelisted`).
-- Limit rozmiaru JSON body: **1 MB** (`express.json` w `main.ts`).
+- Limit rozmiaru JSON body: **1 MB** (`express.json` w `src/setup.app.ts`).
 - Walidacja konfiguracji przy starcie (fail‑fast) i w runtime (np. unknown `modelAlias` → błąd deterministyczny z kodem `MODEL_ALIAS_NOT_FOUND` przy `POST /chat`).
 
 ## Idempotencja, retry i fallback
@@ -96,7 +109,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 **Natywny czat** wymaga **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()`).
 
-**Fasady IDE** używają tej samej allowlisty kluczy klienta, ale innych nagłówków — Bearer (OpenAI) lub `x-api-key` / Bearer (Anthropic); guard fasady ustawia `req.gatewayKey`, potem `SmartRateLimitGuard` (`readClientGatewayKey`). Klucze providerów w `.env` pozostają wyłącznie w adapterach.
+**Fasady IDE** używają tej samej allowlisty kluczy klienta, ale innych nagłówków — Bearer (OpenAI) lub `x-api-key` / Bearer (Anthropic); guard fasady ustawia `req.gatewayKey`, potem `SmartRateLimitGuard` (`readClientGatewayKey`). Klucze providerów w `.env` (per `apiKeyRef` / `providerInstance`) pozostają wyłącznie w warstwie `src/providers/`.
 
 Opcjonalny smart rate limit per klucz klienta (`RATE_LIMIT_SMART_ENABLED`, Redis). Health: **`GET /api/v1/health`**, **`GET /api/v1/health/ready`** — publiczne (bez guardów czatu). Readiness: HTTP **200** zawsze; ocena po `body.status` (`ready` / `not_ready`) — `dokumentacja_api.md`.
 

@@ -2,7 +2,7 @@
 
 Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek danych między klientem, warstwą HTTP (NestJS), logiką aplikacyjną oraz adapterami providerów.
 
-**Konfiguracja:** przy starcie ładowany jest `gateway.config.yaml` (`src/config/configuration.ts`). Env: w **production** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`). Opcjonalnie: zmienne cache/Redis — `docs/konfiguracja.md`.
+**Konfiguracja:** przy starcie ładowany jest `gateway.config.yaml` (`gateway-config.schema.ts` + `configuration.ts`). Po sklonowaniu: `gateway config:init` lub ręczne uzupełnienie `.env`. Env: w **production** wymagany co najmniej jeden klucz `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`. Opcjonalnie cache/Redis — `docs/konfiguracja.md`.
 
 ## Legenda uczestników
 
@@ -13,8 +13,8 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **ChatService** | Cache, smart rate limit (cooldown), `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
 | **ChatProviderCallService** | Pojedyncze wywołanie adaptera: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `MetricsService.observeLlmCall` / `observeLlmStream`, emisja SSE `meta`/`delta`. |
 | **ResilientExecutor** | Retry na aliasie żądanym (`policy.retry`, `policy.timeoutMs`), potem opcjonalnie alias `fallback` z YAML. |
-| **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na adapter + `modelId`. |
-| **Provider** | Adapter Anthropic / Google. |
+| **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na **`providerInstance`** → `AIProvider` + `modelId`. |
+| **Provider** | Instancja `AIProvider` (fabryka + klucz API per wpis w YAML). |
 | **LLM API** | Zewnętrzny serwis providera. |
 | **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha: `modelAlias`, `messages`, sygnatura system promptu, efektywne parametry wywołania); brak wpływu na streaming. |
 | **Metrics** | `MetricsService` + Sentry/noop — span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId`; `messages[]` → atrybuty input/output przy `SENTRY_INCLUDE_PROMPTS` (`conversation-tracking.md`). |
@@ -69,7 +69,7 @@ sequenceDiagram
   H->>+S: executeChat
   S->>S: conversationId response (echo/conv_*)
   S->>+R: resolve(modelAlias)
-  R-->>-S: adapter + policy.params
+  R-->>-S: AIProvider + policy.params
   S->>S: resolveProviderCallOptions(policy, body.params)
   S->>C: getCachedResponse (z efektywnymi params)
   alt trafienie w cache (provider włączony w YAML)
@@ -99,7 +99,7 @@ sequenceDiagram
 
 ## 2. Standard `POST /api/v1/chat` — błąd
 
-Odpowiedzi JSON błędów są w envelope **`ErrorEnvelope`** (`openapi.json`) z polami `{statusCode, code, message, requestId, details?}` — `GlobalExceptionFilter` (global). **`code`** pochodzi z payloadu wyjątku (m.in. auth brzegowy, `MODEL_NOT_ALLOWED`, `MODEL_ALIAS_NOT_FOUND`) lub z domyślnego mapowania statusu; pełny słownik: `dictionary.md`.
+Odpowiedzi JSON błędów **natywnego czatu** są w envelope **`ErrorEnvelope`** (`openapi.json`) z polami `{statusCode, code, message, requestId, details?}` — `GlobalExceptionFilter` (global). Fasady OpenAI/Anthropic używają lokalnych filtrów i własnych kształtów błędów (schematy w `openapi.json`). **`code`** (natywny czat) pochodzi z payloadu wyjątku lub z domyślnego mapowania statusu; pełny słownik: `dictionary.md`.
 
 ```mermaid
 sequenceDiagram
@@ -142,7 +142,7 @@ sequenceDiagram
   H->>+S: executeStream
   S->>S: conversationId response
   S->>+R: resolve
-  R-->>-S: adapter + capabilities
+  R-->>-S: AIProvider + capabilities
   S->>S: ResilientExecutor (retry / fallback / timeout)
   S->>+PC: streamOnce (emit przez callback)
   PC->>PC: buildProviderInputForAlias

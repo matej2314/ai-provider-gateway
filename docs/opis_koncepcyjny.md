@@ -41,7 +41,7 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 
 ### 2. Abstrakcja providerów AI
 
-- Każdy provider (np. Anthropic, Google Gemini, lokalne modele) jest zaimplementowany jako osobna instancja adaptera.
+- Każda **instancja** providera w YAML (`providerInstance`) to osobny obiekt `AIProvider` z własnym kluczem API; ten sam **`type`** (np. `google`) może wystąpić wielokrotnie z różnymi `apiKeyRef`.
 - Logika biznesowa nie zna szczegółów implementacyjnych zewnętrznych API.
 
 ### 3. Konfigurowalność
@@ -56,7 +56,7 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 - Wyraźny podział na:
   - warstwę API (controllers),
   - warstwę aplikacyjną (services / use cases),
-  - warstwę integracyjną (providers / adapters).
+  - warstwę integracyjną (providers — fabryki, bootstrap, rejestr).
 - Każdy moduł ma jasno określoną odpowiedzialność.
 
 ### 5. Testowalność
@@ -73,7 +73,7 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 - **Status projektu:** Rdzeń **MVP** (routing + chat + streaming) domknięty w Fazach 1–2 oraz 4; trwa **v1** (m.in. Fazy 3 oraz 5–7).
 - **Providery (MVP):** Anthropic API + Google Gemini API
 - **Cel MVP:** działające **kierowanie zapytań do providerów** (registry / routing), działający **chat** synchroniczny (`POST /api/v1/chat`) oraz działający **streaming** (SSE / `POST /api/v1/chat/stream`).
-- **v1:** m.in. konfiguracja z plików (Faza 3), utwardzenie kontraktu API (Faza 5 — w kodzie m.in. `RATE_LIMITED`, nagłówek `x-request-id`, OpenAPI/Swagger z `@nestjs/swagger`; pozostałość: `config:validate`), observability (Faza 6 — wdrożone), polish i deploy (Faza 7); cache odpowiedzi i smart rate limit (`src/cache/`, `src/rate-limit/`) — szczegóły w **`dokumentacja_koncepcyjna.md`**.
+- **v1:** m.in. konfiguracja z plików (Faza 3), utwardzenie kontraktu API (Faza 5 — w kodzie m.in. `RATE_LIMITED`, nagłówek `x-request-id`, OpenAPI/Swagger z `@nestjs/swagger`), observability (Faza 6 — wdrożone), polish i deploy (Faza 7), **Gateway CLI v1** (`config:init`, CRUD providerów/modeli/klientów, `provider:test`, `key:generate` — `CLI.md`); cache odpowiedzi i smart rate limit (`src/cache/`, `src/rate-limit/`) — szczegóły w **`dokumentacja_koncepcyjna.md`**.
 
 ---
 

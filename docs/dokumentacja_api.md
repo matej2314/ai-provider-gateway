@@ -1,10 +1,10 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** (żądania, odpowiedzi sukcesu w tym opcjonalne pola cache, envelope błędów `ErrorEnvelope`, security `X-Gateway-Key` dla czatu).
+Wersja dokumentu: **1.1**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat, fasada OpenAI, fasada Anthropic) oraz health. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
 
 ## Źródła prawdy (kolejność)
 
-1. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — dekoratory `@nestjs/swagger` na kontrolerach i klasach odpowiedzi (`@ApiProperty`, `@ApiOperation`, `@ApiGatewayChatErrorResponses`, `@ApiRequestIdHeader`, …). Konfiguracja dokumentu: `src/swagger/swagger.setup.ts`.
+1. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — dekoratory `@nestjs/swagger` na kontrolerach i klasach odpowiedzi (`@ApiProperty`, `@ApiOperation`, `@ApiGatewayChatErrorResponses`, `@ApiOpenAiErrorResponses`, `@ApiAnthropicErrorResponses`, `@ApiRequestIdHeader`, …). Konfiguracja dokumentu: `src/swagger/swagger.setup.ts` (`extraModels`, trzy `securitySchemes`).
 2. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) **generowany z kodu** (`npm run openapi:export` → `src/swagger/export-openapi.ts`). W runtime ten sam dokument serwowany jako `/api/v1/swagger.json` (gdy Swagger włączony).
 3. **Swagger UI** — interaktywna dokumentacja pod `/api/v1/api-docs` (`setupSwagger` w `src/main.ts`; wyłączanie: `SWAGGER_ENABLED` — `konfiguracja.md`).
 4. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 (pozostałość v1: m.in. CORS). **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` — `konfiguracja.md`.
@@ -17,14 +17,14 @@ Wersja dokumentu: **1.0**. Dokument jest wersjonowany razem z kodem. **`openapi.
 | Element | Wartość |
 |---------|---------|
 | Bazowy URL (przykład lokalny) | `http://localhost:3000` |
-| Prefiks API | `/api/v1` (`src/main.ts`: `setGlobalPrefix`) |
+| Prefiks API | `/api/v1` (`API_GLOBAL_PREFIX` w `src/setup.app.ts`) |
 | Kodowanie | UTF‑8 |
 | Standard | `application/json` |
 | Streaming | `text/event-stream` (`POST /api/v1/chat/stream`) |
 
 **Konfiguracja przy starcie:**
 
-- **`gateway.config.yaml`** — wczytanie i walidacja Zod + `buildEffectiveGatewayConfig` (`src/config/configuration.ts`): m.in. spójność `providers` ↔ `models` (niepuste `models`, alias → provider, włączony provider → ≥1 model). Szczegóły: `konfiguracja.md`.
+- **`gateway.config.yaml`** — wczytanie i walidacja Zod (`src/config/gateway-config.schema.ts`) + `buildEffectiveGatewayConfig` (`src/config/configuration.ts`): m.in. spójność `providers` ↔ `models` (niepuste `models`, alias → provider, włączony provider → ≥1 model). Po sklonowaniu uzupełnij plik ręcznie lub uruchom `gateway config:init` — szczegóły: `konfiguracja.md`.
 - **Pliki system promptu** — `MASTER_SYSTEM_PROMPT.md` (wymagany), opcjonalnie `MAIN_SYSTEM_PROMPT.md` oraz `models/<modelAlias>.md` dla aliasów z YAML; treść składana w runtime (`composeSystemPrompt` w `src/chat/helpers/system-prompt.ts`). Szczegóły: `konfiguracja.md`.
 - **Env** — w **`NODE_ENV=production`** wymagany jest co najmniej jeden niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`). Opcjonalnie zmienne **`CACHE_*`** / **`REDIS_*`** — `konfiguracja.md`.
 
@@ -66,19 +66,37 @@ Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; *
 
 ---
 
-### System prompt i role w `messages[]`
+### System prompt, role w `messages[]` i tool calling
 
-**Stan kodu:** w żądaniu HTTP dozwolone są wyłącznie role `user` i `assistant` (`ChatMessageDto`, walidacja `400` przy `role=system`). Instrukcja systemowa jest **składana po stronie serwera** w `composeSystemPrompt` (`src/chat/helpers/system-prompt.ts`) i przekazywana adapterom przez `buildProviderInputForAlias` (`src/chat/helpers/provider-input.ts`) w **`ChatProviderCallService`**. Nie ma agregacji `system` z treści żądania.
+**Rola `system`:** zablokowana w API (walidacja `400`). Instrukcja systemowa jest **składana po stronie serwera** w `composeSystemPrompt` (`src/chat/helpers/system-prompt.ts`) i przekazywana adapterom przez `buildProviderInputForAlias` (`src/chat/helpers/provider-input.ts`).
 
-**Spójny opis warstw i ścieżek plików:** `konfiguracja.md`, `architektura.md`.
+**Role w `messages[]`:** `user`, `assistant`, `tool` (`ChatMessageDto`):
+
+| Rola | Pola | Limity |
+|------|------|--------|
+| `user` | `content` | max 3000 znaków |
+| `assistant` | `content`; opcjonalnie `toolCalls[]` | max 3000 znaków |
+| `tool` | `content`, **`toolCallId`** (wymagane) | max 32000 znaków |
+
+**Pole `tooling` (opcjonalne):** obiekt z `definitions[]` (`name`, `description?`, `parameters` — JSON Schema) oraz opcjonalnym `toolChoice`. Włącza function calling — alias musi mieć **`capabilities.tools: true`** w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
+
+**Odpowiedź:** opcjonalne **`toolCalls`** (`id`, `name`, `arguments` jako JSON string) oraz **`finishReason`**: `stop` | `tool_calls` | `length` | `content_filter` (mapowanie z `stopReason` providera w `mapStopReasonToFinishReason`).
+
+**SSE `done`:** może zawierać `usage`, `toolCalls`, `finishReason` (w czacie standardowym `done` bywa pusty `{}` tylko gdy brak metadanych).
+
+**Cache i fallback:** żądania z toolingiem (`isToolingRequest`) **pomijają cache** i **nie używają fallbacku** w `POST /api/v1/chat`. Streaming **nadal** stosuje fallback z YAML.
+
+Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `tool_result` na ten sam kontrakt wewnętrzny — patrz `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
+
+**Spójny opis warstw promptu:** `konfiguracja.md`, `architektura.md`.
 
 ---
 
 ## Modele i wybór providera
 
-Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRegistryService.resolve()`; adaptery: typy `anthropic`, `google` (`ProvidersModule`).
+Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRegistryService.resolve()` — lookup po **`models[].providerInstance`**, nie po `type`. Runtime: fabryki `anthropic` / `google` tworzone w `ProviderInstancesBootstrap` (`ProvidersModule`).
 
-**Odporność:** `policy.timeoutMs` i `policy.retry` z YAML są egzekwowane przez **`ResilientExecutor`** (`src/common/resilience/resilient-executor.ts`) w `ChatService.executeChat` i `executeStream` — retry na statusach z `onStatus`, timeout → **504** (`PROVIDER_TIMEOUT`). Opcjonalny **`models[].fallback`** w YAML: po wyczerpaniu prób na aliasie żądanym gateway próbuje alias fallback; przy sukcesie odpowiedź zawiera opcjonalne **`effectiveModelAlias`** (pole **`model`** = żądany `modelAlias`). Szczegóły: `konfiguracja.md`, `openapi.json`.
+**Odporność:** `policy.timeoutMs` i `policy.retry` z YAML są egzekwowane przez **`ResilientExecutor`**. Opcjonalny **`models[].fallback`**: po wyczerpaniu prób gateway próbuje alias zapasowy; przy sukcesie — opcjonalne **`effectiveModelAlias`**. **Fallback jest wyłączony** dla żądań z toolingiem w czacie standardowym (`isToolingRequest`); w streamingu fallback pozostaje aktywny.
 
 ---
 
@@ -86,15 +104,15 @@ Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRe
 
 ### Request body
 
-Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 150** wiadomości), każda wiadomość: **`role`** ∈ `{user, assistant}`, **`content`** string **do 3000** znaków (`src/chat/dto/chat-request.dto.ts`, `chat-message.dto.ts`). Opcjonalnie **`conversationId`** w formacie **`conv_<uuid>`** (walidacja regex w `ChatRequestDto`): w **request** włącza grupowanie Sentry (`gen_ai.conversation.id`); bez niego span = pojedyncza wiadomość. Od **drugiej tury** z `conversationId` klient powinien wysłać **pełną** historię w `messages[]` (w tym wcześniejszą odpowiedź `assistant`). Szczegóły: **`conversation-tracking.md`**.
+Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 150** wiadomości) — role `user` | `assistant` | `tool` (patrz sekcja wyżej), opcjonalnie **`tooling`**, **`params`**, **`conversationId`** w formacie **`conv_<uuid>`** (walidacja regex w `ChatRequestDto`): w **request** włącza grupowanie Sentry; bez niego span = pojedyncza wiadomość. Od **drugiej tury** z `conversationId` klient powinien wysłać **pełną** historię w `messages[]` (w tym odpowiedzi `assistant` i tury `tool`). Szczegóły: **`conversation-tracking.md`**.
 
-Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`): zagnieżdżony obiekt z **`temperature`** (0–2) i/lub **`maxOutputTokens`** (1–8192). Wartości efektywne = merge **`policy.params.defaults`** z YAML ← nadpisanie z body tylko dla pól w **`allowOverrides`**; po merge **clamp** do **`bounds`** (`resolveProviderCallOptions`). Niedozwolone pole w body → **`400`** + **`MODEL_NOT_ALLOWED`** — w czacie standardowym sprawdzane **przed** wywołaniem providera (`executeChat`, linia wywołania `resolveProviderCallOptions` przed `ResilientExecutor`). Nadwyżkowe pola w body → **`400`** (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Limit body: **1 MB**.
+Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`): zagnieżdżony obiekt z **`temperature`** (0–2) i/lub **`maxOutputTokens`** (1–8192). Wartości efektywne = merge **`policy.params.defaults`** z YAML ← nadpisanie z body tylko dla pól w **`allowOverrides`**; po merge **clamp** do **`bounds`** (`resolveProviderCallOptions`). Niedozwolone pole w body → **`400`** + **`MODEL_NOT_ALLOWED`** — w czacie standardowym sprawdzane **przed** wywołaniem providera. Nadwyżkowe pola w body → **`400`** (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Limit body: **1 MB**.
 
 ### Response (`200`)
 
-`ChatService.executeChat`: `id`, `provider`, `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`** (gdy zadziałał fallback z YAML), `output`, `usage` (opcjonalnie, zależnie od adaptera), `requestId`, **`conversationId`** (echo z body lub `conv_<uuid>` wygenerowane przez gateway — `conversation-tracking.md`).
+`ChatService.executeChat`: `id`, **`provider`** (identyfikator **`providerInstance`** z YAML), `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`**, opcjonalnie **`toolCalls`** i **`finishReason`**, `output`, `usage`, `requestId`, **`conversationId`**.
 
-**Cache (opcjonalny):** gdy backend cache jest dostępny (`ResponseCacheService` + `CACHE_ENABLED` / `CACHE_BACKEND` — `konfiguracja.md`), przed wywołaniem providera wykonywany jest lookup; przy trafieniu (oraz gdy alias i provider są **włączone** w YAML — `isCachedChatAllowedForModelAlias` w `src/chat/helpers/cache-policy.ts`) zwracany jest zapisany JSON z **`cached: true`** oraz **`cachedAt`** (timestamp ISO). W przeciwnym razie po udanym wywołaniu (`ChatProviderCallService.completeOnce` w ramach `ResilientExecutor`) odpowiedź jest zapisywana pod kluczem zależnym m.in. od `modelAlias`, treści `messages`, sygnatury warstw system promptu (SHA-256) oraz **efektywnych** parametrów wywołania. **Streaming nie jest cache’owany.**
+**Cache (opcjonalny):** lookup przed wywołaniem providera; **pomijany** dla żądań z toolingiem. Przy trafieniu — gdy alias i provider są **włączone** w YAML — zwracany JSON z **`cached: true`**, **`cachedAt`**. Streaming nie jest cache’owany.
 
 **Cooldown po 429 od providera** (`SmartRateLimiterService.setCooldown`) jest ustawiany w `ChatService.executeChat` po błędzie upstream — **nie** dotyczy `executeStream` (brak przekazania klucza do `handleProviderError` w streamingu).
 
@@ -105,7 +123,7 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 | HTTP | Kiedy |
 |------|--------|
 | 200 | Sukces |
-| 400 | Walidacja DTO (m.in. niepoprawny format `conversationId` → `VALIDATION_FAILED`); nieznany `modelAlias` → `MODEL_ALIAS_NOT_FOUND`; niedozwolony override w `params` → `MODEL_NOT_ALLOWED` (`resolveProviderCallOptions`); inne `BadRequestException` mogą nadpisać `code` |
+| 400 | Walidacja DTO; nieznany `modelAlias` → `MODEL_ALIAS_NOT_FOUND`; niedozwolony override w `params` → `MODEL_NOT_ALLOWED`; tooling bez `capabilities.tools` → `TOOLS_NOT_SUPPORTED` |
 | 401 | Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`) |
 | 403 | Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`) |
 | 429 | Smart rate limit / cooldown (`RATE_LIMITED`) lub limit providera (`PROVIDER_RATE_LIMITED`) |
@@ -121,7 +139,7 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation-tracking.md`).
 
-**Zdarzenia:** `meta` → `delta`* → `done` (`{}`). W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`** (po fallbacku), `requestId`, **`conversationId`** (jak w odpowiedzi standardowej). Emisja `meta`/`delta` — `ChatProviderCallService.streamOnce`; `done` — `ChatService.executeStream`. Retry/fallback — ten sam `ResilientExecutor` co w czacie standardowym.
+**Zdarzenia:** `meta` → `delta`* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage`, **`toolCalls`**, **`finishReason`**. Retry/fallback — `ResilientExecutor` (fallback aktywny także przy tooling w streamingu).
 
 **Błędy i JSON `ErrorEnvelope`:**
 
@@ -152,15 +170,20 @@ Orchestrator powinien traktować instancję jako gotową tylko przy `status === 
 
 ## Fasady integracji (IDE)
 
-Osobne kontrakty HTTP dla narzędzi IDE; pełny opis operacyjny poza głównym `openapi.json` (kontrakt natywny). Tagi **OpenAI API** i **Anthropic API** są dostępne w Swagger UI dla tras `/api/v1/openai/…` i `/api/v1/anthropic/…`.
+Osobne kontrakty HTTP dla narzędzi IDE — **uwzględnione w `openapi.json`** (tagi **OpenAI API**, **Anthropic API**) oraz w Swagger UI (`/api/v1/api-docs`).
 
-| Powierzchnia | Status | Dokumentacja operacyjna |
-|--------------|--------|------------------------|
-| OpenAI (`/api/v1/openai/…`) | **Wdrożone** | `integracja-openai-kontrakt.md` |
-| Anthropic (`/api/v1/anthropic/…`) | **Wdrożone** | `integracja-anthropic-messages.md` |
-| Architektura wspólna | — | `integracje.md` |
+| Powierzchnia | Ścieżki (prefiks `/api/v1`) | Auth w OpenAPI | Błędy w spec |
+|--------------|----------------------------|----------------|--------------|
+| OpenAI | `/openai/models`, `/openai/models/{model}`, `/openai/chat/completions` | `BearerAuth` | `OpenAiErrorResponseDto` (`ApiOpenAiErrorResponses`) |
+| Anthropic | `/anthropic/models`, `/anthropic/models/{model}`, `/anthropic/messages` | `ApiKeyAuth` (`x-api-key`) | `AnthropicErrorResponseDto` (`ApiAnthropicErrorResponses`) |
 
-Wewnętrznie fasady wywołują ten sam **`ChatService`** co `POST /chat`. Pole **`model`** w żądaniu vendora = **`modelAlias`** z YAML. Błędy w kształcie OpenAI / Anthropic (lokalne filtry), nie `ErrorEnvelope`.
+| Powierzchnia | Dokumentacja operacyjna |
+|--------------|------------------------|
+| OpenAI | `integracja-openai-kontrakt.md` |
+| Anthropic | `integracja-anthropic-messages.md` |
+| Architektura wspólna | `integracje.md` |
+
+Wewnętrznie fasady wywołują ten sam **`ChatService`** co `POST /chat`. Pole **`model`** w żądaniu vendora = **`modelAlias`** z YAML. Runtime: błędy w kształcie OpenAI / Anthropic (`OpenAiExceptionFilter`, `AnthropicExceptionFilter`) — nie `ErrorEnvelope`. Streaming opisany w OpenAPI przez stałe `OPENAI_STREAM_API_DESCRIPTION` / `ANTHROPIC_STREAM_API_DESCRIPTION` (`src/integrations/*/helpers/*-stream-api-description.ts`).
 
 ---
 
@@ -172,12 +195,12 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 
 ## Uwagi dla klientów
 
-1. Używaj **`openapi.json`** do generatorów i integracji (w tym **`securitySchemes.GatewayKeyAuth`** dla czatu).
+1. Używaj **`openapi.json`** do generatorów i integracji — wybierz właściwy **`securityScheme`**: `GatewayKeyAuth` (czat natywny), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic).
 2. Do **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** dołącz nagłówek **`X-Gateway-Key`** z wartością operatora (allowlista — `konfiguracja.md`).
 3. **`params`** w body są opcjonalne — bez nich używane są wyłącznie `policy.params.defaults` z YAML; override wymaga wpisu pola w `allowOverrides` dla aliasu (`konfiguracja.md`).
 4. Przy włączonym cache powtórzone **`POST /api/v1/chat`** z tym samym body mogą zwrócić odpowiedź z **`cached: true`** bez wywołania providera (`konfiguracja.md`).
-5. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator gateway w plikach `src/config/system-prompt/`.
-6. Przy streamingu składaj tekst z kolejnych `delta`; `done` nie niesie metryk tokenów w obecnej wersji.
+5. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator w `src/config/system-prompt/`.
+6. Przy streamingu składaj tekst z kolejnych `delta`; metadane końcowe (`usage`, `toolCalls`, `finishReason`) są w evencie **`done`**.
 7. **`usage`** może być niekompletne między providerami.
 8. **`conversationId`**: w odpowiedzi zawsze (echo lub `conv_*`). W **request** — tylko wtedy Sentry grupuje turę jako konwersację; typowy start: tura 1 bez ID, tura 2+ z ID z odpowiedzi + pełne `messages[]` (`conversation-tracking.md`).
 9. **Streaming:** nieprawidłowe `params` (poza `allowOverrides`) mogą zwrócić `MODEL_NOT_ALLOWED` **po** rozpoczęciu SSE — w czacie standardowym ten sam błąd jest **przed** wywołaniem providera.

@@ -1,9 +1,22 @@
 import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
-import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiSecurity,
+  ApiTags,
+  ApiOkResponse,
+  ApiParam,
+  ApiNotFoundResponse,
+} from '@nestjs/swagger';
 import { OpenAiAuth } from '../decorators/openai-auth.decorator';
 import { OpenAiModelsCatalogService } from '../services/openai-models-catalog.service';
 import { OPENAI_INTEGRATION_PATH } from 'src/integrations/integrations.constants';
-import { OpenAiModelsListResponseDto } from '../dtos/openai-models-list-response.dto';
+import {
+  OpenAiModelsListResponseDto,
+  OpenAiModelDto,
+} from '../dtos/openai-models-list-response.dto';
+import { ApiOpenAiErrorResponses } from 'src/common/decorators/api-openai-error-response.decorator';
+import { ApiRequestIdHeader } from 'src/common/decorators/api-request-id-header.decorator';
+import { OpenAiErrorResponseDto } from '../dtos/openai-error-response.dto';
 
 @ApiTags('OpenAI API')
 @ApiSecurity('BearerAuth')
@@ -14,12 +27,23 @@ export class OpenAiModelsController {
 
   @Get('models')
   @ApiOperation({ summary: 'List available models (OPENAI API spec)' })
+  @ApiOkResponse({ type: OpenAiModelsListResponseDto })
+  @ApiOpenAiErrorResponses()
+  @ApiRequestIdHeader()
   list(): OpenAiModelsListResponseDto {
     return this.catalog.listModels();
   }
 
   @Get('models/:model')
   @ApiOperation({ summary: 'Get model details (OPENAI API spec)' })
+  @ApiParam({ name: 'model', example: 'chat-default' })
+  @ApiOkResponse({ type: OpenAiModelDto })
+  @ApiNotFoundResponse({
+    type: OpenAiErrorResponseDto,
+    description: 'Model alias not found.',
+  })
+  @ApiOpenAiErrorResponses()
+  @ApiRequestIdHeader()
   getOne(@Param('model') model: string) {
     const found = this.catalog.getModel(model);
     if (!found) {

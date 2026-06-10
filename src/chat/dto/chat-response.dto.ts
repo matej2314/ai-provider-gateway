@@ -1,12 +1,21 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional } from 'class-validator';
 import { ChatOutputTextDto } from './chat-output-text.dto';
+import { GatewayToolCallDto } from 'src/common/dtos/gateway-tool-call.dto';
 import { ChatUsageDto } from './chat-usage.dto';
 
 export class ChatResponseDto {
-  @ApiProperty({ example: 'gw_01HZZZZZZZZZZZZZZZZZZZZZZ' })
+  @ApiProperty({
+    example: 'gw_01HZZZZZZZZZZZZZZZZZZZZZZ',
+    description: 'Gateway-generated unique response ID (prefix: gw_).',
+  })
   id: string;
 
-  @ApiProperty({ example: 'anthropic' })
+  @ApiProperty({
+    example: 'anthropic',
+    description: 'Provider that fulfilled the request.',
+    enum: ['anthropic', 'google'],
+  })
   provider: string;
 
   @ApiProperty({
@@ -20,6 +29,16 @@ export class ChatResponseDto {
     example: 'claude-sonnet',
   })
   effectiveModelAlias?: string;
+
+  @ApiPropertyOptional({ type: [GatewayToolCallDto] })
+  @IsOptional()
+  toolCalls?: GatewayToolCallDto[];
+
+  @ApiPropertyOptional({
+    enum: ['stop', 'tool_calls', 'length', 'content_filter'],
+  })
+  @IsOptional()
+  finishReason?: 'stop' | 'tool_calls' | 'length' | 'content_filter';
 
   @ApiProperty({ type: ChatOutputTextDto })
   output: ChatOutputTextDto;

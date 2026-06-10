@@ -34,7 +34,7 @@ F-1b. `GET /api/v1/health/ready` zwraca readiness (`status`: `ready` | `not_read
 F-2. Gateway musi być w stanie jednoznacznie określić “gotowość” do obsługi żądań LLM:
 
 - poprawna konfiguracja env (w **production**: **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` — `src/config/env.validation.ts`),
-- poprawna konfiguracja plików modeli/polityk (obecnie: wczytanie i walidacja `gateway.config.yaml` przy starcie w `src/config/configuration.ts`).
+- poprawna konfiguracja plików modeli/polityk (wczytanie i walidacja `gateway.config.yaml` przy starcie: `gateway-config.schema.ts`, `configuration.ts`; offline: `npm run config:validate`).
 
 *(Opcjonalnie w przyszłości: test połączenia do providerów.)*
 

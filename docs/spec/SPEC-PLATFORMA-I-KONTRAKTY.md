@@ -13,7 +13,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 - zasady uwierzytelnienia na brzegu (gateway key),
 - zasady logowania (bez sekretów).
 
-**Stan implementacji (skrót):** **`openapi.json`** (v0.12.0): czat, SSE, health, `params`, `cached`/`cachedAt`, retry/fallback/`effectiveModelAlias`, smart rate limit (`src/rate-limit/`), **`RATE_LIMITED`** (gateway) / **`PROVIDER_RATE_LIMITED`** (upstream), **`MODEL_NOT_ALLOWED`**, **`PROVIDER_TIMEOUT`**. **`ChatService`** + **`ChatProviderCallService`**. **`GlobalExceptionFilter`** + **`RequestIdMiddleware`** (nagłówek odpowiedzi **`x-request-id`** + pole `requestId` w JSON). Czat: **`@GatewayKeyAndSmartRateLimit()`**. **`ResilientExecutor`**. Pozostałość v1: `config:validate` — `dokumentacja_koncepcyjna.md`.
+**Stan implementacji (skrót):** **`openapi.json`** (v0.12.0): czat natywny, SSE, health, fasady OpenAI/Anthropic (`BearerAuth`, `ApiKeyAuth`), `params`, tooling, `cached`/`cachedAt`, retry/fallback/`effectiveModelAlias`, smart rate limit (`src/rate-limit/`), **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**, **`MODEL_NOT_ALLOWED`**, **`PROVIDER_TIMEOUT`**. Natywny czat: **`GlobalExceptionFilter`** (`ErrorEnvelope`); fasady: lokalne filtry + schematy błędów vendora w OpenAPI. **`RequestIdMiddleware`** (nagłówek **`x-request-id`** + pole `requestId` w JSON). **`ChatService`** + **`ChatProviderCallService`**. Czat: **`@GatewayKeyAndSmartRateLimit()`**. **`ResilientExecutor`**. Pozostałość v1: CORS — `dokumentacja_koncepcyjna.md`.
 
 ## Użytkownicy i scenariusze
 

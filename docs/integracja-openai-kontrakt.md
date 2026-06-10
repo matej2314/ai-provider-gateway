@@ -30,7 +30,7 @@ Cursor dokleja standardowe ścieżki OpenAI do Base URL:
 Authorization: Bearer <GATEWAY_KEY_*>
 ```
 
-Gateway weryfikuje token w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` w natywnym API). Token **nie** jest przekazywany do Anthropic ani Google — adaptery używają `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` z `.env`.
+Gateway weryfikuje token w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` w natywnym API). Token **nie** jest przekazywany do Anthropic ani Google — wywołania SDK używają kluczy z `.env` wskazanych przez **`apiKeyRef`** w YAML (per `providerInstance`).
 
 Kolejność guardów na trasach OpenAI: **`OpenAiBearerAuthGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i cooldown, gdy `RATE_LIMIT_SMART_ENABLED=true`). Klucz klienta jest odczytywany przez **`readClientGatewayKey`** (`req.gatewayKey` lub `X-Gateway-Key`).
 
@@ -42,16 +42,17 @@ W polu **`model`** żądania OpenAI podaj **`modelAlias`** z YAML (np. `chat-def
 
 Lista dostępnych ID: `GET /api/v1/openai/models`.
 
-## Parametry żądania (MVP)
+## Parametry żądania
 
 | Pole | Opis |
 |------|------|
-| `messages` | Wymagane; `content` musi być **stringiem** |
+| `messages` | Wymagane; `content` string; role `user`, `assistant`, `tool` (`tool_call_id` wymagane); `assistant` może mieć `tool_calls` |
+| `tools`, `tool_choice` | Opcjonalnie — mapowane na `tooling` gateway; wymaga `capabilities.tools: true` na aliasie |
 | `stream` | `true` — SSE OpenAI; `false` lub brak — JSON `chat.completion` |
-| `temperature` | Opcjonalnie (0–2), mapowane na `params.temperature` gateway |
+| `temperature` | Opcjonalnie (0–2), mapowane na `params.temperature` |
 | `max_tokens` | Opcjonalnie, mapowane na `params.maxOutputTokens` |
 
-Role **`system`** i **`tool`** w `messages` są **ignorowane** — instrukcja systemowa z plików w `src/config/system-prompt/`.
+Role **`system`** w `messages` są **pomijane** — instrukcja systemowa z plików w `src/config/system-prompt/`.
 
 ## Przykład (non-stream)
 
@@ -87,20 +88,20 @@ Jeśli budujesz własną aplikację pod kontrakt gateway:
 - `POST /api/v1/chat` — nagłówek **`X-Gateway-Key`**
 - `POST /api/v1/chat/stream` — natywny SSE (`meta` / `delta` / `done`)
 
-## Ograniczenia MVP
+## Ograniczenia
 
-- Wiadomości **`role: system`** z klienta są **ignorowane** — instrukcja systemowa pochodzi z plików w `src/config/system-prompt/`.
-- Brak **tools** / function calling.
+- Wiadomości **`role: system`** z klienta są **pomijane** — instrukcja systemowa pochodzi z plików w `src/config/system-prompt/`.
 - **`messages[].content`** musi być stringiem (brak tablicy multimodalnej).
+- Function calling wymaga `capabilities.tools: true` na aliasie w YAML.
 - Odpowiedzi fasady **nie** zawierają pól gateway (`provider`, `cached`, `conversationId`).
 
 ## Błędy
 
 Format JSON jak w OpenAI API (`error.message`, `error.type`, `error.code`) — **`OpenAiExceptionFilter`**. Wewnętrzne kody gateway (`RATE_LIMITED`, `MODEL_ALIAS_NOT_FOUND`, …) są mapowane na typy OpenAI (np. `rate_limit_error`, `invalid_request_error`). Korelacja: nagłówek **`x-request-id`**.
 
-## Swagger
+## Swagger / OpenAPI
 
-Tag **OpenAI API** w Swagger UI (`/api/v1/api-docs`), gdy `SWAGGER_ENABLED=true`. Kontrakt natywny pozostaje w `openapi.json` z eksportu `npm run openapi:export`.
+Trasy OpenAI są w **`openapi.json`** (tag **OpenAI API**, security `BearerAuth`) oraz w Swagger UI (`/api/v1/api-docs`), gdy `SWAGGER_ENABLED=true`. Schematy żądań/odpowiedzi i błędów (`OpenAiErrorResponseDto`) pochodzą z dekoratorów `@Api*` na kontrolerach; eksport statyczny: `npm run openapi:export`.
 
 ## Powiązane
 

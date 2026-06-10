@@ -17,7 +17,10 @@ import { OpenAiChatMessageDto } from './openai-chat-message.dto';
 const MAX_MESSAGES = 15000;
 
 export class OpenAiStreamOptionsDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Include usage in the final stream chunk.',
+  })
   @IsOptional()
   @IsBoolean()
   include_usage?: boolean;
@@ -56,15 +59,22 @@ export class OpenAiChatCompletionRequestDto {
   @Min(1)
   max_tokens?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Include usage in non-stream respose.' })
   @IsOptional()
   include_usage?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    type: 'array',
+    description:
+      'OpenAI tools array. Requires capabilities.tools on model alias.',
+  })
   @IsOptional()
   tools?: unknown[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Tool choice: "auto" | "none" | "required" | { type: "function"; function: { name: string } }',
+  })
   @IsOptional()
   tool_choice?: unknown;
 
@@ -77,4 +87,30 @@ export class OpenAiChatCompletionRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
   user?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  parallel_tool_calls?: boolean;
+
+  @ApiPropertyOptional({
+    minimum: 0,
+    maximum: 1,
+    example: 0.95,
+    description: 'Nucleus sampling parameter.',
+  })
+  @IsOptional()
+  top_p?: number;
+
+  @ApiPropertyOptional({
+    minimum: -2.0,
+    maximum: 2.0,
+    example: 0.5,
+    description: 'Penalize new tokens based on their presence',
+  })
+  @IsOptional()
+  presence_penalty?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  frequency_penalty?: number;
 }

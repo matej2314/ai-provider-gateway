@@ -1,0 +1,110 @@
+import { Injectable } from '@nestjs/common';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import * as yaml from 'js-yaml';
+import {
+  GatewayConfigSchema,
+  GatewayConfig,
+} from '../../config/gateway-config.schema';
+
+@Injectable()
+export class CliConfigLoaderService {
+  isBoilerplateConfig(path?: string): boolean {
+    try {
+      const config = this.loadRawConfig(path);
+
+      const hasPlaceholderRefs =
+        config.masterKeyRef.includes('PLACEHOLDER') ||
+        config.masterKeyRef.includes('placeholder');
+
+      const hasPlaceholderProviders = Object.keys(config.providers).some(
+        (key) => key.includes('placeholder'),
+      );
+
+      const hasPlaceholderClients = Object.keys(config.clients).some((key) =>
+        key.includes('placeholder'),
+      );
+
+      return (
+        hasPlaceholderRefs || hasPlaceholderProviders || hasPlaceholderClients
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  loadRawConfig(path?: string): GatewayConfig {
+    const configPath = path || join(process.cwd(), 'gateway.config.yaml');
+
+    if (!existsSync(configPath)) {
+      throw new Error(
+        `Configuration file not found: ${configPath}\n` +
+          `Run "gateway config:init" to create it.`,
+      );
+    }
+
+    try {
+      const fileContent = readFileSync(configPath, 'utf-8');
+      const parsedYaml = yaml.load(fileContent);
+
+      // Parsuj przez Zod schema (walidacja struktury)
+      const result = GatewayConfigSchema.safeParse(parsedYaml);
+
+      if (!result.success) {
+        const errors = result.error.flatten().fieldErrors;
+        const errorMessages = Object.entries(errors)
+          .map(([field, msgs]) => `  ${field}: ${msgs?.join(', ')}`)
+          .join('\n');
+
+        throw new Error(`Configuration validation failed:\n${errorMessages}`);
+      }
+
+      return result.data;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('validation failed')
+      ) {
+        throw error;
+      }
+      throw new Error(`Failed to parse configuration file: ${error}`);
+    }
+  }
+
+  configExists(path?: string): boolean {
+    const configPath = path || join(process.cwd(), 'gateway.config.yaml');
+    return existsSync(configPath);
+  }
+
+  loadWithEnvCheck(path?: string): {
+    config: GatewayConfig;
+    missingEnvVars: string[];
+  } {
+    const config = this.loadRawConfig(path);
+    const missing: string[] = [];
+
+    if (!process.env[config.masterKeyRef]?.trim()) {
+      missing.push(config.masterKeyRef);
+    }
+
+    for (const [id, provider] of Object.entries(config.providers)) {
+      if (
+        provider.enabled !== false &&
+        !process.env[provider.apiKeyRef]?.trim()
+      ) {
+        missing.push(provider.apiKeyRef);
+      }
+    }
+    for (const [id, client] of Object.entries(config.clients)) {
+      if (!process.env[client.gatewayKeyRef]?.trim()) {
+        missing.push(client.gatewayKeyRef);
+      }
+    }
+    return { config, missingEnvVars: missing };
+  }
+
+  envExists(path?: string): boolean {
+    const envPath = path || join(process.cwd(), '.env');
+    return existsSync(envPath);
+  }
+}

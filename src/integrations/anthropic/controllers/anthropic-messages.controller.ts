@@ -7,11 +7,23 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiOperation,
+  ApiSecurity,
+  ApiTags,
+  ApiOkResponse,
+  ApiProduces,
+  ApiResponse,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { ChatService } from 'src/chat/chat.service';
 import { SmartRateLimiterService } from 'src/rate-limit/smart-rate-limiter.service';
 import { AnthropicAuth } from '../decorators/anthropic-auth.decorator';
 import { AnthropicMessagesRequestDto } from '../dtos/anthropic-messages-request.dto';
+import { AnthropicMessagesResponseDto } from '../dtos/anthropic-messages-response.dto';
+import { ApiAnthropicErrorResponses } from 'src/common/decorators/api-anthropic-error-response.decorator';
+import { ApiRequestIdHeader } from 'src/common/decorators/api-request-id-header.decorator';
 import { mapAnthropicRequestToGateway } from '../mappers/anthropic-request.mapper';
 import { mapGatewayResultToAnthropic } from '../mappers/anthropic-response.mapper';
 import {
@@ -23,7 +35,9 @@ import type { Request, Response } from 'express';
 import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
 
 import { ANTHROPIC_INTEGRATION_PATH } from 'src/integrations/integrations.constants';
+import { ANTHROPIC_STREAM_API_DESCRIPTION } from '../helpers/anthropic-stream-api-description';
 import { ApiErrorCode } from 'src/common/errors/api-error.code';
+import { AnthropicErrorResponseDto } from '../dtos/anthropic-error-response.dto';
 
 @ApiTags('Anthropic API')
 @ApiSecurity('ApiKeyAuth')
@@ -36,8 +50,40 @@ export class AnthropicMessagesController {
   ) {}
 
   @Post('messages')
-  @ApiOperation({ summary: 'Create message (Anthropic API)' })
+  @ApiOperation({
+    summary: 'Create message (Anthropic API)',
+    description:
+      'JSON message when `stream` is false/omitted. Anthropic SSE when `stream: true`',
+  })
   @ApiBody({ type: AnthropicMessagesRequestDto })
+  @ApiOkResponse({
+    type: AnthropicMessagesResponseDto,
+    description: 'Non-streaming response.',
+  })
+  @ApiProduces('text/event-stream')
+  @ApiResponse({
+    status: 200,
+    description: ANTHROPIC_STREAM_API_DESCRIPTION,
+    content: {
+      'text/event-stream': {
+        schema: { type: 'string' },
+        examples: {
+          message_start: {
+            value:
+              'event: message_start\ndata: {"type":"message_start","message":{"id":"msg_...","type":"message"}}\n\n',
+          },
+        },
+      },
+    },
+  })
+  @ApiHeader({
+    name: 'anthropic-version',
+    required: false,
+    description: 'Set to "2023-06-01" on stream.',
+    example: '2023-06-01',
+  })
+  @ApiAnthropicErrorResponses()
+  @ApiRequestIdHeader()
   async createMessage(
     @Req() req: Request,
     @Res({ passthrough: false }) res: Response,

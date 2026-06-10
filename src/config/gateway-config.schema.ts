@@ -17,20 +17,17 @@ export const GatewayConfigSchema = z
         }),
       )
       .superRefine((providers, ctx) => {
-        const byType = new Map<string, string[]>();
-        for (const [instanceName, config] of Object.entries(providers)) {
-          const list = byType.get(config.type) ?? [];
-          list.push(instanceName);
-          byType.set(config.type, list);
-        }
-        for (const [type, instances] of byType) {
-          if (instances.length > 1) {
+        const refs = new Map<string, string>();
+        for (const [instanceId, row] of Object.entries(providers)) {
+          const prev = refs.get(row.apiKeyRef);
+          if (prev) {
             ctx.addIssue({
               code: 'custom',
-              message: `Provider type ${type} is declared more than once (instances: ${instances.join(',')}). Only one instance per type is allowed.`,
-              path: ['providers', type],
+              message: `Duplicate API key reference ${row.apiKeyRef}`,
+              path: ['providers', instanceId, 'apiKeyRef'],
             });
           }
+          refs.set(row.apiKeyRef, instanceId);
         }
       }),
     clients: z

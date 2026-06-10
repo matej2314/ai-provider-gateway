@@ -22,6 +22,8 @@ function toGenAiInputMessages(messages: LlmCallMessage[]): string {
     messages.map((m) => ({
       role: m.role,
       parts: [{ type: 'text', content: m.content }],
+      ...(m.toolCallId && { tool_call_id: m.toolCallId }),
+      ...(m.toolCallsCount && { tool_calls_count: m.toolCallsCount }),
     })),
   );
 }
@@ -65,7 +67,10 @@ function applyGenAiMessagesToSpan(
 }
 
 /** Multi-turn grouping — only when the client sent conversationId. */
-function applyGenAiConversationIdToSpan(span: Span, conversationId: string): void {
+function applyGenAiConversationIdToSpan(
+  span: Span,
+  conversationId: string,
+): void {
   span.setAttribute('gen_ai.conversation.id', conversationId);
 }
 

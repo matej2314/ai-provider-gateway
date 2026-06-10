@@ -1,6 +1,8 @@
 export interface LlmCallMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'tool';
   content: string;
+  toolCallId?: string;
+  toolCallsCount?: number;
 }
 
 export interface LlmCallContext {
