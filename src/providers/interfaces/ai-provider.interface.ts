@@ -65,6 +65,9 @@ export interface ProviderCallOptions {
   maxOutputTokens?: number;
   topP?: number;
   stop?: string | string[];
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  seed?: number;
 }
 
 export interface AIProvider {
