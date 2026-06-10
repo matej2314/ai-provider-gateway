@@ -4,7 +4,17 @@ import type { GatewayParamsConfig } from '../../config/configuration';
 import type { ProviderCallOptions } from 'src/providers/interfaces/ai-provider.interface';
 import type { ChatParamsDto } from '../dto/chat-params.dto';
 
-const OVERRIDE_KEYS = ['temperature', 'maxOutputTokens'] as const;
+const OVERRIDE_KEYS = [
+  'temperature',
+  'maxOutputTokens',
+  'topP',
+  'stop',
+  'frequencyPenalty',
+  'presencePenalty',
+  'seed',
+  'topK',
+  'responseFormat',
+] as const;
 type OverrideKey = (typeof OVERRIDE_KEYS)[number];
 
 function isOverrideKey(key: string): key is OverrideKey {
@@ -43,6 +53,8 @@ export function resolveProviderCallOptions(
 
   let temperature = defaults.temperature;
   let maxOutputTokens = defaults.maxOutputTokens;
+  let topP = defaults.topP;
+  let stop = bodyParams?.stop;
 
   if (bodyParams?.temperature !== undefined) {
     temperature = bodyParams.temperature;
@@ -50,6 +62,10 @@ export function resolveProviderCallOptions(
 
   if (bodyParams?.maxOutputTokens !== undefined) {
     maxOutputTokens = bodyParams.maxOutputTokens;
+  }
+
+  if (bodyParams?.topP !== undefined) {
+    topP = Number(bodyParams.topP);
   }
 
   if (temperature !== undefined && bounds.temperature) {
@@ -68,8 +84,14 @@ export function resolveProviderCallOptions(
     );
   }
 
+  if (topP !== undefined && bounds.topP) {
+    topP = clamp(bounds.topP.min, bounds.topP.max, topP);
+  }
+
   return {
     ...(temperature !== undefined ? { temperature } : {}),
     ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
+    ...(topP !== undefined ? { topP } : {}),
+    ...(stop !== undefined ? { stop } : {}),
   };
 }
