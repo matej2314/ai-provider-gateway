@@ -48,10 +48,15 @@ models:
           - maxOutputTokens
           - topP
           - stop
+          - frequencyPenalty
+          - presencePenalty
+          - seed
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
           topP: { min: 0, max: 1 }
+          frequencyPenalty: { min: -2, max: 2 }
+          presencePenalty: { min: -2, max: 2 }
 
   claude-sonnet:
     providerInstance: anthropic
@@ -75,10 +80,15 @@ models:
           - maxOutputTokens
           - topP
           - stop
+          - frequencyPenalty
+          - presencePenalty
+          - seed
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
           topP: { min: 0, max: 1 }
+          frequencyPenalty: { min: -2, max: 2 }
+          presencePenalty: { min: -2, max: 2 }
 
   gemini-flash:
     providerInstance: google
@@ -102,7 +112,12 @@ models:
           - maxOutputTokens
           - topP
           - stop
+          - frequencyPenalty
+          - presencePenalty
+          - seed
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
           topP: { min: 0, max: 1 }
+          frequencyPenalty: { min: -2, max: 2 }
+          presencePenalty: { min: -2, max: 2 }

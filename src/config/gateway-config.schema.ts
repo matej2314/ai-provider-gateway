@@ -84,6 +84,9 @@ export const GatewayConfigSchema = z
                     temperature: z.number().min(0).max(2).optional(),
                     maxOutputTokens: z.number().int().min(1).optional(),
                     topP: z.number().min(0).max(1).optional(),
+                    frequencyPenalty: z.number().min(-2).max(2).optional(),
+                    presencePenalty: z.number().min(-2).max(2).optional(),
+                    seed: z.number().int().optional(),
                   })
                   .optional()
                   .default({}),
@@ -103,6 +106,12 @@ export const GatewayConfigSchema = z
                       })
                       .optional(),
                     topP: z
+                      .object({ min: z.number(), max: z.number() })
+                      .optional(),
+                    frequencyPenalty: z
+                      .object({ min: z.number(), max: z.number() })
+                      .optional(),
+                    presencePenalty: z
                       .object({ min: z.number(), max: z.number() })
                       .optional(),
                   })
