@@ -18,6 +18,22 @@ import {
   parseGeminiResponseWithTools,
 } from '../google/google-tools.mapper';
 
+function mapStopSequences(
+  stop: ProviderCallOptions['stop'],
+): string[] | undefined {
+  if (stop === undefined) return undefined;
+  return Array.isArray(stop) ? stop : [stop];
+}
+
+function buildGenerationConfig(options?: ProviderCallOptions) {
+  return {
+    temperature: options?.temperature ?? undefined,
+    maxOutputTokens: options?.maxOutputTokens ?? 1024,
+    topP: options?.topP,
+    stopSequences: mapStopSequences(options?.stop),
+  };
+}
+
 export function createGoogleProvider(
   apiKey: string,
   loggingService: LoggingService,
@@ -52,8 +68,7 @@ export function createGoogleProvider(
               ...(input.system?.trim()
                 ? { systemInstruction: input.system }
                 : {}),
-              temperature: options?.temperature ?? undefined,
-              maxOutputTokens: options?.maxOutputTokens ?? 1024,
+              ...buildGenerationConfig(options),
               tools: [{ functionDeclarations: mapToolsToGemini(input.tools) }],
               ...(toolChoiceConfig && {
                 toolConfig: { functionCallingConfig: toolChoiceConfig },
@@ -70,8 +85,7 @@ export function createGoogleProvider(
             ...(input.system?.trim()
               ? { systemInstruction: input.system }
               : {}),
-            temperature: options?.temperature ?? undefined,
-            maxOutputTokens: options?.maxOutputTokens ?? 1024,
+            ...buildGenerationConfig(options),
           },
         });
 
@@ -123,8 +137,7 @@ export function createGoogleProvider(
               ...(input.system?.trim()
                 ? { systemInstruction: input.system }
                 : {}),
-              temperature: options?.temperature ?? undefined,
-              maxOutputTokens: options?.maxOutputTokens ?? 1024,
+              ...buildGenerationConfig(options),
               ...(input.tools?.length && {
                 tools: [
                   { functionDeclarations: mapToolsToGemini(input.tools) },
