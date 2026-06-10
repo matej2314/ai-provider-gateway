@@ -35,13 +35,24 @@ export function mapAnthropicRequestToGateway(
     messages: gatewayMessages,
   };
 
-  if (body.temperature !== undefined || body.max_tokens !== undefined) {
+  if (
+    body.temperature !== undefined ||
+    body.max_tokens !== undefined ||
+    body.top_p !== undefined ||
+    body.stop_sequences !== undefined
+  ) {
     dto.params = {};
     if (body.temperature !== undefined) {
       dto.params.temperature = body.temperature;
     }
     if (body.max_tokens !== undefined) {
       dto.params.maxOutputTokens = body.max_tokens;
+    }
+    if (body.top_p !== undefined) {
+      dto.params.topP = body.top_p;
+    }
+    if (body.stop_sequences !== undefined) {
+      dto.params.stop = body.stop_sequences;
     }
   }
 
