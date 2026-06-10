@@ -13,6 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { OpenAiChatMessageDto } from './openai-chat-message.dto';
+import { IsStringOrArrayOfStrings } from 'src/common/validators/is-string-or-array-of-strings.validator';
 
 const MAX_MESSAGES = 15000;
 
@@ -100,6 +101,15 @@ export class OpenAiChatCompletionRequestDto {
   })
   @IsOptional()
   top_p?: number;
+
+  @ApiPropertyOptional({
+    oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+    description: 'Stop sequences where generation should stop.',
+    example: ['\n\n', '###'],
+  })
+  @IsOptional()
+  @IsStringOrArrayOfStrings()
+  stop?: string | string[];
 
   @ApiPropertyOptional({
     minimum: -2.0,
