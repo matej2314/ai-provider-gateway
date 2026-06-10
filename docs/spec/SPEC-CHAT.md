@@ -8,7 +8,7 @@ Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym for
 
 Gateway musi działać na poprawnie zwalidowanym środowisku: w **`NODE_ENV=production`** obowiązuje **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`), zgodnie z `src/config/env.validation.ts` i `docs/konfiguracja.md`. Ponadto wymagany jest poprawny `gateway.config.yaml` (fail‑fast przy starcie).
 
-**Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body: `modelAlias`, `messages`, opcjonalne **`conversationId`** (metryki Sentry — `docs/conversation-tracking.md`), opcjonalne **`params`** (`temperature`, `maxOutputTokens` — merge z `policy.params` w YAML przez `resolveProviderCallOptions`, `src/chat/helpers/resolve-provider-call-options.ts`). **Cache odpowiedzi** dla czatu standardowego — **wdrożony** (`src/cache/`, klucz uwzględnia efektywne parametry wywołania — `konfiguracja.md`).
+**Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body: `modelAlias`, `messages`, opcjonalne **`conversationId`** (metryki Sentry — `docs/conversation-tracking.md`), opcjonalne **`params`** (`temperature`, `maxOutputTokens`, `topP`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed` — merge z `policy.params` w YAML przez `resolveProviderCallOptions`, `src/chat/helpers/resolve-provider-call-options.ts`). **Cache odpowiedzi** dla czatu standardowego — **wdrożony** (`src/cache/`, klucz uwzględnia efektywne parametry wywołania — `konfiguracja.md`).
 
 ## Użytkownicy i scenariusze
 
@@ -43,7 +43,7 @@ F-1. Endpoint przyjmuje request zawierający:
 - `modelAlias` (string, wymagane),
 - `messages[]` (wymagane),
 - `conversationId` (string, opcjonalnie — w **request** włącza grupowanie Sentry; w **response** zawsze zwracane echo lub `conv_*`),
-- `params` (opcjonalnie: `temperature`, `maxOutputTokens` — tylko pola z `policy.params.allowOverrides` dla aliasu; wartości po merge obcinane do `policy.params.bounds`).
+- `params` (opcjonalnie: `temperature`, `maxOutputTokens`, `topP`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed` — tylko pola z `policy.params.allowOverrides` dla aliasu; wartości po merge obcinane do `policy.params.bounds`).
 
 F-1a. Niedozwolony override w `params` → `400` z `code=MODEL_NOT_ALLOWED` (`resolveProviderCallOptions`).
 
@@ -55,7 +55,7 @@ F-2b. Odpowiedź może zawierać `toolCalls`, `finishReason`. Żądania z toolin
 
 F-3. Gateway musi zwrócić odpowiedź w spójnym formacie niezależnym od providera.
 
-F-4. Gateway musi dołączyć `provider` i resolved `model` do odpowiedzi.
+F-4. Gateway musi dołączyć `provider` (identyfikator **`providerInstance`** z YAML) i resolved `model` (alias z żądania) do odpowiedzi.
 
 F-5. Gateway powinien dołączyć `usage`, jeśli provider/SDK udostępnia te dane.
 

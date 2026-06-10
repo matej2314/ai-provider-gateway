@@ -21,7 +21,7 @@ flowchart TB
     cache[Cache Module — opcjonalny backend odpowiedzi]
     providers[Providers Module]
     health[Health Module]
-    config[Config Module]
+    config[Config — Nest ConfigModule + src/config/]
   end
 
   subgraph external [Zewnętrzne systemy]
@@ -50,7 +50,7 @@ flowchart TB
 | **Integrations** (`src/integrations`) | Równoległe fasady **OpenAI API** (`/api/v1/openai/…`) i **Anthropic Messages API** (`/api/v1/anthropic/…`) dla IDE — mapowanie HTTP na `ChatService` bez duplikacji logiki providerów. Osobne guardy auth (Bearer / `x-api-key`), lokalne filtry błędów w kształcie vendora. **Stan:** obie fasady wdrożone (`integracje.md`). |
 | **Cache** (`src/cache`) | Globalny moduł dynamiczny: rejestr backendów (`noop` zawsze, `redis` warunkowo), `ResponseCacheService` — cache wyłącznie dla **`POST /api/v1/chat`** (klucz m.in. z `modelAlias`, treści wiadomości i sygnatury warstw system promptu). Konfiguracja env: `docs/konfiguracja.md`. |
 | **Providers** (`src/providers`) | Fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr po **`providerInstance`** (`ProviderRegistryService`). Mapery tool calling: `anthropic-tools.mapper.ts`, `google-tools.mapper.ts`. Ukrywa SDK i szczegóły HTTP providerów. |
-| **Config** (`src/config`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Fail‑fast przy starcie. |
+| **Config** (`src/config` + `ConfigModule.forRoot` w `AppModule`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Brak osobnego Nest feature module — loader `configuration.ts` w `ConfigModule`. Fail‑fast przy starcie. |
 | **Health** (`src/health`) | Liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready` — `checks.config`, `checks.cache`). Walidacja konfiguracji przy **starcie** procesu. `checks.cache` dotyczy backendu **cache odpowiedzi** (`noop`/`redis`), nie osobnego probe smart rate limit (limitery używają tego samego `RedisConnectionService` gdy Redis jest załadowany — `RateLimitModule` → `RedisCacheModule`). |
 | **Rate limit** (`src/rate-limit`) | Jedyna warstwa limitów gateway: smart limiting per `X-Gateway-Key` (Redis) — token bucket (RPS/burst), równoległe streamy, cooldown po 429 od providera (`SmartRateLimitGuard`, `SmartRateLimiterService`). Limity: opcjonalnie `clients[].rateLimit` w YAML, inaczej env; przełącznik `RATE_LIMIT_SMART_ENABLED`. Bez `@nestjs/throttler`. |
 | **Logging / Metrics** | Structured logging (Pino), opcjonalnie Sentry (błędy + spany LLM). |

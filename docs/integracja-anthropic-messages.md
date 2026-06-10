@@ -57,12 +57,14 @@ Treść tekstowa jest mapowana na `messages[]` kontraktu gateway (`role` + `cont
 |------|------|
 | `messages` | Wymagane; `content` = tablica bloków z co najmniej jednym `type: text` |
 | `stream` | `true` — SSE Anthropic; `false` lub brak — JSON `Message` |
-| `temperature` | Opcjonalnie (0–1), mapowane na `params.temperature` gateway |
+| `temperature` | Opcjonalnie (0–2 w gateway), mapowane na `params.temperature`; adapter Anthropic może odrzucić wartości poza zakresem vendora |
 | `max_tokens` | Opcjonalnie; mapowane na `params.maxOutputTokens`; bez wartości — domyślne z YAML |
 | `top_p` | Opcjonalnie (0–1), mapowane na `params.topP` |
 | `stop_sequences` | Opcjonalnie (tablica stringów), mapowane na `params.stop` |
 | `tools`, `tool_choice` | Opcjonalnie — mapowane na `tooling` gateway; wymaga `capabilities.tools: true` na aliasie |
 | `system` | **Ignorowane** — instrukcja systemowa z `src/config/system-prompt/` |
+
+Limit **`messages`**: 1–15 000 (DTO fasady; natywny czat: 1–150).
 
 ## Przykład (non-stream)
 

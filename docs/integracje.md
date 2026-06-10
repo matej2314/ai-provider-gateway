@@ -18,8 +18,8 @@ Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzę
 | Szkielet katalogów `src/integrations/{openai,anthropic}/` | W repozytorium |
 | `IntegrationsModule` w `AppModule` | Zarejestrowany |
 | `Request.gatewayKey` w `src/common/types/express.d.ts` | W repozytorium |
-| Eksport `ChatService`, `SmartRateLimitGuard` z `ChatModule` | W repozytorium |
-| `readClientGatewayKey` + aktualizacja `SmartRateLimitGuard` / `StreamCleanupInterceptor` | W repozytorium |
+| Eksport `ChatService`, `SmartRateLimitGuard` z `ChatModule` | W repozytorium — fasady importują guard z `src/guards/smart-rate-limit-guard.ts` przez `@OpenAiAuth()` / `@AnthropicAuth()` |
+| `readClientGatewayKey` + aktualizacja `SmartRateLimitGuard` / `StreamCleanupInterceptor` | **Wdrożone** (`src/common/readClientGatewayKey.ts`) |
 | **Fasada OpenAI** (`OpenAiModule`) — auth, models, completions JSON + stream | **Wdrożona** — [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md) |
 | **Fasada Anthropic** (`AnthropicModule`) — auth, models, messages JSON + stream | **Wdrożona** — [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md) |
 
@@ -105,20 +105,28 @@ Fasady muszą współdzielić **`SmartRateLimiterService`** z natywnym API.
 1. Guard auth fasady (ustawia `req.gatewayKey`)
 2. `SmartRateLimitGuard` (token bucket RPS, cooldown)
 
-**Helper `readClientGatewayKey(req)`** (docelowo `src/common/readClientGatewayKey.ts`):
+**Helper `readClientGatewayKey(req)`** (`src/common/readClientGatewayKey.ts`):
 
 - integracje: `req.gatewayKey` po guardzie fasady,
-- natywne API: `X-Gateway-Key` (`readGatewayKeyHeader`) — bez regresji.
+- natywne API: `X-Gateway-Key` (`readGatewayKeyHeader`).
 
 **Równoległe streamy:** natywny `POST /chat/stream` — `SmartRateLimitGuard` (URL kończy się na `/stream`) + `StreamCleanupInterceptor`. Fasady OpenAI / Anthropic (`stream: true` w body) — **rezerwacja i zwolnienie slotu w kontrolerze fasady** (guard nie parsuje body `stream`).
 
-## Przepływ żądania (docelowy)
+## Przepływ żądania (implementacja)
 
 1. HTTP → kontroler fasady + walidacja DTO vendora.
 2. Mapper request → `ChatRequestDto` (`modelAlias`, `messages`, opcjonalnie `params`, `tooling` — tools/tool_calls z kontraktu vendora).
 3. `ChatService.executeChat` / `executeStream` z `req.gatewayKey` i `req.requestId`.
 4. Mapper response / stream → format OpenAI lub Anthropic.
 5. Pola specyficzne dla gateway (`provider`, `cached`, `conversationId`) **nie** są eksponowane w fasadach MVP.
+
+## Limity wiadomości
+
+| Powierzchnia | Limit `messages[]` | Źródło |
+|--------------|-------------------|--------|
+| Natywny czat | 1–150 | `ChatRequestDto` |
+| Fasada OpenAI | 1–15 000 | `OpenAiChatCompletionRequestDto` |
+| Fasada Anthropic | 1–15 000 | `AnthropicMessagesRequestDto` |
 
 ## Streaming
 
@@ -153,7 +161,7 @@ src/integrations/
 ├── integrations.constants.ts
 ├── openai/
 │   ├── controllers/     # models, chat/completions
-│   ├── services/        # orchestration, models catalog
+│   ├── services/        # models catalog (kontrolery wywołują ChatService bezpośrednio)
 │   ├── mappers/         # request, response, stream, tools, messages
 │   ├── helpers/         # normalize-openai-content, openai-stream-api-description
 │   ├── guards/          # Bearer auth

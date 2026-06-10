@@ -69,10 +69,14 @@ F-2a. Port providera przyjmuje **znormalizowane** wejście rozmowy:
 
 Uwaga: kontrakt HTTP **nie** przekazuje roli `system` w `messages[]`; pole `system` w porcie providera pochodzi z polityki gatewaya (pliki promptów), nie z body żądania.
 
-F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK:
+F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK (`ProviderCallOptions`):
 
-- `temperature`
-- `maxOutputTokens` (lub odpowiednik)
+- `temperature`, `maxOutputTokens` — wszystkie adaptery (`anthropic`, `google`)
+- `topP`, `stop` — wszystkie adaptery
+- `seed` — **Google** (`create-google-provider.ts`); Anthropic ignoruje
+- `frequencyPenalty`, `presencePenalty` — **nie przekazywane** do SDK przez bieżące adaptery (pola akceptowane w API, brak efektu u vendora)
+
+**Nie zaimplementowane:** `topK`, `responseFormat` (brak w `ChatParamsDto` / `ProviderCallOptions`).
 
 F-4. Adapter mapuje błędy SDK na błędy gateway:
 

@@ -16,7 +16,7 @@ Projekt powstaje jako ćwiczenie NestJS, architektury i wzorców projektowych, a
 
 | Segment | Potrzeba |
 |---------|----------|
-| **Użytkownik (developer / zespół)** | Szybko uruchomić gateway lokalnie lub w swojej infrastrukturze; używać własnych kluczy do OpenAI/Anthropic/Google; mieć przewidywalne API. |
+| **Użytkownik (developer / zespół)** | Szybko uruchomić gateway lokalnie lub w swojej infrastrukturze; używać własnych kluczy do **Anthropic i Google** (providery runtime); korzystać z fasady **OpenAI** dla IDE (Cursor) bez osobnego providera OpenAI; mieć przewidywalne API. |
 | **Integrator / platform team** | Ustandaryzować integrację z LLM w organizacji, spiąć limity, logi, requestId, polityki retry i timeouts. |
 | **Operacje / DevOps** | Statyczne, proste wdrożenie; konfiguracja przez env + pliki; healthchecki; logi na stdout. |
 

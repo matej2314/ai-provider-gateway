@@ -41,8 +41,8 @@ ai-provider-gateway/
 │
 ├── scripts/
 │   ├── validate-config.ts          # npm run config:validate — walidacja gateway.config.yaml + env offline
-│   ├── generate-key.sh             # *(plan)* wrapper generowania klucza (Faza 7)
-│   └── generate-key.ps1            # *(plan)* wrapper generowania klucza (Faza 7)
+│   ├── generate-key.sh             # pusty wrapper — użyj `gateway key:generate`
+│   └── generate-key.ps1            # pusty wrapper — użyj `gateway key:generate`
 │
 ├── test/                           # testy e2e (Jest)
 │   ├── jest-e2e.json
@@ -122,7 +122,6 @@ ai-provider-gateway/
 │   │   │   │   ├── openai-chat-completions.controller.ts
 │   │   │   │   └── openai-models.controller.ts
 │   │   │   ├── services/
-│   │   │   │   ├── openai-orchestration.service.ts
 │   │   │   │   └── openai-models-catalog.service.ts
 │   │   │   ├── mappers/
 │   │   │   │   ├── openai-request.mapper.ts
@@ -305,7 +304,7 @@ ai-provider-gateway/
 │   │
 │   └── common/
 │       ├── readGatewayKeyHeader.ts
-│       ├── readClientGatewayKey.ts         # (docelowo) req.gatewayKey lub X-Gateway-Key — smart limit
+│       ├── readClientGatewayKey.ts         # req.gatewayKey (fasady) lub X-Gateway-Key (natywny czat)
 │       ├── retry-policy-defaults.ts        # domyślne onStatus / maxAttempts / timeoutMs
 │       ├── decorators/
 │       │   ├── gateway-key-and-smart-rate-limit.decorator.ts
@@ -335,8 +334,10 @@ ai-provider-gateway/
 │       │   ├── fallback-chain.ts
 │       │   ├── is-retryable-http-error.ts
 │       │   └── resilience.types.ts
-│       └── types/
-│           └── express.d.ts                # Request.requestId, Request.gatewayKey (fasady)
+│       ├── types/
+│       │   └── express.d.ts                # Request.requestId, Request.gatewayKey (fasady)
+│       └── validators/
+│           └── is-string-or-array-of-strings.validator.ts  # ChatParamsDto, OpenAI DTO (pole stop)
 │
 └── docs/
     ├── README.md
@@ -382,7 +383,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
-| **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), typy Express. |
+| **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), typy Express, walidatory (`validators/` — np. `stop` jako string \| string[]). |
 | **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). |
 | **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez `RateLimitModule` → `RedisCacheModule`. |
 | **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |

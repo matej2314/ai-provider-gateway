@@ -142,7 +142,7 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
    - **2/5** Providery i klucze API (`ProviderPromptService`)
    - **3/5** Modele / aliasy (`ModelPromptService`, domyślne `modelId` z `constants/default-models.ts`: Anthropic `claude-sonnet-4-5-20250929`, Google `gemini-2.5-flash`)
    - **4/5** Klienci gateway (`ClientPromptService` — typ: `webapp` | `ide` | `cli` | `service` | `backend` | `automation`; klucze `gw_<slug>_<base64url>`; env ref `GATEWAY_KEY_<ID>`; opcjonalny `rateLimit` per klient)
-   - **5/5** Ustawienia serwera (`ServerPromptService` — port, `NODE_ENV`, Swagger, cache/Redis, smart rate limit, Sentry)
+   - **5/5** Ustawienia serwera (`ServerPromptService` — port, `NODE_ENV`, Swagger, cache/Redis, smart rate limit, Sentry). Wizard może zapisać `CACHE_BACKEND=memory` — runtime rejestruje tylko `noop` i `redis`; wartość `memory` traktowana jak **`noop`** (`CacheRegistryService`).
 
 3. **Zapis plików** — `ConfigGeneratorService.generateFullConfig()`:
    - `gateway.config.yaml` (wszystkie providery `enabled: true`, `masterKeyRef: MASTER_KEY`)

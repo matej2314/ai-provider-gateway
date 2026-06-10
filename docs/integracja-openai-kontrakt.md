@@ -51,6 +51,13 @@ Lista dostępnych ID: `GET /api/v1/openai/models`.
 | `stream` | `true` — SSE OpenAI; `false` lub brak — JSON `chat.completion` |
 | `temperature` | Opcjonalnie (0–2), mapowane na `params.temperature` |
 | `max_tokens` | Opcjonalnie, mapowane na `params.maxOutputTokens` |
+| `top_p` | Opcjonalnie (0–1), mapowane na `params.topP` |
+| `stop` | Opcjonalnie (string \| string[]), mapowane na `params.stop` |
+| `frequency_penalty` | Opcjonalnie (-2–2), mapowane na `params.frequencyPenalty` (adaptery `anthropic`/`google` ignorują) |
+| `presence_penalty` | Opcjonalnie (-2–2), mapowane na `params.presencePenalty` (adaptery `anthropic`/`google` ignorują) |
+| `seed` | Opcjonalnie (integer), mapowane na `params.seed` (Anthropic ignoruje) |
+
+Limit **`messages`**: 1–15 000 (DTO fasady; natywny czat: 1–150).
 
 Role **`system`** w `messages` są **pomijane** — instrukcja systemowa z plików w `src/config/system-prompt/`.
 
