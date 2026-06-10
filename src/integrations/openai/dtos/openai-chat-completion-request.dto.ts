@@ -5,6 +5,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -118,10 +119,23 @@ export class OpenAiChatCompletionRequestDto {
     description: 'Penalize new tokens based on their presence',
   })
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-2.0)
+  @Max(2.0)
   presence_penalty?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    minimum: -2.0,
+    maximum: 2.0,
+    example: 0.85,
+    description: 'Penalize new tokens based on their frequency.',
+  })
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-2.0)
+  @Max(2.0)
   frequency_penalty?: number;
 
   @ApiPropertyOptional({
@@ -131,5 +145,9 @@ export class OpenAiChatCompletionRequestDto {
     description: 'Seed for deterministic sampling.',
   })
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(2 ** 32 - 1)
   seed?: number;
 }

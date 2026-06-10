@@ -59,6 +59,8 @@ Treść tekstowa jest mapowana na `messages[]` kontraktu gateway (`role` + `cont
 | `stream` | `true` — SSE Anthropic; `false` lub brak — JSON `Message` |
 | `temperature` | Opcjonalnie (0–1), mapowane na `params.temperature` gateway |
 | `max_tokens` | Opcjonalnie; mapowane na `params.maxOutputTokens`; bez wartości — domyślne z YAML |
+| `top_p` | Opcjonalnie (0–1), mapowane na `params.topP` |
+| `stop_sequences` | Opcjonalnie (tablica stringów), mapowane na `params.stop` |
 | `tools`, `tool_choice` | Opcjonalnie — mapowane na `tooling` gateway; wymaga `capabilities.tools: true` na aliasie |
 | `system` | **Ignorowane** — instrukcja systemowa z `src/config/system-prompt/` |
 
@@ -122,6 +124,8 @@ Fasada MVP celuje w prosty czat tekstowy i klienty IDE — **nie** jest drop-in 
 | `system`, obrazy | Obsługiwane oficjalnie | `system` ignorowany; `image` → 400 |
 | `tools` | Obsługiwane oficjalnie | Mapowane przez fasadę gdy alias ma `capabilities.tools` |
 | `messages[].content` | string lub tablica | Tylko tablica bloków `text` |
+| `frequency_penalty`, `presence_penalty`, `seed` | OpenAI-compat w innych klientach | **N/A** — brak w Messages API; gateway native `/chat` może je przyjąć, adapter Anthropic ignoruje |
+| `top_p`, `stop_sequences` | Obsługiwane oficjalnie | Mapowane na `params.topP` / `params.stop` |
 
 Pełne dopasowanie kontraktu — kolejne iteracje (poza ETAP 2.5).
 
