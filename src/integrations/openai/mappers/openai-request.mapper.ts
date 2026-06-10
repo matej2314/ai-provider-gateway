@@ -16,7 +16,15 @@ export function mapOpenAiChatRequestToGateway(
     messages,
   };
 
-  if (body.temperature !== undefined || body.max_tokens !== undefined) {
+  if (
+    body.temperature !== undefined ||
+    body.max_tokens !== undefined ||
+    body.top_p !== undefined ||
+    body.stop !== undefined ||
+    body.frequency_penalty !== undefined ||
+    body.presence_penalty !== undefined ||
+    body.seed !== undefined
+  ) {
     dto.params = {};
 
     if (body.temperature !== undefined) {
@@ -24,6 +32,26 @@ export function mapOpenAiChatRequestToGateway(
     }
     if (body.max_tokens !== undefined) {
       dto.params.maxOutputTokens = body.max_tokens;
+    }
+
+    if (body.top_p !== undefined) {
+      dto.params.topP = body.top_p;
+    }
+
+    if (body.stop !== undefined) {
+      dto.params.stop = body.stop;
+    }
+
+    if (body.frequency_penalty !== undefined) {
+      dto.params.frequencyPenalty = body.frequency_penalty;
+    }
+
+    if (body.presence_penalty !== undefined) {
+      dto.params.presencePenalty = body.presence_penalty;
+    }
+
+    if (body.seed !== undefined) {
+      dto.params.seed = body.seed;
     }
   }
 

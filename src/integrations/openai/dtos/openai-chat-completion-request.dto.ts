@@ -123,4 +123,13 @@ export class OpenAiChatCompletionRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
   frequency_penalty?: number;
+
+  @ApiPropertyOptional({
+    minimum: 0,
+    maximum: 2 ** 32 - 1,
+    example: 42,
+    description: 'Seed for deterministic sampling.',
+  })
+  @IsOptional()
+  seed?: number;
 }

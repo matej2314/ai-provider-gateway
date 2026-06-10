@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, Max, Min } from 'class-validator';
+import { IsNumber, IsOptional, Max, Min, IsInt } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsStringOrArrayOfStrings } from 'src/common/validators/is-string-or-array-of-strings.validator';
 import { Type } from 'class-transformer';
@@ -48,7 +48,7 @@ export class ChatParamsDto {
   @IsNumber()
   @Min(0)
   @Max(1)
-  topP?: Number;
+  topP?: number;
 
   @ApiPropertyOptional({
     description:
@@ -59,4 +59,40 @@ export class ChatParamsDto {
   @IsOptional()
   @IsStringOrArrayOfStrings()
   stop?: string | string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Penalize new tokens based on their frequency in the text. (-2 to 2).',
+    minimum: -2,
+    maximum: 2,
+    example: 0.5,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(-2)
+  @Max(2)
+  frequencyPenalty?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Penalize new tokens based on their presence in the text. (-2 to 2).',
+    minimum: -2,
+    maximum: 2,
+    example: 0.5,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(-2)
+  @Max(2)
+  presencePenalty?: number;
+
+  @ApiPropertyOptional({
+    description: 'Seed for deterministic sampling. (integer)',
+    minimum: 0,
+    maximum: 2 ** 32 - 1,
+    example: 42,
+  })
+  @IsOptional()
+  @IsInt()
+  seed?: number;
 }
