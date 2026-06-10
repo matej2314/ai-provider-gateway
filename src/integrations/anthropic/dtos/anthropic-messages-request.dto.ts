@@ -70,4 +70,18 @@ export class AnthropicMessagesRequestDto {
   })
   @IsOptional()
   tool_choice?: unknown;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  top_p?: number;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  stop_sequences?: string[];
 }
