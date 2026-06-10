@@ -18,6 +18,13 @@ import {
   parseAnthropicResponseWithTools,
 } from '../anthropic/anthropic-tools.mapper';
 
+function mapStopSequences(
+  stop: ProviderCallOptions['stop'],
+): string[] | undefined {
+  if (stop === undefined) return undefined;
+  return Array.isArray(stop) ? stop : [stop];
+}
+
 export function createAnthropicProvider(
   apiKey: string,
   loggingService: LoggingService,
@@ -42,27 +49,26 @@ export function createAnthropicProvider(
       });
 
       try {
+        const baseParams = {
+          model: modelId,
+          max_tokens: options?.maxOutputTokens ?? 1024,
+          temperature: options?.temperature ?? undefined,
+          top_p: options?.topP,
+          stop_sequences: mapStopSequences(options?.stop),
+          system: input.system,
+          messages: mapTurnsToAnthropicMessages(input.messages),
+        };
         if (input.tools?.length) {
           const params = {
-            model: modelId,
-            max_tokens: options?.maxOutputTokens ?? 1024,
-            temperature: options?.temperature,
-            system: input.system,
+            ...baseParams,
             tools: mapToolsToAnthropic(input.tools),
             tool_choice: mapToolChoiceToAnthropic(input.toolChoice),
-            messages: mapTurnsToAnthropicMessages(input.messages),
           };
           const response = await client.messages.create(params);
           return parseAnthropicResponseWithTools(response);
         }
 
-        const response = await client.messages.create({
-          model: modelId,
-          max_tokens: options?.maxOutputTokens ?? 1024,
-          temperature: options?.temperature ?? undefined,
-          system: input.system,
-          messages: mapTurnsToAnthropicMessages(input.messages),
-        });
+        const response = await client.messages.create(baseParams);
 
         let text = '';
 
@@ -102,6 +108,8 @@ export function createAnthropicProvider(
             model: modelId,
             max_tokens: options?.maxOutputTokens ?? 1024,
             temperature: options?.temperature ?? undefined,
+            top_p: options?.topP,
+            stop_sequences: mapStopSequences(options?.stop),
             system: input.system,
             messages: mapTurnsToAnthropicMessages(input.messages),
             stream: true as const,
