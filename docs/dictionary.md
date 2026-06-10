@@ -32,6 +32,18 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **CliConfigLoader** | Serwis CLI (`CliConfigLoaderService`) ładujący `gateway.config.yaml` przez `GatewayConfigSchema` **bez** wymagania `.env`. | Metody: `loadRawConfig`, `loadWithEnvCheck`, `isBoilerplateConfig`, `configExists`, `envExists`. Nie wywołuje `buildEffectiveGatewayConfig()`. |
 | **Wizard state** | Plik `.gateway-wizard-state.json` w katalogu roboczym — persistencja niedokończonego `config:init` (`WizardStateManager`). | Resume po ponownym uruchomieniu; rollback utworzonych plików przy odrzuceniu resume. |
 
+## Parametry generacji (rozszerzenia C0-C7)
+
+| Termin | Definicja | Uwagi |
+|--------|-----------|------|
+| **topP** (nucleus sampling) | Parametr kontroli losowości generacji — model bierze pod uwagę tylko najmniejszy zestaw tokenów, których skumulowane prawdopodobieństwo ≥ topP (0-1). | **Vendor-agnostic**: wspierany przez wszystkich providerów (OpenAI `top_p`, Anthropic `top_p`, Google `topP`). Zalecane: dostosować **albo** `temperature` **albo** `topP`, nie oba jednocześnie. Wyższa wartość (np. 0.95) = bardziej różnorodne odpowiedzi; niższa (np. 0.5) = bardziej konserwatywne. |
+| **stop** (stop sequences) | Lista sekwencji znaków, które zatrzymują generację tekstu przez model. | **Vendor-agnostic**: OpenAI `stop` (string \| string[]), Anthropic `stop_sequences` (array), Google `stopSequences` (array). Przydatne do kontroli długości i struktury odpowiedzi (np. `["\n\n", "###"]`). Gateway przyjmuje `string \| string[]` — konwertuje string → array dla Anthropic/Google. |
+| **frequencyPenalty** | Penalizuje tokeny na podstawie ich częstości w dotychczasowym tekście (-2 do 2). Dodatnie wartości zmniejszają prawdopodobieństwo powtórzeń linii verbatim. | **OpenAI only** (`frequency_penalty`). Anthropic i Google nie wspierają. Provider-specific. |
+| **presencePenalty** | Penalizuje tokeny na podstawie ich obecności w dotychczasowym tekście (-2 do 2). Dodatnie wartości zwiększają prawdopodobieństwo rozmów o nowych tematach. | **OpenAI only** (`presence_penalty`). Anthropic i Google nie wspierają. Provider-specific. |
+| **seed** | Liczba całkowita (integer) do deterministycznego samplingowania — ta sama seed + te same parametry = prawie identyczna odpowiedź. | **OpenAI + Google**: wspierają natywnie. **Anthropic**: nie wspiera. Przydatne do testów A/B i reprodukowalnych wyników. Nie gwarantuje absolutnego determinizmu, ale zapewnia że "losowe" wybory modelu będą takie same przy każdym wywołaniu. |
+| **topK** | Top-K sampling — model bierze pod uwagę tylko K najbardziej prawdopodobnych tokenów dla następnego tokena (liczba całkowita ≥0). | **Anthropic + Google**: wspierają natywnie (`top_k`, `topK`). **OpenAI**: nie wspiera. Provider-specific. Np. `topK: 40` = model wybierze następny token z 40 najbardziej prawdopodobnych słów. |
+| **responseFormat** (JSON mode) | Wymusza strukturę odpowiedzi modelu. Wartość `{ type: "json_object" }` włącza JSON mode — model generuje valid JSON. | **OpenAI**: natywny `response_format` (`json_object` dla JSON mode, `json_schema` dla Structured Outputs). **Google**: natywny `responseMimeType: "application/json"`. **Anthropic**: ❌ brak natywnego wsparcia — **fallback przez system prompt** (prompt engineering, best-effort). W gateway: pole `responseFormat` w `params`. |
+
 ## Kody błędów (stabilne)
 
 Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a nie na `message`.

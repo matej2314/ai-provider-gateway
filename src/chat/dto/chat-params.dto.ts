@@ -1,5 +1,6 @@
 import { IsNumber, IsOptional, Max, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsStringOrArrayOfStrings } from 'src/common/validators/is-string-or-array-of-strings.validator';
 import { Type } from 'class-transformer';
 
 const TEMPERATURE_DTO_MIN = 0;
@@ -35,4 +36,27 @@ export class ChatParamsDto {
   @Min(MAX_OUTPUT_TOKENS_DTO_MIN)
   @Max(MAX_OUTPUT_TOKENS_DTO_MAX)
   maxOutputTokens?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Nucleus sampling (0-1). Alternative to temperature for controlling randomness. Lowe values = more focues, higher values = more random.',
+    minimum: 0,
+    maximum: 1,
+    example: 0.95,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  topP?: Number;
+
+  @ApiPropertyOptional({
+    description:
+      'Sequence(s) where generating should stop. Can be a string or array of strings.',
+    oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
+    example: ['\n\n', '###'],
+  })
+  @IsOptional()
+  @IsStringOrArrayOfStrings()
+  stop?: string | string[];
 }
