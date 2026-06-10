@@ -63,6 +63,8 @@ export interface StreamResult {
 export interface ProviderCallOptions {
   temperature?: number;
   maxOutputTokens?: number;
+  topP?: number;
+  stop?: string | string[];
 }
 
 export interface AIProvider {
