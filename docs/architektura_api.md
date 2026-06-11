@@ -78,7 +78,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Parametry generacji (`params` w body)
 
-**Stan kodu:** opcjonalne **`params`** w `ChatRequestDto` (`ChatParamsDto`): `temperature`, `maxOutputTokens`, `topP`, `stop` (string \| string[]), `frequencyPenalty`, `presencePenalty`, `seed`; merge z `policy.params` w YAML przez `resolveProviderCallOptions`. Opcjonalne **`tooling`** (`definitions`, `toolChoice`) — wymaga `capabilities.tools` na aliasie. Niedozwolony override params → **`MODEL_NOT_ALLOWED`**; tooling bez capability → **`TOOLS_NOT_SUPPORTED`**. Cache pomijany dla żądań z toolingiem. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API, ale adaptery `anthropic` / `google` ich nie przekazują do SDK.
+**Stan kodu:** opcjonalne **`params`** w `ChatRequestDto` (`ChatParamsDto`): `temperature`, `maxOutputTokens`, `topP`, `stop` (string \| string[]), `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat`; merge z `policy.params` w YAML przez `resolveProviderCallOptions`. **Efekt u vendora** zależy od adaptera aliasu — macierz: `dictionary.md`, YAML: `konfiguracja.md` (Anthropic: nie `temperature` + `topP` w defaults). Opcjonalne **`tooling`** (`definitions`, `toolChoice`) — wymaga `capabilities.tools` na aliasie. Niedozwolony override params → **`MODEL_NOT_ALLOWED`**; tooling bez capability → **`TOOLS_NOT_SUPPORTED`**. Cache pomijany dla żądań z toolingiem. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API, ale adaptery `anthropic` / `google` ich nie przekazują do SDK. **Adapter OpenAI** — nie wdrożony; fasada `/openai` mapuje parametry na `params.*`.
 
 ## Rozszerzenia (pozostałość v1)
 

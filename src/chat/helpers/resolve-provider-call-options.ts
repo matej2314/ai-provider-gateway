@@ -58,6 +58,7 @@ export function resolveProviderCallOptions(
   let frequencyPenalty = defaults.frequencyPenalty;
   let presencePenalty = defaults.presencePenalty;
   let seed = defaults.seed;
+  let responseFormat = bodyParams?.responseFormat;
 
   if (bodyParams?.temperature !== undefined) {
     temperature = bodyParams.temperature;
@@ -127,5 +128,6 @@ export function resolveProviderCallOptions(
     ...(frequencyPenalty !== undefined ? { frequencyPenalty } : {}),
     ...(presencePenalty !== undefined ? { presencePenalty } : {}),
     ...(seed !== undefined ? { seed } : {}),
+    ...(responseFormat !== undefined ? { responseFormat } : {}),
   };
 }

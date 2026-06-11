@@ -59,7 +59,7 @@ Treść tekstowa jest mapowana na `messages[]` kontraktu gateway (`role` + `cont
 | `stream` | `true` — SSE Anthropic; `false` lub brak — JSON `Message` |
 | `temperature` | Opcjonalnie (0–2 w gateway), mapowane na `params.temperature`; adapter Anthropic może odrzucić wartości poza zakresem vendora |
 | `max_tokens` | Opcjonalnie; mapowane na `params.maxOutputTokens`; bez wartości — domyślne z YAML |
-| `top_p` | Opcjonalnie (0–1), mapowane na `params.topP` |
+| `top_p` | Opcjonalnie (0–1), mapowane na `params.topP`. **Nie łącz z `temperature`** w efektywnym wywołaniu — Anthropic zwraca 400, gdy oba parametry trafiają do SDK. W YAML aliasów Anthropic: default tylko `temperature` (bez `topP` w defaults). Patrz `konfiguracja.md`. |
 | `stop_sequences` | Opcjonalnie (tablica stringów), mapowane na `params.stop` |
 | `tools`, `tool_choice` | Opcjonalnie — mapowane na `tooling` gateway; wymaga `capabilities.tools: true` na aliasie |
 | `system` | **Ignorowane** — instrukcja systemowa z `src/config/system-prompt/` |
@@ -127,12 +127,14 @@ Fasada MVP celuje w prosty czat tekstowy i klienty IDE — **nie** jest drop-in 
 | `tools` | Obsługiwane oficjalnie | Mapowane przez fasadę gdy alias ma `capabilities.tools` |
 | `messages[].content` | string lub tablica | Tylko tablica bloków `text` |
 | `frequency_penalty`, `presence_penalty`, `seed` | OpenAI-compat w innych klientach | **N/A** — brak w Messages API; gateway native `/chat` może je przyjąć, adapter Anthropic ignoruje |
+| `temperature` + `top_p` | Wzajemnie wykluczające w jednym requestcie | Gateway przekazuje oba, jeśli oba są w efektywnych opcjach po merge YAML ← body; skonfiguruj policy tak, by nie wysyłać obu (domyślnie: tylko `temperature` w defaults) |
 | `top_p`, `stop_sequences` | Obsługiwane oficjalnie | Mapowane na `params.topP` / `params.stop` |
 
 Pełne dopasowanie kontraktu — kolejne iteracje (poza ETAP 2.5).
 
 ## Ograniczenia
 
+- **`temperature` i `top_p`:** nie podawaj obu w jednym wywołaniu Anthropic. Dotyczy też aliasów z default `temperature` w YAML — override `params.topP` z klienta może nadal wysłać oba parametry do API. Macierz parametrów: `dictionary.md`, konfiguracja YAML: `konfiguracja.md`.
 - Pole **`system`** w żądaniu klienta — ignorowane (prompt z `src/config/system-prompt/`).
 - Brak obrazów w content blocks (`type: image` → 400).
 - Function calling wymaga `capabilities.tools: true` na aliasie w YAML.

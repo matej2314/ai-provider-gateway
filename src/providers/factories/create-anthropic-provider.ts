@@ -25,6 +25,19 @@ function mapStopSequences(
   return Array.isArray(stop) ? stop : [stop];
 }
 
+function resolveAnthropicSamplingParams(options?: ProviderCallOptions): {
+  temperature?: number;
+  top_p?: number;
+} {
+  if (options?.topP !== undefined) {
+    return { top_p: options.topP };
+  }
+  if (options?.temperature !== undefined) {
+    return { temperature: options.temperature };
+  }
+  return {};
+}
+
 export function createAnthropicProvider(
   apiKey: string,
   loggingService: LoggingService,
@@ -52,8 +65,7 @@ export function createAnthropicProvider(
         const baseParams = {
           model: modelId,
           max_tokens: options?.maxOutputTokens ?? 1024,
-          temperature: options?.temperature ?? undefined,
-          top_p: options?.topP,
+          ...resolveAnthropicSamplingParams(options),
           stop_sequences: mapStopSequences(options?.stop),
           system: input.system,
           messages: mapTurnsToAnthropicMessages(input.messages),
@@ -107,8 +119,7 @@ export function createAnthropicProvider(
           const streamParams = {
             model: modelId,
             max_tokens: options?.maxOutputTokens ?? 1024,
-            temperature: options?.temperature ?? undefined,
-            top_p: options?.topP,
+            ...resolveAnthropicSamplingParams(options),
             stop_sequences: mapStopSequences(options?.stop),
             system: input.system,
             messages: mapTurnsToAnthropicMessages(input.messages),

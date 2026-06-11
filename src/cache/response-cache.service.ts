@@ -59,10 +59,7 @@ export class ResponseCacheService {
       modelAlias: request.modelAlias,
       messages: request.messages,
       systemSignature,
-      callParams: {
-        temperature: effectiveCallParams?.temperature ?? null,
-        maxOutputTokens: effectiveCallParams?.maxOutputTokens ?? null,
-      },
+      callParams: this.serializeCallParamsForCache(effectiveCallParams),
     });
     const hash = createHash('sha256').update(payload).digest('hex');
     const prefix =
@@ -70,6 +67,22 @@ export class ResponseCacheService {
       this.config.get<string>('redis.keyPrefix') ||
       'aigw:';
     return `${prefix}cache:chat:${hash}`;
+  }
+
+  private serializeCallParamsForCache(
+    effectiveCallParams?: ProviderCallOptions,
+  ): Record<string, unknown> {
+    const stop = effectiveCallParams?.stop;
+    return {
+      temperature: effectiveCallParams?.temperature ?? null,
+      maxOutputTokens: effectiveCallParams?.maxOutputTokens ?? null,
+      topP: effectiveCallParams?.topP ?? null,
+      stop: stop === undefined ? null : stop,
+      frequencyPenalty: effectiveCallParams?.frequencyPenalty ?? null,
+      presencePenalty: effectiveCallParams?.presencePenalty ?? null,
+      seed: effectiveCallParams?.seed ?? null,
+      responseFormat: effectiveCallParams?.responseFormat ?? null,
+    };
   }
 
   async getCachedResponse(

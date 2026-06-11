@@ -42,7 +42,6 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 500
-          topP: 0.95
         allowOverrides:
           - temperature
           - maxOutputTokens
@@ -75,7 +74,6 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 1024
-          topP: 0.95
         allowOverrides:
           - temperature
           - maxOutputTokens

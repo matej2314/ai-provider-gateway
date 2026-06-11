@@ -57,6 +57,8 @@ Lista dostępnych ID: `GET /api/v1/openai/models`.
 | `presence_penalty` | Opcjonalnie (-2–2), mapowane na `params.presencePenalty` (adaptery `anthropic`/`google` ignorują) |
 | `seed` | Opcjonalnie (integer), mapowane na `params.seed` (Anthropic ignoruje) |
 
+**Provider docelowy:** fasada mapuje pola OpenAI na wspólne `params.*`, ale **wywołanie LLM** idzie do adaptera wskazanego przez **`model`** (= `modelAlias` w YAML). Dla aliasu na Anthropic obowiązuje wykluczenie `temperature` + `top_p` (patrz `integracja-anthropic-messages.md`). **Adapter OpenAI** (`create-openai-provider.ts`) **nie jest wdrożony** — parametry penalties/seed nie trafią do OpenAI.com, dopóki alias nie wskazuje przyszłego providera OpenAI. Macierz: `dictionary.md`, `konfiguracja.md`.
+
 Limit **`messages`**: 1–15 000 (DTO fasady; natywny czat: 1–150).
 
 Role **`system`** w `messages` są **pomijane** — instrukcja systemowa z plików w `src/config/system-prompt/`.
@@ -97,6 +99,7 @@ Jeśli budujesz własną aplikację pod kontrakt gateway:
 
 ## Ograniczenia
 
+- **Brak adaptera OpenAI w runtime** — fasada przyjmuje kontrakt OpenAI, lecz modele w YAML kierują na **Anthropic** lub **Google**. Parametry z tabeli powyżej są mapowane na `params.*`; skutek u vendora = macierz w `dictionary.md`.
 - Wiadomości **`role: system`** z klienta są **pomijane** — instrukcja systemowa pochodzi z plików w `src/config/system-prompt/`.
 - **`messages[].content`** musi być stringiem (brak tablicy multimodalnej).
 - Function calling wymaga `capabilities.tools: true` na aliasie w YAML.

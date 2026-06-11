@@ -71,12 +71,19 @@ Uwaga: kontrakt HTTP **nie** przekazuje roli `system` w `messages[]`; pole `syst
 
 F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK (`ProviderCallOptions`):
 
-- `temperature`, `maxOutputTokens` — wszystkie adaptery (`anthropic`, `google`)
-- `topP`, `stop` — wszystkie adaptery
+- `temperature`, `maxOutputTokens` — wszystkie **wdrożone** adaptery (`anthropic`, `google`)
+- `topP`, `stop` — wszystkie wdrożone adaptery
 - `seed` — **Google** (`create-google-provider.ts`); Anthropic ignoruje
 - `frequencyPenalty`, `presencePenalty` — **nie przekazywane** do SDK przez bieżące adaptery (pola akceptowane w API, brak efektu u vendora)
+- `responseFormat` — merge w `resolveProviderCallOptions`; **adaptery jeszcze nie mapują** (plan C3.5+)
 
-**Nie zaimplementowane:** `topK`, `responseFormat` (brak w `ChatParamsDto` / `ProviderCallOptions`).
+**Macierz per provider** (szczegóły i reguły YAML): `docs/dictionary.md` — sekcja „Mapowanie parametrów na providerów”, `docs/konfiguracja.md`.
+
+**Anthropic — wykluczenie `temperature` / `top_p`:** API odrzuca oba w jednym requestcie. Adapter przekazuje pola bez filtrowania; operator konfiguruje `policy.params.defaults` (tylko jeden parametr losowości na alias Anthropic).
+
+**OpenAI — adapter:** **nie wdrożony** (`create-openai-provider.ts` brak w repo). Fasada HTTP `/api/v1/openai` mapuje parametry vendora na `params.*`; wywołanie trafia do adaptera aliasu (Anthropic/Google). Docelowy adapter OpenAI — scenariusz A poniżej; penalties/seed/`response_format` będą mapowane po implementacji fabryki.
+
+**Nie zaimplementowane:** `topK` (rezerwacja w `OVERRIDE_KEYS`, plan C6).
 
 F-4. Adapter mapuje błędy SDK na błędy gateway:
 
@@ -127,6 +134,10 @@ Tabela referencyjna pokazująca jak port providera (`ProviderChatInput` + `model
 | `messages[]` (`user` / `assistant` / `tool`) | `messages.create({ messages })` — mapowanie tool turns przez `anthropic-tools.mapper.ts` |
 | `tools`, `toolChoice` | `tools`, `tool_choice` w `messages.create` |
 | `modelId` | `messages.create({ model })` |
+| `options.temperature` | `messages.create({ temperature })` — **nie** razem z `top_p` w tym samym wywołaniu |
+| `options.topP` | `messages.create({ top_p })` — **nie** razem z `temperature` |
+| `options.maxOutputTokens` | `messages.create({ max_tokens })` |
+| `options.stop` | `messages.create({ stop_sequences })` — string → `[string]` |
 | `response.text` | konkatenacja `response.content[*].text` (gdzie `type === 'text'`) |
 | `usage.inputTokens` / `usage.outputTokens` | `response.usage.input_tokens` / `response.usage.output_tokens` |
 
@@ -141,10 +152,28 @@ SDK `@google/genai` zastąpiło wcześniejszy pakiet `@google/generative-ai`. Ad
 | `messages[]` (`user` / `assistant` / `tool`) | `Content[]` + `functionCall` / `functionResponse` parts — `google-tools.mapper.ts` |
 | `tools`, `toolChoice` | `tools: [{ functionDeclarations }]`, `toolConfig` w `config` |
 | `modelId` | `ai.chats.create({ model })` lub `ai.models.generateContent({ model })` |
+| `options.temperature`, `options.topP`, `options.maxOutputTokens`, `options.stop`, `options.seed` | `config` / `generationConfig` w `generateContent` / `chats.create` — **temperature i topP mogą współistnieć** |
 | wywołanie sync | `chat.sendMessage({ message })` — zwraca `GenerateContentResponse` bezpośrednio (nie zagnieżdżone w `result.response`) |
 | wywołanie stream | `chat.sendMessageStream({ message })` — zwraca `AsyncGenerator<GenerateContentResponse>`; iterujemy bez `.stream` |
 | `response.text` | property (getter) — **nie** `response.text()` |
 | `usage.inputTokens` / `usage.outputTokens` | `response.usageMetadata.promptTokenCount` / `response.usageMetadata.candidatesTokenCount` |
 
 Dla rdzenia MVP wystarczy `chats.create` (obsługuje historię i system instruction). Dla pojedynczych zapytań bez historii idiomatyczne jest `ai.models.generateContent({ model, contents, config })`.
+
+### OpenAI — `@openai/openai` (plan, post-MVP)
+
+Fabryka **`create-openai-provider.ts`** **nie istnieje** w repozytorium. Fasada `src/integrations/openai/` mapuje już `temperature`, `top_p`, `stop`, `frequency_penalty`, `presence_penalty`, `seed` na `params.*`. Po wdrożeniu adaptera oczekiwane mapowanie (orientacyjnie):
+
+| Port providera | Pole SDK (Chat Completions) |
+|----------------|----------------------------|
+| `options.temperature` | `temperature` |
+| `options.topP` | `top_p` |
+| `options.maxOutputTokens` | `max_completion_tokens` / `max_tokens` (zależnie od wersji API) |
+| `options.stop` | `stop` |
+| `options.frequencyPenalty` | `frequency_penalty` |
+| `options.presencePenalty` | `presence_penalty` |
+| `options.seed` | `seed` |
+| `options.responseFormat` | `response_format` |
+
+Do czasu wdrożenia aliasy muszą wskazywać **`anthropic`** lub **`google`** w `providerInstance`.
 

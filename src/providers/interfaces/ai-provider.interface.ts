@@ -68,6 +68,10 @@ export interface ProviderCallOptions {
   frequencyPenalty?: number;
   presencePenalty?: number;
   seed?: number;
+  responseFormat?: {
+    type: 'text' | 'json_object';
+    jsonSchema?: Record<string, unknown>;
+  };
 }
 
 export interface AIProvider {

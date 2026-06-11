@@ -165,10 +165,22 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 500
-        allowOverrides: [temperature, maxOutputTokens]
+          # Anthropic: NIE ustawiaj topP w defaults obok temperature (API odrzuca oba naraz)
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+          - topP
+          - stop
+          - frequencyPenalty
+          - presencePenalty
+          - seed
+          - responseFormat
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
+          topP: { min: 0, max: 1 }
+          frequencyPenalty: { min: -2, max: 2 }
+          presencePenalty: { min: -2, max: 2 }
 
   claude-sonnet:
     providerInstance: anthropic
@@ -186,10 +198,21 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 1024
-        allowOverrides: [temperature, maxOutputTokens]
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+          - topP
+          - stop
+          - frequencyPenalty
+          - presencePenalty
+          - seed
+          - responseFormat
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
+          topP: { min: 0, max: 1 }
+          frequencyPenalty: { min: -2, max: 2 }
+          presencePenalty: { min: -2, max: 2 }
 
   gemini-flash:
     providerInstance: google
@@ -207,11 +230,47 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 1024
-        allowOverrides: [temperature, maxOutputTokens]
+          topP: 0.95   # Google Gemini: temperature + topP w defaults jest OK
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+          - topP
+          - stop
+          - frequencyPenalty
+          - presencePenalty
+          - seed
+          - responseFormat
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
+          topP: { min: 0, max: 1 }
+          frequencyPenalty: { min: -2, max: 2 }
+          presencePenalty: { min: -2, max: 2 }
 ```
+
+### Parametry generacji a typ providera
+
+Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (`anthropic`, `google`, …). Pola **`params`** w body HTTP i fasad IDE są **wspólne** dla całego gatewaya; **efekt u vendora** zależy od adaptera powiązanego z aliasem. Pełna macierz: **`dictionary.md`** (sekcja „Mapowanie parametrów na providerów”).
+
+| Typ providera (`providers.*.type`) | Adapter runtime | Przykładowe aliasy w repo |
+|------------------------------------|-----------------|---------------------------|
+| **`anthropic`** | `create-anthropic-provider.ts` | `chat-default`, `claude-sonnet` |
+| **`google`** | `create-google-provider.ts` | `gemini-flash` |
+| **`openai`** | **brak** — fabryka `create-openai-provider.ts` nie jest wdrożona | — |
+
+**OpenAI w projekcie:** istnieje **fasada HTTP** `/api/v1/openai` (mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`), ale wywołanie LLM i tak trafia do adaptera **Anthropic** lub **Google** wskazanego przez **`modelAlias`**. Docelowy adapter OpenAI (bezpośrednie wywołanie API OpenAI) jest **poza zakresem MVP** — patrz `spec/SPEC-PROVIDERS.md` (scenariusz A).
+
+#### Reguły konfiguracji YAML (`policy.params`)
+
+| Provider | `defaults` — parametry losowości | Uwaga operacyjna |
+|----------|----------------------------------|------------------|
+| **Anthropic** | Ustaw **`temperature` albo `topP`**, nie oba | API Anthropic zwraca **400**, gdy w jednym wywołaniu są `temperature` i `top_p`. Przykład repo: default `temperature: 0.4`, **bez** `topP` w defaults. |
+| **Google Gemini** | Można **`temperature` i `topP` razem** | Przykład repo: `temperature: 0.4`, `topP: 0.95`. |
+| **OpenAI** (przyszły adapter) | Plan: jak OpenAI API — oba parametry zwykle dozwolone | Do czasu wdrożenia fabryki OpenAI alias musi wskazywać istniejący adapter. |
+
+**Override z body (`params.topP` itd.):** merge YAML ← body (`resolveProviderCallOptions`) może nadal złożyć **`temperature` z defaults + `topP` z body** na aliasie Anthropic → ten sam błąd vendora. Dopóki adapter Anthropic nie filtruje parametrów, unikaj override `topP`, gdy w YAML jest default `temperature` (i odwrotnie).
+
+**Pola akceptowane w API, ale bez efektu u vendora:** `frequencyPenalty`, `presencePenalty` — adaptery Anthropic/Google **nie przekazują** ich do SDK. `seed` — tylko **Google**. `responseFormat` — walidacja DTO + merge policy; **adaptery jeszcze nie mapują** do SDK (plan C3.5+).
 
 **Przykład multi-instance** (dwa konta Google, ten sam `type`):
 
@@ -252,7 +311,7 @@ Uwagi:
   - każda instancja providera z **`enabled !== false`** (w praktyce w YAML ustaw **`enabled: true`** dla providerów używanych w runtime; pominięte `enabled` → po parsowaniu Zod domyślnie **`false`**, wtedy instancja jest wyłączona) musi mieć **co najmniej jeden** alias w `models` z tym samym `providerInstance`;
   - po filtrze `enabled` funkcja `buildEffectiveGatewayConfig` ponownie wymusza, że każdy **aktywny** provider ma ≥1 **aktywny** model (modele powiązane z providerem `enabled: false` są pomijane z ostrzeżeniem w logu).
   - Instancja z **`enabled: false`** **nie wymaga** wpisów w `models` (może pozostać w YAML jako wyłączona rezerwa).
-- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`capabilities`**: `streaming` (wymagane dla SSE), opcjonalnie **`tools: true`** — bez tego flagi żądania z `tooling` / turami `tool` zwracają **`TOOLS_NOT_SUPPORTED`**. **`policy.params`**: w `defaults` obsługiwane m.in. `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`; w `allowOverrides` — dowolne z powyższych (plus rezerwacja `topK` / `responseFormat` bez efektu w runtime); merge w `resolveProviderCallOptions`. **`timeoutMs`** i **`retry`** — egzekwowane w `ResilientExecutor` przy wywołaniu adaptera (timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` lub `RETRY_POLICY_DEFAULTS`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`.
+- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`capabilities`**: `streaming` (wymagane dla SSE), opcjonalnie **`tools: true`** — bez tego flagi żądania z `tooling` / turami `tool` zwracają **`TOOLS_NOT_SUPPORTED`**. **`policy.params`**: w `defaults` obsługiwane m.in. `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat`; w `allowOverrides` — dowolne z powyższych (plus rezerwacja `topK` bez efektu w runtime); merge w `resolveProviderCallOptions`. **Konfiguracja defaults zależy od typu providera** (np. Anthropic: nie `temperature` + `topP` naraz) — sekcja „Parametry generacji a typ providera” powyżej. **`timeoutMs`** i **`retry`** — egzekwowane w `ResilientExecutor` przy wywołaniu adaptera (timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` lub `RETRY_POLICY_DEFAULTS`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`.
 
 ## 3) Walidacja i fail-fast
 
@@ -337,6 +396,8 @@ Szczegóły flow, resume i pełna lista komend: **`CLI.md`**. Architektura: `arc
 **DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** w formacie **`conv_<uuid>`** (regex w `ChatRequestDto`; w **response** zawsze echo lub nowe `conv_<uuid>`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation-tracking.md`) oraz opcjonalne zagnieżdżone **`params`**: `temperature`, `maxOutputTokens`, `topP`, `stop` (string \| string[]), `frequencyPenalty`, `presencePenalty`, `seed`. Fasady IDE dopuszczają do **15 000** wiadomości — patrz `integracje.md`. Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
 
 **Merge parametrów:** `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`) bierze `policy.params` z YAML dla aliasu, nakłada body `params` tylko dla pól z **`allowOverrides`**, następnie **clamp** do **`bounds`**. Niedozwolone pole → HTTP **400** + `MODEL_NOT_ALLOWED`. Efektywne wartości trafiają do adapterów (`ProviderCallOptions`) i do klucza cache (`ResponseCacheService`).
+
+**Provider docelowy:** to, które pola faktycznie trafiają do SDK, zależy od **`providerInstance`** aliasu (Anthropic / Google / w przyszłości OpenAI). Macierz wsparcia: sekcja „Parametry generacji a typ providera” powyżej oraz **`dictionary.md`**.
 
 Szczegóły: `dokumentacja_api.md`, `openapi.json`.
 

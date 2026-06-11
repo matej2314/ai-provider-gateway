@@ -34,15 +34,37 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 
 ## Parametry generacji (rozszerzenia C0-C7)
 
+### Mapowanie parametrów na providerów
+
+Pole w **`params`** (natywny czat) / mapowanie fasad OpenAI / Anthropic → **`ProviderCallOptions`** → adapter SDK. Status **adaptera runtime** (stan kodu w `src/providers/factories/`):
+
+| Parametr gateway | Pole SDK (orientacyjnie) | Anthropic | Google Gemini | OpenAI (adapter) |
+|------------------|--------------------------|-----------|---------------|------------------|
+| `temperature` | `temperature` | ✅ przekazywany | ✅ przekazywany | ⏳ **brak fabryki** — fasada `/openai` mapuje na `params`, wywołanie idzie przez alias |
+| `maxOutputTokens` | `max_tokens` / `maxOutputTokens` | ✅ | ✅ | ⏳ j.w. |
+| `topP` | `top_p` / `topP` | ✅ * | ✅ | ⏳ j.w. |
+| `stop` | `stop_sequences` / `stopSequences` / `stop` | ✅ | ✅ | ⏳ j.w. |
+| `frequencyPenalty` | `frequency_penalty` | ❌ ignorowany | ❌ ignorowany | ⏳ fasada przyjmuje; bez adaptera OpenAI brak efektu u OpenAI.com |
+| `presencePenalty` | `presence_penalty` | ❌ ignorowany | ❌ ignorowany | ⏳ j.w. |
+| `seed` | `seed` | ❌ ignorowany | ✅ przekazywany | ⏳ j.w. |
+| `responseFormat` | `response_format` / JSON mode | ❌ adapter jeszcze nie mapuje | ❌ j.w. | ⏳ plan C3+ |
+| `topK` | `top_k` / `topK` | ❌ rezerwacja w `OVERRIDE_KEYS` | ❌ j.w. | ⏳ plan C6 |
+
+\* **Anthropic — wykluczenie wzajemne:** API **odrzuca** jednoczesne `temperature` i `top_p`. W YAML dla aliasów Anthropic ustaw w **`defaults` tylko jeden** z nich (repo: default `temperature`, bez `topP`). Adapter **nie filtruje** obu parametrów — merge z body może nadal wysłać oba → **400** od vendora (`VALIDATION_FAILED` w gateway). Szczegóły: `konfiguracja.md`.
+
+**Fasada OpenAI vs adapter OpenAI:** moduł `src/integrations/openai/` tłumaczy kontrakt Cursor na `ChatRequestDto`; **nie** istnieje jeszcze `create-openai-provider.ts`. Alias `model` / `modelAlias` decyduje, czy wywołanie trafi do Anthropic czy Google.
+
+### Słownik pól
+
 | Termin | Definicja | Uwagi |
 |--------|-----------|------|
-| **topP** (nucleus sampling) | Parametr kontroli losowości generacji — model bierze pod uwagę tylko najmniejszy zestaw tokenów, których skumulowane prawdopodobieństwo ≥ topP (0-1). | **Vendor-agnostic**: wspierany przez wszystkich providerów (OpenAI `top_p`, Anthropic `top_p`, Google `topP`). Zalecane: dostosować **albo** `temperature` **albo** `topP`, nie oba jednocześnie. Wyższa wartość (np. 0.95) = bardziej różnorodne odpowiedzi; niższa (np. 0.5) = bardziej konserwatywne. |
+| **topP** (nucleus sampling) | Parametr kontroli losowości generacji — model bierze pod uwagę tylko najmniejszy zestaw tokenów, których skumulowane prawdopodobieństwo ≥ topP (0-1). | **Google / OpenAI (docelowo):** można łączyć z `temperature` w defaults. **Anthropic:** API wymaga **albo** `temperature`, **albo** `top_p` — patrz tabela powyżej. Wyższa wartość (np. 0.95) = bardziej różnorodne odpowiedzi. |
 | **stop** (stop sequences) | Lista sekwencji znaków, które zatrzymują generację tekstu przez model. | **Vendor-agnostic**: OpenAI `stop` (string \| string[]), Anthropic `stop_sequences` (array), Google `stopSequences` (array). Przydatne do kontroli długości i struktury odpowiedzi (np. `["\n\n", "###"]`). Gateway przyjmuje `string \| string[]` — konwertuje string → array dla Anthropic/Google. |
 | **frequencyPenalty** | Penalizuje tokeny na podstawie ich częstości w dotychczasowym tekście (-2 do 2). Dodatnie wartości zmniejszają prawdopodobieństwo powtórzeń linii verbatim. | Przyjmowane w natywnym API i fasadzie OpenAI (`ChatParamsDto`, `openai-request.mapper.ts`). Adaptery **`anthropic`** / **`google`** **nie przekazują** tego parametru do SDK (ciche pominięcie). |
 | **presencePenalty** | Penalizuje tokeny na podstawie ich obecności w dotychczasowym tekście (-2 do 2). Dodatnie wartości zwiększają prawdopodobieństwo rozmów o nowych tematach. | Jak `frequencyPenalty` — akceptowane w API, **ignorowane** przez adaptery `anthropic` / `google`. |
 | **seed** | Liczba całkowita (integer) do deterministycznego samplingowania — ta sama seed + te same parametry = prawie identyczna odpowiedź. | **OpenAI + Google**: wspierają natywnie. **Anthropic**: nie wspiera. Przydatne do testów A/B i reprodukowalnych wyników. Nie gwarantuje absolutnego determinizmu, ale zapewnia że "losowe" wybory modelu będą takie same przy każdym wywołaniu. |
 | **topK** | Top-K sampling — model bierze pod uwagę tylko K najbardziej prawdopodobnych tokenów dla następnego tokena (liczba całkowita ≥0). | **Nie zaimplementowane** w natywnym API: brak w `ChatParamsDto`, schemacie YAML i `ProviderCallOptions`. Wymienione w `OVERRIDE_KEYS` w `resolve-provider-call-options.ts` jako rezerwacja — bez efektu w runtime. |
-| **responseFormat** (JSON mode) | Wymusza strukturę odpowiedzi modelu. Wartość `{ type: "json_object" }` włącza JSON mode — model generuje valid JSON. | **Nie zaimplementowane** w natywnym API (jak `topK`). Planowane rozszerzenie — obecnie brak pola w DTO i adapterach. |
+| **responseFormat** (JSON mode) | Wymusza strukturę odpowiedzi modelu. Wartość `{ type: "json_object" }` włącza JSON mode. | Akceptowane w **`ChatParamsDto`** i merge policy (`allowOverrides`); **adaptery Anthropic/Google jeszcze nie przekazują** do SDK (plan C3.5+). |
 
 ## Kody błędów (stabilne)
 

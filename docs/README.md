@@ -19,7 +19,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 11. **Request ID** — propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`).
 12. **Observability** — logging/metrics (Pino, Sentry), readiness, graceful shutdown — `architektura.md`.
 13. **Śledzenie rozmów (`conversationId`)** — response zawsze z ID; Sentry Conversations tylko przy ID w request (zalecany start od tury 2 + pełne `messages[]`); szczegóły: `conversation-tracking.md`.
-14. **Parametry generacji (`params`)** — opcjonalne `temperature`, `maxOutputTokens`, `topP`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed` w body; merge z `policy.params` w YAML (`resolveProviderCallOptions`); szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
+14. **Parametry generacji (`params`)** — opcjonalne pola w body; merge z `policy.params` w YAML (`resolveProviderCallOptions`); **macierz wsparcia per provider** (Anthropic / Google / OpenAI planowany): `dictionary.md`, reguły konfiguracji YAML: `konfiguracja.md`; API: `dokumentacja_api.md`.
 15. **Odporność (retry, timeout, fallback)** — `ResilientExecutor` + `models[].fallback` w YAML; opcjonalne `effectiveModelAlias` w odpowiedzi; szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
 16. **Moduł czatu** — `ChatService` (cache, limity, odpowiedź gateway) + `ChatProviderCallService` (adaptery, metryki, SSE); helpery w `src/chat/helpers/` — `architektura-katalogi-pliki.md`, `data_flow.md`.
 17. **OpenAPI / Swagger** — `@nestjs/swagger` w kontrolerach i DTO (`src/swagger/`); jeden dokument obejmuje **natywny czat**, **health** oraz **fasady** OpenAI/Anthropic (osobne `securitySchemes`: `GatewayKeyAuth`, `BearerAuth`, `ApiKeyAuth`); dekoratory błędów: `ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport: `npm run openapi:export` → `openapi.json`; env `SWAGGER_ENABLED` — `konfiguracja.md`, `dokumentacja_api.md`.
@@ -38,7 +38,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `konfiguracja.md` — env + `gateway.config.yaml` (wizard `config:init`, wczytywanie przy starcie, walidacja Zod w `gateway-config.schema.ts` i spójność `providers` ↔ `models`); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — walidacja offline (YAML + reguły env) bez uruchamiania serwera.
 - `mcp.md` — integracja MCP (konfiguracja i granice odpowiedzialności).
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.
-- `dictionary.md` — słownik pojęć i kody błędów.
+- `dictionary.md` — słownik pojęć, kody błędów, **macierz parametrów generacji ↔ provider** (Anthropic / Google / OpenAI planowany).
 - `anty-patterny.md` — na co uważać, czego nie robić.
 - `integracje.md` — architektura fasad OpenAI / Anthropic (IDE), auth, rate limit, stan wdrożenia.
 - `integracja-openai-kontrakt.md` — podłączenie Cursor (Base URL `/api/v1/openai`); models + chat/completions (JSON i stream).
