@@ -17,6 +17,7 @@ import {
   mapTurnsToAnthropicMessages,
   parseAnthropicResponseWithTools,
 } from '../anthropic/anthropic-tools.mapper';
+import { json } from 'zod';
 
 function mapStopSequences(
   stop: ProviderCallOptions['stop'],
@@ -61,13 +62,23 @@ export function createAnthropicProvider(
         model: modelId,
       });
 
+      let systemPrompt = input.system;
+
+      if (options?.responseFormat?.type === 'json_object') {
+        const jsonInstruction =
+          '\n\nIMPORTANT: Your response must be valid JSON. Do not include any text before or after the JSON object.';
+        systemPrompt = systemPrompt
+          ? systemPrompt + jsonInstruction
+          : jsonInstruction.trim();
+      }
+
       try {
         const baseParams = {
           model: modelId,
           max_tokens: options?.maxOutputTokens ?? 1024,
           ...resolveAnthropicSamplingParams(options),
           stop_sequences: mapStopSequences(options?.stop),
-          system: input.system,
+          system: systemPrompt,
           messages: mapTurnsToAnthropicMessages(input.messages),
         };
         if (input.tools?.length) {
@@ -112,6 +123,16 @@ export function createAnthropicProvider(
     ): StreamResult {
       let streamObject: ReturnType<typeof client.messages.stream> | undefined;
 
+      let systemPrompt = input.system;
+
+      if (options?.responseFormat?.type === 'json_object') {
+        const jsonInstruction =
+          '\n\nIMPORTANT: Your response must be valid JSON. Do not include any text before or after the JSON object.';
+        systemPrompt = systemPrompt
+          ? systemPrompt + jsonInstruction
+          : jsonInstruction.trim();
+      }
+
       async function* textStream(): AsyncIterable<string> {
         try {
           logger.debug('Streaming', { model: modelId });
@@ -121,7 +142,7 @@ export function createAnthropicProvider(
             max_tokens: options?.maxOutputTokens ?? 1024,
             ...resolveAnthropicSamplingParams(options),
             stop_sequences: mapStopSequences(options?.stop),
-            system: input.system,
+            system: systemPrompt,
             messages: mapTurnsToAnthropicMessages(input.messages),
             stream: true as const,
             ...(input.tools?.length && {
