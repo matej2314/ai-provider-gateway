@@ -12,6 +12,7 @@ import {
   Max,
   Min,
   ValidateNested,
+  IsObject,
 } from 'class-validator';
 import { OpenAiChatMessageDto } from './openai-chat-message.dto';
 import { IsStringOrArrayOfStrings } from 'src/common/validators/is-string-or-array-of-strings.validator';
@@ -150,4 +151,14 @@ export class OpenAiChatCompletionRequestDto {
   @Min(0)
   @Max(2 ** 32 - 1)
   seed?: number;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    properties: {
+      type: { enum: ['text', 'json_object'] },
+    },
+  })
+  @IsOptional()
+  @IsObject()
+  response_format?: { type: 'text' | 'json_object' };
 }
