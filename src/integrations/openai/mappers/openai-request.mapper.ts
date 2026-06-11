@@ -23,7 +23,8 @@ export function mapOpenAiChatRequestToGateway(
     body.stop !== undefined ||
     body.frequency_penalty !== undefined ||
     body.presence_penalty !== undefined ||
-    body.seed !== undefined
+    body.seed !== undefined ||
+    body.response_format !== undefined
   ) {
     dto.params = {};
 
@@ -52,6 +53,12 @@ export function mapOpenAiChatRequestToGateway(
 
     if (body.seed !== undefined) {
       dto.params.seed = body.seed;
+    }
+
+    if (body.response_format !== undefined) {
+      dto.params.responseFormat = {
+        type: body.response_format.type,
+      };
     }
   }
 
