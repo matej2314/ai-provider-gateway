@@ -17,7 +17,6 @@ import {
   mapTurnsToAnthropicMessages,
   parseAnthropicResponseWithTools,
 } from '../anthropic/anthropic-tools.mapper';
-import { json } from 'zod';
 
 function mapStopSequences(
   stop: ProviderCallOptions['stop'],
@@ -62,25 +61,40 @@ export function createAnthropicProvider(
         model: modelId,
       });
 
-      let systemPrompt = input.system;
-
-      if (options?.responseFormat?.type === 'json_object') {
-        const jsonInstruction =
-          '\n\nIMPORTANT: Your response must be valid JSON. Do not include any text before or after the JSON object.';
-        systemPrompt = systemPrompt
-          ? systemPrompt + jsonInstruction
-          : jsonInstruction.trim();
-      }
-
       try {
         const baseParams = {
           model: modelId,
           max_tokens: options?.maxOutputTokens ?? 1024,
           ...resolveAnthropicSamplingParams(options),
           stop_sequences: mapStopSequences(options?.stop),
-          system: systemPrompt,
+          system: input.system,
           messages: mapTurnsToAnthropicMessages(input.messages),
+          ...(options?.responseFormat?.type === 'json_object' &&
+            options?.responseFormat?.jsonSchema && {
+              output_config: {
+                format: {
+                  type: 'json_schema' as const,
+                  schema: {
+                    ...options.responseFormat.jsonSchema,
+                    additionalProperties:
+                      options.responseFormat.jsonSchema.additionalProperties ??
+                      false,
+                  },
+                },
+              },
+            }),
         };
+
+        if (
+          options?.responseFormat?.type === 'json_object' &&
+          !options?.responseFormat?.jsonSchema
+        ) {
+          const jsonInstruction =
+            '\n\nIMPORTANT: Your response must be valid JSON. Do not include any text before or after the JSON object.';
+          baseParams.system = baseParams.system
+            ? baseParams.system + jsonInstruction
+            : jsonInstruction.trim();
+        }
         if (input.tools?.length) {
           const params = {
             ...baseParams,
@@ -123,16 +137,6 @@ export function createAnthropicProvider(
     ): StreamResult {
       let streamObject: ReturnType<typeof client.messages.stream> | undefined;
 
-      let systemPrompt = input.system;
-
-      if (options?.responseFormat?.type === 'json_object') {
-        const jsonInstruction =
-          '\n\nIMPORTANT: Your response must be valid JSON. Do not include any text before or after the JSON object.';
-        systemPrompt = systemPrompt
-          ? systemPrompt + jsonInstruction
-          : jsonInstruction.trim();
-      }
-
       async function* textStream(): AsyncIterable<string> {
         try {
           logger.debug('Streaming', { model: modelId });
@@ -142,14 +146,39 @@ export function createAnthropicProvider(
             max_tokens: options?.maxOutputTokens ?? 1024,
             ...resolveAnthropicSamplingParams(options),
             stop_sequences: mapStopSequences(options?.stop),
-            system: systemPrompt,
+            system: input.system,
             messages: mapTurnsToAnthropicMessages(input.messages),
             stream: true as const,
             ...(input.tools?.length && {
               tools: mapToolsToAnthropic(input.tools),
               tool_choice: mapToolChoiceToAnthropic(input.toolChoice),
             }),
+            ...(options?.responseFormat?.type === 'json_object' &&
+              options?.responseFormat?.jsonSchema && {
+                output_config: {
+                  format: {
+                    type: 'json_schema' as const,
+                    schema: {
+                      ...options.responseFormat.jsonSchema,
+                      additionalProperties:
+                        options.responseFormat.jsonSchema.additionalProperties ??
+                        false,
+                    },
+                  },
+                },
+              }),
           };
+
+          if (
+            options?.responseFormat?.type === 'json_object' &&
+            !options?.responseFormat?.jsonSchema
+          ) {
+            const jsonInstruction =
+              '\n\nIMPORTANT: Your response must be valid JSON. Do not include any text before or after the JSON object.';
+            streamParams.system = streamParams.system
+              ? streamParams.system + jsonInstruction
+              : jsonInstruction.trim();
+          }
 
           streamObject = client.messages.stream(streamParams);
 
