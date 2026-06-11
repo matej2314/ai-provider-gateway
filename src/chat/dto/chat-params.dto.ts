@@ -1,5 +1,13 @@
-import { IsNumber, IsOptional, Max, Min, IsInt } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  Max,
+  Min,
+  IsInt,
+  ValidateNested,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ResponseFormatDto } from './response-format.dto';
 import { IsStringOrArrayOfStrings } from 'src/common/validators/is-string-or-array-of-strings.validator';
 import { Type } from 'class-transformer';
 
@@ -99,4 +107,14 @@ export class ChatParamsDto {
   @Min(0)
   @Max(2 ** 32 - 1)
   seed?: number;
+
+  @ApiPropertyOptional({
+    type: ResponseFormatDto,
+    description:
+      'Desired response format. Use {type: "json_object") for JSON mode.',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ResponseFormatDto)
+  responseFormat?: ResponseFormatDto;
 }
