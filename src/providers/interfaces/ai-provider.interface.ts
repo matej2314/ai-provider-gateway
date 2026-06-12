@@ -33,6 +33,7 @@ export interface ProviderChatInput {
   messages: ProviderChatTurn[];
   tools?: ProviderToolDefinition[];
   toolChoice?: GatewayToolChoice;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface ProviderUsageDetails {

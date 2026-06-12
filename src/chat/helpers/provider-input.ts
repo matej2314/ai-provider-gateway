@@ -48,5 +48,10 @@ export function buildProviderInputForAlias(
       input.toolChoice = request.tooling.toolChoice;
     }
   }
+
+  if (request.metadata) {
+    input.metadata = request.metadata;
+  }
+
   return input;
 }
