@@ -5,6 +5,8 @@ export interface LlmCallMessage {
   toolCallsCount?: number;
 }
 
+export type LlmRequestMetadata = Record<string, string | number | boolean>;
+
 export interface LlmCallContext {
   provider: string;
   modelAlias: string;
@@ -12,6 +14,7 @@ export interface LlmCallContext {
   requestId: string;
   conversationId?: string;
   messages?: LlmCallMessage[];
+  metadata?: LlmRequestMetadata;
 }
 
 export interface LlmCallObservation {

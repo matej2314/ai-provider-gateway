@@ -7,6 +7,7 @@ import type {
   LlmCallObservation,
   llmStreamSpanController,
   LlmCallMessage,
+  LlmRequestMetadata,
 } from '../interfaces/metrics-backend.interface';
 
 function toGenAiProviderName(provider: string): string {
@@ -74,6 +75,14 @@ function applyGenAiConversationIdToSpan(
   span.setAttribute('gen_ai.conversation.id', conversationId);
 }
 
+function applyRequestMetadataContext(metadata: LlmRequestMetadata): void {
+  Sentry.setContext('request_metadata', metadata);
+}
+
+function clearRequestMetadataContext(): void {
+  Sentry.setContext('request_metadata', null);
+}
+
 @Injectable()
 export class SentryAiMetricsAdapter implements MetricsBackend {
   async observeLlmCall<T>(
@@ -83,6 +92,10 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
   ): Promise<T> {
     if (context.conversationId) {
       Sentry.setConversationId(context.conversationId);
+    }
+
+    if (context.metadata) {
+      applyRequestMetadataContext(context.metadata);
     }
 
     try {
@@ -138,12 +151,20 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
       if (context.conversationId) {
         Sentry.setConversationId(null);
       }
+
+      if (context.metadata) {
+        clearRequestMetadataContext();
+      }
     }
   }
 
   observeLlmStream(context: LlmCallContext): llmStreamSpanController {
     if (context.conversationId) {
       Sentry.setConversationId(context.conversationId);
+    }
+
+    if (context.metadata) {
+      applyRequestMetadataContext(context.metadata);
     }
 
     const span = Sentry.startInactiveSpan({
@@ -192,6 +213,10 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
 
         if (context.conversationId) {
           Sentry.setConversationId(null);
+        }
+
+        if (context.metadata) {
+          clearRequestMetadataContext();
         }
       },
     };

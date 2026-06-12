@@ -52,5 +52,6 @@ export function buildLlmMetricsContext(
     requestId,
     conversationId: getClientConversationId(requestBody),
     messages: toMetricsMessages(requestBody.messages),
+    ...(requestBody.metadata && { metadata: requestBody.metadata }),
   };
 }
