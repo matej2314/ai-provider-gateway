@@ -39,7 +39,8 @@ export function mapAnthropicRequestToGateway(
     body.temperature !== undefined ||
     body.max_tokens !== undefined ||
     body.top_p !== undefined ||
-    body.stop_sequences !== undefined
+    body.stop_sequences !== undefined ||
+    body.output_config !== undefined
   ) {
     dto.params = {};
     if (body.temperature !== undefined) {
@@ -53,6 +54,16 @@ export function mapAnthropicRequestToGateway(
     }
     if (body.stop_sequences !== undefined) {
       dto.params.stop = body.stop_sequences;
+    }
+
+    if (body.output_config !== undefined) {
+      dto.params.responseFormat = {
+        type:
+          body.output_config.format?.type === 'json_schema'
+            ? 'json_object'
+            : 'text',
+        jsonSchema: body.output_config.format?.schema,
+      };
     }
   }
 
