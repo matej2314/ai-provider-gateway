@@ -8,28 +8,52 @@ import type { GatewayToolCall } from 'src/providers/types/tooling-types';
 function mapGatewayToolCallsToAnthropic(
   toolCalls: GatewayToolCall[],
 ): AnthropicContentBlock[] {
-  return toolCalls.map((toolCall) => ({
-    type: 'tool_use',
-    id: toolCall.id,
-    name: toolCall.name,
-    input: JSON.parse(toolCall.arguments || '{}'),
-  }));
+  return toolCalls.map((toolCall) => {
+    let input: Record<string, unknown>;
+    try {
+      input = JSON.parse(toolCall.arguments || '{}');
+    } catch (error) {
+      input = {};
+    }
+    return {
+      type: 'tool_use',
+      id: toolCall.id,
+      name: toolCall.name,
+      input,
+    };
+  });
 }
 
 function mapStopReason(
   finishReason?: ChatResponseDto['finishReason'],
 ): AnthropicMessagesResponseDto['stop_reason'] {
-  if (finishReason === 'tool_calls') return 'tool_use';
-  return 'end_turn';
+  if (!finishReason) return 'end_turn';
+
+  switch (finishReason) {
+    case 'tool_calls':
+      return 'tool_use';
+
+    case 'length':
+      return 'max_tokens';
+
+    case 'stop':
+      return 'end_turn';
+
+    case 'content_filter':
+      return 'refusal';
+
+    default:
+      return 'end_turn';
+  }
 }
 
-export function mapGatewayResultToAnthropic(
+export function mapGatewayResponseToAnthropicFormat(
   result: ChatResponseDto,
   requestedModel: string,
 ): AnthropicMessagesResponseDto {
   const content: AnthropicContentBlock[] = [];
 
-  if (result.output.text !== undefined) {
+  if (result.output.text !== undefined && result.output.text !== '') {
     content.push({ type: 'text', text: result.output.text });
   }
 
@@ -48,6 +72,10 @@ export function mapGatewayResultToAnthropic(
     usage: {
       input_tokens: result.usage?.inputTokens ?? 0,
       output_tokens: result.usage?.outputTokens ?? 0,
+      cache_creation_input_tokens:
+        result.usageDetails?.promptCacheCreationTokens ?? null,
+      cache_read_input_tokens:
+        result.usageDetails?.promptCacheHitTokens ?? null,
     },
   };
 }

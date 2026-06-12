@@ -25,7 +25,7 @@ import { AnthropicMessagesResponseDto } from '../dtos/anthropic-messages-respons
 import { ApiAnthropicErrorResponses } from 'src/common/decorators/api-anthropic-error-response.decorator';
 import { ApiRequestIdHeader } from 'src/common/decorators/api-request-id-header.decorator';
 import { mapAnthropicRequestToGateway } from '../mappers/anthropic-request.mapper';
-import { mapGatewayResultToAnthropic } from '../mappers/anthropic-response.mapper';
+import { mapGatewayResponseToAnthropicFormat } from '../mappers/anthropic-response.mapper';
 import {
   createAnthropicStreamState,
   mapSseEventToAnthropic,
@@ -102,7 +102,7 @@ export class AnthropicMessagesController {
       req.requestId,
       gatewayKey,
     )) as ChatResponseDto;
-    res.json(mapGatewayResultToAnthropic(result, body.model));
+    res.json(mapGatewayResponseToAnthropicFormat(result, body.model));
   }
 
   private async handleStream(

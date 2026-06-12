@@ -49,6 +49,20 @@ export class AnthropicMessagesUsageDto {
 
   @ApiProperty({ example: 48 })
   output_tokens: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Prompt cache creation tokens (Anthropic). Number of input tokens written to cache.',
+    example: 12,
+  })
+  cache_creation_input_tokens?: number | null;
+
+  @ApiPropertyOptional({
+    description:
+      'Prompt cache read tokens (Anthropic). Number of input tokens read from cache.',
+    example: 12,
+  })
+  cache_read_input_tokens?: number | null;
 }
 
 export class AnthropicMessagesResponseDto {
@@ -69,10 +83,24 @@ export class AnthropicMessagesResponseDto {
 
   @ApiProperty({
     nullable: true,
-    enum: ['end_turn', 'tool_use', 'max_tokens'],
+    enum: [
+      'end_turn',
+      'tool_use',
+      'max_tokens',
+      'stop_sequence',
+      'pause_turn',
+      'refusal',
+    ],
     example: 'end_turn',
   })
-  stop_reason: 'end_turn' | 'tool_use' | 'max_tokens' | null;
+  stop_reason:
+    | 'end_turn'
+    | 'tool_use'
+    | 'max_tokens'
+    | 'stop_sequence'
+    | 'pause_turn'
+    | 'refusal'
+    | null;
 
   @ApiProperty({ nullable: true, example: null })
   stop_sequence: string | null;
