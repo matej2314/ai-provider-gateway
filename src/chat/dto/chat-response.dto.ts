@@ -4,6 +4,20 @@ import { ChatOutputTextDto } from './chat-output-text.dto';
 import { GatewayToolCallDto } from 'src/common/dtos/gateway-tool-call.dto';
 import { ChatUsageDto } from './chat-usage.dto';
 
+export class ChatUsageDetailsDto {
+  @ApiPropertyOptional({
+    description:
+      'Prompt cache hit tokens (Anthropic). Number of input tokens read from cache.',
+  })
+  promptCacheHitTokens?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Promp cache creation tokens (Anthropic). Number of input tokens written to cache.',
+  })
+  promptCacheCreationTokens?: number;
+}
+
 export class ChatResponseDto {
   @ApiProperty({
     example: 'gw_01HZZZZZZZZZZZZZZZZZZZZZZ',
@@ -66,4 +80,18 @@ export class ChatResponseDto {
     format: 'date-time',
   })
   cachedAt?: string;
+
+  @ApiPropertyOptional({
+    type: ChatUsageDetailsDto,
+    description:
+      'Extended usage details (cache tokens, reasoning tokens). Populated when provider supports extended usage details.',
+  })
+  usageDetails?: ChatUsageDetailsDto;
+
+  @ApiPropertyOptional({
+    description:
+      'System fingerprinting (OpenAI). Identifier for backend configuration snapshot.',
+    example: 'fp_01HZZZZZZZZZZZZZZZZZZZZZZ',
+  })
+  systemFingerprint?: string;
 }
