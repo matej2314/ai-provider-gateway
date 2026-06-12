@@ -75,6 +75,7 @@ export interface StreamResult {
   >;
   getFinalToolCalls?: () => Promise<ProviderToolCall[] | undefined>;
   getStopReason?: () => Promise<ProviderChatResponse['stopReason']>;
+  getSystemFingerprint?: () => Promise<string | undefined>;
 }
 
 export interface ProviderCallOptions {

@@ -19,7 +19,18 @@ export type SseDoneEvent = {
     totalTokens?: number;
   };
   toolCalls?: GatewayToolCall[];
-  finishReason?: 'stop' | 'tool_calls' | 'length' | 'content_filter';
+  finishReason?:
+    | 'end_turn'
+    | 'tool_use'
+    | 'max_tokens'
+    | 'stop_sequence'
+    | 'pause_turn'
+    | 'refusal'
+    | 'tool_calls'
+    | 'stop'
+    | 'length'
+    | 'content_filter';
+  systemFingerprint?: string;
 };
 
 export type SseEvent =

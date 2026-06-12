@@ -317,22 +317,34 @@ export class ChatService {
     const metaEmitted = { value: false };
 
     const runOnce = async (alias: string, _attemptNo: number) => {
-      const { assembledText, usageMetadata, toolCalls, stopReason } =
-        await this.providerCallService.streamOnce({
-          requestBody,
-          alias,
-          requestId,
-          resolvedPrompts,
-          emit,
-          streamMeta: {
-            gatewayId: id,
-            primaryModelAlias: requestBody.modelAlias,
-            responseConversationId,
-            metaEmitted,
-          },
-        });
+      const {
+        assembledText,
+        usageMetadata,
+        toolCalls,
+        stopReason,
+        systemFingerprint,
+      } = await this.providerCallService.streamOnce({
+        requestBody,
+        alias,
+        requestId,
+        resolvedPrompts,
+        emit,
+        streamMeta: {
+          gatewayId: id,
+          primaryModelAlias: requestBody.modelAlias,
+          responseConversationId,
+          metaEmitted,
+        },
+      });
       const resolved = this.registry.resolve(alias);
-      return { resolved, assembledText, usageMetadata, toolCalls, stopReason };
+      return {
+        resolved,
+        assembledText,
+        usageMetadata,
+        toolCalls,
+        stopReason,
+        systemFingerprint,
+      };
     };
 
     try {
@@ -344,7 +356,13 @@ export class ChatService {
         requestId,
       });
 
-      const { resolved, toolCalls, stopReason, usageMetadata } = result.value;
+      const {
+        resolved,
+        toolCalls,
+        stopReason,
+        usageMetadata,
+        systemFingerprint,
+      } = result.value;
       const usedAlias = result.usedAlias;
       const didFallback = result.didFallback;
 
@@ -361,6 +379,7 @@ export class ChatService {
           }),
           ...(toolCalls?.length && { toolCalls }),
           finishReason: mapStopReasonToFinishReason(stopReason, toolCalls),
+          ...(systemFingerprint && { systemFingerprint }),
         },
       });
 

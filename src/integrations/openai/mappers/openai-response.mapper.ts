@@ -18,6 +18,12 @@ function mapGatewayToolCallsToOpenAi(
   }));
 }
 
+export function mapSystemFingerprintToOpenAi(
+  systemFingerprint?: string,
+): Pick<OpenAiChatCompletionResponseDto, 'system_fingerprint'> | {} {
+  return systemFingerprint ? { system_fingerprint: systemFingerprint } : {};
+}
+
 export function mapFinishReasontoOpenAI(
   finishReason?: ChatResponseDto['finishReason'],
 ): OpenAiChatCompletionResponseDto['choices'][0]['finish_reason'] {
@@ -72,5 +78,6 @@ export function mapChatResponseToOpenAi(
       completion_tokens: output,
       total_tokens: input + output,
     },
+    ...mapSystemFingerprintToOpenAi(result.systemFingerprint),
   };
 }

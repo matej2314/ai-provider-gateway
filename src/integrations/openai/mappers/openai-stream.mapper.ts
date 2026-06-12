@@ -1,6 +1,7 @@
 import {
   mapFinishReasontoOpenAI,
   toOpenAiCompletionId,
+  mapSystemFingerprintToOpenAi,
 } from './openai-response.mapper';
 import type { SseDoneEvent, SseEvent } from 'src/chat/sse/sse-event.type';
 import type { GatewayToolCall } from 'src/providers/types/tooling-types';
@@ -145,9 +146,15 @@ export function mapSseEventToOpenAi(
           total_tokens: event.data.usage.totalTokens ?? input + output,
         };
       }
+      Object.assign(
+        finalChunk,
+        mapSystemFingerprintToOpenAi(event.data.systemFingerprint),
+      );
+
       lines.push(chunkLine(finalChunk), 'data: [DONE]\n\n');
       return lines;
     }
+
     default:
       return [];
   }

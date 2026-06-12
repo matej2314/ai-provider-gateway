@@ -78,4 +78,11 @@ export class OpenAiChatCompletionResponseDto {
 
   @ApiPropertyOptional({ type: OpenAiChatCompletionUsageDto })
   usage?: OpenAiChatCompletionUsageDto;
+
+  @ApiPropertyOptional({
+    description:
+      'System fingerprinting (OpenAI). Identifier for backend configuration snapshot.',
+    example: 'fp_01HZZZZZZZZZZZZZZZZZZZZZZ',
+  })
+  system_fingerprint?: string;
 }

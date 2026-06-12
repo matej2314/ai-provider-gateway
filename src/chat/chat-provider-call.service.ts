@@ -33,6 +33,7 @@ export interface StreamOnceResult {
     | undefined;
   toolCalls?: ProviderToolCall[];
   stopReason?: ProviderChatResponse['stopReason'];
+  systemFingerprint?: string;
 }
 
 export interface StreamOnceParams {
@@ -184,6 +185,10 @@ export class ChatProviderCallService {
         : undefined,
     });
 
+    const systemFingerprint = streamResult.getSystemFingerprint
+      ? await streamResult.getSystemFingerprint()
+      : undefined;
+
     return {
       providerName: resolved.providerName,
       modelId: resolved.modelId,
@@ -197,6 +202,7 @@ export class ChatProviderCallService {
         | undefined,
       ...(toolCalls?.length && { toolCalls }),
       ...(stopReason && { stopReason }),
+      ...(systemFingerprint && { systemFingerprint }),
     };
   }
 }
