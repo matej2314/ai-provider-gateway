@@ -65,6 +65,10 @@ export function mapAnthropicRequestToGateway(
         jsonSchema: body.output_config.format?.schema,
       };
     }
+
+    if (body.metadata?.user_id) {
+      dto.metadata = { userId: body.metadata.user_id };
+    }
   }
 
   const definitions = body.tools?.length

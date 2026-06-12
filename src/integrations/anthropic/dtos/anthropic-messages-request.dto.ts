@@ -112,4 +112,15 @@ export class AnthropicMessagesRequestDto {
       schema: Record<string, unknown>;
     };
   };
+
+  @ApiPropertyOptional({
+    description: 'Metadata for abuse monitoring (user_id)',
+    type: 'object',
+    properties: {
+      user_id: { type: 'string' },
+    },
+  })
+  @IsOptional()
+  @IsObject()
+  metadata?: { user_id?: string };
 }
