@@ -5,6 +5,7 @@ import type {
   ProviderChatTurn,
   ProviderToolDefinition,
   ProviderToolResultTurn,
+  ProviderUsageDetails,
 } from '../interfaces/ai-provider.interface';
 import type { GatewayToolChoice } from '../types/tooling-types';
 import type { ProviderToolCall } from '../interfaces/ai-provider.interface';
@@ -120,6 +121,22 @@ export function parseAnthropicResponseWithTools(
     ? STOP_REASON_MAP[response.stop_reason]
     : undefined;
 
+  let usageDetails: ProviderUsageDetails | undefined;
+
+  if (response.usage.cache_read_input_tokens != null) {
+    usageDetails = {
+      ...usageDetails,
+      promptCacheHitTokens: response.usage.cache_read_input_tokens,
+    };
+  }
+
+  if (response.usage.cache_creation_input_tokens != null) {
+    usageDetails = {
+      ...usageDetails,
+      promptCacheCreationTokens: response.usage.cache_creation_input_tokens,
+    };
+  }
+
   return {
     text,
     ...(toolCalls.length ? { toolCalls } : {}),
@@ -129,6 +146,7 @@ export function parseAnthropicResponseWithTools(
       inputTokens: response.usage.input_tokens,
       outputTokens: response.usage.output_tokens,
     },
+    ...(usageDetails ? { usageDetails } : {}),
   };
 }
 
