@@ -38,7 +38,17 @@ export interface ProviderChatInput {
 export interface ProviderChatResponse {
   text: string;
   toolCalls?: ProviderToolCall[];
-  stopReason?: 'end_turn' | 'tool_use' | 'max_tokens' | 'stop_sequence';
+  stopReason?:
+    | 'end_turn'
+    | 'tool_use'
+    | 'max_tokens'
+    | 'stop_sequence'
+    | 'pause_turn'
+    | 'refusal'
+    | 'tool_calls'
+    | 'stop'
+    | 'length'
+    | 'content_filter';
   model?: string;
   usage?: {
     inputTokens: number;

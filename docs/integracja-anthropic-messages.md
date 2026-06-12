@@ -43,6 +43,61 @@ W polu **`model`** żądania podaj **`modelAlias`** z YAML (np. `chat-default`, 
 
 Lista dostępnych ID: `GET /api/v1/anthropic/models`.
 
+## Structured outputs (JSON mode)
+
+Fasada wspiera parametr **`output_config.format`** w oficjalnym kształcie Anthropic Messages API — zgodnie z dokumentacją https://platform.claude.com/docs/en/build-with-claude/structured-outputs.
+
+### Przykład żądania
+
+```bash
+curl -s http://localhost:3000/api/v1/anthropic/messages \
+  -H "x-api-key: $GATEWAY_KEY_IDE_PLUGIN" \
+  -H "Content-Type: application/json" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "chat-default",
+    "max_tokens": 1024,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Generate user profile JSON with name and age"
+          }
+        ]
+      }
+    ],
+    "output_config": {
+      "format": {
+        "type": "json_schema",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "age": { "type": "number" }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        }
+      }
+    }
+  }'
+```
+
+### Mapowanie na gateway
+
+- `output_config.format.type: 'json_schema'` → gateway `responseFormat: { type: 'json_object' }`
+- `output_config.format.schema` → gateway `responseFormat.jsonSchema`
+
+Gateway propaguje to do Anthropic provider, który używa **natywnego `output_config.format`** w wywołaniu SDK.
+
+### Ograniczenia
+
+- Fasada przyjmuje kształt zgodny z **oficjalnym Anthropic Messages API** (wire-compatible): `output_config.format.type: 'json_schema'` z obowiązkowym `schema`.
+- Nie ma wsparcia dla uproszczonego JSON mode bez schematu — oficjalne API Anthropic wymaga schematu przy `json_schema`.
+- Gateway internal używa abstrakcji `responseFormat`, ale fasada respektuje oficjalny shape Anthropic.
+
 ## Mapowanie treści wiadomości
 
 Każda wiadomość musi zawierać co najmniej jeden blok **`type: text`** z polem `text`. Oficjalne API dopuszcza też skrót `content` jako string — w tej fasadzie MVP wymagana jest **tablica bloków**.
@@ -61,6 +116,7 @@ Treść tekstowa jest mapowana na `messages[]` kontraktu gateway (`role` + `cont
 | `max_tokens` | Opcjonalnie; mapowane na `params.maxOutputTokens`; bez wartości — domyślne z YAML |
 | `top_p` | Opcjonalnie (0–1), mapowane na `params.topP`. **Nie łącz z `temperature`** w efektywnym wywołaniu — Anthropic zwraca 400, gdy oba parametry trafiają do SDK. W YAML aliasów Anthropic: default tylko `temperature` (bez `topP` w defaults). Patrz `konfiguracja.md`. |
 | `stop_sequences` | Opcjonalnie (tablica stringów), mapowane na `params.stop` |
+| `output_config` | Opcjonalnie — structured outputs (JSON mode). Format: `{ format: { type: 'json_schema', schema: {...} } }`. Mapowane na `params.responseFormat`. Wymaga schematu JSON. Patrz sekcja „Structured outputs (JSON mode)". |
 | `tools`, `tool_choice` | Opcjonalnie — mapowane na `tooling` gateway; wymaga `capabilities.tools: true` na aliasie |
 | `system` | **Ignorowane** — instrukcja systemowa z `src/config/system-prompt/` |
 
@@ -126,6 +182,7 @@ Fasada MVP celuje w prosty czat tekstowy i klienty IDE — **nie** jest drop-in 
 | `system`, obrazy | Obsługiwane oficjalnie | `system` ignorowany; `image` → 400 |
 | `tools` | Obsługiwane oficjalnie | Mapowane przez fasadę gdy alias ma `capabilities.tools` |
 | `messages[].content` | string lub tablica | Tylko tablica bloków `text` |
+| `output_config.format` | Obsługiwane oficjalnie | Mapowane na `params.responseFormat`; wymaga schematu JSON |
 | `frequency_penalty`, `presence_penalty`, `seed` | OpenAI-compat w innych klientach | **N/A** — brak w Messages API; gateway native `/chat` może je przyjąć, adapter Anthropic ignoruje |
 | `temperature` + `top_p` | Wzajemnie wykluczające w jednym requestcie | Gateway przekazuje oba, jeśli oba są w efektywnych opcjach po merge YAML ← body; skonfiguruj policy tak, by nie wysyłać obu (domyślnie: tylko `temperature` w defaults) |
 | `top_p`, `stop_sequences` | Obsługiwane oficjalnie | Mapowane na `params.topP` / `params.stop` |

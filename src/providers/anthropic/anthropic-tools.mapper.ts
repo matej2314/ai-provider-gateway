@@ -25,6 +25,8 @@ const STOP_REASON_MAP: Partial<
   tool_use: 'tool_use',
   max_tokens: 'max_tokens',
   stop_sequence: 'stop_sequence',
+  pause_turn: 'pause_turn',
+  refusal: 'refusal',
 };
 
 export function mapToolsToAnthropic(tools: ProviderToolDefinition[]): Tool[] {

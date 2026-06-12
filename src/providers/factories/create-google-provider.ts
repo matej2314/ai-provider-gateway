@@ -32,10 +32,11 @@ function buildGenerationConfig(options?: ProviderCallOptions) {
     topP: options?.topP,
     stopSequences: mapStopSequences(options?.stop),
     seed: options?.seed,
-    responseMimeType:
+    response_format:
       options?.responseFormat?.type === 'json_object'
         ? 'application/json'
         : undefined,
+    response_schema: options?.responseFormat?.jsonSchema,
   };
 }
 

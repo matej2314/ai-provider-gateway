@@ -29,12 +29,13 @@ function resolveAnthropicSamplingParams(options?: ProviderCallOptions): {
   temperature?: number;
   top_p?: number;
 } {
-  if (options?.topP !== undefined) {
-    return { top_p: options.topP };
-  }
   if (options?.temperature !== undefined) {
     return { temperature: options.temperature };
   }
+  if (options?.topP !== undefined) {
+    return { top_p: options.topP };
+  }
+
   return {};
 }
 
@@ -69,32 +70,18 @@ export function createAnthropicProvider(
           stop_sequences: mapStopSequences(options?.stop),
           system: input.system,
           messages: mapTurnsToAnthropicMessages(input.messages),
-          ...(options?.responseFormat?.type === 'json_object' &&
-            options?.responseFormat?.jsonSchema && {
-              output_config: {
-                format: {
-                  type: 'json_schema' as const,
-                  schema: {
-                    ...options.responseFormat.jsonSchema,
-                    additionalProperties:
-                      options.responseFormat.jsonSchema.additionalProperties ??
-                      false,
-                  },
+          ...(options?.responseFormat?.type === 'json_object' && {
+            output_config: {
+              format: {
+                type: 'json_schema' as const,
+                schema: options.responseFormat.jsonSchema ?? {
+                  type: 'object',
+                  additionalProperties: true,
                 },
               },
-            }),
+            },
+          }),
         };
-
-        if (
-          options?.responseFormat?.type === 'json_object' &&
-          !options?.responseFormat?.jsonSchema
-        ) {
-          const jsonInstruction =
-            '\n\nIMPORTANT: Your response must be valid JSON. Do not include any text before or after the JSON object.';
-          baseParams.system = baseParams.system
-            ? baseParams.system + jsonInstruction
-            : jsonInstruction.trim();
-        }
         if (input.tools?.length) {
           const params = {
             ...baseParams,
@@ -148,37 +135,23 @@ export function createAnthropicProvider(
             stop_sequences: mapStopSequences(options?.stop),
             system: input.system,
             messages: mapTurnsToAnthropicMessages(input.messages),
-            stream: true as const,
+            stream: true,
             ...(input.tools?.length && {
               tools: mapToolsToAnthropic(input.tools),
               tool_choice: mapToolChoiceToAnthropic(input.toolChoice),
             }),
-            ...(options?.responseFormat?.type === 'json_object' &&
-              options?.responseFormat?.jsonSchema && {
-                output_config: {
-                  format: {
-                    type: 'json_schema' as const,
-                    schema: {
-                      ...options.responseFormat.jsonSchema,
-                      additionalProperties:
-                        options.responseFormat.jsonSchema
-                          .additionalProperties ?? false,
-                    },
+            ...(options?.responseFormat?.type === 'json_object' && {
+              output_config: {
+                format: {
+                  type: 'json_schema' as const,
+                  schema: options.responseFormat.jsonSchema ?? {
+                    type: 'object',
+                    additionalProperties: true,
                   },
                 },
-              }),
+              },
+            }),
           };
-
-          if (
-            options?.responseFormat?.type === 'json_object' &&
-            !options?.responseFormat?.jsonSchema
-          ) {
-            const jsonInstruction =
-              '\n\nIMPORTANT: Your response must be valid JSON. Do not include any text before or after the JSON object.';
-            streamParams.system = streamParams.system
-              ? streamParams.system + jsonInstruction
-              : jsonInstruction.trim();
-          }
 
           streamObject = client.messages.stream(streamParams);
 

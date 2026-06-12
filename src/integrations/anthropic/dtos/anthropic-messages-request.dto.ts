@@ -97,7 +97,7 @@ export class AnthropicMessagesRequestDto {
       format: {
         type: 'object',
         properties: {
-          type: { enum: ['text', 'json_schema'] },
+          type: { enum: ['json_schema'] },
           schema: { type: 'object', additionalProperties: true },
         },
         required: ['type', 'schema'],
@@ -108,7 +108,7 @@ export class AnthropicMessagesRequestDto {
   @IsObject()
   output_config?: {
     format?: {
-      type: 'text' | 'json_schema';
+      type: 'json_schema';
       schema: Record<string, unknown>;
     };
   };
