@@ -60,6 +60,10 @@ export function mapOpenAiChatRequestToGateway(
         type: body.response_format.type,
       };
     }
+
+    if (body.metadata) {
+      dto.metadata = body.metadata;
+    }
   }
 
   const definitions = body.tools?.length

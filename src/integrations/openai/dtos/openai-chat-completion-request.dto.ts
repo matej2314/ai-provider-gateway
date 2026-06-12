@@ -161,4 +161,12 @@ export class OpenAiChatCompletionRequestDto {
   @IsOptional()
   @IsObject()
   response_format?: { type: 'text' | 'json_object' };
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+  })
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, string | number | boolean>;
 }
