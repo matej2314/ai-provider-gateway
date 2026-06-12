@@ -35,6 +35,11 @@ export interface ProviderChatInput {
   toolChoice?: GatewayToolChoice;
 }
 
+export interface ProviderUsageDetails {
+  promptCacheHitTokens?: number;
+  promptCacheCreationTokens?: number;
+}
+
 export interface ProviderChatResponse {
   text: string;
   toolCalls?: ProviderToolCall[];
@@ -54,6 +59,8 @@ export interface ProviderChatResponse {
     inputTokens: number;
     outputTokens: number;
   };
+  usageDetails?: ProviderUsageDetails;
+  systemFingerprint?: string;
 }
 
 export interface StreamResult {

@@ -49,10 +49,31 @@ export class ChatResponseDto {
   toolCalls?: GatewayToolCallDto[];
 
   @ApiPropertyOptional({
-    enum: ['stop', 'tool_calls', 'length', 'content_filter'],
+    enum: [
+      'end_turn',
+      'tool_use',
+      'max_tokens',
+      'stop_sequence',
+      'pause_turn',
+      'refusal',
+      'tool_calls',
+      'stop',
+      'length',
+      'content_filter',
+    ],
   })
   @IsOptional()
-  finishReason?: 'stop' | 'tool_calls' | 'length' | 'content_filter';
+  finishReason?:
+    | 'end_turn'
+    | 'tool_use'
+    | 'max_tokens'
+    | 'stop_sequence'
+    | 'pause_turn'
+    | 'refusal'
+    | 'tool_calls'
+    | 'stop'
+    | 'length'
+    | 'content_filter';
 
   @ApiProperty({ type: ChatOutputTextDto })
   output: ChatOutputTextDto;
