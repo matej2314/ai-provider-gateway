@@ -270,7 +270,7 @@ Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (
 
 **Override z body (`params.topP` itd.):** merge YAML ← body (`resolveProviderCallOptions`) może nadal złożyć **`temperature` z defaults + `topP` z body** na aliasie Anthropic → ten sam błąd vendora. Dopóki adapter Anthropic nie filtruje parametrów, unikaj override `topP`, gdy w YAML jest default `temperature` (i odwrotnie).
 
-**Pola akceptowane w API, ale bez efektu u vendora:** `frequencyPenalty`, `presencePenalty` — adaptery Anthropic/Google **nie przekazują** ich do SDK. `seed` — tylko **Google**. `responseFormat` — walidacja DTO + merge policy; **adaptery jeszcze nie mapują** do SDK (plan C3.5+).
+**Pola akceptowane w API, ale bez efektu u vendora:** `frequencyPenalty`, `presencePenalty` — adaptery Anthropic/Google **nie przekazują** ich do SDK. `seed` — tylko **Google**. **`responseFormat`** — mapowane do SDK **Anthropic** (`output_config.format` z `json_schema`) i **Google** (`response_format` / `response_schema`); wymaga `type: json_object` w merge policy; opcjonalny `jsonSchema` w body/`params`.
 
 **Przykład multi-instance** (dwa konta Google, ten sam `type`):
 
@@ -393,7 +393,7 @@ Szczegóły flow, resume i pełna lista komend: **`CLI.md`**. Architektura: `arc
 
 ## 4) Nadpisywanie parametrów per request
 
-**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** w formacie **`conv_<uuid>`** (regex w `ChatRequestDto`; w **response** zawsze echo lub nowe `conv_<uuid>`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation-tracking.md`) oraz opcjonalne zagnieżdżone **`params`**: `temperature`, `maxOutputTokens`, `topP`, `stop` (string \| string[]), `frequencyPenalty`, `presencePenalty`, `seed`. Fasady IDE dopuszczają do **15 000** wiadomości — patrz `integracje.md`. Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
+**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** w formacie **`conv_<uuid>`** (regex w `ChatRequestDto`; w **response** zawsze echo lub nowe `conv_<uuid>`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation-tracking.md`), opcjonalne zagnieżdżone **`params`** (w tym **`responseFormat`**: `{ type, jsonSchema? }`), opcjonalne **`metadata`** (`Record<string, string | number | boolean>` — propagacja do adaptera; Anthropic: `userId` → `metadata.user_id`). Fasady IDE dopuszczają do **15 000** wiadomości — patrz `integracje.md`. Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
 
 **Merge parametrów:** `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`) bierze `policy.params` z YAML dla aliasu, nakłada body `params` tylko dla pól z **`allowOverrides`**, następnie **clamp** do **`bounds`**. Niedozwolone pole → HTTP **400** + `MODEL_NOT_ALLOWED`. Efektywne wartości trafiają do adapterów (`ProviderCallOptions`) i do klucza cache (`ResponseCacheService`).
 

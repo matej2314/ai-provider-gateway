@@ -61,7 +61,9 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 - `requestId` — korelacja z logami.
 - `conversationId` — ID rozmowy (echo lub `conv_<uuid>` z gateway) — tylko czat; szczegóły: `conversation-tracking.md`.
 - `effectiveModelAlias` — opcjonalnie, gdy `ResilientExecutor` obsłużył żądanie na aliasie `fallback` z YAML (pole `model` = żądany alias).
-- `toolCalls`, `finishReason` — opcjonalnie przy function calling (`capabilities.tools` w YAML).
+- `toolCalls`, `finishReason` — opcjonalnie przy function calling (`capabilities.tools` w YAML); `finishReason` w runtime: `stop` | `tool_calls` | `length` (`mapStopReasonToFinishReason`).
+- `usageDetails` — opcjonalnie tokeny cache Anthropic (`promptCacheHitTokens`, `promptCacheCreationTokens`).
+- `systemFingerprint` — opcjonalne pole kontraktu (bieżące adaptery zwykle puste).
 
 ## Streaming (SSE)
 
@@ -78,7 +80,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Parametry generacji (`params` w body)
 
-**Stan kodu:** opcjonalne **`params`** w `ChatRequestDto` (`ChatParamsDto`): `temperature`, `maxOutputTokens`, `topP`, `stop` (string \| string[]), `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat`; merge z `policy.params` w YAML przez `resolveProviderCallOptions`. **Efekt u vendora** zależy od adaptera aliasu — macierz: `dictionary.md`, YAML: `konfiguracja.md` (Anthropic: nie `temperature` + `topP` w defaults). Opcjonalne **`tooling`** (`definitions`, `toolChoice`) — wymaga `capabilities.tools` na aliasie. Niedozwolony override params → **`MODEL_NOT_ALLOWED`**; tooling bez capability → **`TOOLS_NOT_SUPPORTED`**. Cache pomijany dla żądań z toolingiem. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API, ale adaptery `anthropic` / `google` ich nie przekazują do SDK. **Adapter OpenAI** — nie wdrożony; fasada `/openai` mapuje parametry na `params.*`.
+**Stan kodu:** opcjonalne **`params`** w `ChatRequestDto` (`ChatParamsDto`, `ResponseFormatDto`): `temperature`, `maxOutputTokens`, `topP`, `stop` (string \| string[]), `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` (`type`, opcjonalny `jsonSchema`); merge z `policy.params` w YAML przez `resolveProviderCallOptions`. **Efekt u vendora** zależy od adaptera aliasu — macierz: `dictionary.md`, YAML: `konfiguracja.md` (Anthropic: nie `temperature` + `topP` w defaults). Opcjonalne **`tooling`** (`definitions`, `toolChoice`) — wymaga `capabilities.tools` na aliasie. Opcjonalne **`metadata`** w body — propagacja do adaptera (Anthropic: `userId` → SDK `metadata.user_id`). Niedozwolony override params → **`MODEL_NOT_ALLOWED`**; tooling bez capability → **`TOOLS_NOT_SUPPORTED`**. Cache pomijany dla żądań z toolingiem. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API, ale adaptery `anthropic` / `google` ich nie przekazują do SDK. **`responseFormat`**: mapowane do SDK Anthropic i Google gdy `type: json_object`. **Adapter OpenAI** — nie wdrożony; fasada `/openai` mapuje parametry na `params.*`.
 
 ## Rozszerzenia (pozostałość v1)
 
@@ -96,7 +98,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Walidacja
 
-- Walidacja DTO na brzegu (`ValidationPipe`: m.in. **`messages` 1–150** w natywnym czacie, `content` max 3000 znaków, opcjonalne `conversationId` w formacie `conv_<uuid>`, opcjonalne zagnieżdżone `params`, `forbidNonWhitelisted`). Fasady OpenAI / Anthropic dopuszczają do **15 000** wiadomości (`MAX_MESSAGES` w DTO integracji).
+- Walidacja DTO na brzegu (`ValidationPipe`: m.in. **`messages` 1–150** w natywnym czacie, `content` max 3000 znaków (32000 dla `tool`), opcjonalne `conversationId` w formacie `conv_<uuid>`, opcjonalne zagnieżdżone `params` (w tym `responseFormat.jsonSchema`), opcjonalne `metadata`, `forbidNonWhitelisted`). Fasady OpenAI / Anthropic dopuszczają do **15 000** wiadomości (`MAX_MESSAGES` w DTO integracji).
 - Limit rozmiaru JSON body: **1 MB** (`express.json` w `src/setup.app.ts`).
 - Walidacja konfiguracji przy starcie (fail‑fast) i w runtime (np. unknown `modelAlias` → błąd deterministyczny z kodem `MODEL_ALIAS_NOT_FOUND` przy `POST /chat`).
 

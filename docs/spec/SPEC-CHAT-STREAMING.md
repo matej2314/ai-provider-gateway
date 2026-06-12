@@ -33,7 +33,7 @@ F-3. Gateway musi wysłać `event: meta` na początku strumienia (w tym **`conve
 
 F-4. Gateway musi wysyłać `event: delta` dla kolejnych fragmentów tekstu.
 
-F-5. Gateway musi wysłać `event: done` na końcu strumienia. Payload `done` może zawierać `usage`, `toolCalls`, `finishReason` (function calling).
+F-5. Gateway musi wysłać `event: done` na końcu strumienia. Payload `done` może zawierać `usage` (z `totalTokens`), `toolCalls`, `finishReason` (`stop` | `tool_calls` | `length`), opcjonalnie `systemFingerprint`.
 
 F-6. Jeśli `modelAlias` nie wspiera streamingu lub adapter nie implementuje `stream` → `STREAMING_NOT_SUPPORTED` / `MODEL_ALIAS_NOT_FOUND` z **`validateForStreaming`** (**przed** `flushHeaders`) — JSON `ErrorEnvelope`. Błędy providera w **`executeStream`** mogą powstać **po** rozpoczęciu SSE.
 
@@ -56,7 +56,7 @@ NFR-3. Gateway nie może emitować surowych payloadów SDK providerów jako SSE.
 
 - [x] `meta` pojawia się raz i zawiera `requestId`, `provider`, `model`, `conversationId` (oraz `id` gateway).
 - [ ] `delta` składa się w finalny tekst zgodny ze standardową odpowiedzią (na ile to możliwe) — do weryfikacji testami kontraktu.
-- [x] `done` kończy stream (`data: {}` w obecnym kontrakcie).
+- [x] `done` kończy stream; payload może zawierać `usage`, `toolCalls`, `finishReason` (pusty `{}` gdy brak metadanych końcowych).
 - [x] Dla modelu bez streamingu zwracany jest JSON z `code: STREAMING_NOT_SUPPORTED` (`validateForStreaming`, przed SSE).
 
 ## Poza zakresem (względem rdzenia MVP)

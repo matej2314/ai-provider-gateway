@@ -1,6 +1,6 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **1.1**.  
+Wersja dokumentu: **1.2**.  
 **OpenAPI:** `openapi.json` (v0.12.0) — zsynchronizowany z `src/` (health, czat natywny, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`, dekoratory `@nestjs/swagger`). **Błędy:** natywny czat — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
 
 ## Konwencje globalne
@@ -38,11 +38,11 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + 
 
 ### `POST /api/v1/chat`
 
-Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAndSmartRateLimit()`. Body: `modelAlias`, `messages`, opcjonalnie **`conversationId`** (Sentry: konwersacja tylko w request; response zawsze z ID — `conversation-tracking.md`), opcjonalnie **`params`** (`temperature`, `maxOutputTokens`, `topP`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed` — merge z `policy.params` przez `resolveProviderCallOptions`).
+Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAndSmartRateLimit()`. Body: `modelAlias`, `messages`, opcjonalnie **`conversationId`** (Sentry: konwersacja tylko w request; response zawsze z ID — `conversation-tracking.md`), opcjonalnie **`metadata`**, opcjonalnie **`params`** (`temperature`, `maxOutputTokens`, `topP`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` — merge z `policy.params` przez `resolveProviderCallOptions`).
 
 | | |
 |--|--|
-| **200** | odpowiedź gateway; opcjonalnie `toolCalls`, `finishReason`, `effectiveModelAlias`, `cached` |
+| **200** | odpowiedź gateway; opcjonalnie `toolCalls`, `finishReason` (`stop` \| `tool_calls` \| `length`), `usageDetails`, `systemFingerprint`, `effectiveModelAlias`, `cached` |
 | **400** | walidacja DTO; `MODEL_ALIAS_NOT_FOUND`; `MODEL_NOT_ALLOWED`; `TOOLS_NOT_SUPPORTED`; inne jawne `code` |
 | **401** | brak `X-Gateway-Key` — `GATEWAY_KEY_MISSING` |
 | **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |

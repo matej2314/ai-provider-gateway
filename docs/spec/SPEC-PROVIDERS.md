@@ -75,7 +75,7 @@ F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK (`ProviderCallOpti
 - `topP`, `stop` — wszystkie wdrożone adaptery
 - `seed` — **Google** (`create-google-provider.ts`); Anthropic ignoruje
 - `frequencyPenalty`, `presencePenalty` — **nie przekazywane** do SDK przez bieżące adaptery (pola akceptowane w API, brak efektu u vendora)
-- `responseFormat` — merge w `resolveProviderCallOptions`; **adaptery jeszcze nie mapują** (plan C3.5+)
+- `responseFormat` — merge w `resolveProviderCallOptions`; **mapowane do SDK** przez adaptery **`anthropic`** (`output_config.format` + `jsonSchema`) i **`google`** (`response_format` / `response_schema`) gdy `type === json_object`
 
 **Macierz per provider** (szczegóły i reguły YAML): `docs/dictionary.md` — sekcja „Mapowanie parametrów na providerów”, `docs/konfiguracja.md`.
 
@@ -138,8 +138,11 @@ Tabela referencyjna pokazująca jak port providera (`ProviderChatInput` + `model
 | `options.topP` | `messages.create({ top_p })` — **nie** razem z `temperature` |
 | `options.maxOutputTokens` | `messages.create({ max_tokens })` |
 | `options.stop` | `messages.create({ stop_sequences })` — string → `[string]` |
+| `options.responseFormat` (`type: json_object`) | `messages.create({ output_config: { format: { type: json_schema, schema } } })` — domyślny schemat `{ type: object, additionalProperties: true }` gdy brak `jsonSchema` |
+| `input.metadata.userId` | `messages.create({ metadata: { user_id } })` |
 | `response.text` | konkatenacja `response.content[*].text` (gdzie `type === 'text'`) |
 | `usage.inputTokens` / `usage.outputTokens` | `response.usage.input_tokens` / `response.usage.output_tokens` |
+| `usageDetails` | `cache_read_input_tokens` / `cache_creation_input_tokens` (ścieżka tool calling / `parseAnthropicResponseWithTools`) |
 
 ### Google Gemini — `@google/genai` (1.52+)
 
@@ -153,6 +156,7 @@ SDK `@google/genai` zastąpiło wcześniejszy pakiet `@google/generative-ai`. Ad
 | `tools`, `toolChoice` | `tools: [{ functionDeclarations }]`, `toolConfig` w `config` |
 | `modelId` | `ai.chats.create({ model })` lub `ai.models.generateContent({ model })` |
 | `options.temperature`, `options.topP`, `options.maxOutputTokens`, `options.stop`, `options.seed` | `config` / `generationConfig` w `generateContent` / `chats.create` — **temperature i topP mogą współistnieć** |
+| `options.responseFormat` (`type: json_object`) | `response_format: application/json`, opcjonalnie `response_schema: jsonSchema` |
 | wywołanie sync | `chat.sendMessage({ message })` — zwraca `GenerateContentResponse` bezpośrednio (nie zagnieżdżone w `result.response`) |
 | wywołanie stream | `chat.sendMessageStream({ message })` — zwraca `AsyncGenerator<GenerateContentResponse>`; iterujemy bez `.stream` |
 | `response.text` | property (getter) — **nie** `response.text()` |

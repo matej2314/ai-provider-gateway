@@ -1,6 +1,6 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **1.1**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat, fasada OpenAI, fasada Anthropic) oraz health. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
+Wersja dokumentu: **1.2**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat, fasada OpenAI, fasada Anthropic) oraz health. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
 
 ## Źródła prawdy (kolejność)
 
@@ -80,9 +80,11 @@ Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; *
 
 **Pole `tooling` (opcjonalne):** obiekt z `definitions[]` (`name`, `description?`, `parameters` — JSON Schema) oraz opcjonalnym `toolChoice`. Włącza function calling — alias musi mieć **`capabilities.tools: true`** w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
 
-**Odpowiedź:** opcjonalne **`toolCalls`** (`id`, `name`, `arguments` jako JSON string) oraz **`finishReason`**: `stop` | `tool_calls` | `length` | `content_filter` (mapowanie z `stopReason` providera w `mapStopReasonToFinishReason`).
+**Odpowiedź:** opcjonalne **`toolCalls`** (`id`, `name`, `arguments` jako JSON string) oraz **`finishReason`**. W runtime gateway mapuje `stopReason` providera funkcją **`mapStopReasonToFinishReason`** (`src/chat/helpers/map-provider-finish-reason.ts`) na: **`stop`** (domyślnie, m.in. `end_turn`, `stop_sequence`), **`tool_calls`** (gdy są `toolCalls` lub `stopReason === tool_use`), **`length`** (gdy `stopReason === max_tokens`). Enum w OpenAPI/DTO może zawierać dodatkowe wartości vendora — **emitowane w odpowiedzi są wyłącznie powyższe trzy**.
 
-**SSE `done`:** może zawierać `usage`, `toolCalls`, `finishReason` (w czacie standardowym `done` bywa pusty `{}` tylko gdy brak metadanych).
+Opcjonalnie w odpowiedzi JSON: **`usageDetails`** (`promptCacheHitTokens`, `promptCacheCreationTokens` — gdy adapter Anthropic zwraca statystyki cache, obecnie w ścieżce `parseAnthropicResponseWithTools`) oraz **`systemFingerprint`** (pole kontraktu; bieżące fabryki Anthropic/Google zwykle go nie wypełniają).
+
+**SSE `done`:** może zawierać `usage` (z `totalTokens`), `toolCalls`, `finishReason` (jak wyżej), opcjonalnie `systemFingerprint`. W czacie standardowym `done` bywa pusty `{}` tylko gdy brak metadanych końcowych.
 
 **Cache i fallback:** żądania z toolingiem (`isToolingRequest`) **pomijają cache** i **nie używają fallbacku** w `POST /api/v1/chat`. Streaming **nadal** stosuje fallback z YAML.
 
@@ -104,13 +106,13 @@ Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRe
 
 ### Request body
 
-Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 150** wiadomości) — role `user` | `assistant` | `tool` (patrz sekcja wyżej), opcjonalnie **`tooling`**, **`params`**, **`conversationId`** w formacie **`conv_<uuid>`** (walidacja regex w `ChatRequestDto`): w **request** włącza grupowanie Sentry; bez niego span = pojedyncza wiadomość. Od **drugiej tury** z `conversationId` klient powinien wysłać **pełną** historię w `messages[]` (w tym odpowiedzi `assistant` i tury `tool`). Szczegóły: **`conversation-tracking.md`**.
+Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 150** wiadomości) — role `user` | `assistant` | `tool` (patrz sekcja wyżej), opcjonalnie **`tooling`**, **`params`**, **`conversationId`** w formacie **`conv_<uuid>`** (walidacja regex w `ChatRequestDto`): w **request** włącza grupowanie Sentry; bez niego span = pojedyncza wiadomość. Od **drugiej tury** z `conversationId` klient powinien wysłać **pełną** historię w `messages[]` (w tym odpowiedzi `assistant` i tury `tool`). Szczegóły: **`conversation-tracking.md`**. Opcjonalnie **`metadata`** — obiekt klucz–wartość (`string` | `number` | `boolean`); propagowany do adaptera (`buildProviderInputForAlias`). **Anthropic** mapuje `metadata.userId` → `messages.create({ metadata: { user_id } })`; **Google** obecnie ignoruje.
 
-Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`): zagnieżdżony obiekt z opcjonalnymi polami **`temperature`** (0–2), **`maxOutputTokens`** (1–8192), **`topP`** (0–1), **`stop`** (string \| string[]), **`frequencyPenalty`** / **`presencePenalty`** (-2–2), **`seed`** (integer 0–2³²−1), **`responseFormat`** (`{ type: "text" \| "json_object" }`). Wartości efektywne = merge **`policy.params.defaults`** z YAML ← nadpisanie z body tylko dla pól w **`allowOverrides`**; po merge **clamp** do **`bounds`** (`resolveProviderCallOptions`). Niedozwolone pole w body → **`400`** + **`MODEL_NOT_ALLOWED`** — w czacie standardowym sprawdzane **przed** wywołaniem providera. **Które pola trafiają do SDK** zależy od **`providerInstance`** aliasu (Anthropic / Google; OpenAI adapter planowany) — macierz: **`dictionary.md`**, reguły YAML: **`konfiguracja.md`**. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API; adaptery `anthropic` / `google` nie przekazują ich do SDK. **`responseFormat`**: DTO + policy; adaptery jeszcze nie mapują. Nadwyżkowe pola w body → **`400`** (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Limit body: **1 MB**.
+Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`, `response-format.dto.ts`): zagnieżdżony obiekt z opcjonalnymi polami **`temperature`** (0–2), **`maxOutputTokens`** (1–8192), **`topP`** (0–1), **`stop`** (string \| string[]), **`frequencyPenalty`** / **`presencePenalty`** (-2–2), **`seed`** (integer 0–2³²−1), **`responseFormat`** (`{ type: "text" | "json_object", jsonSchema?: object }`). Wartości efektywne = merge **`policy.params.defaults`** z YAML ← nadpisanie z body tylko dla pól w **`allowOverrides`**; po merge **clamp** do **`bounds`** (`resolveProviderCallOptions`). Niedozwolone pole w body → **`400`** + **`MODEL_NOT_ALLOWED`** — w czacie standardowym sprawdzane **przed** wywołaniem providera. **Które pola trafiają do SDK** zależy od **`providerInstance`** aliasu (Anthropic / Google; OpenAI adapter planowany) — macierz: **`dictionary.md`**, reguły YAML: **`konfiguracja.md`**. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API; adaptery `anthropic` / `google` nie przekazują ich do SDK. **`responseFormat`**: mapowane do SDK Anthropic (`output_config.format`) i Google (`response_format` / `response_schema`) gdy `type === json_object`. Nadwyżkowe pola w body → **`400`** (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Limit body: **1 MB**.
 
 ### Response (`200`)
 
-`ChatService.executeChat`: `id`, **`provider`** (identyfikator **`providerInstance`** z YAML), `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`**, opcjonalnie **`toolCalls`** i **`finishReason`**, `output`, `usage`, `requestId`, **`conversationId`**.
+`ChatService.executeChat`: `id`, **`provider`** (identyfikator **`providerInstance`** z YAML), `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`**, opcjonalnie **`toolCalls`**, **`finishReason`**, **`usageDetails`**, **`systemFingerprint`**, `output`, `usage`, `requestId`, **`conversationId`**.
 
 **Cache (opcjonalny):** lookup przed wywołaniem providera; **pomijany** dla żądań z toolingiem. Przy trafieniu — gdy alias i provider są **włączone** w YAML — zwracany JSON z **`cached: true`**, **`cachedAt`**. Streaming nie jest cache’owany.
 
@@ -139,7 +141,7 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation-tracking.md`).
 
-**Zdarzenia:** `meta` → `delta`* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage`, **`toolCalls`**, **`finishReason`**. Retry/fallback — `ResilientExecutor` (fallback aktywny także przy tooling w streamingu).
+**Zdarzenia:** `meta` → `delta`* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage` (z `totalTokens`), **`toolCalls`**, **`finishReason`**, **`systemFingerprint`**. Retry/fallback — `ResilientExecutor` (fallback aktywny także przy tooling w streamingu).
 
 **Błędy i JSON `ErrorEnvelope`:**
 
@@ -200,7 +202,7 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 3. **`params`** w body są opcjonalne — bez nich używane są wyłącznie `policy.params.defaults` z YAML; override wymaga wpisu pola w `allowOverrides` dla aliasu (`konfiguracja.md`). **Skutek u vendora** zależy od providera aliasu (np. Anthropic odrzuca jednoczesne `temperature` + `topP`) — `dictionary.md`.
 4. Przy włączonym cache powtórzone **`POST /api/v1/chat`** z tym samym body mogą zwrócić odpowiedź z **`cached: true`** bez wywołania providera (`konfiguracja.md`).
 5. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator w `src/config/system-prompt/`.
-6. Przy streamingu składaj tekst z kolejnych `delta`; metadane końcowe (`usage`, `toolCalls`, `finishReason`) są w evencie **`done`**.
+6. Przy streamingu składaj tekst z kolejnych `delta`; metadane końcowe (`usage`, `toolCalls`, `finishReason`, opcjonalnie `systemFingerprint`) są w evencie **`done`**.
 7. **`usage`** może być niekompletne między providerami.
 8. **`conversationId`**: w odpowiedzi zawsze (echo lub `conv_*`). W **request** — tylko wtedy Sentry grupuje turę jako konwersację; typowy start: tura 1 bez ID, tura 2+ z ID z odpowiedzi + pełne `messages[]` (`conversation-tracking.md`).
 9. **Streaming:** nieprawidłowe `params` (poza `allowOverrides`) mogą zwrócić `MODEL_NOT_ALLOWED` **po** rozpoczęciu SSE — w czacie standardowym ten sam błąd jest **przed** wywołaniem providera.

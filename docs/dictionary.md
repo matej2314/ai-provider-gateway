@@ -17,6 +17,9 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Integration root** | Segment Base URL w IDE: `.../api/v1/openai` lub `.../api/v1/anthropic`. | Klient dokleja `/models`, `/chat/completions`, `/messages`. |
 | **Model alias** | Zwyczajowa / czytelna nazwa modelu używana w gateway (np. `chat-default`, `claude-sonnet`, `gemini-flash`). | Mapowana do `providerInstance` + vendorowy `modelId` + `policy` + `capabilities` w `gateway.config.yaml`. |
 | **Tool calling / tooling** | Function calling: definicje narzędzi w body (`tooling.definitions`), wyniki w `messages[]` z rolą `tool`, odpowiedzi modelu z `toolCalls`. | Wymaga `capabilities.tools: true` dla aliasu; mapowanie SDK w `anthropic-tools.mapper.ts` / `google-tools.mapper.ts`; fasady OpenAI/Anthropic mapują kontrakt vendora. Cache i fallback YAML wyłączone dla tooling w czacie JSON. |
+| **Request metadata** | Opcjonalne pole `metadata` w body czatu (`Record<string, string \| number \| boolean>`). | Propagowane przez `buildProviderInputForAlias` do `ProviderChatInput.metadata`. **Anthropic:** gdy `metadata.userId` jest ustawione → `messages.create({ metadata: { user_id } })`. **Google:** obecnie ignorowane. |
+| **Usage details** | Rozszerzone statystyki użycia w odpowiedzi JSON (`usageDetails`). | Pola `promptCacheHitTokens`, `promptCacheCreationTokens` — gdy adapter Anthropic zwraca cache token stats (obecnie w ścieżce `parseAnthropicResponseWithTools`). |
+| **System fingerprint** | Opcjonalne pole `systemFingerprint` w odpowiedzi JSON i SSE `done`. | W kontrakcie DTO; bieżące fabryki Anthropic/Google **nie** wypełniają tego pola (brak implementacji w adapterach sync/stream). |
 | **Fallback alias** | Opcjonalny alias zapasowy (`models[].fallback` w YAML). | Używany przez `ResilientExecutor` po wyczerpaniu retry na aliasie żądanym. |
 | **Effective model alias** (`effectiveModelAlias`) | Alias faktycznie użyty do wywołania providera. | Obecny w odpowiedzi JSON / SSE `meta` tylko gdy żądany alias różni się od użytego (sukces na fallbacku). Pole `model` = żądany `modelAlias`. |
 | **Standard** | Tryb odpowiedzi: pełna odpowiedź JSON. | `POST /api/v1/chat`. |
@@ -47,7 +50,7 @@ Pole w **`params`** (natywny czat) / mapowanie fasad OpenAI / Anthropic → **`P
 | `frequencyPenalty` | `frequency_penalty` | ❌ ignorowany | ❌ ignorowany | ⏳ fasada przyjmuje; bez adaptera OpenAI brak efektu u OpenAI.com |
 | `presencePenalty` | `presence_penalty` | ❌ ignorowany | ❌ ignorowany | ⏳ j.w. |
 | `seed` | `seed` | ❌ ignorowany | ✅ przekazywany | ⏳ j.w. |
-| `responseFormat` | `response_format` / JSON mode | ❌ adapter jeszcze nie mapuje | ❌ j.w. | ⏳ plan C3+ |
+| `responseFormat` | `output_config.format` (Anthropic) / `response_format` + `response_schema` (Google) | ✅ `json_object` + opcjonalny `jsonSchema` | ✅ j.w. | ⏳ fasada `/openai` mapuje `response_format.type`; wywołanie idzie przez alias Anthropic/Google |
 | `topK` | `top_k` / `topK` | ❌ rezerwacja w `OVERRIDE_KEYS` | ❌ j.w. | ⏳ plan C6 |
 
 \* **Anthropic — wykluczenie wzajemne:** API **odrzuca** jednoczesne `temperature` i `top_p`. W YAML dla aliasów Anthropic ustaw w **`defaults` tylko jeden** z nich (repo: default `temperature`, bez `topP`). Adapter **nie filtruje** obu parametrów — merge z body może nadal wysłać oba → **400** od vendora (`VALIDATION_FAILED` w gateway). Szczegóły: `konfiguracja.md`.
@@ -64,7 +67,7 @@ Pole w **`params`** (natywny czat) / mapowanie fasad OpenAI / Anthropic → **`P
 | **presencePenalty** | Penalizuje tokeny na podstawie ich obecności w dotychczasowym tekście (-2 do 2). Dodatnie wartości zwiększają prawdopodobieństwo rozmów o nowych tematach. | Jak `frequencyPenalty` — akceptowane w API, **ignorowane** przez adaptery `anthropic` / `google`. |
 | **seed** | Liczba całkowita (integer) do deterministycznego samplingowania — ta sama seed + te same parametry = prawie identyczna odpowiedź. | **OpenAI + Google**: wspierają natywnie. **Anthropic**: nie wspiera. Przydatne do testów A/B i reprodukowalnych wyników. Nie gwarantuje absolutnego determinizmu, ale zapewnia że "losowe" wybory modelu będą takie same przy każdym wywołaniu. |
 | **topK** | Top-K sampling — model bierze pod uwagę tylko K najbardziej prawdopodobnych tokenów dla następnego tokena (liczba całkowita ≥0). | **Nie zaimplementowane** w natywnym API: brak w `ChatParamsDto`, schemacie YAML i `ProviderCallOptions`. Wymienione w `OVERRIDE_KEYS` w `resolve-provider-call-options.ts` jako rezerwacja — bez efektu w runtime. |
-| **responseFormat** (JSON mode) | Wymusza strukturę odpowiedzi modelu. Wartość `{ type: "json_object" }` włącza JSON mode. | Akceptowane w **`ChatParamsDto`** i merge policy (`allowOverrides`); **adaptery Anthropic/Google jeszcze nie przekazują** do SDK (plan C3.5+). |
+| **responseFormat** (JSON mode) | Wymusza strukturę odpowiedzi modelu. `{ type: "json_object" }` + opcjonalny **`jsonSchema`**. | Merge w `resolveProviderCallOptions`; **Anthropic** → `output_config.format.type: json_schema` (domyślny schemat `{ type: object, additionalProperties: true }` gdy brak `jsonSchema`); **Google** → `response_format: application/json` + `response_schema`. Fasada Anthropic: `output_config` w żądaniu Messages API — `integracja-anthropic-messages.md`. |
 
 ## Kody błędów (stabilne)
 

@@ -71,6 +71,7 @@ ai-provider-gateway/
 │   │   ├── dto/
 │   │   │   ├── chat-request.dto.ts
 │   │   │   ├── chat-params.dto.ts
+│   │   │   ├── response-format.dto.ts
 │   │   │   ├── chat-message.dto.ts
 │   │   │   ├── chat-tooling.dto.ts
 │   │   │   ├── chat-response.dto.ts
@@ -378,7 +379,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 
 | Katalog | Odpowiedzialność |
 |---------|------------------|
-| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache (pomijany przy tooling), smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi (`toolCalls`, `finishReason`). **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Helpery: system prompt, provider input, params, tooling, retry policy, cache policy, `conversationId`. |
+| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache (pomijany przy tooling), smart rate limit (cooldown po 429), `ResilientExecutor`, envelope odpowiedzi (`toolCalls`, `finishReason`, `usageDetails`, `systemFingerprint`). **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Helpery: system prompt, provider input (w tym `metadata`), params, tooling, retry policy, cache policy, `conversationId`, `mapStopReasonToFinishReason`. |
 | **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API. |
 | **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |

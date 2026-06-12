@@ -122,7 +122,7 @@ sequenceDiagram
 
 ## 3. Streaming `POST /api/v1/chat/stream` — sukces (SSE)
 
-Zgodnie z `openapi.json` i kodem (`ChatStreamController`, `ChatService.executeStream`): nagłówki SSE, potem `meta`, `delta`, `done` (`done` z pustym `data`).
+Zgodnie z `openapi.json` i kodem (`ChatStreamController`, `ChatService.executeStream`): nagłówki SSE, potem `meta`, `delta`, `done` (`done` może zawierać `usage`, `toolCalls`, `finishReason`, `systemFingerprint`).
 
 ```mermaid
 sequenceDiagram
@@ -157,7 +157,7 @@ sequenceDiagram
     PC-->>H: delta
     H-->>K: SSE: event delta
   end
-  S-->>H: emit done
+  S-->>H: emit done (usage?, toolCalls?, finishReason?, systemFingerprint?)
   H-->>-K: SSE: event done
 ```
 

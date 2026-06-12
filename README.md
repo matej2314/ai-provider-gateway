@@ -105,7 +105,7 @@ curl -i -X POST "http://localhost:3000/api/v1/chat" ^
   -d "{\"modelAlias\":\"chat-default\",\"messages\":[{\"role\":\"user\",\"content\":\"Napisz krótkie streszczenie.\"}]}"
 ```
 
-Opcjonalnie w body: **`params`** (`temperature`, `maxOutputTokens`), **`conversationId`** (`conv_<uuid>`) — [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md).
+Opcjonalnie w body: **`params`** (`temperature`, `maxOutputTokens`, `responseFormat` z opcjonalnym `jsonSchema`), **`conversationId`** (`conv_<uuid>`), **`metadata`** (propagacja do adapterów — Anthropic mapuje `userId` → `metadata.user_id`) — [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md).
 
 ### Streaming SSE
 
@@ -133,7 +133,7 @@ Rola **`system`** w `messages[]` jest zablokowana — instrukcja systemowa jest 
 
 W `messages[]` dozwolone są role **`user`**, **`assistant`** i **`tool`** (wynik wywołania narzędzia — wymaga `toolCallId`). Asystent może zwracać **`toolCalls`** w odpowiedzi. Opcjonalne pole **`tooling`** w body (`definitions`, `toolChoice`) włącza function calling — wymaga `capabilities.tools: true` dla aliasu w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
 
-Odpowiedź JSON / SSE `done` może zawierać **`toolCalls`**, **`finishReason`** (`stop` | `tool_calls` | `length` | `content_filter`). Cache i fallback YAML są **wyłączone** dla żądań z toolingiem w czacie standardowym; streaming nadal używa fallbacku z YAML.
+Odpowiedź JSON / SSE `done` może zawierać **`toolCalls`**, **`finishReason`** (runtime: `stop` | `tool_calls` | `length` — `mapStopReasonToFinishReason`), opcjonalnie **`usageDetails`** (tokeny cache Anthropic) oraz **`systemFingerprint`** (pole kontraktu; bieżące adaptery Anthropic/Google zwykle go nie wypełniają). Cache i fallback YAML są **wyłączone** dla żądań z toolingiem w czacie standardowym; streaming nadal używa fallbacku z YAML.
 
 Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/architektura.md`](docs/architektura.md).
 

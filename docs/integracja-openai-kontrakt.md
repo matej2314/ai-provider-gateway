@@ -56,6 +56,7 @@ Lista dostępnych ID: `GET /api/v1/openai/models`.
 | `frequency_penalty` | Opcjonalnie (-2–2), mapowane na `params.frequencyPenalty` (adaptery `anthropic`/`google` ignorują) |
 | `presence_penalty` | Opcjonalnie (-2–2), mapowane na `params.presencePenalty` (adaptery `anthropic`/`google` ignorują) |
 | `seed` | Opcjonalnie (integer), mapowane na `params.seed` (Anthropic ignoruje) |
+| `response_format` | Opcjonalnie (`{ type: "text" \| "json_object" }`), mapowane na `params.responseFormat.type` (bez `jsonSchema` z body OpenAI — tylko `type`) |
 
 **Provider docelowy:** fasada mapuje pola OpenAI na wspólne `params.*`, ale **wywołanie LLM** idzie do adaptera wskazanego przez **`model`** (= `modelAlias` w YAML). Dla aliasu na Anthropic obowiązuje wykluczenie `temperature` + `top_p` (patrz `integracja-anthropic-messages.md`). **Adapter OpenAI** (`create-openai-provider.ts`) **nie jest wdrożony** — parametry penalties/seed nie trafią do OpenAI.com, dopóki alias nie wskazuje przyszłego providera OpenAI. Macierz: `dictionary.md`, `konfiguracja.md`.
 
