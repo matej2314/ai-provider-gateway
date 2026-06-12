@@ -81,6 +81,12 @@ export function createAnthropicProvider(
               },
             },
           }),
+          metadata:
+            input.metadata?.userId !== undefined
+              ? {
+                  user_id: String(input.metadata.userId),
+                }
+              : undefined,
         };
         if (input.tools?.length) {
           const params = {
@@ -151,6 +157,12 @@ export function createAnthropicProvider(
                 },
               },
             }),
+            metadata:
+              input.metadata?.userId !== undefined
+                ? {
+                    user_id: String(input.metadata.userId),
+                  }
+                : undefined,
           };
 
           streamObject = client.messages.stream(streamParams);
