@@ -6,6 +6,7 @@ import {
   ArrayMaxSize,
   IsOptional,
   Matches,
+  IsObject,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -73,4 +74,15 @@ export class ChatRequestDto {
   @ValidateNested()
   @Type(() => ChatToolingDto)
   tooling?: ChatToolingDto;
+
+  @ApiPropertyOptional({
+    description:
+      'User-defined metadata for tracking and analytics. Propagated to providers when supported (OpenAI, Anthropic).',
+    type: 'object',
+    additionalProperties: true,
+    example: { userId: '123', sessionId: 'abc' },
+  })
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, string | number | boolean>;
 }
