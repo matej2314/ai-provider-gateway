@@ -161,8 +161,8 @@ export function createAnthropicProvider(
                     schema: {
                       ...options.responseFormat.jsonSchema,
                       additionalProperties:
-                        options.responseFormat.jsonSchema.additionalProperties ??
-                        false,
+                        options.responseFormat.jsonSchema
+                          .additionalProperties ?? false,
                     },
                   },
                 },

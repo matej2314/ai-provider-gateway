@@ -6,6 +6,7 @@ import {
   IsArray,
   IsBoolean,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Max,
@@ -84,4 +85,31 @@ export class AnthropicMessagesRequestDto {
   @IsArray()
   @IsString({ each: true })
   stop_sequences?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Output format configuration for structured JSON outputs (Anthropic official API shape). ' +
+      'Use format.type="json_schema" with required schema field. ' +
+      'Gateway maps this to unified responseFormat internally. ' +
+      'Example: { "format": { "type": "json_schema", "schema": {...} } }',
+    type: 'object',
+    properties: {
+      format: {
+        type: 'object',
+        properties: {
+          type: { enum: ['text', 'json_schema'] },
+          schema: { type: 'object', additionalProperties: true },
+        },
+        required: ['type', 'schema'],
+      },
+    },
+  })
+  @IsOptional()
+  @IsObject()
+  output_config?: {
+    format?: {
+      type: 'text' | 'json_schema';
+      schema: Record<string, unknown>;
+    };
+  };
 }
