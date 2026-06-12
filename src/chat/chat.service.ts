@@ -191,6 +191,12 @@ export class ChatService {
           response.stopReason,
           response.toolCalls,
         ),
+        ...(response.usageDetails
+          ? { usageDetails: response.usageDetails }
+          : {}),
+        ...(response.systemFingerprint
+          ? { systemFingerprint: response.systemFingerprint }
+          : {}),
       };
 
       const latency = Date.now() - startedAt;
