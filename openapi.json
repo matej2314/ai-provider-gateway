@@ -1206,6 +1206,28 @@
           "content"
         ]
       },
+      "ResponseFormatDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "json_object"
+            ],
+            "description": "Response format type. \"json_object\" enables JSON mode (model outputs valid JSON).",
+            "example": "json_object"
+          },
+          "jsonSchema": {
+            "type": "object",
+            "description": "JSON schema for structured outputs (when type=json_object).",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
       "ChatParamsDto": {
         "type": "object",
         "properties": {
@@ -1222,6 +1244,60 @@
             "maximum": 8192,
             "description": "Override max output tokens. Allowed only if listed in allowOverrides for modelAlias.",
             "example": 1024
+          },
+          "topP": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Nucleus sampling (0-1). Alternative to temperature for controlling randomness. Lowe values = more focues, higher values = more random.",
+            "example": 0.95
+          },
+          "stop": {
+            "description": "Sequence(s) where generating should stop. Can be a string or array of strings.",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "example": [
+              "\n\n",
+              "###"
+            ]
+          },
+          "frequencyPenalty": {
+            "type": "number",
+            "minimum": -2,
+            "maximum": 2,
+            "description": "Penalize new tokens based on their frequency in the text. (-2 to 2).",
+            "example": 0.5
+          },
+          "presencePenalty": {
+            "type": "number",
+            "minimum": -2,
+            "maximum": 2,
+            "description": "Penalize new tokens based on their presence in the text. (-2 to 2).",
+            "example": 0.5
+          },
+          "seed": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 4294967295,
+            "description": "Seed for deterministic sampling. (integer)",
+            "example": 42
+          },
+          "responseFormat": {
+            "description": "Desired response format. Use {type: \"json_object\") for JSON mode.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ResponseFormatDto"
+              }
+            ]
           }
         }
       },
@@ -1311,6 +1387,15 @@
           },
           "tooling": {
             "$ref": "#/components/schemas/ChatToolingDto"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "User-defined metadata for tracking and analytics. Propagated to providers when supported (OpenAI, Anthropic).",
+            "additionalProperties": true,
+            "example": {
+              "userId": "123",
+              "sessionId": "abc"
+            }
           }
         },
         "required": [
@@ -1356,6 +1441,19 @@
           }
         }
       },
+      "ChatUsageDetailsDto": {
+        "type": "object",
+        "properties": {
+          "promptCacheHitTokens": {
+            "type": "number",
+            "description": "Prompt cache hit tokens (Anthropic). Number of input tokens read from cache."
+          },
+          "promptCacheCreationTokens": {
+            "type": "number",
+            "description": "Promp cache creation tokens (Anthropic). Number of input tokens written to cache."
+          }
+        }
+      },
       "ChatResponseDto": {
         "type": "object",
         "properties": {
@@ -1392,8 +1490,14 @@
           "finishReason": {
             "type": "string",
             "enum": [
-              "stop",
+              "end_turn",
+              "tool_use",
+              "max_tokens",
+              "stop_sequence",
+              "pause_turn",
+              "refusal",
               "tool_calls",
+              "stop",
               "length",
               "content_filter"
             ]
@@ -1423,6 +1527,19 @@
           "cachedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "usageDetails": {
+            "description": "Extended usage details (cache tokens, reasoning tokens). Populated when provider supports extended usage details.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChatUsageDetailsDto"
+              }
+            ]
+          },
+          "systemFingerprint": {
+            "type": "string",
+            "description": "System fingerprinting (OpenAI). Identifier for backend configuration snapshot.",
+            "example": "fp_01HZZZZZZZZZZZZZZZZZZZZZZ"
           }
         },
         "required": [
@@ -1763,6 +1880,24 @@
             "example": 0.95,
             "description": "Nucleus sampling parameter."
           },
+          "stop": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Stop sequences where generation should stop.",
+            "example": [
+              "\n\n",
+              "###"
+            ]
+          },
           "presence_penalty": {
             "type": "number",
             "minimum": -2,
@@ -1771,7 +1906,33 @@
             "description": "Penalize new tokens based on their presence"
           },
           "frequency_penalty": {
-            "type": "number"
+            "type": "number",
+            "minimum": -2,
+            "maximum": 2,
+            "example": 0.85,
+            "description": "Penalize new tokens based on their frequency."
+          },
+          "seed": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 4294967295,
+            "example": 42,
+            "description": "Seed for deterministic sampling."
+          },
+          "response_format": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": [
+                  "text",
+                  "json_object"
+                ]
+              }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
           }
         },
         "required": [
@@ -1927,6 +2088,11 @@
           },
           "usage": {
             "$ref": "#/components/schemas/OpenAiChatCompletionUsageDto"
+          },
+          "system_fingerprint": {
+            "type": "string",
+            "description": "System fingerprinting (OpenAI). Identifier for backend configuration snapshot.",
+            "example": "fp_01HZZZZZZZZZZZZZZZZZZZZZZ"
           }
         },
         "required": [
@@ -2130,6 +2296,50 @@
           "tool_choice": {
             "type": "object",
             "description": "Tool choice per Anthropic API (auto, any, tool, ...)."
+          },
+          "top_p": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stop_sequences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "output_config": {
+            "type": "object",
+            "description": "Output format configuration for structured JSON outputs (Anthropic official API shape). Use format.type=\"json_schema\" with required schema field. Gateway maps this to unified responseFormat internally. Example: { \"format\": { \"type\": \"json_schema\", \"schema\": {...} } }",
+            "properties": {
+              "format": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "json_schema"
+                    ]
+                  },
+                  "schema": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "type",
+                  "schema"
+                ]
+              }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata for abuse monitoring (user_id)",
+            "properties": {
+              "user_id": {
+                "type": "string"
+              }
+            }
           }
         },
         "required": [
@@ -2147,6 +2357,18 @@
           "output_tokens": {
             "type": "number",
             "example": 48
+          },
+          "cache_creation_input_tokens": {
+            "type": "number",
+            "nullable": true,
+            "description": "Prompt cache creation tokens (Anthropic). Number of input tokens written to cache.",
+            "example": 12
+          },
+          "cache_read_input_tokens": {
+            "type": "number",
+            "nullable": true,
+            "description": "Prompt cache read tokens (Anthropic). Number of input tokens read from cache.",
+            "example": 12
           }
         },
         "required": [
@@ -2191,7 +2413,10 @@
             "enum": [
               "end_turn",
               "tool_use",
-              "max_tokens"
+              "max_tokens",
+              "stop_sequence",
+              "pause_turn",
+              "refusal"
             ],
             "example": "end_turn"
           },
