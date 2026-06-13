@@ -39,6 +39,7 @@ export function mapAnthropicRequestToGateway(
     body.temperature !== undefined ||
     body.max_tokens !== undefined ||
     body.top_p !== undefined ||
+    body.top_k !== undefined ||
     body.stop_sequences !== undefined ||
     body.output_config !== undefined
   ) {
@@ -51,6 +52,10 @@ export function mapAnthropicRequestToGateway(
     }
     if (body.top_p !== undefined) {
       dto.params.topP = body.top_p;
+    }
+
+    if (body.top_k !== undefined) {
+      dto.params.topK = body.top_k;
     }
     if (body.stop_sequences !== undefined) {
       dto.params.stop = body.stop_sequences;

@@ -30,14 +30,14 @@ function resolveAnthropicSamplingParams(options?: ProviderCallOptions): {
   top_p?: number;
   top_k?: number;
 } {
-  if (options?.temperature !== undefined) {
-    return { temperature: options.temperature };
+  if (options?.topK !== undefined) {
+    return { top_k: options.topK };
   }
   if (options?.topP !== undefined) {
     return { top_p: options.topP };
   }
-  if (options?.topK !== undefined) {
-    return { top_k: options.topK };
+  if (options?.temperature !== undefined) {
+    return { temperature: options.temperature };
   }
 
   return {};

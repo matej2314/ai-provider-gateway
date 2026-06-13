@@ -9,6 +9,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsInt,
   Max,
   MaxLength,
   Min,
@@ -79,6 +80,13 @@ export class AnthropicMessagesRequestDto {
   @Min(0)
   @Max(1)
   top_p?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  top_k?: number;
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
