@@ -63,7 +63,7 @@
 | **C5. Metadata + tracking** | Request metadata, system_fingerprint | 1-2h | Po T1.4 | ⏳ Planowany |
 | **C6. Provider-specific** | topK (Anthropic), max_completion_tokens (OpenAI) | 1h | Po C1 | ⏳ Planowany |
 | **C7. Docs + testy** | Aktualizacja dokumentacji, unit/e2e | 2-3h | Po C1-C6 | ⏳ Planowany (w tym dług z C1–C2: `integracja-openai-kontrakt.md`, testy helperów/mapperów/providerów) |
-| **C8. Extended Thinking** | Wsparcie thinking mode dla OpenAI (reasoning_effort) i Anthropic (extended_thinking) | 3-5h | Po C1, C4 | ⏳ Planowany |
+| **C8. Extended Thinking** | Wsparcie thinking mode dla OpenAI (reasoning_effort) i Anthropic (extended_thinking) | 3-5h | Po C1, C4 | 🔄 **W trakcie** (C8.1–C8.5 ✅; C8.5b, C8.7+ planowane) |
 
 **Szacunek łącznie:** ~16-24h (po zakończeniu tool calling T0-T8; po audycie 2026-06-10; zaktualizowano 2026-06-12 z fazą C8)
 
@@ -4848,6 +4848,147 @@ export interface StreamResult {
    - `ThinkingConfigDisabled`: `{ type: 'disabled' }`
 
 **Commit:** `feat(anthropic): support unified thinking parameter and output_config.effort`
+
+---
+
+### Krok C8.5b: Walidacja thinking vs maxOutputTokens — konflikt parametrów
+
+**Status:** ⏳ **Planowany**
+
+**Plik:** `src/chat/helpers/resolve-provider-call-options.ts`
+
+**Problem:** Gdy `thinkingEnabled: true` + numeric `thinkingBudget`, a `maxOutputTokens` jest zbyt niski, Anthropic API zwróci błąd. Thinking budget to część max_tokens (thinking tokens + response tokens), więc:
+
+```
+maxOutputTokens: 500 (z config)
+thinkingBudget: 2048 (z request)
+→ Provider wysyła: max_tokens: 500, thinking.budget_tokens: 2048
+→ Anthropic API: błąd (logicznie niespójne)
+```
+
+**Rozwiązanie:** Cross-validation w `resolveProviderCallOptions` po zmergowaniu parametrów i clampingu bounds — rzuć `400 VALIDATION_FAILED` z jasnym komunikatem **przed** wywołaniem providera.
+
+**Akcja:** Dodaj walidację po linii 159 (po wszystkich mergeach thinking params), przed `return` (linia 161):
+
+```typescript
+// src/chat/helpers/resolve-provider-call-options.ts
+
+export function resolveProviderCallOptions(
+  policyParams: GatewayParamsConfig | undefined,
+  bodyParams?: ChatParamsDto,
+): ProviderCallOptions {
+  // ... istniejąca logika merge + bounds (linijki 34-159) ...
+
+  // 🆕 C8.5b: Cross-validation thinking budget vs maxOutputTokens
+  // Thinking budget to MINIMUM output tokens - provider musi mieć miejsce na thinking + response
+  if (thinkingEnabled && typeof thinkingBudget === 'number') {
+    const effectiveMaxTokens = maxOutputTokens ?? 1024; // fallback z providera (create-anthropic-provider.ts:79)
+    const minRequired = thinkingBudget + 512; // thinking budget + 512-token bufor na finalną odpowiedź
+
+    if (effectiveMaxTokens < minRequired) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.VALIDATION_FAILED,
+          message: `maxOutputTokens (${effectiveMaxTokens}) is insufficient for thinking mode with budget ${thinkingBudget}. Minimum required: ${minRequired} tokens (thinking budget + 512 token buffer for response text).`,
+          details: [
+            {
+              field: 'params.maxOutputTokens',
+              currentValue: effectiveMaxTokens,
+              thinkingBudget: thinkingBudget,
+              minimumRequired: minRequired,
+              hint: 'Increase maxOutputTokens in request/config, reduce thinkingBudget, or use string effort level (e.g. "medium") for adaptive thinking without fixed budget.',
+            },
+          ],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  return {
+    ...(temperature !== undefined ? { temperature } : {}),
+    ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
+    // ... reszta bez zmian ...
+  };
+}
+```
+
+**Szczegóły implementacji:**
+
+1. **Warunek:** `thinkingEnabled && typeof thinkingBudget === 'number'`  
+   - String budget (`'low'`, `'medium'`, `'high'`) → `output_config.effort` (niezależny od max_tokens)  
+   - Liczba → `thinking.budget_tokens` (część max_tokens) → wymaga walidacji
+
+2. **Effective max tokens:** `maxOutputTokens ?? 1024`  
+   - `maxOutputTokens` może być `undefined` po merge (gdy brak w defaults i request)  
+   - Provider ma fallback `options?.maxOutputTokens ?? 1024` (linia 79 w `create-anthropic-provider.ts`)  
+   - Walidujemy z tym samym fallbackiem
+
+3. **Minimum required:** `thinkingBudget + 512`  
+   - Thinking budget to tokeny na rozumowanie  
+   - Finalny output potrzebuje dodatkowych tokenów (odpowiedź tekstowa)  
+   - Bufor 512 to rozsądne minimum (kilka zdań)  
+   - Można dostosować w zależności od use case (np. 256 dla krótkich odpowiedzi, 1024 dla dłuższych)
+
+4. **Error code:** `VALIDATION_FAILED` (istniejący w `api-error.code.ts`)  
+   - `INVALID_PARAMETER` nie istnieje w projekcie  
+   - `VALIDATION_FAILED` semantycznie pasuje (400 Bad Request)
+
+5. **Hint w details:** Sugeruje 3 rozwiązania:
+   - Zwiększ `maxOutputTokens` w request lub config  
+   - Zmniejsz `thinkingBudget`  
+   - Użyj string effort (`'medium'`) zamiast liczby (adaptive thinking bez fixed budget)
+
+**Alternatywne rozwiązania (odrzucone):**
+
+- ❌ **Auto-bump w providerze** (`max_tokens = Math.max(maxOutputTokens, thinkingBudget + 512)`)  
+  - Milcząco zmienia parametr użytkownika  
+  - Może zaskakiwać wysokimi kosztami  
+  - Trudniejszy debugging (params w logach ≠ faktyczne wywołanie API)
+
+- ❌ **Walidacja w config schema** (`gateway-config.schema.ts`)  
+  - Nie łapie konfliktów z runtime bodyParams  
+  - Za wcześnie w pipeline (przed merge defaults + overrides)
+
+- ❌ **Walidacja w providerze**  
+  - Za późno (zaraz przed API call)  
+  - Duplikacja logiki w każdym providerze (Anthropic, Google)  
+  - Gorsza observability (błąd w metrykach LLM call, nie w gateway validation)
+
+**Konfiguracja aliasów z thinking (zalecenia):**
+
+Dla aliasów z `capabilities.thinking: true` ustaw sensowne defaults:
+
+```yaml
+models:
+  chat-reasoning:
+    providerInstance: anthropic
+    modelId: claude-opus-4-8
+    capabilities:
+      thinking: true
+    policy:
+      params:
+        defaults:
+          maxOutputTokens: 8192   # 🆕 C8.5b: Wyższy default dla thinking mode
+          thinkingEnabled: false  # Opt-in (wysokie koszty)
+        allowOverrides:
+          - thinkingEnabled
+          - thinkingBudget
+          - maxOutputTokens
+        bounds:
+          maxOutputTokens: { min: 1024, max: 16384 }  # 🆕 C8.5b: Wyższy sufit
+```
+
+**Przykładowe scenariusze:**
+
+| Request | Config defaults | Efekt po walidacji |
+|---------|----------------|-------------------|
+| `thinkingEnabled: true, thinkingBudget: 2048` | `maxOutputTokens: 500` | ❌ `400 VALIDATION_FAILED` (500 < 2560) |
+| `thinkingEnabled: true, thinkingBudget: 2048, maxOutputTokens: 4096` | - | ✅ OK (4096 >= 2560) |
+| `thinkingEnabled: true, thinkingBudget: "high"` | `maxOutputTokens: 500` | ✅ OK (string → effort, nie budget_tokens) |
+| `thinkingEnabled: true` (bez budget) | `maxOutputTokens: 500` | ✅ OK (adaptive mode, bez numeric budget) |
+
+**Commit:** `feat(chat): add cross-validation for thinking budget vs maxOutputTokens`
 
 ---
 
