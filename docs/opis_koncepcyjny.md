@@ -4,7 +4,7 @@
 
 > Ten dokument został zastąpiony przez `docs/dokumentacja_koncepcyjna.md` (bardziej spójny układ i kompatybilność ze strukturą dokumentacji z `notesapp_nest_backend`).
 >
-> Zachowano go jako “alias” historyczny. Źródło prawdy: `docs/dokumentacja_koncepcyjna.md`.
+> Zachowano go jako “alias” historyczny. **Treść poniżej może być nieaktualna** — źródło prawdy: `docs/dokumentacja_koncepcyjna.md`. W szczególności: projekt udostępnia **wiele powierzchni API** (natywny `/chat`, fasady `/openai` i `/anthropic`), nie jeden endpoint.
 
 AI Provider Gateway to backendowe API pełniące rolę warstwy pośredniej (gateway / orchestrator) pomiędzy aplikacjami klienckimi a różnymi dostawcami modeli LLM (Large Language Models).  
 Projekt abstrahuje integrację z konkretnymi providerami AI i udostępnia jednolity, spójny interfejs API do komunikacji z wybranym modelem.
@@ -36,8 +36,8 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 
 ### 1. Jednolity interfejs API
 
-- Klient komunikuje się z jednym endpointem niezależnie od wybranego providera.
-- Zmiana modelu lub dostawcy nie wymaga zmian po stronie klienta.
+- Klient komunikuje się z **natywnym kontraktem gateway** (`POST /api/v1/chat`) lub z **fasadami vendora** (`/api/v1/openai`, `/api/v1/anthropic`) — wszystkie trafiają do tej samej warstwy `ChatService`.
+- Zmiana modelu (aliasu) nie wymaga zmian po stronie klienta poza parametrem `model` / `modelAlias`.
 
 ### 2. Abstrakcja providerów AI
 

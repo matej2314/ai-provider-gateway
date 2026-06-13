@@ -73,17 +73,16 @@ F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK (`ProviderCallOpti
 
 - `temperature`, `maxOutputTokens` — wszystkie **wdrożone** adaptery (`anthropic`, `google`)
 - `topP`, `stop` — wszystkie wdrożone adaptery
+- `topK` — **Anthropic** (`top_k`, priorytet nad `topP` / `temperature` w `resolveAnthropicSamplingParams`) i **Google** (`topK` w `buildGenerationConfig`); tylko z body requestu
 - `seed` — **Google** (`create-google-provider.ts`); Anthropic ignoruje
 - `frequencyPenalty`, `presencePenalty` — **nie przekazywane** do SDK przez bieżące adaptery (pola akceptowane w API, brak efektu u vendora)
-- `responseFormat` — merge w `resolveProviderCallOptions`; **mapowane do SDK** przez adaptery **`anthropic`** (`output_config.format` + `jsonSchema`) i **`google`** (`response_format` / `response_schema`) gdy `type === json_object`
+- `responseFormat` — tylko z body; **mapowane do SDK** przez adaptery **`anthropic`** (`output_config.format` + `jsonSchema`) i **`google`** (`response_format` / `response_schema`) gdy `type === json_object`
 
 **Macierz per provider** (szczegóły i reguły YAML): `docs/dictionary.md` — sekcja „Mapowanie parametrów na providerów”, `docs/konfiguracja.md`.
 
-**Anthropic — wykluczenie `temperature` / `top_p`:** API odrzuca oba w jednym requestcie. Adapter przekazuje pola bez filtrowania; operator konfiguruje `policy.params.defaults` (tylko jeden parametr losowości na alias Anthropic).
+**Anthropic — jeden parametr losowości:** adapter wysyła do SDK wyłącznie jeden z `top_k`, `top_p`, `temperature` — priorytet: **`topK` > `topP` > `temperature`** (`resolveAnthropicSamplingParams` w `create-anthropic-provider.ts`). Operator konfiguruje `policy.params.defaults` zgodnie z zamierzonym trybem (np. tylko `temperature`).
 
-**OpenAI — adapter:** **nie wdrożony** (`create-openai-provider.ts` brak w repo). Fasada HTTP `/api/v1/openai` mapuje parametry vendora na `params.*`; wywołanie trafia do adaptera aliasu (Anthropic/Google). Docelowy adapter OpenAI — scenariusz A poniżej; penalties/seed/`response_format` będą mapowane po implementacji fabryki.
-
-**Nie zaimplementowane:** `topK` (rezerwacja w `OVERRIDE_KEYS`, plan C6).
+**OpenAI — adapter:** **nie wdrożony** (`create-openai-provider.ts` brak w repo). Fasada HTTP `/api/v1/openai` mapuje parametry vendora na `params.*`; wywołanie trafia do adaptera aliasu (Anthropic/Google). Docelowy adapter OpenAI — scenariusz A poniżej; penalties/seed/`response_format`/`top_k` będą mapowane po implementacji fabryki.
 
 F-4. Adapter mapuje błędy SDK na błędy gateway:
 

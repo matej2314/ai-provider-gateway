@@ -8,7 +8,7 @@ Zapewnić endpoint zdrowia do lokalnego uruchamiania i orchestracji w infrastruk
 
 ### Scenariusz A — local dev
 
-Użytkownik uruchamia gateway i sprawdza, czy działa: `GET /health`.
+Użytkownik uruchamia gateway i sprawdza, czy działa: `GET /api/v1/health` (globalny prefiks `API_GLOBAL_PREFIX` w `src/setup.app.ts`).
 
 ### Scenariusz B — orchestrator
 

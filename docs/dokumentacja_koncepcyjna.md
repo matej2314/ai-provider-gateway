@@ -42,7 +42,7 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 - **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie zaimplementowane (**Faza 3** w planie; wg nagłówka planu jest to część **v1**, nie rdzenia MVP). Rozszerzona walidacja grafu `providers` ↔ `models` (fail-fast) — `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` (F-3b, F-3c).
 - Klucze API w `.env`; **w production** obowiązuje **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
 - Policy z YAML: **`params`** w `resolveProviderCallOptions`; **`timeoutMs` / `retry` / `fallback`** w `ResilientExecutor` (`dokumentacja_api.md`, `konfiguracja.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego — działa.
-- Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter`). **`requestId`**: propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) — **wdrożone** dla Anthropic/Google (`PROVIDER_*`); limity gateway — **`RATE_LIMITED`** (`SmartRateLimitGuard`, cooldown w `ChatService`).
+- Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter`). **`requestId`**: propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) — **wdrożone** dla Anthropic/Google (`PROVIDER_*`); limity gateway — **`RATE_LIMITED`** (`SmartRateLimitGuard`: RPS/streamy; cooldown w `ChatService.executeChat`).
 - Testy jednostkowe przy modułach (`*.spec.ts`).
 
 ## Poza zakresem (wybrane wykluczenia na start)

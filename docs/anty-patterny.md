@@ -112,7 +112,7 @@ Ten plik zbiera typowe pułapki w projektach “LLM gateway”.
 
 **Rób**:
 
-- **`RATE_LIMITED`** — smart rate limit gateway, cooldown po 429 upstream, równoległe streamy (`SmartRateLimitGuard`, `ChatService` + `SmartRateLimiterService`).
+- **`RATE_LIMITED`** — smart rate limit gateway (`SmartRateLimitGuard`: RPS/burst/streamy) oraz cooldown po 429 upstream (`ChatService.executeChat` + `SmartRateLimiterService`; tylko czat standardowy JSON).
 - **`PROVIDER_RATE_LIMITED`** — wyłącznie mapowanie błędu z SDK (`provider-error.mapper.ts`).
 
 Szczegóły: `dictionary.md`, `dokumentacja_api.md`.

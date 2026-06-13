@@ -33,7 +33,7 @@ Priorytet nagłówków (`AnthropicApiKeyGuard`):
 
 Gateway weryfikuje klucz w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` / Bearer OpenAI). Klucz klienta **nie** trafia do wywołań SDK providera — klucze z `.env` są rozwiązywane per **`providerInstance`** (`apiKeyRef` w YAML).
 
-Kolejność guardów na trasach Anthropic: **`AnthropicApiKeyGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i cooldown, gdy `RATE_LIMIT_SMART_ENABLED=true`). Klucz klienta jest odczytywany przez **`readClientGatewayKey`**.
+Kolejność guardów na trasach Anthropic: **`AnthropicApiKeyGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i równoległe streamy, gdy `RATE_LIMIT_SMART_ENABLED=true`). **Cooldown** po 429 od upstream — w **`ChatService.executeChat`**, nie w guardzie. Klucz klienta jest odczytywany przez **`readClientGatewayKey`**.
 
 **Równoległe streamy** (`stream: true`): limit i zwolnienie slotu w **`AnthropicMessagesController`** (`checkConcurrentStreams` / `releaseStream`), nie w guardzie — ścieżka nie kończy się na `/stream` jak w natywnym API.
 
@@ -114,7 +114,7 @@ Treść tekstowa jest mapowana na `messages[]` kontraktu gateway (`role` + `cont
 | `stream` | `true` — SSE Anthropic; `false` lub brak — JSON `Message` |
 | `temperature` | Opcjonalnie (0–2 w gateway), mapowane na `params.temperature`; adapter Anthropic może odrzucić wartości poza zakresem vendora |
 | `max_tokens` | Opcjonalnie; mapowane na `params.maxOutputTokens`; bez wartości — domyślne z YAML |
-| `top_p` | Opcjonalnie (0–1), mapowane na `params.topP`. **Nie łącz z `temperature`** w efektywnym wywołaniu — Anthropic zwraca 400, gdy oba parametry trafiają do SDK. W YAML aliasów Anthropic: default tylko `temperature` (bez `topP` w defaults). Patrz `konfiguracja.md`. |
+| `top_p` | Opcjonalnie (0–1), mapowane na `params.topP`. Adapter Anthropic wysyła **jeden** parametr losowości — priorytet: **`topK` > `topP` > `temperature`**. Przy defaults `temperature` w YAML override `top_p` w body **nadpisze** `temperature` w SDK. Patrz `konfiguracja.md`, `dictionary.md`. |
 | `stop_sequences` | Opcjonalnie (tablica stringów), mapowane na `params.stop` |
 | `output_config` | Opcjonalnie — structured outputs (JSON mode). Format: `{ format: { type: 'json_schema', schema: {...} } }`. Mapowane na `params.responseFormat`. Wymaga schematu JSON. Patrz sekcja „Structured outputs (JSON mode)". |
 | `tools`, `tool_choice` | Opcjonalnie — mapowane na `tooling` gateway; wymaga `capabilities.tools: true` na aliasie |

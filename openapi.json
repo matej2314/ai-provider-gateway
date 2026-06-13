@@ -1298,6 +1298,12 @@
                 "$ref": "#/components/schemas/ResponseFormatDto"
               }
             ]
+          },
+          "topK": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Top-K sampling (Anthropic/Google only). Only used when provider supports it. Limits sampling to top K tokens.",
+            "example": 40
           }
         }
       },
@@ -1933,6 +1939,10 @@
           "metadata": {
             "type": "object",
             "additionalProperties": true
+          },
+          "max_completion_tokens": {
+            "type": "number",
+            "minimum": 1
           }
         },
         "required": [
@@ -2301,6 +2311,10 @@
             "type": "number",
             "minimum": 0,
             "maximum": 1
+          },
+          "top_k": {
+            "type": "number",
+            "minimum": 0
           },
           "stop_sequences": {
             "type": "array",

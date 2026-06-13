@@ -61,7 +61,7 @@ NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`), 
 
 ## Kryteria akceptacji
 
-- [x] Serwis nie startuje bez **minimum jednego** klucza providera w env (zg. z `env.validation.ts`) oraz bez env wymaganych przez `apiKeyRef` w aktywnej konfiguracji modeli.
+- [x] Serwis nie startuje w **`NODE_ENV=production`** bez **minimum jednego** klucza providera w env (zg. z `env.validation.ts`) oraz bez env wymaganych przez `apiKeyRef` w aktywnej konfiguracji modeli. W development reguła globalna kluczy providerów nie blokuje startu; **`npm run config:validate`** zawsze wymaga ≥1 klucza Anthropic/Google.
 - [x] Serwis nie startuje z configiem niespójnym: nieznany `providerInstance`, puste `models`, włączony provider bez modeli (F-3b, F-3c).
 - [x] Serwis nie startuje przy **duplikacie `apiKeyRef`** w `providers` (F-3a).
 - [x] W YAML dozwolone są **wiele instancji** z tym samym `type` (multi-instance runtime).

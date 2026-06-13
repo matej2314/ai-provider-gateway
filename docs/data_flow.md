@@ -10,7 +10,7 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 |-------|-----------|
 | **Klient** | Dowolny klient HTTP (aplikacja, serwis, BFF). |
 | **HTTP** | Kontroler + walidacja DTO + odpowiedź. |
-| **ChatService** | Cache, smart rate limit (cooldown), `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
+| **ChatService** | Cache, cooldown po 429 (`executeChat`), `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
 | **ChatProviderCallService** | Pojedyncze wywołanie adaptera: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `MetricsService.observeLlmCall` / `observeLlmStream`, emisja SSE `meta`/`delta`. |
 | **ResilientExecutor** | Retry na aliasie żądanym (`policy.retry`, `policy.timeoutMs`), potem opcjonalnie alias `fallback` z YAML. |
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na **`providerInstance`** → `AIProvider` + `modelId`. |

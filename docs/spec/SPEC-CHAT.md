@@ -8,7 +8,7 @@ Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym for
 
 Gateway musi działać na poprawnie zwalidowanym środowisku: w **`NODE_ENV=production`** obowiązuje **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`), zgodnie z `src/config/env.validation.ts` i `docs/konfiguracja.md`. Ponadto wymagany jest poprawny `gateway.config.yaml` (fail‑fast przy starcie).
 
-**Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body: `modelAlias`, `messages`, opcjonalne **`conversationId`** (metryki Sentry — `docs/conversation-tracking.md`), opcjonalne **`metadata`**, opcjonalne **`params`** (`temperature`, `maxOutputTokens`, `topP`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` — merge z `policy.params` w YAML przez `resolveProviderCallOptions`, `src/chat/helpers/resolve-provider-call-options.ts`). **Cache odpowiedzi** dla czatu standardowego — **wdrożony** (`src/cache/`, klucz uwzględnia efektywne parametry wywołania — `konfiguracja.md`).
+**Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body: `modelAlias`, `messages`, opcjonalne **`conversationId`** (metryki Sentry — `docs/conversation-tracking.md`), opcjonalne **`metadata`**, opcjonalne **`params`** (`temperature`, `maxOutputTokens`, `topP`, `topK`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` — merge YAML ← body przez `resolveProviderCallOptions`; `topK` / `stop` / `responseFormat` tylko z body). **Cache odpowiedzi** dla czatu standardowego — **wdrożony** (`src/cache/`, klucz uwzględnia efektywne parametry wywołania — `konfiguracja.md`).
 
 ## Użytkownicy i scenariusze
 
@@ -44,7 +44,7 @@ F-1. Endpoint przyjmuje request zawierający:
 - `messages[]` (wymagane),
 - `conversationId` (string, opcjonalnie — w **request** włącza grupowanie Sentry; w **response** zawsze zwracane echo lub `conv_*`),
 - `metadata` (opcjonalnie — propagacja do adaptera; Anthropic: `userId` → SDK `metadata.user_id`),
-- `params` (opcjonalnie: `temperature`, `maxOutputTokens`, `topP`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` — tylko pola z `policy.params.allowOverrides` dla aliasu; wartości po merge obcinane do `policy.params.bounds`).
+- `params` (opcjonalnie: `temperature`, `maxOutputTokens`, `topP`, `topK`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` — tylko pola z `policy.params.allowOverrides` dla aliasu; merge YAML defaults ← body dla pierwszej grupy; `topK` / `stop` / `responseFormat` tylko z body; wartości po merge obcinane do `policy.params.bounds`).
 
 F-1a. Niedozwolony override w `params` → `400` z `code=MODEL_NOT_ALLOWED` (`resolveProviderCallOptions`).
 

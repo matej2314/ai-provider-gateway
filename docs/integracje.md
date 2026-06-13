@@ -103,7 +103,9 @@ Fasady muszą współdzielić **`SmartRateLimiterService`** z natywnym API.
 **Kolejność guardów (wymagana):**
 
 1. Guard auth fasady (ustawia `req.gatewayKey`)
-2. `SmartRateLimitGuard` (token bucket RPS, cooldown)
+2. `SmartRateLimitGuard` (token bucket RPS, równoległe streamy)
+
+**Cooldown** po 429 od providera: `ChatService.executeChat` → `SmartRateLimiterService.checkCooldown` / `setCooldown` (tylko czat standardowy JSON, nie streaming).
 
 **Helper `readClientGatewayKey(req)`** (`src/common/readClientGatewayKey.ts`):
 

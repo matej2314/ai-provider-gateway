@@ -9,7 +9,7 @@ Gateway obsługuje opcjonalne pole **`conversationId`** w body żądań czatu (`
 
 Gateway jest **stateless**: nie przechowuje historii rozmowy. Pełna treść wątku zależy od tablicy **`messages[]`** wysłanej przez klienta w każdym requeście.
 
-Implementacja: `src/chat/chat.service.ts` (`getClientConversationId`, `getOrCreateConversationIdForResponse`, `buildLlmMetricsContext`), `src/metrics/adapters/sentry-metrics.adapter.ts`.
+Implementacja: `src/chat/helpers/conversation-id.ts` (`getClientConversationId`, `getOrCreateConversationIdForResponse`), `src/chat/helpers/metrics.ts` (`buildLlmMetricsContext` — używane z `ChatProviderCallService`), `src/metrics/adapters/sentry-metrics.adapter.ts`.
 
 ---
 
