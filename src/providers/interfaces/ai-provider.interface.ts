@@ -83,6 +83,7 @@ export interface ProviderCallOptions {
   temperature?: number;
   maxOutputTokens?: number;
   topP?: number;
+  topK?: number;
   stop?: string | string[];
   frequencyPenalty?: number;
   presencePenalty?: number;

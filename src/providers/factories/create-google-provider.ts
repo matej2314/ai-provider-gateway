@@ -30,6 +30,7 @@ function buildGenerationConfig(options?: ProviderCallOptions) {
     temperature: options?.temperature ?? undefined,
     maxOutputTokens: options?.maxOutputTokens ?? 1024,
     topP: options?.topP,
+    topK: options?.topK,
     stopSequences: mapStopSequences(options?.stop),
     seed: options?.seed,
     response_format:

@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiErrorCode } from '../../common/errors/api-error.code';
 import type { GatewayParamsConfig } from '../../config/configuration';
 import type { ProviderCallOptions } from 'src/providers/interfaces/ai-provider.interface';
@@ -54,6 +54,7 @@ export function resolveProviderCallOptions(
   let temperature = defaults.temperature;
   let maxOutputTokens = defaults.maxOutputTokens;
   let topP = defaults.topP;
+  let topK = bodyParams?.topK;
   let stop = bodyParams?.stop;
   let frequencyPenalty = defaults.frequencyPenalty;
   let presencePenalty = defaults.presencePenalty;
@@ -82,6 +83,10 @@ export function resolveProviderCallOptions(
 
   if (bodyParams?.seed !== undefined) {
     seed = bodyParams.seed;
+  }
+
+  if (bodyParams?.topK !== undefined) {
+    topK = bodyParams.topK;
   }
 
   if (temperature !== undefined && bounds.temperature) {
@@ -124,6 +129,7 @@ export function resolveProviderCallOptions(
     ...(temperature !== undefined ? { temperature } : {}),
     ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
     ...(topP !== undefined ? { topP } : {}),
+    ...(topK !== undefined ? { topK } : {}),
     ...(stop !== undefined ? { stop } : {}),
     ...(frequencyPenalty !== undefined ? { frequencyPenalty } : {}),
     ...(presencePenalty !== undefined ? { presencePenalty } : {}),
