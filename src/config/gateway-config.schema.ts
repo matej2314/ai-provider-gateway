@@ -64,6 +64,7 @@ export const GatewayConfigSchema = z
           .object({
             streaming: z.boolean().optional(),
             tools: z.boolean().optional(),
+            thinking: z.boolean().default(false).optional(),
           })
           .optional()
           .default({}),
@@ -87,6 +88,7 @@ export const GatewayConfigSchema = z
                     frequencyPenalty: z.number().min(-2).max(2).optional(),
                     presencePenalty: z.number().min(-2).max(2).optional(),
                     seed: z.number().int().optional(),
+                    thinkingEnabled: z.boolean().optional(),
                   })
                   .optional()
                   .default({}),

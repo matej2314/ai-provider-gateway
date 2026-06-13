@@ -33,6 +33,7 @@ models:
     capabilities:
       streaming: true
       tools: true
+      thinking: true
     policy:
       timeoutMs: 30000
       retry:
@@ -42,6 +43,7 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 500
+          thinkingEnabled: false
         allowOverrides:
           - temperature
           - maxOutputTokens
@@ -52,6 +54,8 @@ models:
           - presencePenalty
           - seed
           - responseFormat
+          - thinkingEnabled
+          - thinkingBudget
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
@@ -66,6 +70,7 @@ models:
     capabilities:
       streaming: true
       tools: true
+      thinking: true
     policy:
       timeoutMs: 30000
       retry:
@@ -75,6 +80,7 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 1024
+          thinkingEnabled: false
         allowOverrides:
           - temperature
           - maxOutputTokens
@@ -85,6 +91,8 @@ models:
           - presencePenalty
           - seed
           - responseFormat
+          - thinkingEnabled
+          - thinkingBudget
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
@@ -99,6 +107,7 @@ models:
     capabilities:
       streaming: true
       tools: true
+      thinking: false
     policy:
       timeoutMs: 30000
       retry:
@@ -109,6 +118,7 @@ models:
           temperature: 0.4
           maxOutputTokens: 1024
           topP: 0.95
+          thinkingEnabled: false
         allowOverrides:
           - temperature
           - maxOutputTokens
@@ -119,6 +129,8 @@ models:
           - presencePenalty
           - seed
           - responseFormat
+          - thinkingEnabled
+          - thinkingBudget
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
