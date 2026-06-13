@@ -14,6 +14,8 @@ const OVERRIDE_KEYS = [
   'seed',
   'topK',
   'responseFormat',
+  'thinkingEnabled',
+  'thinkingBudget',
 ] as const;
 type OverrideKey = (typeof OVERRIDE_KEYS)[number];
 
@@ -60,6 +62,8 @@ export function resolveProviderCallOptions(
   let presencePenalty = defaults.presencePenalty;
   let seed = defaults.seed;
   let responseFormat = bodyParams?.responseFormat;
+  let thinkingEnabled = defaults.thinkingEnabled;
+  let thinkingBudget = bodyParams?.thinkingBudget;
 
   if (bodyParams?.temperature !== undefined) {
     temperature = bodyParams.temperature;
@@ -125,6 +129,35 @@ export function resolveProviderCallOptions(
     );
   }
 
+  if (bodyParams?.thinkingEnabled !== undefined) {
+    if (!allowOverrides.includes('thinkingEnabled')) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.MODEL_NOT_ALLOWED,
+          message:
+            'Parameter thinkingEnabled is not allowed for this model alias',
+          details: [{ field: 'params.thinkingEnabled', allowOverrides }],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    thinkingEnabled = bodyParams.thinkingEnabled;
+  }
+
+  if (thinkingBudget !== undefined) {
+    if (!allowOverrides.includes('thinkingBudget')) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.MODEL_NOT_ALLOWED,
+          message:
+            'Parameter thinkingBudget is not allowed for this model alias.',
+          details: [{ field: 'params.thinkingBudget', allowOverrides }],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   return {
     ...(temperature !== undefined ? { temperature } : {}),
     ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
@@ -135,5 +168,7 @@ export function resolveProviderCallOptions(
     ...(presencePenalty !== undefined ? { presencePenalty } : {}),
     ...(seed !== undefined ? { seed } : {}),
     ...(responseFormat !== undefined ? { responseFormat } : {}),
+    ...(thinkingEnabled !== undefined ? { thinkingEnabled } : {}),
+    ...(thinkingBudget !== undefined ? { thinkingBudget } : {}),
   };
 }
