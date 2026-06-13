@@ -24,7 +24,8 @@ export function mapOpenAiChatRequestToGateway(
     body.frequency_penalty !== undefined ||
     body.presence_penalty !== undefined ||
     body.seed !== undefined ||
-    body.response_format !== undefined
+    body.response_format !== undefined ||
+    body.max_completion_tokens !== undefined
   ) {
     dto.params = {};
 
@@ -63,6 +64,10 @@ export function mapOpenAiChatRequestToGateway(
 
     if (body.metadata) {
       dto.metadata = body.metadata;
+    }
+
+    if (body.max_completion_tokens !== undefined) {
+      dto.params.maxOutputTokens = body.max_completion_tokens;
     }
   }
 

@@ -169,4 +169,11 @@ export class OpenAiChatCompletionRequestDto {
   @IsOptional()
   @IsObject()
   metadata?: Record<string, string | number | boolean>;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  max_completion_tokens?: number;
 }
