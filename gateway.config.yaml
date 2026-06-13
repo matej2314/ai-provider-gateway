@@ -46,6 +46,7 @@ models:
           - temperature
           - maxOutputTokens
           - topP
+          - topK
           - stop
           - frequencyPenalty
           - presencePenalty
@@ -78,6 +79,7 @@ models:
           - temperature
           - maxOutputTokens
           - topP
+          - topK
           - stop
           - frequencyPenalty
           - presencePenalty
@@ -111,6 +113,7 @@ models:
           - temperature
           - maxOutputTokens
           - topP
+          - topK
           - stop
           - frequencyPenalty
           - presencePenalty

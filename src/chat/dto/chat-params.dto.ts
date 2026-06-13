@@ -117,4 +117,15 @@ export class ChatParamsDto {
   @ValidateNested()
   @Type(() => ResponseFormatDto)
   responseFormat?: ResponseFormatDto;
+
+  @ApiPropertyOptional({
+    description:
+      'Top-K sampling (Anthropic/Google only). Only used when provider supports it. Limits sampling to top K tokens.',
+    minimum: 0,
+    example: 40,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  topK?: number;
 }
