@@ -62,6 +62,7 @@ export interface ProviderChatResponse {
   };
   usageDetails?: ProviderUsageDetails;
   systemFingerprint?: string;
+  thinkingContent?: string;
 }
 
 export interface StreamResult {
@@ -92,6 +93,16 @@ export interface ProviderCallOptions {
     type: 'text' | 'json_object';
     jsonSchema?: Record<string, unknown>;
   };
+  thinkingEnabled?: boolean;
+  thinkingBudget?:
+    | 'none'
+    | 'minimal'
+    | 'low'
+    | 'medium'
+    | 'high'
+    | 'xhigh'
+    | 'max'
+    | number;
 }
 
 export interface AIProvider {
