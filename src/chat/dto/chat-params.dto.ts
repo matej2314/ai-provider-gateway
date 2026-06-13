@@ -3,12 +3,14 @@ import {
   IsOptional,
   Max,
   Min,
+  IsBoolean,
   IsInt,
   ValidateNested,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ResponseFormatDto } from './response-format.dto';
 import { IsStringOrArrayOfStrings } from 'src/common/validators/is-string-or-array-of-strings.validator';
+import { IsThinkingBudget } from 'src/common/validators/is-thinking-budget.validator';
 import { Type } from 'class-transformer';
 
 const TEMPERATURE_DTO_MIN = 0;
@@ -128,4 +130,45 @@ export class ChatParamsDto {
   @IsInt()
   @Min(0)
   topK?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Enable extended thinking/reasoning mode for reasoning-capable models.' +
+      'OpenAI: gpt-5+ models use Responses API reasoning.' +
+      'Anthropic: enables thinking parameter with budget_tokens (min. 1024).' +
+      'Google Gemini: enables ThinkingConfig (Gemini 3.0+ only)' +
+      'Significantly increases latency and token usage (2-10x cost).',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  thinkingEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Thinking budget or effort level (provider-specific interpretation). ' +
+      'OpenAI: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" (maps to reasoning.effort). ' +
+      'Anthropic: integer token budget (min 1024) OR "low" | "medium" | "high" | "xhigh" | "max" (maps to output_config.effort). ' +
+      'Google Gemini: integer thought tokens (thinkingBudget, min 1024) OR "minimal" | "low" | "medium" | "high" (maps to thinkingLevel). ' +
+      'Default when omitted: provider-specific (OpenAI=medium, Anthropic=adaptive, Gemini=high).',
+    oneOf: [
+      {
+        type: 'string',
+        enum: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      { type: 'number', minimum: 1024 },
+    ],
+    example: 'medium',
+  })
+  @IsOptional()
+  @IsThinkingBudget()
+  thinkingBudget?:
+    | 'none'
+    | 'minimal'
+    | 'low'
+    | 'medium'
+    | 'high'
+    | 'xhigh'
+    | 'max'
+    | number;
 }
