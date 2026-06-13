@@ -7,6 +7,7 @@ import type {
   ProviderToolResultTurn,
   ProviderUsageDetails,
 } from '../interfaces/ai-provider.interface';
+import { extractAnthropicThinkingContent } from './anthropic-thinking.mapper';
 import type { GatewayToolChoice } from '../types/tooling-types';
 import type { ProviderToolCall } from '../interfaces/ai-provider.interface';
 
@@ -137,6 +138,8 @@ export function parseAnthropicResponseWithTools(
     };
   }
 
+  const thinkingContent = extractAnthropicThinkingContent(response.content);
+
   return {
     text,
     ...(toolCalls.length ? { toolCalls } : {}),
@@ -147,6 +150,7 @@ export function parseAnthropicResponseWithTools(
       outputTokens: response.usage.output_tokens,
     },
     ...(usageDetails ? { usageDetails } : {}),
+    ...(thinkingContent ? { thinkingContent } : {}),
   };
 }
 

@@ -17,6 +17,11 @@ import {
   mapTurnsToAnthropicMessages,
   parseAnthropicResponseWithTools,
 } from '../anthropic/anthropic-tools.mapper';
+import {
+  extractAnthropicThinkingContent,
+  mapThinkingToAnthropic,
+  resolveAnthropicOutputConfig,
+} from '../anthropic/anthropic-thinking.mapper';
 
 function mapStopSequences(
   stop: ProviderCallOptions['stop'],
@@ -67,6 +72,8 @@ export function createAnthropicProvider(
       });
 
       try {
+        const outputConfig = resolveAnthropicOutputConfig(options);
+        const thinking = mapThinkingToAnthropic(options);
         const baseParams = {
           model: modelId,
           max_tokens: options?.maxOutputTokens ?? 1024,
@@ -74,17 +81,8 @@ export function createAnthropicProvider(
           stop_sequences: mapStopSequences(options?.stop),
           system: input.system,
           messages: mapTurnsToAnthropicMessages(input.messages),
-          ...(options?.responseFormat?.type === 'json_object' && {
-            output_config: {
-              format: {
-                type: 'json_schema' as const,
-                schema: options.responseFormat.jsonSchema ?? {
-                  type: 'object',
-                  additionalProperties: true,
-                },
-              },
-            },
-          }),
+          ...(outputConfig ? { output_config: outputConfig } : {}),
+          ...(thinking ? { thinking } : {}),
           metadata:
             input.metadata?.userId !== undefined
               ? {
@@ -110,6 +108,10 @@ export function createAnthropicProvider(
           if (content.type === 'text') text += content.text;
         }
 
+        const responseThinkingContent = extractAnthropicThinkingContent(
+          response.content,
+        );
+
         return {
           text,
           model: response.model,
@@ -117,6 +119,9 @@ export function createAnthropicProvider(
             inputTokens: response.usage.input_tokens,
             outputTokens: response.usage.output_tokens,
           },
+          ...(responseThinkingContent
+            ? { thinkingContent: responseThinkingContent }
+            : {}),
         };
       } catch (error) {
         logger.warn('Error completing', {
@@ -138,6 +143,9 @@ export function createAnthropicProvider(
         try {
           logger.debug('Streaming', { model: modelId });
 
+          const outputConfig = resolveAnthropicOutputConfig(options);
+          const thinking = mapThinkingToAnthropic(options);
+
           const streamParams = {
             model: modelId,
             max_tokens: options?.maxOutputTokens ?? 1024,
@@ -150,17 +158,8 @@ export function createAnthropicProvider(
               tools: mapToolsToAnthropic(input.tools),
               tool_choice: mapToolChoiceToAnthropic(input.toolChoice),
             }),
-            ...(options?.responseFormat?.type === 'json_object' && {
-              output_config: {
-                format: {
-                  type: 'json_schema' as const,
-                  schema: options.responseFormat.jsonSchema ?? {
-                    type: 'object',
-                    additionalProperties: true,
-                  },
-                },
-              },
-            }),
+            ...(outputConfig ? { output_config: outputConfig } : {}),
+            ...(thinking ? { thinking } : {}),
             metadata:
               input.metadata?.userId !== undefined
                 ? {
@@ -219,11 +218,18 @@ export function createAnthropicProvider(
         return mapped.stopReason;
       }
 
+      async function getThinkingContent() {
+        if (!streamObject) return undefined;
+        const finalMessage = await streamObject.finalMessage();
+        return extractAnthropicThinkingContent(finalMessage.content);
+      }
+
       return {
         textStream: textStream(),
         getUsageMetadata: getUsageMetadata,
         getFinalToolCalls: getFinalToolCalls,
         getStopReason: getStopReason,
+        getThinkingContent: getThinkingContent,
       };
     },
   };
