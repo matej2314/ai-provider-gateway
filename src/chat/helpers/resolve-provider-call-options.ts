@@ -158,6 +158,30 @@ export function resolveProviderCallOptions(
     }
   }
 
+  if (thinkingEnabled && typeof thinkingBudget === 'number') {
+    const effectiveMaxTokens = maxOutputTokens ?? 1024;
+    const minRequired = thinkingBudget + 512;
+
+    if (effectiveMaxTokens < minRequired) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.VALIDATION_FAILED,
+          message: `maxOutputTokens (${effectiveMaxTokens}) is insufficient for thinking mode with budget ${thinkingBudget}. Minimum required: ${minRequired} tokens (thinking budget + 512 token buffer for response text).`,
+          details: [
+            {
+              field: 'params.maxOutputTokens',
+              currentValue: effectiveMaxTokens,
+              thinkingBudget,
+              minimumRequired: minRequired,
+              hint: 'Increase maxOutputTokens in request/config, reduce thinkingBudget, or use string effort level (e.g. "medium") for adaptive thinking without fixed budget.',
+            },
+          ],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   return {
     ...(temperature !== undefined ? { temperature } : {}),
     ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
