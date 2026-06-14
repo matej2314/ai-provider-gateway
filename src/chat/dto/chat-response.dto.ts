@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 import { ChatOutputTextDto } from './chat-output-text.dto';
 import { GatewayToolCallDto } from 'src/common/dtos/gateway-tool-call.dto';
 import { ChatUsageDto } from './chat-usage.dto';
@@ -115,4 +115,13 @@ export class ChatResponseDto {
     example: 'fp_01HZZZZZZZZZZZZZZZZZZZZZZ',
   })
   systemFingerprint?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Extended thinking/reasoning content from model. Not streamed in real-time.',
+    example: 'Let me think about this step by step...',
+  })
+  @IsOptional()
+  @IsString()
+  thinkingContent?: string;
 }
