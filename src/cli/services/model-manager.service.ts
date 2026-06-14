@@ -8,6 +8,11 @@ import {
 } from 'src/config/gateway-config.schema';
 import { ConfigPersistenceService } from './config-persistence.service';
 import { DEFAULT_MODELS } from '../constants/default-models';
+import {
+  isThinkingCapableModel,
+  getRecommendedMaxOutputTokens,
+} from '../constants/thinking-capable-models';
+import type { GatewayProviderType } from 'src/config/provider-types';
 
 type ModelEditField =
   | 'modelId'
@@ -16,18 +21,46 @@ type ModelEditField =
   | 'streaming'
   | 'policy';
 
-export function defaultModelPolicy(): NonNullable<
-  GatewayModelConfig['policy']
-> {
+export function defaultModelPolicy(
+  modelId?: string,
+  providerType?: GatewayProviderType,
+): NonNullable<GatewayModelConfig['policy']> {
+  const supportsThinking =
+    modelId && providerType
+      ? isThinkingCapableModel(modelId, providerType)
+      : false;
+  const recommendedMaxTokens =
+    modelId && providerType
+      ? getRecommendedMaxOutputTokens(modelId, providerType)
+      : 1024;
   return {
     timeoutMs: 30000,
     retry: { maxAttempts: 3, onStatus: [429, 500, 502, 503, 504] },
     params: {
-      defaults: { temperature: 0.7, maxOutputTokens: 1024 },
-      allowOverrides: ['temperature', 'maxOutputTokens'],
+      defaults: {
+        temperature: 0.7,
+        maxOutputTokens: recommendedMaxTokens,
+        ...(supportsThinking && { thinkingEnabled: false }),
+      },
+      allowOverrides: [
+        'temperature',
+        'maxOutputTokens',
+        'topP',
+        'topK',
+        'stop',
+        'frequencyPenalty',
+        'presencePenalty',
+        'seed',
+        'responseFormat',
+        'thinkingEnabled',
+        'thinkingBudget',
+      ],
       bounds: {
         temperature: { min: 0, max: 2 },
-        maxOutputTokens: { min: 1, max: 8192 },
+        maxOutputTokens: { min: 1, max: supportsThinking ? 16384 : 8192 },
+        topP: { min: 0, max: 1 },
+        frequencyPenalty: { min: -2, max: 2 },
+        presencePenalty: { min: -2, max: 2 },
       },
     },
   };
@@ -74,11 +107,26 @@ export class ModelManagerService {
         },
       ]);
       const modelAlias = alias.trim();
+      const trimmedModelId = modelId.trim();
+
+      const supportsThinking = isThinkingCapableModel(trimmedModelId, type);
+      if (supportsThinking) {
+        CliLogger.info(
+          `Model ${trimmedModelId} supports thinking mode (extended reasoning).`,
+        );
+        CliLogger.info(
+          'Configuration includes thinking parameters (thinkingEnabled: false by default).',
+        );
+      }
+
       config.models[modelAlias] = {
         providerInstance,
         modelId: modelId.trim(),
-        capabilities: { streaming: true },
-        policy: defaultModelPolicy(),
+        capabilities: {
+          streaming: true,
+          ...(supportsThinking && { thinking: true }),
+        },
+        policy: defaultModelPolicy(trimmedModelId, type),
       };
       await this.configGenerator.generateModelPrompt(modelAlias, cwd);
       const { another } = await inquirer.prompt([
@@ -148,6 +196,27 @@ export class ModelManagerService {
             },
           ]);
           current.modelId = modelId.trim();
+
+          const providerType = config.providers[current.providerInstance]?.type;
+          if (providerType) {
+            const supportsThinking = isThinkingCapableModel(
+              current.modelId,
+              providerType,
+            );
+            const hadThinking = current.capabilities?.thinking === true;
+
+            if (supportsThinking && !hadThinking) {
+              current.capabilities = {
+                ...current.capabilities,
+                thinking: true,
+              };
+            } else if (!supportsThinking && hadThinking) {
+              delete current.capabilities?.thinking;
+              CliLogger.info(
+                'Capabilities updated: thinking mode removed for new model.',
+              );
+            }
+          }
           break;
         }
         case 'providerInstance': {
@@ -211,7 +280,9 @@ export class ModelManagerService {
           break;
         }
         case 'policy': {
-          const base = current.policy ?? defaultModelPolicy();
+          const providerType = config.providers[current.providerInstance]?.type;
+          const base =
+            current.policy ?? defaultModelPolicy(current.modelId, providerType);
           const tempBounds = base.params?.bounds?.temperature ?? {
             min: 0,
             max: 2,
@@ -274,7 +345,10 @@ export class ModelManagerService {
               },
             },
           ]);
-          const policyDefaults = defaultModelPolicy();
+          const policyDefaults = defaultModelPolicy(
+            current.modelId,
+            providerType,
+          );
           current.policy = {
             ...base,
             timeoutMs: policyAnswers.timeoutMs,
