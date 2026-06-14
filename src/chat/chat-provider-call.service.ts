@@ -34,6 +34,7 @@ export interface StreamOnceResult {
   toolCalls?: ProviderToolCall[];
   stopReason?: ProviderChatResponse['stopReason'];
   systemFingerprint?: string;
+  thinkingContent?: string;
 }
 
 export interface StreamOnceParams {
@@ -189,6 +190,10 @@ export class ChatProviderCallService {
       ? await streamResult.getSystemFingerprint()
       : undefined;
 
+    const thinkingContent = streamResult.getThinkingContent
+      ? await streamResult.getThinkingContent()
+      : undefined;
+
     return {
       providerName: resolved.providerName,
       modelId: resolved.modelId,
@@ -203,6 +208,7 @@ export class ChatProviderCallService {
       ...(toolCalls?.length && { toolCalls }),
       ...(stopReason && { stopReason }),
       ...(systemFingerprint && { systemFingerprint }),
+      ...(thinkingContent && { thinkingContent }),
     };
   }
 }

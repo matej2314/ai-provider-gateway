@@ -197,6 +197,9 @@ export class ChatService {
         ...(response.systemFingerprint
           ? { systemFingerprint: response.systemFingerprint }
           : {}),
+        ...(response.thinkingContent && {
+          thinkingContent: response.thinkingContent,
+        }),
       };
 
       const latency = Date.now() - startedAt;
@@ -323,6 +326,7 @@ export class ChatService {
         toolCalls,
         stopReason,
         systemFingerprint,
+        thinkingContent,
       } = await this.providerCallService.streamOnce({
         requestBody,
         alias,
@@ -344,6 +348,7 @@ export class ChatService {
         toolCalls,
         stopReason,
         systemFingerprint,
+        thinkingContent,
       };
     };
 
@@ -362,6 +367,7 @@ export class ChatService {
         stopReason,
         usageMetadata,
         systemFingerprint,
+        thinkingContent,
       } = result.value;
       const usedAlias = result.usedAlias;
       const didFallback = result.didFallback;
@@ -380,6 +386,7 @@ export class ChatService {
           ...(toolCalls?.length && { toolCalls }),
           finishReason: mapStopReasonToFinishReason(stopReason, toolCalls),
           ...(systemFingerprint && { systemFingerprint }),
+          ...(thinkingContent && { thinkingContent }),
         },
       });
 

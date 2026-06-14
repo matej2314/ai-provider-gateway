@@ -31,6 +31,7 @@ export type SseDoneEvent = {
     | 'length'
     | 'content_filter';
   systemFingerprint?: string;
+  thinkingContent?: string;
 };
 
 export type SseEvent =
