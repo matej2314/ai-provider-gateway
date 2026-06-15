@@ -25,7 +25,8 @@ export function mapOpenAiChatRequestToGateway(
     body.presence_penalty !== undefined ||
     body.seed !== undefined ||
     body.response_format !== undefined ||
-    body.max_completion_tokens !== undefined
+    body.max_completion_tokens !== undefined ||
+    body.reasoning_effort !== undefined
   ) {
     dto.params = {};
 
@@ -62,13 +63,18 @@ export function mapOpenAiChatRequestToGateway(
       };
     }
 
-    if (body.metadata) {
-      dto.metadata = body.metadata;
-    }
-
     if (body.max_completion_tokens !== undefined) {
       dto.params.maxOutputTokens = body.max_completion_tokens;
     }
+
+    if (body.reasoning_effort) {
+      dto.params.thinkingEnabled = true;
+      dto.params.thinkingBudget = body.reasoning_effort;
+    }
+  }
+
+  if (body.metadata) {
+    dto.metadata = body.metadata;
   }
 
   const definitions = body.tools?.length

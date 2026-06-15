@@ -13,6 +13,7 @@ import {
   Min,
   ValidateNested,
   IsObject,
+  IsIn,
 } from 'class-validator';
 import { OpenAiChatMessageDto } from './openai-chat-message.dto';
 import { IsStringOrArrayOfStrings } from 'src/common/validators/is-string-or-array-of-strings.validator';
@@ -176,4 +177,17 @@ export class OpenAiChatCompletionRequestDto {
   @IsInt()
   @Min(1)
   max_completion_tokens?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Reasoning effor for OpenAI reasoning models.' +
+      'Gateway not support this parameter yet.',
+    enum: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'],
+    example: 'medium',
+    deprecated: true,
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['none', 'minimal', 'low', 'medium', 'high', 'xhigh'])
+  reasoning_effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
 }
