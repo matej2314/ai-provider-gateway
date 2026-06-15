@@ -174,25 +174,28 @@ export class ResilientExecutor {
       return fn();
     }
 
-    return Promise.race([
-      fn(),
-      new Promise<T>((_, reject) =>
-        setTimeout(
-          () =>
-            reject(
-              new HttpException(
-                {
-                  code: ApiErrorCode.PROVIDER_TIMEOUT,
-                  message: `Request timeout after ${timeoutMs}ms`,
-                  details: [],
-                },
-                HttpStatus.GATEWAY_TIMEOUT,
-              ),
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(
+        () =>
+          reject(
+            new HttpException(
+              {
+                code: ApiErrorCode.PROVIDER_TIMEOUT,
+                message: `Request timeout after ${timeoutMs}ms`,
+                details: [],
+              },
+              HttpStatus.GATEWAY_TIMEOUT,
             ),
-          timeoutMs,
-        ),
-      ),
-    ]);
+          ),
+        timeoutMs,
+      );
+    });
+
+    return Promise.race([fn(), timeoutPromise]).finally(() =>
+      clearTimeout(timeoutId),
+    );
   }
 
   private toExhaustedException(
