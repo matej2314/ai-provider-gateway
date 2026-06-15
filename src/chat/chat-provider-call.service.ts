@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { ProviderRegistryService } from 'src/providers/provider-registry.service';
-import { MetricsService } from 'src/metrics/metrics.service';
+import { ProviderRegistryService } from '../providers/provider-registry.service';
+import { MetricsService } from '../metrics/metrics.service';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
 import { buildProviderInputForAlias } from './helpers/provider-input';
 import { buildLlmMetricsContext } from './helpers/metrics';

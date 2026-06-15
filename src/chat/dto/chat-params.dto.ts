@@ -9,8 +9,8 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ResponseFormatDto } from './response-format.dto';
-import { IsStringOrArrayOfStrings } from 'src/common/validators/is-string-or-array-of-strings.validator';
-import { IsThinkingBudget } from 'src/common/validators/is-thinking-budget.validator';
+import { IsStringOrArrayOfStrings } from '../../common/validators/is-string-or-array-of-strings.validator';
+import { IsThinkingBudget } from '../../common/validators/is-thinking-budget.validator';
 import { Type } from 'class-transformer';
 
 const TEMPERATURE_DTO_MIN = 0;

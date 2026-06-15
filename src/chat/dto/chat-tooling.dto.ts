@@ -1,8 +1,8 @@
 import { Type } from 'class-transformer';
 import { IsOptional, IsArray, ValidateNested, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { GatewayToolDefinitionDto } from 'src/common/dtos/gateway-tool-definition.dto';
-import type { GatewayToolChoice } from 'src/providers/types/tooling-types';
+import { GatewayToolDefinitionDto } from '../../common/dtos/gateway-tool-definition.dto';
+import type { GatewayToolChoice } from '../../providers/types/tooling-types';
 
 export class GatewayNamedToolChoiceFunctionDto {
   @ApiPropertyOptional({ example: 'get_weather' })

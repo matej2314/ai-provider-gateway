@@ -8,7 +8,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { GatewayToolCallDto } from 'src/common/dtos/gateway-tool-call.dto';
+import { GatewayToolCallDto } from '../../common/dtos/gateway-tool-call.dto';
 
 const CONTENT_MAX_LENGTH = 3000;
 const TOOL_CONTENT_MAX_LENGTH = 32000;
