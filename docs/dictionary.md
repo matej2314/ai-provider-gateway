@@ -55,7 +55,7 @@ Pole w **`params`** (natywny czat) / mapowanie fasad OpenAI / Anthropic → **`P
 
 \* **Anthropic — jeden parametr losowości:** adapter wysyła **wyłącznie jeden** z `top_k`, `top_p`, `temperature` — priorytet w `resolveAnthropicSamplingParams()`: **`topK` > `topP` > `temperature`** (`create-anthropic-provider.ts`). Merge z YAML + body może ustawić wiele wartości w `ProviderCallOptions`, ale do SDK trafia tylko zwycięzca priorytetu. Szczegóły: `konfiguracja.md`.
 
-**Merge z YAML `policy.params.defaults`:** w `resolveProviderCallOptions` wartości domyślne z YAML ładowane są dla `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`. Pola **`topK`**, **`stop`** i **`responseFormat`** pochodzą **wyłącznie z body** (gdy podane i dozwolone w `allowOverrides`); schemat Zod (`gateway-config.schema.ts`) **nie** definiuje ich w `defaults`.
+**Merge z YAML `policy.params.defaults`:** w `resolveProviderCallOptions` wartości domyślne z YAML ładowane są dla `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`, `thinkingEnabled`. Pola **`topK`**, **`stop`**, **`responseFormat`** i **`thinkingBudget`** pochodzą **wyłącznie z body** (gdy podane i dozwolone w `allowOverrides`); schemat Zod (`gateway-config.schema.ts`) **nie** definiuje ich w `defaults`.
 
 **Fasada OpenAI vs adapter OpenAI:** moduł `src/integrations/openai/` tłumaczy kontrakt Cursor na `ChatRequestDto`; **nie** istnieje jeszcze `create-openai-provider.ts`. Alias `model` / `modelAlias` decyduje, czy wywołanie trafi do Anthropic czy Google.
 

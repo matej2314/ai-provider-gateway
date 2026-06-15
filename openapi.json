@@ -1304,6 +1304,33 @@
             "minimum": 0,
             "description": "Top-K sampling (Anthropic/Google only). Only used when provider supports it. Limits sampling to top K tokens.",
             "example": 40
+          },
+          "thinkingEnabled": {
+            "type": "boolean",
+            "description": "Enable extended thinking/reasoning mode for reasoning-capable models.OpenAI: gpt-5+ models use Responses API reasoning.Anthropic: enables thinking parameter with budget_tokens (min. 1024).Google Gemini: enables ThinkingConfig (Gemini 3.0+ only)Significantly increases latency and token usage (2-10x cost).",
+            "example": true
+          },
+          "thinkingBudget": {
+            "description": "Thinking budget or effort level (provider-specific interpretation). OpenAI: \"none\" | \"minimal\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" (maps to reasoning.effort). Anthropic: integer token budget (min 1024) OR \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" (maps to output_config.effort). Google Gemini: integer thought tokens (thinkingBudget, min 1024) OR \"minimal\" | \"low\" | \"medium\" | \"high\" (maps to thinkingLevel). Default when omitted: provider-specific (OpenAI=medium, Anthropic=adaptive, Gemini=high).",
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "minimal",
+                  "low",
+                  "medium",
+                  "high",
+                  "xhigh",
+                  "max"
+                ]
+              },
+              {
+                "type": "number",
+                "minimum": 1024
+              }
+            ],
+            "example": "medium"
           }
         }
       },
@@ -1546,6 +1573,11 @@
             "type": "string",
             "description": "System fingerprinting (OpenAI). Identifier for backend configuration snapshot.",
             "example": "fp_01HZZZZZZZZZZZZZZZZZZZZZZ"
+          },
+          "thinkingContent": {
+            "type": "string",
+            "description": "Extended thinking/reasoning content from model. Not streamed in real-time.",
+            "example": "Let me think about this step by step..."
           }
         },
         "required": [
@@ -1943,6 +1975,20 @@
           "max_completion_tokens": {
             "type": "number",
             "minimum": 1
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "description": "Reasoning effor for OpenAI reasoning models.Gateway not support this parameter yet.",
+            "example": "medium",
+            "deprecated": true
           }
         },
         "required": [
@@ -2268,6 +2314,33 @@
           "content"
         ]
       },
+      "AnthropicThinkingDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled",
+              "adaptive"
+            ],
+            "description": "Thinking mode type."
+          },
+          "budget_tokens": {
+            "type": "number",
+            "minimum": 1024,
+            "description": "Token budget for thinking (minimum 1024)."
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "summarized",
+              "omitted"
+            ],
+            "description": "How to display thinking content."
+          }
+        }
+      },
       "AnthropicMessagesRequestDto": {
         "type": "object",
         "properties": {
@@ -2343,7 +2416,19 @@
                   "type",
                   "schema"
                 ]
+              },
+              "effort": {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "xhigh",
+                  "max"
+                ]
               }
+            },
+            "example": {
+              "effort": "high"
             }
           },
           "metadata": {
@@ -2354,6 +2439,19 @@
                 "type": "string"
               }
             }
+          },
+          "thinking": {
+            "description": "Extended thinking configuration (Anthropic unified API).Use thinking.budget_tokens (int, min 1024) for token budget or omit for adaptive thinking mode.Requires Claude Opus 4.6+ or Sonnet 3.7+",
+            "example": {
+              "type": "enabled",
+              "budget_tokens": 5000,
+              "display": "summarized"
+            },
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AnthropicThinkingDto"
+              }
+            ]
           }
         },
         "required": [

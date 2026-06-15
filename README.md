@@ -9,8 +9,8 @@ Gateway HTTP dla LLM, który **ukrywa SDK providerów** i wystawia spójny kontr
 
 Aktualnie wspierani providerzy:
 
-- **Anthropic** (`@anthropic-ai/sdk`)
-- **Google Gemini** (`@google/genai`)
+- **Anthropic** (`@anthropic-ai/sdk`) — z pełnym wsparciem **extended thinking** (reasoning models)
+- **Google Gemini** (`@google/genai`) — z pełnym wsparciem **ThinkingConfig** (Gemini 3.0+)
 
 ## Dokumentacja
 
@@ -44,6 +44,25 @@ Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 - Natywny: `X-Gateway-Key`
 - OpenAI: `Authorization: Bearer` — Base URL: `.../api/v1/openai`
 - Anthropic: `x-api-key` (lub Bearer) — Base URL: `.../api/v1/anthropic`
+
+## Features
+
+Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
+
+- **Advanced generation params**: nucleus sampling (`topP`), stop sequences, frequency/presence penalties, deterministic seed
+- **Structured outputs**: JSON mode z opcjonalnym JSON Schema (natywne wsparcie OpenAI, Anthropic, Google)
+- **Extended thinking mode**: wsparcie reasoning models (Anthropic Claude Opus/Sonnet 4.5+, Google Gemini 3.0+) z parametrami `thinkingEnabled` i `thinkingBudget` — zwiększa jakość odpowiedzi dla złożonych zadań (2-10x koszt)
+- **Extended usage tracking**: prompt cache tokens (Anthropic — 90% discount na cached tokens), `usageDetails` w response
+- **Tool calling / Function calling**: definicje narzędzi w `tooling`, wyniki w `toolCalls`, wsparcie dla `tool` role w messages
+- **Metadata propagation**: tracking użytkownika (`userId`), custom metadata dla analytics
+- **Request/conversation tracking**: `requestId` (nagłówek + body), `conversationId` (grupowanie konwersacji w Sentry)
+- **Smart rate limiting**: per-client RPS/burst/concurrent streams (Redis backend)
+- **Response caching**: opcjonalny cache dla `POST /api/v1/chat` (Redis backend)
+- **Resilient execution**: retry z exponential backoff, timeout per model, opcjonalny fallback chain
+- **Multi-provider**: abstrakcja nad Anthropic, Google Gemini (OpenAI planowany)
+- **IDE-friendly facades**: OpenAI API (Cursor), Anthropic Messages API (Claude Code) — zero-config proxies
+- **Production-ready**: Pino logging, Sentry observability, graceful shutdown, readiness probes
+- **CLI wizard**: `gateway config:init` — interaktywna konfiguracja, `provider:test`, model/client management
 
 ## Szybki start (lokalnie)
 
@@ -116,6 +135,17 @@ curl -i -X POST "http://localhost:3000/api/v1/chat/stream" ^
   -d "{\"modelAlias\":\"chat-default\",\"messages\":[{\"role\":\"user\",\"content\":\"Powiedz coś krótko.\"}]}" ^
   --no-buffer
 ```
+
+### Extended Thinking Mode (reasoning models)
+
+```bash
+curl -i -X POST "http://localhost:3000/api/v1/chat" ^
+  -H "content-type: application/json" ^
+  -H "X-Gateway-Key: YOUR_GATEWAY_KEY" ^
+  -d "{\"modelAlias\":\"chat-reasoning\",\"messages\":[{\"role\":\"user\",\"content\":\"Solve this step by step: What is 234 * 567?\"}],\"params\":{\"thinkingEnabled\":true,\"thinkingBudget\":\"medium\"}}"
+```
+
+Odpowiedź zawiera opcjonalne pole **`thinkingContent`** z rozumowaniem modelu. Wspierane dla **Anthropic Claude Opus/Sonnet 4.5+** i **Google Gemini 3.0+**. Wymaga `capabilities.thinking: true` + `allowOverrides: [thinkingEnabled, thinkingBudget]` w YAML. **Uwaga:** 2-10x większe koszty i latencja — szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md).
 
 ## Auth i limity
 

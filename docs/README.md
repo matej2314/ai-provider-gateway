@@ -16,6 +16,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 8a. **Tool calling** — role `tool`, pole `tooling`, `toolCalls` / `finishReason` w odpowiedzi; `capabilities.tools` w YAML; kody `TOOLS_NOT_SUPPORTED` — `dokumentacja_api.md`, `dictionary.md`.
 8b. **`params.responseFormat`** (JSON mode + opcjonalny `jsonSchema`) — tylko z body requestu; mapowane do SDK Anthropic (`output_config.format`) i Google (`response_format` / `response_schema`); macierz: `dictionary.md`, `konfiguracja.md`.
 8c. **`metadata`** w body czatu — opcjonalne metadane klienta; Anthropic mapuje `userId` → `metadata.user_id` w SDK (`buildProviderInputForAlias`).
+8d. **Extended thinking mode** — wsparcie reasoning models (Anthropic Claude Opus/Sonnet 4.5+, Google Gemini 3.0+); parametry `thinkingEnabled` i `thinkingBudget` w `params`; odpowiedź zawiera opcjonalne pole `thinkingContent`; `capabilities.thinking` w YAML; wysokie koszty 2-10x, domyślnie wyłączone — szczegóły: `dokumentacja_api.md`.
 9. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`.
 10. **Smart rate limiting** (`src/rate-limit/`, Redis; bez `@nestjs/throttler`), kody błędów **`RATE_LIMITED`** vs **`PROVIDER_RATE_LIMITED`** — `dictionary.md`; limity: YAML `clients[].rateLimit` lub env; szczegóły: `konfiguracja.md`, `architektura.md`.
 11. **Request ID** — propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`).
