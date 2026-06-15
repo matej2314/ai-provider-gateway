@@ -8,6 +8,17 @@ export class AnthropicTextContentBlockDto {
   text: string;
 }
 
+export class AnthropicThinkingContentBlockDto {
+  @ApiProperty({ enum: ['thinking'], example: 'thinking' })
+  type: 'thinking';
+
+  @ApiProperty({
+    example: 'Let me think about this step by step...',
+    description: 'Thinking content from extended thinking mode (Anthropic).',
+  })
+  thinking: string;
+}
+
 export class AnthropicToolUseContentBlockDto {
   @ApiProperty({ enum: ['tool_use'], example: 'tool_use' })
   type: 'tool_use';
@@ -27,8 +38,8 @@ export class AnthropicToolUseContentBlockDto {
 }
 
 export class AnthropicContentBlockDto {
-  @ApiProperty({ enum: ['text', 'tool_use'] })
-  type: 'text' | 'tool_use';
+  @ApiProperty({ enum: ['text', 'tool_use', 'thinking'] })
+  type: 'text' | 'tool_use' | 'thinking';
 
   @ApiPropertyOptional()
   text?: string;
@@ -109,4 +120,7 @@ export class AnthropicMessagesResponseDto {
   usage: AnthropicMessagesUsageDto;
 }
 
-export type AnthropicContentBlock = AnthropicContentBlockDto;
+export type AnthropicContentBlock =
+  | AnthropicTextContentBlockDto
+  | AnthropicToolUseContentBlockDto
+  | AnthropicThinkingContentBlockDto;

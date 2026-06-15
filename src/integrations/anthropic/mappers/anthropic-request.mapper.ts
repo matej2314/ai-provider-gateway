@@ -41,7 +41,8 @@ export function mapAnthropicRequestToGateway(
     body.top_p !== undefined ||
     body.top_k !== undefined ||
     body.stop_sequences !== undefined ||
-    body.output_config !== undefined
+    body.output_config !== undefined ||
+    body.thinking !== undefined
   ) {
     dto.params = {};
     if (body.temperature !== undefined) {
@@ -69,6 +70,18 @@ export function mapAnthropicRequestToGateway(
             : 'text',
         jsonSchema: body.output_config.format?.schema,
       };
+    }
+
+    if (body.thinking && body.thinking.type !== 'disabled') {
+      dto.params.thinkingEnabled = true;
+
+      if (body.thinking.type === 'enabled' && body.thinking.budget_tokens) {
+        dto.params.thinkingBudget = body.thinking.budget_tokens;
+      }
+    }
+
+    if (body.output_config?.effort && !body.thinking) {
+      dto.params.thinkingBudget = body.output_config.effort;
     }
 
     if (body.metadata?.user_id) {

@@ -53,6 +53,13 @@ export function mapGatewayResponseToAnthropicFormat(
 ): AnthropicMessagesResponseDto {
   const content: AnthropicContentBlock[] = [];
 
+  if (result.thinkingContent) {
+    content.push({
+      type: 'thinking',
+      thinking: result.thinkingContent,
+    });
+  }
+
   if (result.output.text !== undefined && result.output.text !== '') {
     content.push({ type: 'text', text: result.output.text });
   }

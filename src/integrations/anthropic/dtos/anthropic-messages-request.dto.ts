@@ -10,6 +10,7 @@ import {
   IsOptional,
   IsString,
   IsInt,
+  IsIn,
   Max,
   MaxLength,
   Min,
@@ -19,6 +20,34 @@ import { AnthropicMessageDto } from './anthropic-message.dto';
 
 const MAX_MESSAGES = 15000;
 const SYSTEM_MAX = 128_000;
+
+export class AnthropicThinkingDto {
+  @ApiPropertyOptional({
+    enum: ['enabled', 'disabled', 'adaptive'],
+    description: 'Thinking mode type.',
+  })
+  @IsOptional()
+  @IsIn(['enabled', 'disabled', 'adaptive'])
+  type?: 'enabled' | 'disabled' | 'adaptive';
+
+  @ApiPropertyOptional({
+    minimum: 1024,
+    description: 'Token budget for thinking (minimum 1024).',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1024)
+  budget_tokens?: number;
+
+  @ApiPropertyOptional({
+    enum: ['summarized', 'omitted'],
+    description: 'How to display thinking content.',
+  })
+  @IsOptional()
+  @IsIn(['summarized', 'omitted'])
+  display?: 'summarized' | 'omitted';
+}
 
 export class AnthropicMessagesRequestDto {
   @ApiProperty({ example: 'chat-default' })
@@ -110,7 +139,9 @@ export class AnthropicMessagesRequestDto {
         },
         required: ['type', 'schema'],
       },
+      effort: { enum: ['low', 'medium', 'high', 'xhigh', 'max'] },
     },
+    example: { effort: 'high' },
   })
   @IsOptional()
   @IsObject()
@@ -119,6 +150,7 @@ export class AnthropicMessagesRequestDto {
       type: 'json_schema';
       schema: Record<string, unknown>;
     };
+    effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   };
 
   @ApiPropertyOptional({
@@ -131,4 +163,17 @@ export class AnthropicMessagesRequestDto {
   @IsOptional()
   @IsObject()
   metadata?: { user_id?: string };
+
+  @ApiPropertyOptional({
+    description:
+      'Extended thinking configuration (Anthropic unified API).' +
+      'Use thinking.budget_tokens (int, min 1024) for token budget or omit for adaptive thinking mode.' +
+      'Requires Claude Opus 4.6+ or Sonnet 3.7+',
+    type: AnthropicThinkingDto,
+    example: { type: 'enabled', budget_tokens: 5000, display: 'summarized' },
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AnthropicThinkingDto)
+  thinking?: AnthropicThinkingDto;
 }
