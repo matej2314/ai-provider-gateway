@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RedisConnectionService } from 'src/cache/adapters/redis-cache/redis-connection.service';
+import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
 import {
   GatewayKeyRuntimeConfig,
   ResolvedGatewayClient,
-} from 'src/config/configuration.types';
-import { LoggingService } from 'src/logging/logging.service';
+} from '../config/configuration.types';
+import { LoggingService } from '../logging/logging.service';
 
 export interface RateLimitResult {
   allowed: boolean;

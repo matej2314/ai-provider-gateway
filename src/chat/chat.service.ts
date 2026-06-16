@@ -7,7 +7,7 @@ import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.servic
 import { ProviderRegistryService } from '../providers/provider-registry.service';
 import { v4 as uuidv4 } from 'uuid';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
-import { ResilientExecutor } from 'src/common/resilience/resilient-executor';
+import { ResilientExecutor } from '../common/resilience/resilient-executor';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseEvent } from './sse/sse-event.type';
 import { ResponseCacheService } from '../cache/response-cache.service';
@@ -18,7 +18,7 @@ import { buildRetryPolicyFromResolved } from './helpers/retry-policy';
 import { mapStopReasonToFinishReason } from './helpers/map-provider-finish-reason';
 import { isToolingRequest } from './helpers/tooling-request';
 import type { GatewayConfig } from '../config/configuration';
-import type { ResolvedProviderConfig } from 'src/providers/provider-registry.service';
+import type { ResolvedProviderConfig } from '../providers/provider-registry.service';
 
 @Injectable()
 export class ChatService {

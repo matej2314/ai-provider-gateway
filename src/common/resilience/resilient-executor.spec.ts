@@ -3,6 +3,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { ResilientExecutor } from './resilient-executor';
 import { LoggingService } from '../../logging/logging.service';
 import { ApiErrorCode } from '../errors/api-error.code';
+import { createMockLoggingService } from '../mocks/createMockLoggingService';
 import type { ResilientExecutionOptions } from './resilience.types';
 
 function structuredHttpException(
@@ -30,13 +31,7 @@ describe('ResilientExecutor', () => {
   let mockLogger: Partial<LoggingService>;
 
   beforeEach(async () => {
-    mockLogger = {
-      child: jest.fn().mockReturnThis(),
-      debug: jest.fn(),
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-    };
+    mockLogger = createMockLoggingService();
 
     const module = await Test.createTestingModule({
       providers: [
@@ -49,7 +44,9 @@ describe('ResilientExecutor', () => {
   });
 
   it('should create a scoped logger on construction', () => {
-    expect(mockLogger.child).toHaveBeenCalledWith({ module: 'ResilientExecutor' });
+    expect(mockLogger.child).toHaveBeenCalledWith({
+      module: 'ResilientExecutor',
+    });
   });
 
   describe('Happy path - primary success (no retry)', () => {
@@ -463,11 +460,16 @@ describe('ResilientExecutor', () => {
 
   describe('Edge case - retry defaults', () => {
     it('should default maxAttempts to 3 when omitted', async () => {
-      const runOnce = jest.fn().mockRejectedValue(new HttpException('Error', 500));
+      const runOnce = jest
+        .fn()
+        .mockRejectedValue(new HttpException('Error', 500));
 
       const options: ResilientExecutionOptions<string> = {
         primaryAlias: 'primary',
-        retry: { onStatus: [500], timeoutMs: 5000 } as ResilientExecutionOptions<string>['retry'],
+        retry: {
+          onStatus: [500],
+          timeoutMs: 5000,
+        } as ResilientExecutionOptions<string>['retry'],
         runOnce,
       };
 
@@ -773,9 +775,9 @@ describe('ResilientExecutor', () => {
         runOnce,
       };
 
-      await expect(
-        executor.executeWithRetryAndFallback(options),
-      ).rejects.toBe('plain string failure');
+      await expect(executor.executeWithRetryAndFallback(options)).rejects.toBe(
+        'plain string failure',
+      );
       expect(runOnce).toHaveBeenCalledTimes(1);
     });
 

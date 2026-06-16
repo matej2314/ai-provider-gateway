@@ -3,10 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { ChatRequestDto } from '../chat/dto/chat-request.dto';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
-import type { ResolvedSystemPrompts } from 'src/config/configuration.types';
+import type { ResolvedSystemPrompts } from '../config/configuration.types';
 import { CACHE_BACKEND } from './cache.tokens';
-import { ProviderCallOptions } from 'src/providers/interfaces/ai-provider.interface';
-import { LoggingService } from 'src/logging/logging.service';
+import { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
+import { LoggingService } from '../logging/logging.service';
 
 export interface CachedChatResponse {
   id: string;
