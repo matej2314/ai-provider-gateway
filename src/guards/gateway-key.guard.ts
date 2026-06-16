@@ -55,7 +55,7 @@ export class GatewayKeyGuard implements CanActivate {
         details: [],
       });
     }
-
+    req.gatewayKey = headerValue;
     return true;
   }
 }

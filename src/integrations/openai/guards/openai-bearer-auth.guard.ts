@@ -7,9 +7,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import type { Request } from 'express';
-import type { GatewayKeyRuntimeConfig } from 'src/config/configuration.types';
+import type { GatewayKeyRuntimeConfig } from '../../../config/configuration.types';
 
 export function readBearerToken(req: Request): string | undefined {
   const raw = req.header('authorization') ?? req.headers['authorization'];

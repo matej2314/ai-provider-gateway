@@ -7,10 +7,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
-import { readBearerToken } from 'src/integrations/openai/guards/openai-bearer-auth.guard';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import { readBearerToken } from '../../../integrations/openai/guards/openai-bearer-auth.guard';
 import type { Request } from 'express';
-import type { GatewayKeyRuntimeConfig } from 'src/config/configuration.types';
+import type { GatewayKeyRuntimeConfig } from '../../../config/configuration.types';
 
 export function readAnthropicApiKey(req: Request): string | undefined {
   const xApiKey = req.header('x-api-key');
