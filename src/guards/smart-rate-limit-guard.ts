@@ -8,9 +8,9 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
-import { SmartRateLimiterService } from 'src/rate-limit/smart-rate-limiter.service';
-import { readClientGatewayKey } from 'src/common/readClientGatewayKey';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
+import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.service';
+import { readClientGatewayKey } from '../common/readClientGatewayKey';
+import { ApiErrorCode } from '../common/errors/api-error.code';
 
 @Injectable()
 export class SmartRateLimitGuard implements CanActivate {

@@ -9,10 +9,10 @@ import {
 } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
 import { ChatRequestDto } from './dto/chat-request.dto';
-import { GatewayKeyAndSmartRateLimit } from 'src/common/decorators/gateway-key-and-smart-rate-limit.decorator';
-import { readGatewayKeyHeader } from 'src/common/readGatewayKeyHeader';
+import { GatewayKeyAndSmartRateLimit } from '../common/decorators/gateway-key-and-smart-rate-limit.decorator';
+import { readGatewayKeyHeader } from '../common/readGatewayKeyHeader';
 import { ChatResponseDto } from './dto/chat-response.dto';
-import { ApiGatewayChatErrorResponses } from 'src/common/decorators/api-gateway-error-responses.decorator';
+import { ApiGatewayChatErrorResponses } from '../common/decorators/api-gateway-error-responses.decorator';
 import { ApiRequestIdHeader } from '../common/decorators/api-request-id-header.decorator';
 
 @ApiTags('Chat')

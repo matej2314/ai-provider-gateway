@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 import { ChatOutputTextDto } from './chat-output-text.dto';
-import { GatewayToolCallDto } from 'src/common/dtos/gateway-tool-call.dto';
+import { GatewayToolCallDto } from '../../common/dtos/gateway-tool-call.dto';
 import { ChatUsageDto } from './chat-usage.dto';
 
 export class ChatUsageDetailsDto {

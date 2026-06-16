@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import type { GatewayKeyRuntimeConfig } from '../config/configuration.types';
 import { ApiErrorCode } from '../common/errors/api-error.code';
-import { readGatewayKeyHeader } from 'src/common/readGatewayKeyHeader';
+import { readGatewayKeyHeader } from '../common/readGatewayKeyHeader';
 
 @Injectable()
 export class GatewayKeyGuard implements CanActivate {

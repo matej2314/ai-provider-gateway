@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { finalize } from 'rxjs/operators';
-import { SmartRateLimiterService } from 'src/rate-limit/smart-rate-limiter.service';
-import { readClientGatewayKey } from 'src/common/readClientGatewayKey';
+import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
+import { readClientGatewayKey } from '../readClientGatewayKey';
 import type { Request } from 'express';
 
 @Injectable()
