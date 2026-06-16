@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
-import type { ChatMessageDto } from 'src/chat/dto/chat-message.dto';
-import type { GatewayToolCall } from 'src/providers/types/tooling-types';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import type { ChatMessageDto } from '../../../chat/dto/chat-message.dto';
+import type { GatewayToolCall } from '../../../providers/types/tooling-types';
 import type { OpenAiChatMessageDto } from '../dtos/openai-chat-message.dto';
 
 export function mapOpenAiToolCalls(raw: unknown[]): GatewayToolCall[] {

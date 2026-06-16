@@ -1,9 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import type {
   GatewayToolDefinition,
   GatewayToolChoice,
-} from 'src/providers/types/tooling-types';
+} from '../../../providers/types/tooling-types';
 
 type OpenAiFunctionTool = {
   type: 'function';

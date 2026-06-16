@@ -1,11 +1,11 @@
 import { BadRequestException } from '@nestjs/common';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
-import type { ChatMessageDto } from 'src/chat/dto/chat-message.dto';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import type { ChatMessageDto } from '../../../chat/dto/chat-message.dto';
 import type {
   GatewayToolDefinition,
   GatewayToolCall,
   GatewayToolChoice,
-} from 'src/providers/types/tooling-types';
+} from '../../../providers/types/tooling-types';
 import type { AnthropicContentBlockDto } from '../dtos/anthropic-content-block.dto';
 
 type AnthropicTool = {
@@ -95,7 +95,7 @@ export function mapAnthropicContentBlockToGateway(
     }
   }
 
-  if (role === 'assistant' || textContent || toolCalls.length) {
+  if (role === 'assistant') {
     messages.push({
       role: 'assistant',
       content: textContent,

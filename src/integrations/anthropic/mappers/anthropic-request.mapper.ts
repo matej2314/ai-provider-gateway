@@ -1,12 +1,12 @@
 import { BadRequestException } from '@nestjs/common';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import {
   mapAnthropicContentBlockToGateway,
   mapAnthropicToolChoice,
   mapAnthropicToolsToGateway,
 } from './anthropic-tools.mapper';
-import type { ChatRequestDto } from 'src/chat/dto/chat-request.dto';
-import type { ChatMessageDto } from 'src/chat/dto/chat-message.dto';
+import type { ChatRequestDto } from '../../../chat/dto/chat-request.dto';
+import type { ChatMessageDto } from '../../../chat/dto/chat-message.dto';
 import type { AnthropicMessagesRequestDto } from '../dtos/anthropic-messages-request.dto';
 
 export function mapAnthropicRequestToGateway(
@@ -83,10 +83,10 @@ export function mapAnthropicRequestToGateway(
     if (body.output_config?.effort && !body.thinking) {
       dto.params.thinkingBudget = body.output_config.effort;
     }
+  }
 
-    if (body.metadata?.user_id) {
-      dto.metadata = { userId: body.metadata.user_id };
-    }
+  if (body.metadata?.user_id) {
+    dto.metadata = { userId: body.metadata.user_id };
   }
 
   const definitions = body.tools?.length
