@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { CacheBackend } from '../../interfaces/cache-backend-interface';
 import { RedisConnectionService } from './redis-connection.service';
 import { CacheRegistryService } from '../../cache-registry.service';
-import { LoggingService } from 'src/logging/logging.service';
+import { LoggingService } from '../../../logging/logging.service';
 
 @Injectable()
 export class RedisCacheAdapter implements CacheBackend, OnModuleInit {
