@@ -1,13 +1,13 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **1.2**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat, fasada OpenAI, fasada Anthropic) oraz health. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
+Wersja dokumentu: **1.3**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat, fasada OpenAI, fasada Anthropic) oraz health. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
 
 ## Źródła prawdy (kolejność)
 
 1. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — dekoratory `@nestjs/swagger` na kontrolerach i klasach odpowiedzi (`@ApiProperty`, `@ApiOperation`, `@ApiGatewayChatErrorResponses`, `@ApiOpenAiErrorResponses`, `@ApiAnthropicErrorResponses`, `@ApiRequestIdHeader`, …). Konfiguracja dokumentu: `src/swagger/swagger.setup.ts` (`extraModels`, trzy `securitySchemes`).
 2. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) **generowany z kodu** (`npm run openapi:export` → `src/swagger/export-openapi.ts`). W runtime ten sam dokument serwowany jako `/api/v1/swagger.json` (gdy Swagger włączony).
 3. **Swagger UI** — interaktywna dokumentacja pod `/api/v1/api-docs` (`setupSwagger` w `src/main.ts`; wyłączanie: `SWAGGER_ENABLED` — `konfiguracja.md`).
-4. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1 (pozostałość v1: m.in. CORS). **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` — `konfiguracja.md`.
+4. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1. **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` — `konfiguracja.md`.
 5. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
 6. **System prompt po stronie serwera** — wczytanie plików w `configuration.ts`, składanie w `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`).
 7. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
@@ -110,7 +110,9 @@ Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 150*
 
 Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`, `response-format.dto.ts`): zagnieżdżony obiekt z opcjonalnymi polami **`temperature`** (0–2), **`maxOutputTokens`** (1–8192), **`topP`** (0–1), **`topK`** (integer ≥0), **`stop`** (string \| string[]), **`frequencyPenalty`** / **`presencePenalty`** (-2–2), **`seed`** (integer 0–2³²−1), **`responseFormat`** (`{ type: "text" | "json_object", jsonSchema?: object }`). Wartości efektywne: merge **`policy.params.defaults`** z YAML ← nadpisanie z body dla pól w **`allowOverrides`** (dotyczy `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`); pola **`topK`**, **`stop`**, **`responseFormat`** — **tylko z body** (brak merge z YAML `defaults`); po merge **clamp** do **`bounds`** (`resolveProviderCallOptions`). Niedozwolone pole w body → **`400`** + **`MODEL_NOT_ALLOWED`** — w czacie standardowym sprawdzane **przed** wywołaniem providera. **Które pola trafiają do SDK** zależy od **`providerInstance`** aliasu (Anthropic / Google; OpenAI adapter planowany) — macierz: **`dictionary.md`**, reguły YAML: **`konfiguracja.md`**. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API; adaptery `anthropic` / `google` nie przekazują ich do SDK. **`topK`**: Anthropic (priorytet nad `topP` / `temperature`) i Google. **`responseFormat`**: mapowane do SDK Anthropic (`output_config.format`) i Google (`response_format` / `response_schema`) gdy `type === json_object`. Nadwyżkowe pola w body → **`400`** (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Limit body: **1 MB**.
 
-### Response (`200`)
+### Response (`201`)
+
+Udana odpowiedź JSON: **201 Created** — domyślne zachowanie NestJS dla `POST` bez `@HttpCode` (`ChatController` zwraca wynik z handlera; dekorator `@ApiResponse({ status: 201 })` w `src/chat/chat.controller.ts`). **`openapi.json`** i Swagger UI opisują ten sam kod. Streaming SSE — **200** (`POST /chat/stream`).
 
 `ChatService.executeChat`: `id`, **`provider`** (identyfikator **`providerInstance`** z YAML), `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`**, opcjonalnie **`toolCalls`**, **`finishReason`**, **`usageDetails`**, **`systemFingerprint`**, `output`, `usage`, `requestId`, **`conversationId`**.
 
@@ -124,7 +126,8 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 | HTTP | Kiedy |
 |------|--------|
-| 200 | Sukces |
+| 201 | Sukces (domyślny kod NestJS dla `POST` bez `@HttpCode`) |
+| 200 | Sukces streamingu SSE (`POST /chat/stream`) |
 | 400 | Walidacja DTO; nieznany `modelAlias` → `MODEL_ALIAS_NOT_FOUND`; niedozwolony override w `params` → `MODEL_NOT_ALLOWED`; tooling bez `capabilities.tools` → `TOOLS_NOT_SUPPORTED` |
 | 401 | Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`) |
 | 403 | Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`) |
@@ -186,6 +189,8 @@ Osobne kontrakty HTTP dla narzędzi IDE — **uwzględnione w `openapi.json`** (
 | Architektura wspólna | `integracje.md` |
 
 Wewnętrznie fasady wywołują ten sam **`ChatService`** co `POST /chat`. Pole **`model`** w żądaniu vendora = **`modelAlias`** z YAML. Runtime: błędy w kształcie OpenAI / Anthropic (`OpenAiExceptionFilter`, `AnthropicExceptionFilter`) — nie `ErrorEnvelope`. Streaming opisany w OpenAPI przez stałe `OPENAI_STREAM_API_DESCRIPTION` / `ANTHROPIC_STREAM_API_DESCRIPTION` (`src/integrations/*/helpers/*-stream-api-description.ts`).
+
+**Kody HTTP (fasady):** jak w natywnym czacie — **201** dla odpowiedzi JSON (`stream` false / pominięte; `@ApiResponse({ status: 201 })` w kontrolerach fasad), **200** dla SSE (`stream: true`; jawne `res.status(200)` w `handleStream`). OpenAPI deklaruje oba kody na jednej operacji (`POST .../chat/completions`, `POST .../messages`). *Uwaga:* upstream OpenAI i Anthropic API zwracają przy sukcesie **200**; gateway celowo używa **201** na wszystkich udanych `POST` z JSON (spójność NestJS w całym serwisie).
 
 ---
 

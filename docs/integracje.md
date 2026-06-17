@@ -22,6 +22,7 @@ Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzę
 | `readClientGatewayKey` + aktualizacja `SmartRateLimitGuard` / `StreamCleanupInterceptor` | **Wdrożone** (`src/common/readClientGatewayKey.ts`) |
 | **Fasada OpenAI** (`OpenAiModule`) — auth, models, completions JSON + stream | **Wdrożona** — [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md) |
 | **Fasada Anthropic** (`AnthropicModule`) — auth, models, messages JSON + stream | **Wdrożona** — [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md) |
+| Testy E2E kontraktu HTTP (mock providerów) | **Wdrożone** — `test/e2e/openai-integration.e2e-spec.ts`, `anthropic-integration.e2e-spec.ts` — [`testy.md`](testy.md) |
 
 Szczegóły konfiguracji klientów (Cursor, Claude Code): **`integracja-openai-kontrakt.md`**, **`integracja-anthropic-messages.md`**.
 
@@ -190,3 +191,4 @@ src/integrations/
 - `architektura.md`, `architektura-katalogi-pliki.md`
 - `dictionary.md` — pojęcia (fasada, klucz klienta)
 - `anty-patterny.md` — pułapki przy wielu kontraktach
+- `testy.md` — testy E2E fasad i natywnego czatu

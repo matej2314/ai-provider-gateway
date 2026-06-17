@@ -12,7 +12,6 @@ import {
   ApiOperation,
   ApiSecurity,
   ApiTags,
-  ApiOkResponse,
   ApiProduces,
   ApiResponse,
 } from '@nestjs/swagger';
@@ -34,7 +33,6 @@ import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
 import type { SseEvent } from 'src/chat/sse/sse-event.type';
 
 import { OPENAI_INTEGRATION_PATH } from 'src/integrations/integrations.constants';
-import { OpenAiErrorResponseDto } from '../dtos/openai-error-response.dto';
 import { ApiRequestIdHeader } from 'src/common/decorators/api-request-id-header.decorator';
 import { ApiOpenAiErrorResponses } from 'src/common/decorators/api-openai-error-response.decorator';
 import { OpenAiChatCompletionResponseDto } from '../dtos/openai-chat-completion-response.dto';
@@ -112,7 +110,8 @@ export class OpenAiChatCompletionsController {
       'JSON completion when `stream` is false/omitted. SSE chunks when `stream: true`',
   })
   @ApiBody({ type: OpenAiChatCompletionRequestDto })
-  @ApiOkResponse({
+  @ApiResponse({
+    status: 201,
     type: OpenAiChatCompletionResponseDto,
     description: 'Non-streaming response.',
   })

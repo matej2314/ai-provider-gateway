@@ -55,7 +55,7 @@ NFR-3. Gateway nie może emitować surowych payloadów SDK providerów jako SSE.
 ## Kryteria akceptacji
 
 - [x] `meta` pojawia się raz i zawiera `requestId`, `provider`, `model`, `conversationId` (oraz `id` gateway).
-- [ ] `delta` składa się w finalny tekst zgodny ze standardową odpowiedzią (na ile to możliwe) — do weryfikacji testami kontraktu.
+- [ ] `delta` składa się w finalny tekst zgodny ze standardową odpowiedzią (na ile to możliwe) — częściowo: E2E sprawdza obecność zdarzeń `meta`/`delta`/`done` (`gateway-chat.e2e-spec.ts`); pełna asercja treści — do rozszerzenia.
 - [x] `done` kończy stream; payload może zawierać `usage`, `toolCalls`, `finishReason` (pusty `{}` gdy brak metadanych końcowych).
 - [x] Dla modelu bez streamingu zwracany jest JSON z `code: STREAMING_NOT_SUPPORTED` (`validateForStreaming`, przed SSE).
 

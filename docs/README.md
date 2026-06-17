@@ -28,6 +28,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 17. **OpenAPI / Swagger** — `@nestjs/swagger` w kontrolerach i DTO (`src/swagger/`); jeden dokument obejmuje **natywny czat**, **health** oraz **fasady** OpenAI/Anthropic (osobne `securitySchemes`: `GatewayKeyAuth`, `BearerAuth`, `ApiKeyAuth`); dekoratory błędów: `ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport: `npm run openapi:export` → `openapi.json`; env `SWAGGER_ENABLED` — `konfiguracja.md`, `dokumentacja_api.md`.
 18. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`); **OpenAI** — `integracja-openai-kontrakt.md` (Cursor); **Anthropic** — `integracja-anthropic-messages.md` (Claude Code / klient Messages API); przegląd: `integracje.md`.
 19. **CLI** — osobny entry point `bin/`, moduł `src/cli/` bez `ConfigModule`; wizard **`gateway config:init`**, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli i klientów, `provider:test`, `key:generate`. Backup mutacji YAML → katalog `backup/`. Uruchomienie: `npm run cli`, `npx gateway`, opcjonalnie `npm link` → `gateway`. Szczegóły: **`CLI.md`**, `architektura-katalogi-pliki.md` (sekcja 2a), `architektura.md`.
+20. **Testy** — jednostkowe (`src/**/*.spec.ts`, `npm test`) i E2E HTTP (`test/e2e/`, `npm run test:e2e`, `npm run test:all`); mocki providerów/Redis bez realnych kluczy API — **`testy.md`**.
 
 ## Spis plików
 
@@ -48,6 +49,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `integracja-anthropic-messages.md` — podłączenie Claude Code (Base URL `/api/v1/anthropic`); models + messages (JSON i stream).
 - `architektura-katalogi-pliki.md` — drzewo katalogów repo, w tym **CLI** (`bin/`, `src/cli/`, sekcja 2a).
 - `CLI.md` — dokumentacja Gateway CLI (18 komend: `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate`; wizard, backup w `backup/`, uruchomienie).
+- `testy.md` — testy jednostkowe i E2E (`npm test`, `npm run test:e2e`, `npm run test:all`); struktura `test/e2e/`, mocki, scenariusze kontraktu HTTP.
 
 ## Specyfikacje (SDD)
 

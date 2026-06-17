@@ -85,7 +85,6 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 ## Rozszerzenia (pozostałość v1)
 
 - **`npm run config:validate`** — walidacja offline `gateway.config.yaml` + reguł env (exit code ≠ 0 przy błędzie); szczegóły: `konfiguracja.md`.
-- **`CORS_ORIGINS`** w `.env.example` — **nie** zaimplementowane w `src/main.ts` (brak middleware CORS); przy wystawieniu do przeglądarki skonfiguruj reverse proxy lub dodaj CORS w kodzie.
 
 **Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TOOLS_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.
 
@@ -107,7 +106,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 - Standardowy chat nie jest idempotentny w sensie biznesowym (ten sam request może generować różną odpowiedź), **chyba że** zadziała warstwa cache dla **`POST /api/v1/chat`** — wtedy identyczny payload może zwrócić wcześniejszą odpowiedź z **`cached: true`** (`ResponseCacheService`, `konfiguracja.md`). Cooldown po 429 od providera (`setCooldown`) — tylko ścieżka standardowego czatu, nie streaming.
 - **`ResilientExecutor`** (`src/common/resilience/`): dla aliasu z żądania stosuje `policy.retry` (max prób, lista `onStatus`) i `policy.timeoutMs` z YAML (domyślnie `RETRY_POLICY_DEFAULTS`). Retry tylko dla `HttpException` ze statusem z `onStatus`. Po wyczerpaniu prób — opcjonalnie wywołanie aliasu z **`models[].fallback`** (ta sama polityka retry co alias pierwszy). Timeout → **504** / `PROVIDER_TIMEOUT`. Szczegóły: `konfiguracja.md`, `dokumentacja_api.md`.
 
-## CORS / Auth
+## Auth
 
 **Natywny czat** wymaga **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()`).
 
@@ -118,8 +117,7 @@ Opcjonalny smart rate limit per klucz klienta (`RATE_LIMIT_SMART_ENABLED`, Redis
 W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** nie zastępuje izolacji sieciowej ani obrony przed nadużyciami na dużą skalę.
 
 - Reverse proxy z dodatkowym auth / mTLS w razie potrzeby,
-- Rate limiting i WAF,
-- Ograniczenia originów w CORS (jeśli wystawiane do przeglądarki) — zmienna `CORS_ORIGINS` w `.env.example` jest **zarezerwowana**; middleware CORS **nie** jest jeszcze w kodzie.
+- Rate limiting i WAF.
 
 ## Powiązane dokumenty
 

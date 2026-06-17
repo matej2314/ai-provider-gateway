@@ -1,6 +1,6 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **1.2**.  
+Wersja dokumentu: **1.4**.  
 **OpenAPI:** `openapi.json` (v0.12.0) — zsynchronizowany z `src/` (health, czat natywny, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`, dekoratory `@nestjs/swagger`). **Błędy:** natywny czat — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
 
 ## Konwencje globalne
@@ -9,7 +9,9 @@ Wersja dokumentu: **1.2**.
 |--------|---------|
 | **Baza (przykład)** | `http://localhost:3000` |
 | **Prefiks ścieżek** | `/api/v1` (`API_GLOBAL_PREFIX` w `src/setup.app.ts`) |
-| **Format** | JSON (`application/json`) dla standard; SSE (`text/event-stream`) dla **`POST /api/v1/chat/stream`** |
+| **Format** | JSON (`application/json`) dla standard; SSE (`text/event-stream`) dla streamingu |
+| **Sukces POST (JSON)** | **201 Created** — natywny czat i fasady IDE (non-stream); zgodne z `openapi.json` (`@ApiResponse({ status: 201 })`) |
+| **Sukces POST (stream)** | **200** — `text/event-stream` (`POST .../chat/stream`, `stream: true` na fasadach) |
 | **Błędy (JSON)** | Envelope `ErrorEnvelope` (`{statusCode, code, message, requestId, details?}`) — schema w `openapi.json`, implementacja w `src/common/filters/http-exception.filter.ts` |
 | **`x-request-id`** | Nagłówek odpowiedzi (wszystkie trasy z `RequestIdMiddleware`, w tym health) — echo nagłówka żądania lub `req_<uuid>` |
 
@@ -42,7 +44,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 
 | | |
 |--|--|
-| **200** | odpowiedź gateway; opcjonalnie `toolCalls`, `finishReason` (`stop` \| `tool_calls` \| `length`), `usageDetails`, `systemFingerprint`, `effectiveModelAlias`, `cached` |
+| **201** | odpowiedź gateway (JSON); opcjonalnie `toolCalls`, `finishReason` (`stop` \| `tool_calls` \| `length`), `usageDetails`, `systemFingerprint`, `effectiveModelAlias`, `cached` |
 | **400** | walidacja DTO; `MODEL_ALIAS_NOT_FOUND`; `MODEL_NOT_ALLOWED`; `TOOLS_NOT_SUPPORTED`; inne jawne `code` |
 | **401** | brak `X-Gateway-Key` — `GATEWAY_KEY_MISSING` |
 | **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |
@@ -96,6 +98,8 @@ Base URL w IDE: `http://<host>:<port>/api/v1/openai`
 | GET | `/api/v1/openai/models/:model` | pojedynczy alias |
 | POST | `/api/v1/openai/chat/completions` | chat; `stream: true` → SSE OpenAI |
 
+Kody sukcesu `POST .../chat/completions`: **201** (JSON), **200** (`stream: true`, SSE). Błędy — format OpenAI (`OpenAiErrorResponseDto`).
+
 ### Anthropic Messages API *(Claude Code — x-api-key)* — **wdrożone**
 
 Base URL w IDE: `http://<host>:<port>/api/v1/anthropic`
@@ -105,6 +109,8 @@ Base URL w IDE: `http://<host>:<port>/api/v1/anthropic`
 | GET | `/api/v1/anthropic/models` | lista aliasów, format Anthropic |
 | GET | `/api/v1/anthropic/models/:model` | pojedynczy alias |
 | POST | `/api/v1/anthropic/messages` | messages; `stream: true` → SSE Anthropic |
+
+Kody sukcesu `POST .../messages`: **201** (JSON), **200** (`stream: true`, SSE). Błędy — format Anthropic (`AnthropicErrorResponseDto`).
 
 Auth: `x-api-key` (priorytet) lub `Authorization: Bearer` — ta sama allowlista co natywny czat. Szczegóły: [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md).
 

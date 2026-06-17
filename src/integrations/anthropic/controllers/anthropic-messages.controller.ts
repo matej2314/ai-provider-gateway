@@ -12,7 +12,6 @@ import {
   ApiOperation,
   ApiSecurity,
   ApiTags,
-  ApiOkResponse,
   ApiProduces,
   ApiResponse,
   ApiHeader,
@@ -37,7 +36,6 @@ import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
 import { ANTHROPIC_INTEGRATION_PATH } from 'src/integrations/integrations.constants';
 import { ANTHROPIC_STREAM_API_DESCRIPTION } from '../helpers/anthropic-stream-api-description';
 import { ApiErrorCode } from 'src/common/errors/api-error.code';
-import { AnthropicErrorResponseDto } from '../dtos/anthropic-error-response.dto';
 
 @ApiTags('Anthropic API')
 @ApiSecurity('ApiKeyAuth')
@@ -56,7 +54,8 @@ export class AnthropicMessagesController {
       'JSON message when `stream` is false/omitted. Anthropic SSE when `stream: true`',
   })
   @ApiBody({ type: AnthropicMessagesRequestDto })
-  @ApiOkResponse({
+  @ApiResponse({
+    status: 201,
     type: AnthropicMessagesResponseDto,
     description: 'Non-streaming response.',
   })

@@ -6,6 +6,7 @@ import {
   ApiBody,
   ApiSecurity,
   ApiTags,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
 import { ChatRequestDto } from './dto/chat-request.dto';
@@ -29,7 +30,7 @@ export class ChatController {
       'Full JSON response. Cache, smart rate limit, ResilientExecutor, optional fallback (effectiveModelAlias).',
   })
   @ApiBody({ type: ChatRequestDto })
-  @ApiOkResponse({ type: ChatResponseDto })
+  @ApiResponse({ status: 201, type: ChatResponseDto })
   @ApiGatewayChatErrorResponses()
   @ApiRequestIdHeader()
   async chat(@Req() req: Request, @Body() requestBody: ChatRequestDto) {

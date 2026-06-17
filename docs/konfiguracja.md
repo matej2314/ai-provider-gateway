@@ -103,7 +103,6 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 | `METRICS_BACKEND`                                                                 | `noop` w walidatorze; dozwolone: `sentry` \| `noop`. W **production** bez override → Sentry (`instrument.ts`, `MetricsModule`). |
 | `SENTRY_INCLUDE_PROMPTS`                                                          | Brak w walidatorze; gdy `true` — `gen_ai.input.messages` / `gen_ai.output.messages` na spanach (wymagane m.in. dla widoku Conversations). |
 | `APP_VERSION`                                                                     | W readiness (`GET /api/v1/health/ready`) — fallback **`1.0.0`** (`HealthService`). W logach (`LoggingModule`) — fallback **`dev`**. |
-| `CORS_ORIGINS`                                                                    | W `.env.example` — **nie** podłączone w `src/main.ts` (brak middleware CORS).                                     |
 | `SWAGGER_ENABLED`                                                                 | Domyślnie włączone poza production (`SWAGGER_ENABLED !== 'false'`). W **production** Swagger UI/JSON tylko gdy **`SWAGGER_ENABLED=true`** (`src/swagger/swagger.setup.ts`). UI: `/api/v1/api-docs`, spec JSON: `/api/v1/swagger.json` — obejmuje tagi **Health**, **Chat**, **OpenAI API**, **Anthropic API** (ten sam dokument co `openapi.json` z `npm run openapi:export`). |
 | `PORT`                                                                            | `3000`; używany też przy eksporcie OpenAPI (`openapi:export`).                                                    |
 | `NODE_ENV`                                                                        | W **production** wymusza regułę co najmniej jednego klucza providera (sekcja 1).                                  |
@@ -156,6 +155,7 @@ models:
     capabilities:
       streaming: true
       tools: true
+      thinking: true   # opcjonalne; wymagane dla params.thinkingEnabled / thinkingBudget
     policy:
       timeoutMs: 30000
       retry:
@@ -165,6 +165,7 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 500
+          thinkingEnabled: false   # opt-in w body; domyślnie wyłączone (koszt)
           # Anthropic: NIE ustawiaj topP w defaults obok temperature (API odrzuca oba naraz)
         allowOverrides:
           - temperature
@@ -175,6 +176,8 @@ models:
           - presencePenalty
           - seed
           - responseFormat
+          - thinkingEnabled
+          - thinkingBudget
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
@@ -189,6 +192,7 @@ models:
     capabilities:
       streaming: true
       tools: true
+      thinking: true   # opcjonalne; wymagane dla params.thinkingEnabled / thinkingBudget
     policy:
       timeoutMs: 30000
       retry:
@@ -198,6 +202,7 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 1024
+          thinkingEnabled: false
         allowOverrides:
           - temperature
           - maxOutputTokens
@@ -207,6 +212,8 @@ models:
           - presencePenalty
           - seed
           - responseFormat
+          - thinkingEnabled
+          - thinkingBudget
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
@@ -221,6 +228,7 @@ models:
     capabilities:
       streaming: true
       tools: true
+      thinking: false   # w repo: false dla gemini-2.5-flash; Gemini 3.0+ — ustaw true gdy model wspiera ThinkingConfig
     policy:
       timeoutMs: 30000
       retry:
@@ -231,6 +239,7 @@ models:
           temperature: 0.4
           maxOutputTokens: 1024
           topP: 0.95   # Google Gemini: temperature + topP w defaults jest OK
+          thinkingEnabled: false
         allowOverrides:
           - temperature
           - maxOutputTokens
@@ -240,6 +249,8 @@ models:
           - presencePenalty
           - seed
           - responseFormat
+          - thinkingEnabled
+          - thinkingBudget
         bounds:
           temperature: { min: 0, max: 2 }
           maxOutputTokens: { min: 1, max: 8192 }
@@ -311,7 +322,7 @@ Uwagi:
   - każda instancja providera z **`enabled !== false`** (w praktyce w YAML ustaw **`enabled: true`** dla providerów używanych w runtime; pominięte `enabled` → po parsowaniu Zod domyślnie **`false`**, wtedy instancja jest wyłączona) musi mieć **co najmniej jeden** alias w `models` z tym samym `providerInstance`;
   - po filtrze `enabled` funkcja `buildEffectiveGatewayConfig` ponownie wymusza, że każdy **aktywny** provider ma ≥1 **aktywny** model (modele powiązane z providerem `enabled: false` są pomijane z ostrzeżeniem w logu).
   - Instancja z **`enabled: false`** **nie wymaga** wpisów w `models` (może pozostać w YAML jako wyłączona rezerwa).
-- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`capabilities`**: `streaming` (wymagane dla SSE), opcjonalnie **`tools: true`** — bez tego flagi żądania z `tooling` / turami `tool` zwracają **`TOOLS_NOT_SUPPORTED`**. **`policy.params`**: w YAML `defaults` (Zod) — `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`; w `allowOverrides` — powyższe plus `topK`, `stop`, `responseFormat`. Merge w `resolveProviderCallOptions`: defaults YAML ← body dla pól z pierwszej grupy; **`topK`**, **`stop`**, **`responseFormat`** — **tylko z body** (gdy w `allowOverrides`). **`retry.maxAttempts`** — maks. **5** (walidacja Zod). **Konfiguracja defaults zależy od typu providera** — sekcja „Parametry generacji a typ providera” powyżej. **`timeoutMs`** i **`retry`** — egzekwowane w `ResilientExecutor` (timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` lub `RETRY_POLICY_DEFAULTS`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`.
+- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`capabilities`**: `streaming` (wymagane dla SSE), opcjonalnie **`tools: true`** — bez tego flagi żądania z `tooling` / turami `tool` zwracają **`TOOLS_NOT_SUPPORTED`**; opcjonalnie **`thinking: true`** — wymagane, aby `params.thinkingEnabled` / `thinkingBudget` były dozwolone (mapowanie: `anthropic-thinking.mapper.ts`, adapter Google). **`policy.params`**: w YAML `defaults` (Zod) — `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`, `thinkingEnabled`; w `allowOverrides` — powyższe plus `topK`, `stop`, `responseFormat`, `thinkingBudget`. Merge w `resolveProviderCallOptions`: defaults YAML ← body dla pól z pierwszej grupy; **`topK`**, **`stop`**, **`responseFormat`**, **`thinkingBudget`** — **tylko z body** (gdy w `allowOverrides`). **`retry.maxAttempts`** — maks. **5** (walidacja Zod). **Konfiguracja defaults zależy od typu providera** — sekcja „Parametry generacji a typ providera” powyżej. **`timeoutMs`** i **`retry`** — egzekwowane w `ResilientExecutor` (timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` lub `RETRY_POLICY_DEFAULTS`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`.
 
 ## 3) Walidacja i fail-fast
 

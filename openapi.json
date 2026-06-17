@@ -28,7 +28,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -596,7 +596,26 @@
         },
         "responses": {
           "200": {
-            "description": "When `stream: true`, returns `text/event-stream` with OpenAI chunk format.\n\nEach line: `data: <json>\\n\\n`, terminated with `data: [DONE]\\n\\n`.\n\nJSON errors (OpenAiErrorResponseDto) only **before** flushHeaders.\n\nNon-streaming response.",
+            "description": "When `stream: true`, returns `text/event-stream` with OpenAI chunk format.\n\nEach line: `data: <json>\\n\\n`, terminated with `data: [DONE]\\n\\n`.\n\nJSON errors (OpenAiErrorResponseDto) only **before** flushHeaders.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "OpenAI chunk lines: `data: <json>\\n\\n`, terminated with `data: [DONE]\\n\\n`."
+                },
+                "examples": {
+                  "chunk": {
+                    "value": "data: {\"id\":\"chatcmpl_...\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"}}]}\n\n"
+                  },
+                  "done": {
+                    "value": "data: [DONE]\n\n"
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Non-streaming response.",
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -990,7 +1009,22 @@
         },
         "responses": {
           "200": {
-            "description": "When `stream: true`, returns Anthropic SSE events.\n\nFormat: `event: <name>\\ndata: <json>\\n\\n` (message_start, content_block_*, message_delta, message_stop).\n\nResponse header `anthropic-version: 2023-06-01` is set on stream.\n\nNon-streaming response.",
+            "description": "When `stream: true`, returns Anthropic SSE events.\n\nFormat: `event: <name>\\ndata: <json>\\n\\n` (message_start, content_block_*, message_delta, message_stop).\n\nResponse header `anthropic-version: 2023-06-01` is set on stream.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "examples": {
+                  "message_start": {
+                    "value": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_...\",\"type\":\"message\"}}\n\n"
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Non-streaming response.",
             "content": {
               "text/event-stream": {
                 "schema": {

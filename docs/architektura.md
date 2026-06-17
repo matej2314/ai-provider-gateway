@@ -150,6 +150,12 @@ Szczegóły: `architektura_api.md` + `anty-patterny.md` + `integracje.md`.
 - **Graceful shutdown**: `SIGTERM` / `SIGINT` / `uncaughtException` / `unhandledRejection` w `main.ts` (`app.close()`).
 - **OpenAPI**: dekoratory `@Api*` na kontrolerach (`ChatController`, `ChatStreamController`, `HealthController`, kontrolery fasad OpenAI/Anthropic) i DTO; wspólne dekoratory w `src/common/decorators/`: `ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`.
 
+## Testy
+
+- **Jednostkowe:** `src/**/*.spec.ts` — logika czatu, mapery integracji, cache, rate limit, guardy, `ResilientExecutor`, health; mocki w `src/common/mocks/`. Uruchomienie: `npm test` (~40 zestawów).
+- **E2E HTTP:** `test/e2e/` — pełny `AppModule` z override mocków (`createE2eApp`); scenariusze kontraktu dla natywnego czatu oraz fasad OpenAI/Anthropic bez realnych kluczy API i Redis. Uruchomienie: `npm run test:e2e` (3 zestawy, 42 przypadki); `npm run test:all` łączy oba poziomy.
+- Szczegóły struktury, helperów i ograniczeń: **`testy.md`**.
+
 ## Struktura repo (orientacyjnie)
 
 Aktualna struktura katalogów źródłowych znajduje się w `README.md` repo oraz w `src/`.

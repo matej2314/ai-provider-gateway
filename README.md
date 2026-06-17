@@ -28,6 +28,7 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 | Fasada OpenAI (Cursor IDE)  | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md)                  |
 | Architektura fasad IDE      | [`docs/integracje.md`](docs/integracje.md)                                                  |
 | Gateway CLI                 | [`docs/CLI.md`](docs/CLI.md)                                                                |
+| Testy (jednostkowe + E2E)   | [`docs/testy.md`](docs/testy.md)                                                             |
 
 ## Integracje API
 
@@ -219,6 +220,7 @@ npm run start:prod      # po build
 npm run openapi:export  # openapi.json z dekoratorów @nestjs/swagger
 npm run cli             # Gateway CLI (alias: npx gateway)
 npm run config:validate # walidacja offline (scripts/validate-config.ts)
-npm test
-npm run test:e2e
+npm test                # testy jednostkowe (src/**/*.spec.ts)
+npm run test:e2e        # testy E2E HTTP (test/e2e/)
+npm run test:all        # jednostkowe + E2E
 ```

@@ -29,7 +29,7 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 - **Status projektu:** Rdzeń **MVP** (routing + chat + streaming) domknięty w Fazach 1–2 oraz 4; Faza 0 zamknięta. Trwa **v1** (m.in. Fazy 3 oraz 5–7 według tabeli w planie).
 - **Providery (MVP):** Anthropic API + Google Gemini API
 - **Cel MVP:** Działające **kierowanie zapytań do providerów** (registry / routing), działający **chat** synchroniczny (`POST /api/v1/chat`) oraz działający **streaming** (SSE / `POST /api/v1/chat/stream`).
-- **v1:** Wszystko ponadto — m.in. konfiguracja z plików (Faza 3 — wdrożona), utwardzenie kontraktu API (Faza 5 — w większości wdrożona; pozostałość: CORS), observability (Faza 6 — wdrożona), polish i deploy (Faza 7), **fasady integracji IDE** (OpenAI + Anthropic Messages API — wdrożone w MVP, `integracje.md`; pełne dopasowanie kontraktu vendora — kolejne iteracje), oraz pozostałe elementy poza rdzeniem MVP.
+- **v1:** Wszystko ponadto — m.in. konfiguracja z plików (Faza 3 — wdrożona), utwardzenie kontraktu API (Faza 5 — wdrożona), observability (Faza 6 — wdrożona), polish i deploy (Faza 7), **fasady integracji IDE** (OpenAI + Anthropic Messages API — wdrożone w MVP, `integracje.md`; pełne dopasowanie kontraktu vendora — kolejne iteracje), oraz pozostałe elementy poza rdzeniem MVP.
 
 **Podział MVP / v1:** Rdzeń MVP realizują **Fazy 1–2** oraz **4** (routing, chat, streaming). **Faza 3** i **Fazy 5–7** traktuj jako **v1** — numeracja faz jest chronologiczna w projekcie, nie równa się kolejności „MVP najpierw”.
 
@@ -43,7 +43,8 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 - Klucze API w `.env`; **w production** obowiązuje **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`src/config/env.validation.ts`).
 - Policy z YAML: **`params`** w `resolveProviderCallOptions`; **`timeoutMs` / `retry` / `fallback`** w `ResilientExecutor` (`dokumentacja_api.md`, `konfiguracja.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego — działa.
 - Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter`). **`requestId`**: propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) — **wdrożone** dla Anthropic/Google (`PROVIDER_*`); limity gateway — **`RATE_LIMITED`** (`SmartRateLimitGuard`: RPS/streamy; cooldown w `ChatService.executeChat`).
-- Testy jednostkowe przy modułach (`*.spec.ts`).
+- Testy jednostkowe przy modułach (`src/**/*.spec.ts`, `npm test`).
+- Testy E2E HTTP (`test/e2e/`, `npm run test:e2e`, `npm run test:all`) — kontrakt natywnego czatu i fasad IDE z mockowanymi providerami — **`testy.md`**.
 
 ## Poza zakresem (wybrane wykluczenia na start)
 
@@ -80,7 +81,7 @@ Zamiast zmuszać klientów do podawania vendorowego `modelId`, gateway wspiera *
 ### 5) Testowalność
 
 - Logika wyboru providera/modelu oraz mapowanie parametrów jest testowalne bez realnych wywołań providerów.
-- Adaptery providerów mogą być mockowane.
+- Adaptery providerów mogą być mockowane (jednostkowo i w E2E — `testy.md`).
 
 ## Trzy powierzchnie API (kierunek v1)
 

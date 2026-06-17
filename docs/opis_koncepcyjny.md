@@ -62,7 +62,7 @@ A także stać się pełnoprawnym mikroserwisem większego systemu.
 ### 5. Testowalność
 
 - Logika domenowa jest testowalna bez realnych wywołań zewnętrznych API.
-- Providerzy mogą być mockowani w testach jednostkowych.
+- Providerzy mogą być mockowani w testach jednostkowych i E2E (`test/e2e/helpers/e2e-provider-registry.ts`).
 
 ---
 

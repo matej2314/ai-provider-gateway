@@ -44,9 +44,21 @@ ai-provider-gateway/
 │   ├── generate-key.sh             # pusty wrapper — użyj `gateway key:generate`
 │   └── generate-key.ps1            # pusty wrapper — użyj `gateway key:generate`
 │
-├── test/                           # testy e2e (Jest)
+├── test/                           # testy E2E HTTP (Jest; szczegóły: docs/testy.md)
 │   ├── jest-e2e.json
-│   └── app.e2e-spec.ts
+│   └── e2e/
+│       ├── gateway-chat.e2e-spec.ts
+│       ├── openai-integration.e2e-spec.ts
+│       ├── anthropic-integration.e2e-spec.ts
+│       ├── helpers/
+│       │   ├── create-e2e-app.ts
+│       │   ├── e2e-constants.ts
+│       │   ├── e2e-infra-mocks.ts
+│       │   ├── e2e-provider-registry.ts
+│       │   └── e2e-rate-limiter.ts
+│       └── setup/
+│           ├── jest-e2e.setup.ts
+│           └── mock-configuration.ts
 │
 ├── src/
 │   ├── main.ts                     # bootstrap NestJS, Swagger, graceful shutdown
@@ -65,9 +77,19 @@ ai-provider-gateway/
 │   │   ├── chat.controller.spec.ts
 │   │   ├── chat-stream.controller.ts       # POST /chat/stream (SSE)
 │   │   ├── chat-stream.controller.spec.ts
-│   │   ├── chat.service.ts                 # cache, limity, ResilientExecutor, odpowiedź gateway
+│   │   ├── chat.service.ts                 # orkiestracja: cache, limity, ResilientExecutor
 │   │   ├── chat.service.spec.ts
-│   │   ├── chat-provider-call.service.ts   # complete/stream, metryki LLM, SSE meta/delta
+│   │   ├── services/
+│   │   │   ├── chat-provider-call.service.ts   # complete/stream, metryki LLM, SSE meta/delta
+│   │   │   ├── chat-provider-call.service.spec.ts
+│   │   │   ├── chat-error-handler.service.ts
+│   │   │   ├── chat-error-handler.service.spec.ts
+│   │   │   ├── chat-validation.service.ts
+│   │   │   ├── chat-validation.service.spec.ts
+│   │   │   ├── chat-response-builder.service.ts
+│   │   │   ├── chat-response-builder.service.spec.ts
+│   │   │   ├── chat-cache-guard.service.ts
+│   │   │   └── chat-cache-guard.service.spec.ts
 │   │   ├── dto/
 │   │   │   ├── chat-request.dto.ts
 │   │   │   ├── chat-params.dto.ts
@@ -106,7 +128,8 @@ ai-provider-gateway/
 │   │   │   ├── create-anthropic-provider.ts
 │   │   │   └── create-google-provider.ts
 │   │   ├── anthropic/
-│   │   │   └── anthropic-tools.mapper.ts
+│   │   │   ├── anthropic-tools.mapper.ts
+│   │   │   └── anthropic-thinking.mapper.ts
 │   │   ├── google/
 │   │   │   └── google-tools.mapper.ts
 │   │   ├── types/
@@ -359,6 +382,7 @@ ai-provider-gateway/
     ├── integracja-anthropic-messages.md
     ├── opis_koncepcyjny.md                 # alias → dokumentacja_koncepcyjna.md
     ├── CLI.md                              # dokumentacja Gateway CLI (wizard, uruchomienie)
+    ├── testy.md                            # testy jednostkowe i E2E
     └── spec/
         ├── SPEC-README.md
         ├── SPEC-PLATFORMA-I-KONTRAKTY.md
@@ -379,7 +403,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 
 | Katalog | Odpowiedzialność |
 |---------|------------------|
-| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: cache (pomijany przy tooling), cooldown po 429 (`executeChat`), `ResilientExecutor`, envelope odpowiedzi (`toolCalls`, `finishReason`, `usageDetails`, `systemFingerprint`). **`ChatProviderCallService`**: wywołania adapterów, metryki, emisja SSE. Helpery: system prompt, provider input (w tym `metadata`), params, tooling, retry policy, cache policy, `conversationId`, `mapStopReasonToFinishReason`. |
+| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: orkiestracja (cache, cooldown po 429, `ResilientExecutor`). Serwisy pomocnicze: **`ChatProviderCallService`** (adaptery, metryki, SSE), **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCacheGuardService`**, **`ChatErrorHandlerService`**. Helpery: system prompt, provider input (`metadata`), params, tooling, retry/cache policy, `conversationId`, `mapStopReasonToFinishReason`. |
 | **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API. |
 | **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
@@ -393,7 +417,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`bin/`** | Entry point CLI: wrapper JS (`gateway-cli-wrapper.js`) uruchamia skompilowany `dist/bin/gateway-cli.js` lub — gdy brak build — TypeScript przez `ts-node` (`gateway-cli.ts` → `CliModule`). Dostęp: `npm run cli`, `npx gateway`, bin **`gateway`** z `package.json` (po `npm link` lub instalacji globalnej). |
 | **`src/cli/`** | Warstwa CLI: **nie importuje** `ConfigModule`. NestJS tylko dla DI. Wizard (`config:init`), walidacja/wyświetlanie configu, CRUD providerów (multi-instance), modeli, klientów, testy SDK, generowanie kluczy. Szczegóły: `CLI.md`, `architektura.md`. |
 | **`scripts/`** | Walidacja konfiguracji offline (`npm run config:validate` → `validateGatewayConfig()`); generowanie kluczy — **`gateway key:generate`**. |
-| **`test/`** | Testy e2e Jest. |
+| **`test/`** | Testy E2E HTTP (Jest): natywny czat, fasady OpenAI/Anthropic; bootstrap `createE2eApp()` z mockami `ConfigService`, `ProviderRegistryService`, Redis. Skrypty: `npm run test:e2e`, `npm run test:all`. Szczegóły: **`testy.md`**. |
 | **`docs/`** | Dokumentacja i specyfikacje SDD (`spec/`). |
 
 ---
@@ -443,6 +467,6 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - **Integracje IDE:** `src/integrations/` — fasady OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`).
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
-**Pozostałość v1:** opcjonalnie CORS (`CORS_ORIGINS` w `.env.example` bez middleware); tryb non-interactive CLI; opcjonalne testy e2e CLI.
+**Pozostałość v1:** tryb non-interactive CLI; testy E2E health/CLI; rozszerzenie E2E o scenariusze tooling/thinking/cache z Redis.
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.
