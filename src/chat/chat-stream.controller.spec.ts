@@ -85,6 +85,7 @@ describe('ChatStreamController', () => {
         requestBody,
         'req-123',
         expect.any(Function),
+        'gw_key_123'
       );
     });
 
