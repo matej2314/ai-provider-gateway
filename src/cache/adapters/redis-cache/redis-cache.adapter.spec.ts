@@ -5,6 +5,7 @@ import { RedisConnectionService } from './redis-connection.service';
 import { CacheRegistryService } from '../../cache-registry.service';
 import { LoggingService } from '../../../logging/logging.service';
 import { createMockLoggingService } from '../../../common/mocks/createMockLoggingService';
+import { createMockConfigService } from '../../../common/mocks/createMockConfigService';
 
 describe('RedisCacheAdapter', () => {
   let adapter: RedisCacheAdapter;
@@ -32,12 +33,7 @@ describe('RedisCacheAdapter', () => {
       getClient: jest.fn().mockReturnValue(mockRedisClient),
     };
 
-    mockConfig = {
-      get: jest.fn((key: string, defaultValue?: unknown) => {
-        if (key === 'cache.ttl') return defaultValue ?? 3600;
-        return defaultValue;
-      }),
-    };
+    mockConfig = createMockConfigService();
 
     mockRegistry = {
       register: jest.fn(),

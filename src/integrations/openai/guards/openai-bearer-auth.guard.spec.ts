@@ -13,6 +13,10 @@ import {
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { createMockContext } from '../../../common/mocks/createMockContext';
 import { createMockExpressRequest } from '../../../common/mocks/http-mocks';
+import {
+  createMockConfigService,
+  type MockConfigServiceOptions,
+} from '../../../common/mocks/createMockConfigService';
 import type { Request } from 'express';
 
 describe('readBearerToken', () => {
@@ -86,12 +90,11 @@ describe('readBearerToken', () => {
 
 describe('OpenAiBearerAuthGuard', () => {
   let guard: OpenAiBearerAuthGuard;
-  let mockConfig: Partial<ConfigService>;
 
-  beforeEach(async () => {
-    mockConfig = {
-      get: jest.fn(),
-    };
+  async function initGuard(
+    configOptions: MockConfigServiceOptions = {},
+  ) {
+    const mockConfig = createMockConfigService(configOptions);
 
     const module = await Test.createTestingModule({
       providers: [
@@ -101,13 +104,16 @@ describe('OpenAiBearerAuthGuard', () => {
     }).compile();
 
     guard = module.get(OpenAiBearerAuthGuard);
+  }
+
+  beforeEach(async () => {
+    await initGuard();
   });
 
   describe('Happy path - valid token', () => {
-    it('should allow when token in allowList', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_valid_token'],
-        clients: [],
+    it('should allow when token in allowList', async () => {
+      await initGuard({
+        gatewayKey: { allowList: ['gw_valid_token'], clients: [] },
       });
 
       const context = createMockContext({
@@ -119,10 +125,9 @@ describe('OpenAiBearerAuthGuard', () => {
       expect(result).toBe(true);
     });
 
-    it('should set gatewayKey on request', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_token_123'],
-        clients: [],
+    it('should set gatewayKey on request', async () => {
+      await initGuard({
+        gatewayKey: { allowList: ['gw_token_123'], clients: [] },
       });
 
       const mockRequest = createMockExpressRequest({
@@ -145,10 +150,9 @@ describe('OpenAiBearerAuthGuard', () => {
   });
 
   describe('Edge case - missing token', () => {
-    it('should throw UnauthorizedException when header missing', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_token'],
-        clients: [],
+    it('should throw UnauthorizedException when header missing', async () => {
+      await initGuard({
+        gatewayKey: { allowList: ['gw_token'], clients: [] },
       });
 
       const context = createMockContext({});
@@ -166,10 +170,9 @@ describe('OpenAiBearerAuthGuard', () => {
       }
     });
 
-    it('should throw when Bearer prefix missing', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_token'],
-        clients: [],
+    it('should throw when Bearer prefix missing', async () => {
+      await initGuard({
+        gatewayKey: { allowList: ['gw_token'], clients: [] },
       });
 
       const context = createMockContext({ authorization: 'gw_token_123' });
@@ -179,10 +182,9 @@ describe('OpenAiBearerAuthGuard', () => {
   });
 
   describe('Edge case - invalid token', () => {
-    it('should throw ForbiddenException when token not in allowList', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_valid_token'],
-        clients: [],
+    it('should throw ForbiddenException when token not in allowList', async () => {
+      await initGuard({
+        gatewayKey: { allowList: ['gw_valid_token'], clients: [] },
       });
 
       const context = createMockContext({
@@ -204,10 +206,9 @@ describe('OpenAiBearerAuthGuard', () => {
   });
 
   describe('Edge case - allowList not configured', () => {
-    it('should throw InternalServerErrorException when allowList empty', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: [],
-        clients: [],
+    it('should throw InternalServerErrorException when allowList empty', async () => {
+      await initGuard({
+        gatewayKey: { allowList: [], clients: [] },
       });
 
       const context = createMockContext({ authorization: 'Bearer gw_token' });

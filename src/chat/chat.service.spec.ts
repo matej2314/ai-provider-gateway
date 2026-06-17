@@ -20,12 +20,13 @@ import { ResilientExecutor } from '../common/resilience/resilient-executor';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockResilientExecutor } from '../common/mocks/createMockResilientExecutor';
 import { createMockProviderRegistryService } from '../common/mocks/createMockProviderRegistryService';
-import type { ResolvedProviderConfig } from '../providers/provider-registry.service';
+import { createMockDefaultResolvedConfig } from '../common/mocks/createMockResolvedProviderConfig';
+import { createMockConfigService } from '../common/mocks/createMockConfigService';
 import {
   VALID_CONVERSATION_ID,
   TEST_MODEL_ALIAS,
 } from '../common/mocks/test-constants';
-import { createMockDefaultResolvedConfig } from '../common/mocks/createMockResolvedProviderConfig';
+import type { ResolvedProviderConfig } from '../providers/provider-registry.service';
 
 describe('ChatService', () => {
   let service: ChatService;
@@ -82,14 +83,15 @@ describe('ChatService', () => {
     mockRegistry = createMockProviderRegistryService();
     (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
 
-    mockConfig = {
-      get: jest.fn((key) => {
-        if (key === 'gateway') return { models: {}, providers: {} };
-        if (key === 'resolvedSystemPrompts')
-          return { master: 'you are helpful', perModelByAlias: {} };
-        return undefined;
-      }),
-    };
+    mockConfig = createMockConfigService({
+      gatewayOptions: {
+        replace: { clients: true, providers: true, models: true },
+        clients: {},
+        providers: {},
+        models: {},
+      },
+      resolvedSystemPrompts: { master: 'you are helpful', main: undefined },
+    });
 
     mockLogger = createMockLoggingService();
     mockExecutor = createMockResilientExecutor();

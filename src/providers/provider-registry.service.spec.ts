@@ -12,7 +12,83 @@ import { UnsupportedProviderException } from '../common/exceptions/unsupported-p
 import { RETRY_POLICY_DEFAULTS } from '../common/retry-policy-defaults';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockAIProvider } from '../common/mocks/createMockAIProvider';
+import {
+  createMockConfigService,
+  type MockConfigServiceOptions,
+} from '../common/mocks/createMockConfigService';
+import {
+  createTestGatewayConfig,
+  type CreateTestGatewayConfigOptions,
+} from '../common/mocks/createTestGatewayConfig';
+import {
+  TEST_API_KEY_REF,
+  TEST_MASTER_KEY_REF,
+  TEST_PROVIDER_INSTANCE,
+} from '../common/mocks/test-constants';
 import type { AIProvider } from './interfaces/ai-provider.interface';
+
+import type { GatewayConfig } from '../config/configuration';
+
+const RESOLVE_MODEL_ALIAS = 'test-model';
+
+const DEFAULT_RESOLVE_MODEL: GatewayConfig['models'][string] = {
+  modelId: 'claude-sonnet-4-5',
+  providerInstance: TEST_PROVIDER_INSTANCE,
+  policy: {
+    timeoutMs: 30000,
+    retry: { maxAttempts: 3, onStatus: [429, 500] },
+    params: {
+      defaults: { temperature: 0.7 },
+      allowOverrides: ['temperature'],
+      bounds: {},
+    },
+  },
+  capabilities: {
+    tools: true,
+  },
+};
+
+const DEFAULT_RESOLVE_PROVIDERS: GatewayConfig['providers'] = {
+  [TEST_PROVIDER_INSTANCE]: {
+    type: 'anthropic',
+    apiKeyRef: 'ANTHROPIC_API_KEY',
+    enabled: true,
+  },
+};
+
+function buildResolveGateway(
+  options: CreateTestGatewayConfigOptions = {},
+) {
+  const {
+    models: modelOverrides,
+    providers: providerOverrides,
+    replace,
+    ...rest
+  } = options;
+
+  const extraModels = { ...modelOverrides };
+  const resolveModelPatch = extraModels?.[RESOLVE_MODEL_ALIAS];
+  delete extraModels?.[RESOLVE_MODEL_ALIAS];
+
+  return createTestGatewayConfig({
+    clients: {},
+    replace: { clients: true, models: true, providers: true, ...replace },
+    ...rest,
+    models: {
+      [RESOLVE_MODEL_ALIAS]: {
+        ...DEFAULT_RESOLVE_MODEL,
+        ...resolveModelPatch,
+      },
+      ...extraModels,
+    },
+    providers: replace?.providers
+      ? (providerOverrides ?? {})
+      : {
+          ...DEFAULT_RESOLVE_PROVIDERS,
+          ...providerOverrides,
+        },
+  });
+}
 
 describe('ProviderRegistryService', () => {
   let service: ProviderRegistryService;
@@ -20,13 +96,11 @@ describe('ProviderRegistryService', () => {
   let mockLogger: Partial<LoggingService>;
   let mockProvider: Partial<AIProvider>;
 
-  beforeEach(async () => {
-    mockConfig = {
-      get: jest.fn(),
-    };
-
+  async function initService(
+    configOptions: MockConfigServiceOptions = {},
+  ) {
+    mockConfig = createMockConfigService(configOptions);
     mockLogger = createMockLoggingService();
-
     mockProvider = createMockAIProvider();
 
     const module = await Test.createTestingModule({
@@ -38,6 +112,18 @@ describe('ProviderRegistryService', () => {
     }).compile();
 
     service = module.get(ProviderRegistryService);
+  }
+
+  function registerAnthropicPrimary(provider: AIProvider = mockProvider as AIProvider) {
+    service.registerInstance(
+      TEST_PROVIDER_INSTANCE,
+      'anthropic',
+      provider,
+    );
+  }
+
+  beforeEach(async () => {
+    await initService();
   });
 
   it('should create a scoped logger on construction', () => {
@@ -48,42 +134,44 @@ describe('ProviderRegistryService', () => {
 
   describe('registerInstance', () => {
     it('should register provider instance', () => {
-      service.registerInstance(
-        'anthropic-primary',
-        'anthropic',
-        mockProvider as AIProvider,
-      );
+      registerAnthropicPrimary();
 
-      expect(service.list()).toEqual(['anthropic-primary']);
+      expect(service.list()).toEqual([TEST_PROVIDER_INSTANCE]);
     });
 
-    it('should overwrite existing instance on re-register', () => {
+    it('should overwrite existing instance on re-register', async () => {
       const firstProvider = { complete: jest.fn() } as AIProvider;
       const secondProvider = { complete: jest.fn() } as AIProvider;
 
-      service.registerInstance('anthropic-primary', 'anthropic', firstProvider);
+      await initService({
+        gateway: buildResolveGateway({
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              modelId: 'claude-sonnet-4-5',
+              providerInstance: TEST_PROVIDER_INSTANCE,
+            },
+          },
+          providers: {
+            [TEST_PROVIDER_INSTANCE]: {
+              type: 'anthropic',
+              apiKeyRef: 'ANTHROPIC_API_KEY',
+            },
+          },
+        }),
+      });
+
       service.registerInstance(
-        'anthropic-primary',
+        TEST_PROVIDER_INSTANCE,
+        'anthropic',
+        firstProvider,
+      );
+      service.registerInstance(
+        TEST_PROVIDER_INSTANCE,
         'anthropic',
         secondProvider,
       );
 
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'claude-sonnet-4-5',
-            providerInstance: 'anthropic-primary',
-          },
-        },
-        providers: {
-          'anthropic-primary': {
-            type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
-          },
-        },
-      });
-
-      expect(service.resolve('test-model').provider).toBe(secondProvider);
+      expect(service.resolve(RESOLVE_MODEL_ALIAS).provider).toBe(secondProvider);
     });
 
     it('should register multiple instances', () => {
@@ -110,65 +198,30 @@ describe('ProviderRegistryService', () => {
     });
 
     it('should return registered instance ids', () => {
-      service.registerInstance(
-        'anthropic-primary',
-        'anthropic',
-        mockProvider as AIProvider,
-      );
+      registerAnthropicPrimary();
 
-      expect(service.list()).toEqual(['anthropic-primary']);
+      expect(service.list()).toEqual([TEST_PROVIDER_INSTANCE]);
     });
   });
 
   describe('resolve', () => {
-    beforeEach(() => {
-      service.registerInstance(
-        'anthropic-primary',
-        'anthropic',
-        mockProvider as AIProvider,
-      );
-
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'claude-sonnet-4-5',
-            providerInstance: 'anthropic-primary',
-            policy: {
-              timeoutMs: 30000,
-              retry: { maxAttempts: 3, onStatus: [429, 500] },
-              params: {
-                defaults: { temperature: 0.7 },
-                allowOverrides: ['temperature'],
-                bounds: {},
-              },
-            },
-            capabilities: {
-              tools: true,
-            },
-          },
-        },
-        providers: {
-          'anthropic-primary': {
-            type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
-            enabled: true,
-          },
-        },
-      });
+    beforeEach(async () => {
+      await initService({ gateway: buildResolveGateway() });
+      registerAnthropicPrimary();
     });
 
     it('should resolve model alias to config', () => {
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(mockConfig.get).toHaveBeenCalledWith('gateway');
-      expect(result.modelAlias).toBe('test-model');
+      expect(result.modelAlias).toBe(RESOLVE_MODEL_ALIAS);
       expect(result.modelId).toBe('claude-sonnet-4-5');
-      expect(result.providerName).toBe('anthropic-primary');
+      expect(result.providerName).toBe(TEST_PROVIDER_INSTANCE);
       expect(result.provider).toBe(mockProvider);
     });
 
     it('should include params config', () => {
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.params).toEqual({
         defaults: { temperature: 0.7 },
@@ -178,7 +231,7 @@ describe('ProviderRegistryService', () => {
     });
 
     it('should include policy config', () => {
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.policy).toEqual({
         timeoutMs: 30000,
@@ -186,26 +239,21 @@ describe('ProviderRegistryService', () => {
       });
     });
 
-    it('should apply retry policy defaults when values are omitted', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'claude-sonnet-4-5',
-            providerInstance: 'anthropic-primary',
-            policy: {
-              retry: {},
+    it('should apply retry policy defaults when values are omitted', async () => {
+      await initService({
+        gateway: buildResolveGateway({
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              policy: {
+                retry: {},
+              },
             },
           },
-        },
-        providers: {
-          'anthropic-primary': {
-            type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
-          },
-        },
+        }),
       });
+      registerAnthropicPrimary();
 
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.policy).toEqual({
         timeoutMs: RETRY_POLICY_DEFAULTS.timeoutMs,
@@ -216,26 +264,32 @@ describe('ProviderRegistryService', () => {
       });
     });
 
-    it('should include timeoutMs without retry when retry block is absent', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'claude-sonnet-4-5',
-            providerInstance: 'anthropic-primary',
-            policy: {
-              timeoutMs: 5000,
+    it('should include timeoutMs without retry when retry block is absent', async () => {
+      await initService({
+        gateway: {
+          schemaVersion: 1,
+          masterKeyRef: TEST_MASTER_KEY_REF,
+          clients: {},
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              modelId: 'claude-sonnet-4-5',
+              providerInstance: TEST_PROVIDER_INSTANCE,
+              policy: {
+                timeoutMs: 5000,
+              },
+            },
+          },
+          providers: {
+            [TEST_PROVIDER_INSTANCE]: {
+              type: 'anthropic',
+              apiKeyRef: TEST_API_KEY_REF,
             },
           },
         },
-        providers: {
-          'anthropic-primary': {
-            type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
-          },
-        },
       });
+      registerAnthropicPrimary();
 
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.policy).toEqual({
         timeoutMs: 5000,
@@ -243,27 +297,22 @@ describe('ProviderRegistryService', () => {
       });
     });
 
-    it('should default only omitted retry fields', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'claude-sonnet-4-5',
-            providerInstance: 'anthropic-primary',
-            policy: {
-              timeoutMs: 15000,
-              retry: { maxAttempts: 2 },
+    it('should default only omitted retry fields', async () => {
+      await initService({
+        gateway: buildResolveGateway({
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              policy: {
+                timeoutMs: 15000,
+                retry: { maxAttempts: 2 },
+              },
             },
           },
-        },
-        providers: {
-          'anthropic-primary': {
-            type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
-          },
-        },
+        }),
       });
+      registerAnthropicPrimary();
 
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.policy).toEqual({
         timeoutMs: 15000,
@@ -275,7 +324,7 @@ describe('ProviderRegistryService', () => {
     });
 
     it('should include capabilities', () => {
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.capabilities).toEqual({
         tools: true,
@@ -302,22 +351,26 @@ describe('ProviderRegistryService', () => {
       );
     });
 
-    it('should throw when provider instance missing from config', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'test',
-            providerInstance: 'nonexistent-provider',
-            policy: {},
+    it('should throw when provider instance missing from config', async () => {
+      await initService({
+        gateway: buildResolveGateway({
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              modelId: 'test',
+              providerInstance: 'nonexistent-provider',
+              policy: {},
+            },
           },
-        },
-        providers: {},
+          providers: {},
+          replace: { providers: true },
+        }),
       });
+      registerAnthropicPrimary();
 
-      expect(() => service.resolve('test-model')).toThrow(HttpException);
+      expect(() => service.resolve(RESOLVE_MODEL_ALIAS)).toThrow(HttpException);
 
       try {
-        service.resolve('test-model');
+        service.resolve(RESOLVE_MODEL_ALIAS);
       } catch (e) {
         expect(e).toBeInstanceOf(HttpException);
         expect((e as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
@@ -333,24 +386,26 @@ describe('ProviderRegistryService', () => {
       );
     });
 
-    it('should throw when provider instance not registered', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'test',
-            providerInstance: 'unregistered-provider',
-            policy: {},
+    it('should throw when provider instance not registered', async () => {
+      await initService({
+        gateway: buildResolveGateway({
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              modelId: 'test',
+              providerInstance: 'unregistered-provider',
+              policy: {},
+            },
           },
-        },
-        providers: {
-          'unregistered-provider': {
-            type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
+          providers: {
+            'unregistered-provider': {
+              type: 'anthropic',
+              apiKeyRef: 'ANTHROPIC_API_KEY',
+            },
           },
-        },
+        }),
       });
 
-      expect(() => service.resolve('test-model')).toThrow(
+      expect(() => service.resolve(RESOLVE_MODEL_ALIAS)).toThrow(
         UnsupportedProviderException,
       );
 
@@ -360,10 +415,11 @@ describe('ProviderRegistryService', () => {
       );
     });
 
-    it('should throw when gateway config missing', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue(undefined);
+    it('should throw when gateway config missing', async () => {
+      await initService({ gateway: null });
+      registerAnthropicPrimary();
 
-      expect(() => service.resolve('test-model')).toThrow(
+      expect(() => service.resolve(RESOLVE_MODEL_ALIAS)).toThrow(
         InternalServerErrorException,
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
@@ -374,12 +430,12 @@ describe('ProviderRegistryService', () => {
 
     it('should throw when registered provider type mismatches config', () => {
       service.registerInstance(
-        'anthropic-primary',
+        TEST_PROVIDER_INSTANCE,
         'google',
         mockProvider as AIProvider,
       );
 
-      expect(() => service.resolve('test-model')).toThrow(
+      expect(() => service.resolve(RESOLVE_MODEL_ALIAS)).toThrow(
         InternalServerErrorException,
       );
       expect(mockLogger.error).toHaveBeenCalledWith(
@@ -390,106 +446,99 @@ describe('ProviderRegistryService', () => {
       );
     });
 
-    it('should include fallbackAlias when configured', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'claude-sonnet-4-5',
-            providerInstance: 'anthropic-primary',
-            fallback: 'fallback-model',
-            policy: {},
+    it('should include fallbackAlias when configured', async () => {
+      await initService({
+        gateway: buildResolveGateway({
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              fallback: 'fallback-model',
+              policy: {},
+            },
+            'fallback-model': {
+              modelId: 'claude-haiku',
+              providerInstance: TEST_PROVIDER_INSTANCE,
+              policy: {},
+            },
           },
-          'fallback-model': {
-            modelId: 'claude-haiku',
-            providerInstance: 'anthropic-primary',
-            policy: {},
-          },
-        },
-        providers: {
-          'anthropic-primary': {
-            type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
-          },
-        },
+        }),
       });
+      registerAnthropicPrimary();
 
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.fallbackAlias).toBe('fallback-model');
     });
 
     it('should omit fallbackAlias when model has no fallback configured', () => {
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.fallbackAlias).toBeUndefined();
     });
 
-    it('should omit fallbackAlias when fallback alias is missing from config', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'claude-sonnet-4-5',
-            providerInstance: 'anthropic-primary',
-            fallback: 'missing-fallback',
-            policy: {},
+    it('should omit fallbackAlias when fallback alias is missing from config', async () => {
+      await initService({
+        gateway: buildResolveGateway({
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              fallback: 'missing-fallback',
+              policy: {},
+            },
           },
-        },
-        providers: {
-          'anthropic-primary': {
-            type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
-          },
-        },
+        }),
       });
+      registerAnthropicPrimary();
 
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.fallbackAlias).toBeUndefined();
       expect(mockLogger.warn).toHaveBeenCalledWith(
         'Fallback alias not found in config:',
-        { modelAlias: 'test-model', fallback: 'missing-fallback' },
+        { modelAlias: RESOLVE_MODEL_ALIAS, fallback: 'missing-fallback' },
       );
     });
 
-    it('should default capabilities when not configured', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'test',
-            providerInstance: 'anthropic-primary',
-            policy: {},
+    it('should default capabilities when not configured', async () => {
+      await initService({
+        gateway: createTestGatewayConfig({
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              modelId: 'test',
+              providerInstance: TEST_PROVIDER_INSTANCE,
+              policy: {},
+            },
           },
-        },
-        providers: {
-          'anthropic-primary': {
-            type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
-          },
-        },
+          providers: DEFAULT_RESOLVE_PROVIDERS,
+          replace: { models: true, providers: true, clients: true },
+        }),
       });
+      registerAnthropicPrimary();
 
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.capabilities).toEqual({});
     });
 
-    it('should omit policy when model has no policy block', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        models: {
-          'test-model': {
-            modelId: 'test',
-            providerInstance: 'anthropic-primary',
+    it('should omit policy when model has no policy block', async () => {
+      await initService({
+        gateway: createTestGatewayConfig({
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              modelId: 'test',
+              providerInstance: TEST_PROVIDER_INSTANCE,
+            },
           },
-        },
-        providers: {
-          'anthropic-primary': {
-            type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
+          providers: {
+            [TEST_PROVIDER_INSTANCE]: {
+              type: 'anthropic',
+              apiKeyRef: 'ANTHROPIC_API_KEY',
+            },
           },
-        },
+          replace: { models: true, providers: true },
+        }),
       });
+      registerAnthropicPrimary();
 
-      const result = service.resolve('test-model');
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
 
       expect(result.policy).toBeUndefined();
       expect(result.params).toBeUndefined();

@@ -5,6 +5,10 @@ import { LoggingService } from '../logging/logging.service';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { CreateNoOpCacheBackend } from '../common/mocks/createNoOpCacheBackend';
 import { createMockCacheBackend } from '../common/mocks/createMockCacheBackend';
+import {
+  createMockConfigService,
+  type MockConfigServiceOptions,
+} from '../common/mocks/createMockConfigService';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
 
 describe('CacheRegistryService', () => {
@@ -14,15 +18,13 @@ describe('CacheRegistryService', () => {
   let mockBackend: Partial<CacheBackend>;
   let mockNoopBackend: Partial<CacheBackend>;
 
-  beforeEach(async () => {
-    mockConfig = {
-      get: jest.fn(),
-    };
+  async function initService(
+    configOptions: MockConfigServiceOptions = {},
+  ) {
+    mockConfig = createMockConfigService(configOptions);
 
     mockLogger = createMockLoggingService();
-
     mockBackend = createMockCacheBackend();
-
     mockNoopBackend = CreateNoOpCacheBackend();
 
     const module = await Test.createTestingModule({
@@ -34,6 +36,10 @@ describe('CacheRegistryService', () => {
     }).compile();
 
     service = module.get(CacheRegistryService);
+  }
+
+  beforeEach(async () => {
+    await initService();
   });
 
   describe('register', () => {
@@ -45,11 +51,11 @@ describe('CacheRegistryService', () => {
       ).not.toThrow();
     });
 
-    it('should normalize backend id to lowercase', () => {
+    it('should normalize backend id to lowercase', async () => {
+      await initService({ cache: { backend: 'REDIS' } });
+
       service.register('Redis', mockBackend as CacheBackend);
       service.register('noop', mockNoopBackend as CacheBackend);
-
-      (mockConfig.get as jest.Mock).mockReturnValue({ backend: 'REDIS' });
 
       const result = service.resolve();
 
@@ -67,39 +73,40 @@ describe('CacheRegistryService', () => {
   });
 
   describe('resolve', () => {
-    beforeEach(() => {
+    it('should resolve configured backend', async () => {
+      await initService({ cache: { backend: 'redis' } });
       service.register('redis', mockBackend as CacheBackend);
       service.register('noop', mockNoopBackend as CacheBackend);
-    });
-
-    it('should resolve configured backend', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({ backend: 'redis' });
 
       const result = service.resolve();
 
       expect(result).toBe(mockBackend);
     });
 
-    it('should default to noop when backend not configured', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue(undefined);
+    it('should default to noop when backend not configured', async () => {
+      await initService({ cache: null });
+      service.register('redis', mockBackend as CacheBackend);
+      service.register('noop', mockNoopBackend as CacheBackend);
 
       const result = service.resolve();
 
       expect(result).toBe(mockNoopBackend);
     });
 
-    it('should default to noop when backend is null', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({ backend: null });
+    it('should default to noop when backend is null', async () => {
+      await initService({ cache: { backend: null as unknown as string } });
+      service.register('redis', mockBackend as CacheBackend);
+      service.register('noop', mockNoopBackend as CacheBackend);
 
       const result = service.resolve();
 
       expect(result).toBe(mockNoopBackend);
     });
 
-    it('should fallback to noop when backend not found', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        backend: 'nonexistent',
-      });
+    it('should fallback to noop when backend not found', async () => {
+      await initService({ cache: { backend: 'nonexistent' } });
+      service.register('redis', mockBackend as CacheBackend);
+      service.register('noop', mockNoopBackend as CacheBackend);
 
       const result = service.resolve();
 
@@ -109,8 +116,10 @@ describe('CacheRegistryService', () => {
       );
     });
 
-    it('should normalize backend id from config to lowercase', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({ backend: 'REDIS' });
+    it('should normalize backend id from config to lowercase', async () => {
+      await initService({ cache: { backend: 'REDIS' } });
+      service.register('redis', mockBackend as CacheBackend);
+      service.register('noop', mockNoopBackend as CacheBackend);
 
       const result = service.resolve();
 
@@ -118,23 +127,25 @@ describe('CacheRegistryService', () => {
     });
 
     it('should throw when noop backend not registered', () => {
+      const configWithoutNoop = createMockConfigService({
+        cache: { backend: 'nonexistent' },
+      });
       const serviceWithoutNoop = new CacheRegistryService(
-        mockConfig as ConfigService,
+        configWithoutNoop as ConfigService,
         mockLogger as LoggingService,
       );
 
       serviceWithoutNoop.register('redis', mockBackend as CacheBackend);
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        backend: 'nonexistent',
-      });
 
       expect(() => serviceWithoutNoop.resolve()).toThrow(
         '[CacheRegistryService] cache backend "noop" is required',
       );
     });
 
-    it('should handle empty backend string', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({ backend: '' });
+    it('should handle empty backend string', async () => {
+      await initService({ cache: { backend: '' } });
+      service.register('redis', mockBackend as CacheBackend);
+      service.register('noop', mockNoopBackend as CacheBackend);
 
       const result = service.resolve();
 
@@ -143,21 +154,23 @@ describe('CacheRegistryService', () => {
   });
 
   describe('edge cases', () => {
-    it('should handle re-registration of same backend', () => {
+    it('should handle re-registration of same backend', async () => {
+      await initService({ cache: { backend: 'redis' } });
+
       service.register('redis', mockBackend as CacheBackend);
       const anotherBackend = { ...mockBackend };
       service.register('redis', anotherBackend as CacheBackend);
-
-      (mockConfig.get as jest.Mock).mockReturnValue({ backend: 'redis' });
+      service.register('noop', mockNoopBackend as CacheBackend);
 
       const result = service.resolve();
 
       expect(result).toBe(anotherBackend);
     });
 
-    it('should handle config.get returning undefined', () => {
+    it('should handle config.get returning undefined', async () => {
+      await initService({ cache: null });
+
       service.register('noop', mockNoopBackend as CacheBackend);
-      (mockConfig.get as jest.Mock).mockReturnValue(undefined);
 
       const result = service.resolve();
 

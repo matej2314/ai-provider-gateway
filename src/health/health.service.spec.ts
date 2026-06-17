@@ -2,16 +2,25 @@ import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { HealthService } from './health.service';
 import { CacheRegistryService } from '../cache/cache-registry.service';
+import {
+  createMockConfigService,
+  type MockConfigServiceOptions,
+} from '../common/mocks/createMockConfigService';
+
+const healthyReadinessConfig: MockConfigServiceOptions = {
+  gatewayOptions: { models: {} },
+  resolvedSystemPrompts: { master: 'prompt' },
+  cache: { enabled: false },
+};
 
 describe('HealthService', () => {
   let service: HealthService;
-  let mockConfigService: Partial<ConfigService>;
   let mockCacheRegistry: Partial<CacheRegistryService>;
 
-  beforeEach(async () => {
-    mockConfigService = {
-      get: jest.fn(),
-    };
+  async function initService(
+    configOptions: MockConfigServiceOptions = healthyReadinessConfig,
+  ) {
+    const mockConfigService = createMockConfigService(configOptions);
 
     mockCacheRegistry = {
       resolve: jest.fn(),
@@ -26,6 +35,10 @@ describe('HealthService', () => {
     }).compile();
 
     service = module.get(HealthService);
+  }
+
+  beforeEach(async () => {
+    await initService();
   });
 
   describe('getLiveness', () => {
@@ -44,11 +57,8 @@ describe('HealthService', () => {
   });
 
   describe('getReadiness', () => {
-    it('should return ready when all checks healthy', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce({ models: {} })
-        .mockReturnValueOnce({ master: 'prompt' })
-        .mockReturnValueOnce({ enabled: false });
+    it('should return ready when all checks healthy', async () => {
+      await initService(healthyReadinessConfig);
 
       const result = service.getReadiness();
 
@@ -57,10 +67,11 @@ describe('HealthService', () => {
       expect(result.checks.cache.status).toBe('healthy');
     });
 
-    it('should return not_ready when config unhealthy', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce(undefined)
-        .mockReturnValueOnce({ enabled: false });
+    it('should return not_ready when config unhealthy', async () => {
+      await initService({
+        gateway: null,
+        cache: { enabled: false },
+      });
 
       const result = service.getReadiness();
 
@@ -68,11 +79,8 @@ describe('HealthService', () => {
       expect(result.checks.config.status).toBe('unhealthy');
     });
 
-    it('should include version and uptime', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce({ models: {} })
-        .mockReturnValueOnce({ master: 'prompt' })
-        .mockReturnValueOnce({ enabled: false });
+    it('should include version and uptime', async () => {
+      await initService(healthyReadinessConfig);
 
       const result = service.getReadiness();
 
@@ -80,11 +88,12 @@ describe('HealthService', () => {
       expect(result.uptime).toBeGreaterThanOrEqual(0);
     });
 
-    it('should be ready when cache degraded', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce({ models: {} })
-        .mockReturnValueOnce({ master: 'prompt' })
-        .mockReturnValueOnce({ enabled: true, backend: 'redis' });
+    it('should be ready when cache degraded', async () => {
+      await initService({
+        gatewayOptions: { models: {} },
+        resolvedSystemPrompts: { master: 'prompt' },
+        cache: { enabled: true, backend: 'redis' },
+      });
 
       (mockCacheRegistry.resolve as jest.Mock).mockReturnValue({
         isAvailable: jest.fn().mockReturnValue(false),
@@ -98,11 +107,8 @@ describe('HealthService', () => {
   });
 
   describe('checkConfig', () => {
-    it('should be healthy when gateway and prompts present', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce({ models: {} })
-        .mockReturnValueOnce({ master: 'prompt' })
-        .mockReturnValueOnce({ enabled: false });
+    it('should be healthy when gateway and prompts present', async () => {
+      await initService(healthyReadinessConfig);
 
       const result = service.getReadiness();
 
@@ -110,11 +116,12 @@ describe('HealthService', () => {
       expect(result.checks.config.message).toBe('Config is loaded');
     });
 
-    it('should be unhealthy when gateway config missing', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce(undefined)
-        .mockReturnValueOnce({ master: 'prompt' })
-        .mockReturnValueOnce({ enabled: false });
+    it('should be unhealthy when gateway config missing', async () => {
+      await initService({
+        gateway: null,
+        resolvedSystemPrompts: { master: 'prompt' },
+        cache: { enabled: false },
+      });
 
       const result = service.getReadiness();
 
@@ -122,11 +129,12 @@ describe('HealthService', () => {
       expect(result.checks.config.message).toContain('missing or incomplete');
     });
 
-    it('should be unhealthy when prompts missing', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce({ models: {} })
-        .mockReturnValueOnce(undefined)
-        .mockReturnValueOnce({ enabled: false });
+    it('should be unhealthy when prompts missing', async () => {
+      await initService({
+        gatewayOptions: { models: {} },
+        resolvedSystemPrompts: null,
+        cache: { enabled: false },
+      });
 
       const result = service.getReadiness();
 
@@ -135,11 +143,8 @@ describe('HealthService', () => {
   });
 
   describe('checkCache', () => {
-    it('should be healthy when cache disabled', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce({ models: {} })
-        .mockReturnValueOnce({ master: 'prompt' })
-        .mockReturnValueOnce({ enabled: false });
+    it('should be healthy when cache disabled', async () => {
+      await initService(healthyReadinessConfig);
 
       const result = service.getReadiness();
 
@@ -147,11 +152,12 @@ describe('HealthService', () => {
       expect(result.checks.cache.message).toBe('Cache disabled (noop)');
     });
 
-    it('should be healthy when cache enabled and available', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce({ models: {} })
-        .mockReturnValueOnce({ master: 'prompt' })
-        .mockReturnValueOnce({ enabled: true, backend: 'redis' });
+    it('should be healthy when cache enabled and available', async () => {
+      await initService({
+        gatewayOptions: { models: {} },
+        resolvedSystemPrompts: { master: 'prompt' },
+        cache: { enabled: true, backend: 'redis' },
+      });
 
       (mockCacheRegistry.resolve as jest.Mock).mockReturnValue({
         isAvailable: jest.fn().mockReturnValue(true),
@@ -163,11 +169,12 @@ describe('HealthService', () => {
       expect(result.checks.cache.message).toContain('available');
     });
 
-    it('should be degraded when cache enabled but unavailable', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce({ models: {} })
-        .mockReturnValueOnce({ master: 'prompt' })
-        .mockReturnValueOnce({ enabled: true, backend: 'redis' });
+    it('should be degraded when cache enabled but unavailable', async () => {
+      await initService({
+        gatewayOptions: { models: {} },
+        resolvedSystemPrompts: { master: 'prompt' },
+        cache: { enabled: true, backend: 'redis' },
+      });
 
       (mockCacheRegistry.resolve as jest.Mock).mockReturnValue({
         isAvailable: jest.fn().mockReturnValue(false),
@@ -179,11 +186,12 @@ describe('HealthService', () => {
       expect(result.checks.cache.message).toContain('unavailable');
     });
 
-    it('should default to noop when backend undefined', () => {
-      (mockConfigService.get as jest.Mock)
-        .mockReturnValueOnce({ models: {} })
-        .mockReturnValueOnce({ master: 'prompt' })
-        .mockReturnValueOnce({ enabled: true });
+    it('should default to noop when backend undefined', async () => {
+      await initService({
+        gatewayOptions: { models: {} },
+        resolvedSystemPrompts: { master: 'prompt' },
+        cache: { enabled: true },
+      });
 
       const result = service.getReadiness();
 

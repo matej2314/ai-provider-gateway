@@ -4,6 +4,7 @@ import { SmartRateLimiterService } from './smart-rate-limiter.service';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
 import { LoggingService } from '../logging/logging.service';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
+import { createMockConfigService } from '../common/mocks/createMockConfigService';
 
 describe('SmartRateLimiterService', () => {
   let service: SmartRateLimiterService;
@@ -22,16 +23,15 @@ describe('SmartRateLimiterService', () => {
       set: jest.fn(),
     };
 
-    mockConfig = {
-      get: jest.fn((key: string, defaultValue?: any) => {
-        if (key === 'gatewayKey') return { clients: [] };
-        if (key === 'RATE_LIMIT_RPS_PER_KEY') return 10;
-        if (key === 'RATE_LIMIT_BURST_PER_KEY') return 20;
-        if (key === 'RATE_LIMIT_STREAMS_CONCURRENT') return 3;
-        if (key === 'RATE_LIMIT_COOLDOWN_AFTER_429') return 60;
-        return defaultValue;
-      }),
-    };
+    mockConfig = createMockConfigService({
+      gatewayKey: { clients: [] },
+      rateLimit: {
+        rps: 10,
+        burst: 20,
+        maxConcurrentStreams: 3,
+        cooldownAfter429: 60,
+      },
+    });
 
     mockRedis = {
       isReady: jest.fn().mockReturnValue(true),
@@ -236,10 +236,9 @@ describe('SmartRateLimiterService', () => {
     });
 
     it('should use configured cooldown seconds', async () => {
-      (mockConfig.get as jest.Mock).mockImplementation((key, defaultValue) => {
-        if (key === 'RATE_LIMIT_COOLDOWN_AFTER_429') return 120;
-        if (key === 'gatewayKey') return { clients: [] };
-        return defaultValue;
+      const mockConfig = createMockConfigService({
+        rateLimit: { cooldownAfter429: 120 },
+        gatewayKey: { clients: [] },
       });
 
       const newService = new SmartRateLimiterService(

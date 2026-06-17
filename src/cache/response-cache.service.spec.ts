@@ -11,6 +11,7 @@ import type { ChatRequestDto } from '../chat/dto/chat-request.dto';
 import type { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
 import { createMockCacheBackend } from '../common/mocks/createMockCacheBackend';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
+import { createMockConfigService } from '../common/mocks/createMockConfigService';
 import { TEST_MODEL_ALIAS } from '../common/mocks/test-constants';
 
 describe('ResponseCacheService', () => {
@@ -21,21 +22,10 @@ describe('ResponseCacheService', () => {
 
   beforeEach(async () => {
     mockCacheBackend = createMockCacheBackend();
-    mockConfig = {
-      get: jest.fn((key: string, defaultValue?: unknown) => {
-        if (key === 'resolvedSystemPrompts') {
-          return {
-            master: 'master prompt',
-            main: 'main prompt',
-            perModelByAlias: {},
-          };
-        }
-
-        if (key === 'cache.keyPrefix') return 'aigw:';
-        if (key === 'cache.ttl') return 3600;
-        return defaultValue;
-      }),
-    };
+    mockConfig = createMockConfigService({
+      resolvedSystemPrompts: { master: 'master prompt', main: 'main prompt' },
+      cache: { keyPrefix: 'aigw:', ttl: 3600 },
+    });
 
     mockLogger = createMockLoggingService();
 

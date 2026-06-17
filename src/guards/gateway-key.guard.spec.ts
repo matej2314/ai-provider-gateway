@@ -10,16 +10,20 @@ import { GatewayKeyGuard } from './gateway-key.guard';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { createMockContext } from '../common/mocks/createMockContext';
 import { createMockExpressRequest } from '../common/mocks/http-mocks';
+import {
+  createMockConfigService,
+  type MockConfigServiceOptions,
+} from '../common/mocks/createMockConfigService';
+import { TEST_GATEWAY_KEY } from '../common/mocks/test-constants';
 import type { Request } from 'express';
 
 describe('GatewayKeyGuard', () => {
   let guard: GatewayKeyGuard;
-  let mockConfig: Partial<ConfigService>;
 
-  beforeEach(async () => {
-    mockConfig = {
-      get: jest.fn(),
-    };
+  async function initGuard(
+    configOptions: MockConfigServiceOptions = {},
+  ) {
+    const mockConfig = createMockConfigService(configOptions);
 
     const module = await Test.createTestingModule({
       providers: [
@@ -29,15 +33,14 @@ describe('GatewayKeyGuard', () => {
     }).compile();
 
     guard = module.get(GatewayKeyGuard);
+  }
+
+  beforeEach(async () => {
+    await initGuard();
   });
 
   describe('Happy path - valid key', () => {
     it('should allow when key is in allowList', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_valid_key_123'],
-        clients: [],
-      });
-
       const context = createMockContext({
         'x-gateway-key': 'gw_valid_key_123',
       });
@@ -48,11 +51,6 @@ describe('GatewayKeyGuard', () => {
     });
 
     it('should set gatewayKey on request', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_valid_key_123'],
-        clients: [],
-      });
-
       const mockRequest = createMockExpressRequest({
         gatewayKey: undefined,
         requestId: 'req-123',
@@ -74,12 +72,9 @@ describe('GatewayKeyGuard', () => {
     });
 
     it('should allow when key has whitespace (trimmed)', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_key_123'],
-        clients: [],
+      const context = createMockContext({
+        'x-gateway-key': `  ${TEST_GATEWAY_KEY}  `,
       });
-
-      const context = createMockContext({ 'x-gateway-key': '  gw_key_123  ' });
 
       const result = guard.canActivate(context);
 
@@ -89,11 +84,6 @@ describe('GatewayKeyGuard', () => {
 
   describe('Edge case - missing key', () => {
     it('should throw UnauthorizedException when header missing', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_key_123'],
-        clients: [],
-      });
-
       const context = createMockContext({});
 
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
@@ -110,22 +100,12 @@ describe('GatewayKeyGuard', () => {
     });
 
     it('should throw when header is empty', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_key_123'],
-        clients: [],
-      });
-
       const context = createMockContext({ 'x-gateway-key': '' });
 
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
     });
 
     it('should throw when header is whitespace only', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_key_123'],
-        clients: [],
-      });
-
       const context = createMockContext({ 'x-gateway-key': '   ' });
 
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
@@ -133,10 +113,9 @@ describe('GatewayKeyGuard', () => {
   });
 
   describe('Edge case - invalid key', () => {
-    it('should throw ForbiddenException when key not in allowList', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_valid_key'],
-        clients: [],
+    it('should throw ForbiddenException when key not in allowList', async () => {
+      await initGuard({
+        gatewayKey: { allowList: ['gw_valid_key'], clients: [] },
       });
 
       const context = createMockContext({ 'x-gateway-key': 'gw_invalid_key' });
@@ -154,26 +133,24 @@ describe('GatewayKeyGuard', () => {
       }
     });
 
-    it('should be case-sensitive', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_Key_123'],
-        clients: [],
+    it('should be case-sensitive', async () => {
+      await initGuard({
+        gatewayKey: { allowList: ['gw_Key_123'], clients: [] },
       });
 
-      const context = createMockContext({ 'x-gateway-key': 'gw_key_123' });
+      const context = createMockContext({ 'x-gateway-key': TEST_GATEWAY_KEY });
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
     });
   });
 
   describe('Edge case - allowList not configured', () => {
-    it('should throw InternalServerErrorException when allowList empty', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: [],
-        clients: [],
+    it('should throw InternalServerErrorException when allowList empty', async () => {
+      await initGuard({
+        gatewayKey: { allowList: [], clients: [] },
       });
 
-      const context = createMockContext({ 'x-gateway-key': 'gw_key_123' });
+      const context = createMockContext({ 'x-gateway-key': TEST_GATEWAY_KEY });
 
       expect(() => guard.canActivate(context)).toThrow(
         InternalServerErrorException,
@@ -189,10 +166,10 @@ describe('GatewayKeyGuard', () => {
       }
     });
 
-    it('should throw when gatewayKey config undefined', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue(undefined);
+    it('should throw when gatewayKey config undefined', async () => {
+      await initGuard({ gatewayKey: null });
 
-      const context = createMockContext({ 'x-gateway-key': 'gw_key_123' });
+      const context = createMockContext({ 'x-gateway-key': TEST_GATEWAY_KEY });
 
       expect(() => guard.canActivate(context)).toThrow(
         InternalServerErrorException,
@@ -201,10 +178,12 @@ describe('GatewayKeyGuard', () => {
   });
 
   describe('Edge case - multiple keys in allowList', () => {
-    it('should allow any key from allowList', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_key_1', 'gw_key_2', 'gw_key_3'],
-        clients: [],
+    it('should allow any key from allowList', async () => {
+      await initGuard({
+        gatewayKey: {
+          allowList: ['gw_key_1', 'gw_key_2', 'gw_key_3'],
+          clients: [],
+        },
       });
 
       expect(
@@ -220,10 +199,9 @@ describe('GatewayKeyGuard', () => {
   });
 
   describe('Edge case - requestId propagation', () => {
-    it('should include requestId in error response', () => {
-      (mockConfig.get as jest.Mock).mockReturnValue({
-        allowList: ['gw_valid'],
-        clients: [],
+    it('should include requestId in error response', async () => {
+      await initGuard({
+        gatewayKey: { allowList: ['gw_valid'], clients: [] },
       });
 
       const context = createMockContext(
