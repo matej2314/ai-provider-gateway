@@ -6,8 +6,12 @@ import { GatewayKeyGuard } from '../guards/gateway-key.guard';
 import { SmartRateLimitGuard } from '../guards/smart-rate-limit-guard';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 import { ResilientExecutor } from 'src/common/resilience/resilient-executor';
-import { ChatProviderCallService } from './chat-provider-call.service';
+import { ChatProviderCallService } from './services/chat-provider-call.service';
 import { StreamCleanupInterceptor } from 'src/common/interceptors/stream-cleanup.interceptor';
+import { ChatErrorHandlerService } from './services/chat-error-handler.service';
+import { ChatValidationService } from './services/chat-validation.service';
+import { ChatResponseBuilderService } from './services/chat-response-builder.service';
+import { ChatCacheGuardService } from './services/chat-cache-guard.service';
 
 @Module({
   imports: [RateLimitModule],
@@ -19,6 +23,10 @@ import { StreamCleanupInterceptor } from 'src/common/interceptors/stream-cleanup
     ResilientExecutor,
     ChatProviderCallService,
     StreamCleanupInterceptor,
+    ChatErrorHandlerService,
+    ChatValidationService,
+    ChatResponseBuilderService,
+    ChatCacheGuardService,
   ],
   exports: [ChatService, SmartRateLimitGuard],
 })

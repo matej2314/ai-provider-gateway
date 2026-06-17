@@ -1,17 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { ProviderRegistryService } from '../providers/provider-registry.service';
-import { MetricsService } from '../metrics/metrics.service';
-import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
-import { buildProviderInputForAlias } from './helpers/provider-input';
-import { buildLlmMetricsContext } from './helpers/metrics';
-import type { ResolvedSystemPrompts } from '../config/configuration.types';
+import { ProviderRegistryService } from '../../providers/provider-registry.service';
+import { MetricsService } from '../../metrics/metrics.service';
+import { resolveProviderCallOptions } from '../helpers/resolve-provider-call-options';
+import { buildProviderInputForAlias } from '../helpers/provider-input';
+import { buildLlmMetricsContext } from '../helpers/metrics';
+import type { ResolvedSystemPrompts } from '../../config/configuration.types';
 import type {
   ProviderChatResponse,
   ProviderToolCall,
-} from '../providers/interfaces/ai-provider.interface';
-import type { ChatRequestDto } from './dto/chat-request.dto';
-import type { SseEvent } from './sse/sse-event.type';
-import type { ResolvedProviderConfig } from '../providers/provider-registry.service';
+} from '../../providers/interfaces/ai-provider.interface';
+import type { ChatRequestDto } from '../dto/chat-request.dto';
+import type { SseEvent } from '../sse/sse-event.type';
+import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
 
 export interface CompleteOnceResult {
   response: ProviderChatResponse;

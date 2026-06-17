@@ -8,13 +8,16 @@ import { HttpException } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ProviderRegistryService } from '../providers/provider-registry.service';
 import { LoggingService } from '../logging/logging.service';
-import { ChatProviderCallService } from './chat-provider-call.service';
-import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.service';
-import { ResponseCacheService } from '../cache/response-cache.service';
+import { ChatProviderCallService } from './services/chat-provider-call.service';
+import { ChatCacheGuardService } from './services/chat-cache-guard.service';
+import { ChatValidationService } from './services/chat-validation.service';
+import { ChatErrorHandlerService } from './services/chat-error-handler.service';
+import {
+  ChatResponseBuilderService,
+  type ProviderResponse,
+} from './services/chat-response-builder.service';
 import { ResilientExecutor } from '../common/resilience/resilient-executor';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
-import { createMockResponseCacheService } from '../common/mocks/createMockResponseCacheService';
-import { createMockSmartRateLimiter } from '../common/mocks/createMockSmartRateLimiter';
 import { createMockResilientExecutor } from '../common/mocks/createMockResilientExecutor';
 import { createMockProviderRegistryService } from '../common/mocks/createMockProviderRegistryService';
 import type { ResolvedProviderConfig } from '../providers/provider-registry.service';
@@ -24,31 +27,17 @@ import {
 } from '../common/mocks/test-constants';
 import { createMockDefaultResolvedConfig } from '../common/mocks/createMockResolvedProviderConfig';
 
-const CACHE_ENABLED_GATEWAY = {
-  models: {
-    [TEST_MODEL_ALIAS]: {
-      providerInstance: 'anthropic-primary',
-      modelId: 'claude-sonnet-4-5',
-    },
-  },
-  providers: {
-    'anthropic-primary': {
-      type: 'anthropic',
-      apiKeyRef: 'ANTHROPIC_API_KEY',
-      enabled: true,
-    },
-  },
-};
-
 describe('ChatService', () => {
   let service: ChatService;
   let mockRegistry: Partial<ProviderRegistryService>;
   let mockConfig: Partial<ConfigService>;
   let mockProviderCall: Partial<ChatProviderCallService>;
-  let mockCache: Partial<ResponseCacheService>;
-  let mockRateLimiter: Partial<SmartRateLimiterService>;
-  let mockLogger: Partial<LoggingService>;
   let mockExecutor: Partial<ResilientExecutor>;
+  let mockLogger: Partial<LoggingService>;
+  let mockCacheGuard: Partial<ChatCacheGuardService>;
+  let mockValidation: Partial<ChatValidationService>;
+  let mockErrorHandler: Partial<ChatErrorHandlerService>;
+  let mockResponseBuilder: Partial<ChatResponseBuilderService>;
   let resolvedConfig: ResolvedProviderConfig;
 
   function mockExecutorChatSuccess(
@@ -70,6 +59,24 @@ describe('ChatService', () => {
     });
   }
 
+  function mockStreamExecutorSuccess(
+    valueOverrides: Record<string, unknown> = {},
+  ) {
+    (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue({
+      value: {
+        resolved: resolvedConfig,
+        assembledText: 'Hello',
+        usageMetadata: { inputTokens: 5, outputTokens: 10 },
+        toolCalls: [],
+        stopReason: 'end_turn',
+        ...valueOverrides,
+      },
+      usedAlias: TEST_MODEL_ALIAS,
+      attempts: 1,
+      didFallback: false,
+    });
+  }
+
   beforeEach(async () => {
     resolvedConfig = createMockDefaultResolvedConfig();
     mockRegistry = createMockProviderRegistryService();
@@ -84,298 +91,240 @@ describe('ChatService', () => {
       }),
     };
 
-    mockProviderCall = {
-      completeOnce: jest.fn().mockResolvedValue({
-        id: 'resp-123',
-        output: { text: 'Response text' },
-        usage: { inputTokens: 10, outputTokens: 20 },
-        finishReason: 'stop',
+    mockLogger = createMockLoggingService();
+    mockExecutor = createMockResilientExecutor();
+
+    mockCacheGuard = {
+      checkRateLimit: jest.fn().mockResolvedValue(undefined),
+      getCachedIfAllowed: jest.fn().mockResolvedValue(null),
+      setCachedIfAllowed: jest.fn().mockResolvedValue(undefined),
+    };
+
+    mockValidation = {
+      validateTooling: jest.fn(),
+      validateForStreaming: jest.fn().mockReturnValue(resolvedConfig),
+    };
+
+    mockErrorHandler = {
+      handleProviderError: jest.fn().mockResolvedValue(undefined),
+    };
+
+    mockResponseBuilder = {
+      buildChatResponse: jest.fn(
+        (
+          response: ProviderResponse,
+          providerName: string,
+          modelAlias: string,
+          requestId: string,
+          conversationId: string,
+          effectiveModelAlias?: string,
+        ) => ({
+          id: 'gw_test-uuid',
+          provider: providerName,
+          model: modelAlias,
+          ...(effectiveModelAlias && { effectiveModelAlias }),
+          output: { type: 'text' as const, text: response.text },
+          usage: response.usage,
+          requestId,
+          conversationId,
+          finishReason: 'stop',
+        }),
+      ),
+      buildStreamDoneEvent: jest.fn().mockReturnValue({
+        name: 'done',
+        data: { finishReason: 'stop' },
       }),
     };
 
-    mockCache = createMockResponseCacheService();
-    mockRateLimiter = createMockSmartRateLimiter();
-    mockLogger = createMockLoggingService();
-    mockExecutor = createMockResilientExecutor();
+    mockProviderCall = {
+      completeOnce: jest.fn().mockResolvedValue({
+        response: {
+          text: 'Hello!',
+          usage: { inputTokens: 5, outputTokens: 10 },
+          stopReason: 'end_turn',
+        },
+        providerName: 'anthropic',
+        modelId: 'claude-sonnet-4-5',
+        resolved: resolvedConfig,
+      }),
+      streamOnce: jest.fn(),
+    };
 
     const module = await Test.createTestingModule({
       providers: [
         ChatService,
         { provide: ProviderRegistryService, useValue: mockRegistry },
         { provide: ConfigService, useValue: mockConfig },
-        { provide: ChatProviderCallService, useValue: mockProviderCall },
-        { provide: ResponseCacheService, useValue: mockCache },
-        { provide: SmartRateLimiterService, useValue: mockRateLimiter },
         { provide: LoggingService, useValue: mockLogger },
         { provide: ResilientExecutor, useValue: mockExecutor },
+        { provide: ChatProviderCallService, useValue: mockProviderCall },
+        { provide: ChatCacheGuardService, useValue: mockCacheGuard },
+        { provide: ChatValidationService, useValue: mockValidation },
+        { provide: ChatErrorHandlerService, useValue: mockErrorHandler },
+        { provide: ChatResponseBuilderService, useValue: mockResponseBuilder },
       ],
     }).compile();
 
     service = module.get(ChatService);
   });
 
+  describe('validateForStreaming', () => {
+    it('should delegate to validation service', () => {
+      const result = service.validateForStreaming(TEST_MODEL_ALIAS);
+
+      expect(mockValidation.validateForStreaming).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS,
+      );
+      expect(result).toBe(resolvedConfig);
+    });
+  });
+
   describe('executeChat', () => {
-    it('should execute non-streaming chat', async () => {
+    const baseRequest = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [{ role: 'user' as const, content: 'Hi' }],
+    };
+
+    it('should orchestrate validation, executor and response builder', async () => {
       mockExecutorChatSuccess({ text: 'Hello!' });
 
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
       const result = await service.executeChat(
-        request,
+        baseRequest,
         'req-123',
         'gw_key_123',
       );
 
+      expect(mockValidation.validateTooling).toHaveBeenCalledWith(
+        baseRequest,
+        resolvedConfig,
+      );
+      expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
+        'gw_key_123',
+        'anthropic',
+        'req-123',
+      );
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
+      expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalled();
       expect(result.output.text).toBe('Hello!');
       expect(result.id).toBe('gw_test-uuid');
     });
 
-    it('should check rate limit cooldown', async () => {
-      mockExecutorChatSuccess({ text: 'Ok' });
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
-      await service.executeChat(request, 'req-123', 'gw_key_123');
-
-      expect(mockRateLimiter.checkCooldown).toHaveBeenCalledWith(
-        'gw_key_123',
-        'anthropic',
-      );
-    });
-
-    it('should throw when rate limited', async () => {
-      (mockRateLimiter.checkCooldown as jest.Mock).mockResolvedValue({
-        allowed: false,
-        reason: 'Cooldown active',
-      });
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
-      await expect(
-        service.executeChat(request, 'req-123', 'gw_key_123'),
-      ).rejects.toThrow(HttpException);
-    });
-
-    it('should check cache before provider call', async () => {
+    it('should return cached response without calling executor', async () => {
       const cachedResponse = {
         id: 'cached-123',
-        output: { type: 'text', text: 'Cached response' },
-        cached: true,
+        output: { type: 'text' as const, text: 'Cached response' },
       };
-      (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(
+      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue(
         cachedResponse,
       );
-      (mockConfig.get as jest.Mock).mockImplementation((key: string) => {
-        if (key === 'gateway') return CACHE_ENABLED_GATEWAY;
-        if (key === 'resolvedSystemPrompts')
-          return { master: 'you are helpful', perModelByAlias: {} };
-        return undefined;
-      });
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
 
       const result = await service.executeChat(
-        request,
+        baseRequest,
         'req-123',
         'gw_key_123',
       );
 
-      expect(result).toEqual(cachedResponse);
+      expect(mockCacheGuard.getCachedIfAllowed).toHaveBeenCalled();
+      expect(result).toBe(cachedResponse);
+      expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith('Chat cache hit');
+    });
+
+    it('should propagate cache guard rate limit errors', async () => {
+      const rateLimitError = new HttpException('Rate limited', 429);
+      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+        rateLimitError,
+      );
+
+      await expect(
+        service.executeChat(baseRequest, 'req-123', 'gw_key_123'),
+      ).rejects.toBe(rateLimitError);
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
     });
 
-    it('should skip cache for tooling requests', async () => {
-      mockExecutorChatSuccess({ text: 'Ok' });
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
+    it('should call validateTooling before provider call', async () => {
+      mockExecutorChatSuccess();
+      const toolingRequest = {
+        ...baseRequest,
         tooling: {
           definitions: [{ name: 'test', parameters: {} }],
         },
       };
 
-      await service.executeChat(request, 'req-123', 'gw_key_123');
+      await service.executeChat(toolingRequest, 'req-123', 'gw_key_123');
 
-      expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
+      expect(mockValidation.validateTooling).toHaveBeenCalledWith(
+        toolingRequest,
+        resolvedConfig,
+      );
     });
 
-    it('should validate tooling support', async () => {
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-        tooling: {
-          definitions: [{ name: 'test', parameters: {} }],
-        },
-      };
-
-      mockExecutorChatSuccess({
-        text: 'Ok',
-        stopReason: 'tool_use',
-        toolCalls: [{ id: 'call-1', name: 'test', arguments: {} }],
+    it('should propagate validateTooling errors', async () => {
+      const validationError = new HttpException('Tools not supported', 400);
+      (mockValidation.validateTooling as jest.Mock).mockImplementation(() => {
+        throw validationError;
       });
-
-      await service.executeChat(request, 'req-123', 'gw_key_123');
-
-      expect(mockRegistry.resolve).toHaveBeenCalledWith(TEST_MODEL_ALIAS);
-      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
-    });
-
-    it('should throw when tooling is not supported by model', async () => {
-      resolvedConfig = {
-        ...createMockDefaultResolvedConfig(),
-        capabilities: { tools: false },
-      };
-      (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-        tooling: {
-          definitions: [{ name: 'test', parameters: {} }],
-        },
-      };
 
       await expect(
-        service.executeChat(request, 'req-123', 'gw_key_123'),
-      ).rejects.toThrow(HttpException);
+        service.executeChat(
+          {
+            ...baseRequest,
+            tooling: { definitions: [{ name: 'test', parameters: {} }] },
+          },
+          'req-123',
+          'gw_key_123',
+        ),
+      ).rejects.toBe(validationError);
     });
 
-    it('should resolve provider call options', async () => {
-      mockExecutorChatSuccess({ text: 'Ok' });
-
+    it('should pass conversationId to response builder', async () => {
+      mockExecutorChatSuccess();
       const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-        params: { temperature: 0.9 },
+        ...baseRequest,
+        conversationId: VALID_CONVERSATION_ID,
       };
 
       await service.executeChat(request, 'req-123', 'gw_key_123');
 
-      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
-    });
-
-    it('should add conversationId to response', async () => {
-      mockExecutorChatSuccess({ text: 'Ok' });
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-        conversationId: VALID_CONVERSATION_ID,
-      };
-
-      const result = await service.executeChat(
-        request,
+      expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
+        expect.any(Object),
+        'anthropic',
+        TEST_MODEL_ALIAS,
         'req-123',
-        'gw_key_123',
+        VALID_CONVERSATION_ID,
+        undefined,
       );
-
-      expect(result).toMatchObject({
-        conversationId: VALID_CONVERSATION_ID,
-      });
     });
 
-    it('should cache response after successful execution', async () => {
-      mockExecutorChatSuccess({ text: 'Cached later' });
-      (mockConfig.get as jest.Mock).mockImplementation((key: string) => {
-        if (key === 'gateway') return CACHE_ENABLED_GATEWAY;
-        if (key === 'resolvedSystemPrompts')
-          return { master: 'you are helpful', perModelByAlias: {} };
-        return undefined;
-      });
+    it('should delegate cache write after successful execution', async () => {
+      mockExecutorChatSuccess({ text: 'Fresh answer' });
 
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
+      await service.executeChat(baseRequest, 'req-123', 'gw_key_123');
 
-      await service.executeChat(request, 'req-123', 'gw_key_123');
-
-      expect(mockCache.setCachedResponse).toHaveBeenCalledWith(
-        request,
+      expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
         expect.objectContaining({
-          id: 'gw_test-uuid',
-          output: { type: 'text', text: 'Cached later' },
+          output: { type: 'text', text: 'Fresh answer' },
         }),
         expect.any(Object),
       );
     });
 
     it('should skip rate limit and cache when gatewayKey is empty', async () => {
-      mockExecutorChatSuccess({ text: 'No key' });
+      mockExecutorChatSuccess();
 
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
+      await service.executeChat(baseRequest, 'req-123', '');
 
-      await service.executeChat(request, 'req-123', '');
-
-      expect(mockRateLimiter.checkCooldown).not.toHaveBeenCalled();
-      expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
+      expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
+      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
     });
 
-    it('should map full response with toolCalls and thinkingContent', async () => {
-      mockExecutorChatSuccess({
-        text: 'Thinking...',
-        stopReason: 'tool_use',
-        toolCalls: [
-          { id: 'call-1', name: 'search', arguments: { query: 'test' } },
-        ],
-        thinkingContent: 'Let me search for that',
-        usageDetails: { cache_read: 100, cache_write: 50 },
-        systemFingerprint: 'fp_abc123',
-      });
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-        tooling: {
-          definitions: [{ name: 'search', parameters: {} }],
-        },
-      };
-
-      const result = await service.executeChat(
-        request,
-        'req-123',
-        'gw_key_123',
-      );
-
-      expect(result).toMatchObject({
-        id: 'gw_test-uuid',
-        provider: 'anthropic',
-        model: TEST_MODEL_ALIAS,
-        output: { type: 'text', text: 'Thinking...' },
-        requestId: 'req-123',
-        toolCalls: [
-          { id: 'call-1', name: 'search', arguments: { query: 'test' } },
-        ],
-        thinkingContent: 'Let me search for that',
-        usageDetails: { cache_read: 100, cache_write: 50 },
-        systemFingerprint: 'fp_abc123',
-        finishReason: 'tool_calls',
-      });
-    });
-
-    it('should include effectiveModelAlias when fallback occurs', async () => {
+    it('should pass effectiveModelAlias to builder when fallback occurred', async () => {
       (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue(
         {
           value: {
             response: {
               text: 'Fallback response',
-              usage: { inputTokens: 5, outputTokens: 10 },
               stopReason: 'end_turn',
             },
             resolved: {
@@ -389,40 +338,28 @@ describe('ChatService', () => {
         },
       );
 
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
+      await service.executeChat(baseRequest, 'req-123', 'gw_key_123');
 
-      const result = await service.executeChat(
-        request,
+      expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
+        expect.objectContaining({ text: 'Fallback response' }),
+        'anthropic',
+        TEST_MODEL_ALIAS,
         'req-123',
-        'gw_key_123',
+        expect.any(String),
+        'fallback-model',
       );
-
-      expect(result.model).toBe(TEST_MODEL_ALIAS);
-      expect(result).toMatchObject({
-        model: TEST_MODEL_ALIAS,
-        effectiveModelAlias: 'fallback-model',
-      });
     });
 
     it('should not set fallbackAlias for tooling requests', async () => {
-      mockExecutorChatSuccess({
-        text: 'Ok',
-        stopReason: 'tool_use',
-        toolCalls: [{ id: 'call-1', name: 'test', arguments: {} }],
-      });
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
+      mockExecutorChatSuccess();
+      const toolingRequest = {
+        ...baseRequest,
         tooling: {
           definitions: [{ name: 'test', parameters: {} }],
         },
       };
 
-      await service.executeChat(request, 'req-123', 'gw_key_123');
+      await service.executeChat(toolingRequest, 'req-123', 'gw_key_123');
 
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -431,329 +368,128 @@ describe('ChatService', () => {
         }),
       );
     });
+
+    it('should use primary fallbackAlias for non-tooling requests', async () => {
+      resolvedConfig = {
+        ...createMockDefaultResolvedConfig(),
+        fallbackAlias: 'fallback-model',
+      };
+      (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
+      mockExecutorChatSuccess();
+
+      await service.executeChat(baseRequest, 'req-123', 'gw_key_123');
+
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          primaryAlias: TEST_MODEL_ALIAS,
+          fallbackAlias: 'fallback-model',
+        }),
+      );
+    });
+
+    it('should delegate provider errors to error handler and rethrow', async () => {
+      const error = new HttpException('Rate limited', 429);
+      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockRejectedValue(
+        error,
+      );
+
+      await expect(
+        service.executeChat(baseRequest, 'req-123', 'gw_key_123'),
+      ).rejects.toBe(error);
+
+      expect(mockErrorHandler.handleProviderError).toHaveBeenCalledWith(
+        expect.anything(),
+        error,
+        'anthropic',
+        'gw_key_123',
+      );
+    });
   });
 
   describe('executeStream', () => {
-    it('should complete stream and emit done event', async () => {
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue(
-        {
-          value: {
-            resolved: resolvedConfig,
-            assembledText: 'Hello',
-            usageMetadata: { inputTokens: 5, outputTokens: 10 },
-            toolCalls: [],
-            stopReason: 'end_turn',
-          },
-          usedAlias: TEST_MODEL_ALIAS,
-          attempts: 1,
-          didFallback: false,
-        },
-      );
+    const baseRequest = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [{ role: 'user' as const, content: 'Hi' }],
+    };
 
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
+    it('should orchestrate validation, executor, done event and emit', async () => {
+      mockStreamExecutorSuccess();
       const emitted: Array<{ name: string; data: unknown }> = [];
 
-      await service.executeStream(request, 'req-123', (event) => {
+      await service.executeStream(baseRequest, 'req-123', (event) => {
         emitted.push(event);
       });
 
-      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
-      expect(emitted.some((event) => event.name === 'done')).toBe(true);
-    });
-
-    it('should invoke resilient executor for streaming', async () => {
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue(
-        {
-          value: {
-            resolved: resolvedConfig,
-            assembledText: 'Ok',
-            usageMetadata: { inputTokens: 1, outputTokens: 2 },
-            toolCalls: [],
-            stopReason: 'end_turn',
-          },
-          usedAlias: TEST_MODEL_ALIAS,
-          attempts: 1,
-          didFallback: false,
-        },
+      expect(mockValidation.validateTooling).toHaveBeenCalledWith(
+        baseRequest,
+        resolvedConfig,
       );
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
-      await service.executeStream(request, 'req-123', jest.fn());
-
-      expect(mockRegistry.resolve).toHaveBeenCalledWith(TEST_MODEL_ALIAS);
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
           primaryAlias: TEST_MODEL_ALIAS,
           requestId: 'req-123',
         }),
       );
+      expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalled();
+      expect(emitted).toContainEqual({
+        name: 'done',
+        data: { finishReason: 'stop' },
+      });
     });
 
-    it('should emit done event with full metadata', async () => {
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue(
-        {
-          value: {
-            resolved: resolvedConfig,
-            assembledText: 'Complete',
-            usageMetadata: { inputTokens: 15, outputTokens: 25 },
-            toolCalls: [
-              { id: 'call-1', name: 'search', arguments: { q: 'test' } },
-            ],
-            stopReason: 'tool_use',
-            systemFingerprint: 'fp_stream_123',
-            thinkingContent: 'Stream thinking',
-          },
-          usedAlias: TEST_MODEL_ALIAS,
-          attempts: 1,
-          didFallback: false,
-        },
-      );
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-        tooling: {
-          definitions: [{ name: 'search', parameters: {} }],
-        },
-      };
-      const emitted: Array<{ name: string; data: unknown }> = [];
-
-      await service.executeStream(request, 'req-123', (event) => {
-        emitted.push(event);
-      });
-
-      const doneEvent = emitted.find((e) => e.name === 'done');
-      expect(doneEvent).toBeDefined();
-      expect(doneEvent?.data).toMatchObject({
-        usage: {
-          inputTokens: 15,
-          outputTokens: 25,
-          totalTokens: 40,
-        },
+    it('should pass stream result fields to buildStreamDoneEvent', async () => {
+      mockStreamExecutorSuccess({
+        usageMetadata: { inputTokens: 15, outputTokens: 25 },
         toolCalls: [{ id: 'call-1', name: 'search', arguments: { q: 'test' } }],
-        finishReason: 'tool_calls',
+        stopReason: 'tool_use',
         systemFingerprint: 'fp_stream_123',
         thinkingContent: 'Stream thinking',
       });
+
+      await service.executeStream(baseRequest, 'req-123', jest.fn());
+
+      expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalledWith(
+        { inputTokens: 15, outputTokens: 25 },
+        [{ id: 'call-1', name: 'search', arguments: { q: 'test' } }],
+        'tool_use',
+        'fp_stream_123',
+        'Stream thinking',
+      );
     });
 
-    it('should validate tooling support for streaming', async () => {
+    it('should use primary fallbackAlias for streaming', async () => {
       resolvedConfig = {
         ...createMockDefaultResolvedConfig(),
-        capabilities: { tools: false, streaming: true },
+        fallbackAlias: 'fallback-model',
       };
       (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
+      mockStreamExecutorSuccess();
 
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-        tooling: {
-          definitions: [{ name: 'test', parameters: {} }],
-        },
-      };
+      await service.executeStream(baseRequest, 'req-123', jest.fn());
 
-      await expect(
-        service.executeStream(request, 'req-123', jest.fn()),
-      ).rejects.toThrow(HttpException);
-    });
-
-    it('should handle stream errors', async () => {
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockRejectedValue(
-        new Error('Stream failed'),
-      );
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
-      await expect(
-        service.executeStream(request, 'req-123', jest.fn()),
-      ).rejects.toThrow('Stream failed');
-    });
-  });
-
-  describe('validateForStreaming', () => {
-    it('should pass when streaming is fully supported', () => {
-      resolvedConfig = {
-        ...createMockDefaultResolvedConfig(),
-        capabilities: { streaming: true, tools: true },
-      };
-      (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
-
-      expect(() =>
-        service.validateForStreaming(TEST_MODEL_ALIAS),
-      ).not.toThrow();
-    });
-
-    it('should throw when streaming capability is disabled', () => {
-      resolvedConfig = {
-        ...createMockDefaultResolvedConfig(),
-        capabilities: { streaming: false },
-      };
-      (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
-
-      expect(() => service.validateForStreaming(TEST_MODEL_ALIAS)).toThrow(
-        HttpException,
-      );
-    });
-
-    it('should throw when provider stream adapter is missing', () => {
-      const baseConfig = createMockDefaultResolvedConfig();
-      resolvedConfig = {
-        ...baseConfig,
-        provider: {
-          ...baseConfig.provider,
-          stream: undefined,
-        },
-      };
-      (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
-
-      expect(() => service.validateForStreaming(TEST_MODEL_ALIAS)).toThrow(
-        HttpException,
-      );
-    });
-  });
-
-  describe('handleProviderError', () => {
-    it('should set cooldown on 429 error with gatewayKey', async () => {
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockRejectedValue(
-        new HttpException('Rate limited', 429),
-      );
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
-      await expect(
-        service.executeChat(request, 'req-123', 'gw_key_123'),
-      ).rejects.toThrow();
-
-      expect(mockRateLimiter.setCooldown).toHaveBeenCalledWith(
-        'gw_key_123',
-        'anthropic',
-      );
-    });
-
-    it('should not set cooldown on 429 error without gatewayKey', async () => {
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockRejectedValue(
-        new HttpException('Rate limited', 429),
-      );
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
-      await expect(
-        service.executeChat(request, 'req-123', ''),
-      ).rejects.toThrow();
-
-      expect(mockRateLimiter.setCooldown).not.toHaveBeenCalled();
-    });
-
-    it('should log warning on 4xx client errors', async () => {
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockRejectedValue(
-        new HttpException('Bad request', 400),
-      );
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
-      await expect(
-        service.executeChat(request, 'req-123', 'gw_key_123'),
-      ).rejects.toThrow();
-
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Chat provider request failed',
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
-          provider: 'anthropic',
-          status: 400,
+          primaryAlias: TEST_MODEL_ALIAS,
+          fallbackAlias: 'fallback-model',
         }),
       );
     });
 
-    it('should not log warning on 5xx server errors', async () => {
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockRejectedValue(
-        new HttpException('Internal server error', 500),
-      );
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
-      await expect(
-        service.executeChat(request, 'req-123', 'gw_key_123'),
-      ).rejects.toThrow();
-
-      expect(mockLogger.warn).not.toHaveBeenCalledWith(
-        'Chat provider request failed',
-        expect.anything(),
-      );
-    });
-
-    it('should log warning on generic Error', async () => {
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockRejectedValue(
-        new Error('Connection timeout'),
-      );
-
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
-      await expect(
-        service.executeChat(request, 'req-123', 'gw_key_123'),
-      ).rejects.toThrow();
-
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Chat provider call failed',
-        expect.objectContaining({
-          provider: 'anthropic',
-          message: 'Connection timeout',
-        }),
-      );
-    });
-
-    it('should handle 429 with error code in response body', async () => {
-      const error = new HttpException(
-        {
-          code: 'rate_limit_exceeded',
-          message: 'Too many requests',
-        },
-        429,
-      );
+    it('should delegate stream errors to error handler and rethrow', async () => {
+      const error = new Error('Stream failed');
       (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockRejectedValue(
         error,
       );
 
-      const request = {
-        modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Hi' }],
-      };
-
       await expect(
-        service.executeChat(request, 'req-123', 'gw_key_123'),
-      ).rejects.toThrow();
+        service.executeStream(baseRequest, 'req-123', jest.fn(), 'gw_key_123'),
+      ).rejects.toBe(error);
 
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Chat provider rate limited',
-        expect.objectContaining({
-          provider: 'anthropic',
-          status: 429,
-          code: 'rate_limit_exceeded',
-        }),
+      expect(mockErrorHandler.handleProviderError).toHaveBeenCalledWith(
+        expect.anything(),
+        error,
+        'anthropic',
+        'gw_key_123',
       );
     });
   });
