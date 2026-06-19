@@ -76,7 +76,7 @@ describe('AnthropicExceptionFilter', () => {
     });
   });
 
-  it('should map 401/403 to authentication_error', () => {
+  it('should map 401 to authentication_error', () => {
     filter.catch(
       new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED),
       mockHost,
@@ -85,6 +85,65 @@ describe('AnthropicExceptionFilter', () => {
       type: 'error',
       error: { type: 'authentication_error', message: 'Unauthorized' },
     });
+  });
+
+  it('should map 403 to authentication_error', () => {
+    filter.catch(
+      new HttpException('Forbidden', HttpStatus.FORBIDDEN),
+      mockHost,
+    );
+
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      type: 'error',
+      error: { type: 'authentication_error', message: 'Forbidden' },
+    });
+  });
+
+  it('should map ApiErrorCode.PROVIDER_RATE_LIMITED to rate_limit_error', () => {
+    filter.catch(
+      new HttpException(
+        { message: 'Provider rate limited', code: ApiErrorCode.PROVIDER_RATE_LIMITED },
+        HttpStatus.BAD_REQUEST,
+      ),
+      mockHost,
+    );
+
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      type: 'error',
+      error: { type: 'rate_limit_error', message: 'Provider rate limited' },
+    });
+  });
+
+  it('should map ApiErrorCode.TOOLS_NOT_SUPPORTED to invalid_request_error', () => {
+    filter.catch(
+      new HttpException(
+        { message: 'Tools not supported', code: ApiErrorCode.TOOLS_NOT_SUPPORTED },
+        HttpStatus.BAD_REQUEST,
+      ),
+      mockHost,
+    );
+
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      type: 'error',
+      error: { type: 'invalid_request_error', message: 'Tools not supported' },
+    });
+  });
+
+  it('should not include ApiErrorCode in Anthropic error response body', () => {
+    filter.catch(
+      new HttpException(
+        { message: 'Validation failed', code: ApiErrorCode.VALIDATION_FAILED },
+        HttpStatus.BAD_REQUEST,
+      ),
+      mockHost,
+    );
+
+    const payload = mockResponse.json.mock.calls[0][0];
+    expect(payload).toEqual({
+      type: 'error',
+      error: { type: 'invalid_request_error', message: 'Validation failed' },
+    });
+    expect(payload.error).not.toHaveProperty('code');
   });
 
   it('should map 500+ to api_error (not server_error)', () => {

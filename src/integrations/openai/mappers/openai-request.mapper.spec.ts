@@ -247,6 +247,20 @@ describe('mapOpenAiChatRequestToGateway', () => {
       expect(result.params?.thinkingEnabled).toBeUndefined();
       expect(result.params?.thinkingBudget).toBeUndefined();
     });
+
+    it('should not set thinking mode when reasoning_effort is empty string', () => {
+      const openAiRequest = {
+        model: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user', content: 'Hi' }],
+        reasoning_effort: '',
+      } as unknown as OpenAiChatCompletionRequestDto;
+
+      const result = mapOpenAiChatRequestToGateway(openAiRequest);
+
+      expect(result.params).toEqual({});
+      expect(result.params?.thinkingEnabled).toBeUndefined();
+      expect(result.params?.thinkingBudget).toBeUndefined();
+    });
   });
 
   describe('Happy path - metadata (C5)', () => {
@@ -325,6 +339,33 @@ describe('mapOpenAiChatRequestToGateway', () => {
       const result = mapOpenAiChatRequestToGateway(openAiRequest);
 
       expect(result.tooling).toBeUndefined();
+    });
+
+    it('should set tooling with toolChoice only when tools not provided', () => {
+      const openAiRequest: OpenAiChatCompletionRequestDto = {
+        model: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user', content: 'Hi' }],
+        tool_choice: 'auto',
+      };
+
+      const result = mapOpenAiChatRequestToGateway(openAiRequest);
+
+      expect(result.tooling).toEqual({ toolChoice: 'auto' });
+      expect(result.tooling?.definitions).toBeUndefined();
+    });
+
+    it('should set tooling with toolChoice when tools array is empty', () => {
+      const openAiRequest: OpenAiChatCompletionRequestDto = {
+        model: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user', content: 'Hi' }],
+        tools: [],
+        tool_choice: 'required',
+      };
+
+      const result = mapOpenAiChatRequestToGateway(openAiRequest);
+
+      expect(result.tooling).toEqual({ toolChoice: 'required' });
+      expect(result.tooling?.definitions).toBeUndefined();
     });
   });
 
