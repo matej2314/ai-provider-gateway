@@ -48,8 +48,12 @@ ai-provider-gateway/
 │   ├── jest-e2e.json
 │   └── e2e/
 │       ├── gateway-chat.e2e-spec.ts
+│       ├── gateway-chat-stream-scenarios.e2e-spec.ts
+│       ├── gateway-chat-cache.e2e-spec.ts
 │       ├── openai-integration.e2e-spec.ts
+│       ├── openai-integration-extended.e2e-spec.ts
 │       ├── anthropic-integration.e2e-spec.ts
+│       ├── anthropic-integration-extended.e2e-spec.ts
 │       ├── helpers/
 │       │   ├── create-e2e-app.ts
 │       │   ├── e2e-constants.ts
@@ -126,12 +130,16 @@ ai-provider-gateway/
 │   │   ├── provider-registry.service.spec.ts
 │   │   ├── factories/
 │   │   │   ├── create-anthropic-provider.ts
-│   │   │   └── create-google-provider.ts
+│   │   │   ├── create-anthropic-provider.spec.ts
+│   │   │   ├── create-google-provider.ts
+│   │   │   └── create-google-provider.spec.ts
 │   │   ├── anthropic/
 │   │   │   ├── anthropic-tools.mapper.ts
-│   │   │   └── anthropic-thinking.mapper.ts
+│   │   │   ├── anthropic-thinking.mapper.ts
+│   │   │   └── *.spec.ts              # jednostkowe: tools, thinking
 │   │   ├── google/
-│   │   │   └── google-tools.mapper.ts
+│   │   │   ├── google-tools.mapper.ts
+│   │   │   └── google-tools.mapper.spec.ts
 │   │   ├── types/
 │   │   │   └── tooling-types.ts
 │   │   └── interfaces/
@@ -144,22 +152,33 @@ ai-provider-gateway/
 │   │   │   ├── openai.module.ts
 │   │   │   ├── controllers/
 │   │   │   │   ├── openai-chat-completions.controller.ts
-│   │   │   │   └── openai-models.controller.ts
+│   │   │   │   ├── openai-chat-completions.controller.spec.ts
+│   │   │   │   ├── openai-models.controller.ts
+│   │   │   │   └── openai-models.controller.spec.ts
 │   │   │   ├── services/
-│   │   │   │   └── openai-models-catalog.service.ts
+│   │   │   │   ├── openai-models-catalog.service.ts
+│   │   │   │   └── openai-models-catalog.service.spec.ts
 │   │   │   ├── mappers/
 │   │   │   │   ├── openai-request.mapper.ts
+│   │   │   │   ├── openai-request.mapper.spec.ts
 │   │   │   │   ├── openai-response.mapper.ts
+│   │   │   │   ├── openai-response.mapper.spec.ts
 │   │   │   │   ├── openai-stream.mapper.ts
+│   │   │   │   ├── openai-stream.mapper.spec.ts
 │   │   │   │   ├── openai-tools.mapper.ts
-│   │   │   │   └── openai-messages.mapper.ts
+│   │   │   │   ├── openai-tools.mapper.spec.ts
+│   │   │   │   ├── openai-messages.mapper.ts
+│   │   │   │   └── openai-messages.mapper.spec.ts
 │   │   │   ├── helpers/
 │   │   │   │   ├── normalize-openai-content.ts
+│   │   │   │   ├── normalize-openai-content.spec.ts
 │   │   │   │   └── openai-stream-api-description.ts
 │   │   │   ├── guards/
-│   │   │   │   └── openai-bearer-auth.guard.ts
+│   │   │   │   ├── openai-bearer-auth.guard.ts
+│   │   │   │   └── openai-bearer-auth.guard.spec.ts
 │   │   │   ├── filters/
-│   │   │   │   └── openai-exception.filter.ts
+│   │   │   │   ├── openai-exception.filter.ts
+│   │   │   │   └── openai-exception.filter.spec.ts
 │   │   │   ├── decorators/
 │   │   │   │   └── openai-auth.decorator.ts
 │   │   │   └── dtos/
@@ -172,20 +191,29 @@ ai-provider-gateway/
 │   │       ├── anthropic.module.ts
 │   │       ├── controllers/
 │   │       │   ├── anthropic-messages.controller.ts
-│   │       │   └── anthropic-models.controller.ts
+│   │       │   ├── anthropic-messages.controller.spec.ts
+│   │       │   ├── anthropic-models.controller.ts
+│   │       │   └── anthropic-models.controller.spec.ts
 │   │       ├── services/
-│   │       │   └── anthropic-models-catalog.service.ts
+│   │       │   ├── anthropic-models-catalog.service.ts
+│   │       │   └── anthropic-models-catalog.service.spec.ts
 │   │       ├── mappers/
 │   │       │   ├── anthropic-request.mapper.ts
+│   │       │   ├── anthropic-request.mapper.spec.ts
 │   │       │   ├── anthropic-response.mapper.ts
+│   │       │   ├── anthropic-response.mapper.spec.ts
 │   │       │   ├── anthropic-stream.mapper.ts
-│   │       │   └── anthropic-tools.mapper.ts
+│   │       │   ├── anthropic-stream.mapper.spec.ts
+│   │       │   ├── anthropic-tools.mapper.ts
+│   │       │   └── anthropic-tools.mapper.spec.ts
 │   │       ├── helpers/
 │   │       │   └── anthropic-stream-api-description.ts
 │   │       ├── guards/
-│   │       │   └── anthropic-api-key.guard.ts
+│   │       │   ├── anthropic-api-key.guard.ts
+│   │       │   └── anthropic-api-key.guard.spec.ts
 │   │       ├── filters/
-│   │       │   └── anthropic-exception.filter.ts
+│   │       │   ├── anthropic-exception.filter.ts
+│   │       │   └── anthropic-exception.filter.spec.ts
 │   │       ├── decorators/
 │   │       │   └── anthropic-auth.decorator.ts
 │   │       └── dtos/
@@ -361,7 +389,8 @@ ai-provider-gateway/
 │       ├── types/
 │       │   └── express.d.ts                # Request.requestId, Request.gatewayKey (fasady)
 │       └── validators/
-│           └── is-string-or-array-of-strings.validator.ts  # ChatParamsDto, OpenAI DTO (pole stop)
+│           ├── is-string-or-array-of-strings.validator.ts  # ChatParamsDto, OpenAI DTO (pole stop)
+│           └── is-thinking-budget.validator.ts             # ChatParamsDto.thinkingBudget
 │
 └── docs/
     ├── README.md
@@ -404,7 +433,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | Katalog | Odpowiedzialność |
 |---------|------------------|
 | **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: orkiestracja (cache, cooldown po 429, `ResilientExecutor`). Serwisy pomocnicze: **`ChatProviderCallService`** (adaptery, metryki, SSE), **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCacheGuardService`**, **`ChatErrorHandlerService`**. Helpery: system prompt, provider input (`metadata`), params, tooling, retry/cache policy, `conversationId`, `mapStopReasonToFinishReason`. |
-| **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API. |
+| **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Mapery: `anthropic-tools.mapper.ts`, `anthropic-thinking.mapper.ts`, `google-tools.mapper.ts`. Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API. |
 | **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
@@ -467,6 +496,6 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - **Integracje IDE:** `src/integrations/` — fasady OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`).
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
-**Pozostałość v1:** tryb non-interactive CLI; testy E2E health/CLI; rozszerzenie E2E o scenariusze tooling/thinking/cache z Redis.
+**Pozostałość v1:** tryb non-interactive CLI; testy E2E health/CLI; E2E z **realnym** Redis (obecnie mock connection); natywny extended thinking w E2E (pokrycie jednostkowe + fasada Anthropic extended).
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

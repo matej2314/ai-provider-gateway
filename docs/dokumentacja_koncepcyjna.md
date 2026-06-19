@@ -44,7 +44,7 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 - Policy z YAML: **`params`** w `resolveProviderCallOptions`; **`timeoutMs` / `retry` / `fallback`** w `ResilientExecutor` (`dokumentacja_api.md`, `konfiguracja.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego — działa.
 - Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter`). **`requestId`**: propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) — **wdrożone** dla Anthropic/Google (`PROVIDER_*`); limity gateway — **`RATE_LIMITED`** (`SmartRateLimitGuard`: RPS/streamy; cooldown w `ChatService.executeChat`).
 - Testy jednostkowe przy modułach (`src/**/*.spec.ts`, `npm test`).
-- Testy E2E HTTP (`test/e2e/`, `npm run test:e2e`, `npm run test:all`) — kontrakt natywnego czatu i fasad IDE z mockowanymi providerami — **`testy.md`**.
+- Testy E2E HTTP (`test/e2e/`, `npm run test:e2e`, `npm run test:all`) — kontrakt natywnego czatu (w tym cache, stream), fasad OpenAI/Anthropic (w tym tooling, thinking) z mockowanymi providerami — **`testy.md`**.
 
 ## Poza zakresem (wybrane wykluczenia na start)
 

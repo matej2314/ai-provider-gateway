@@ -173,7 +173,7 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 | Warstwa                    | Lokalizacja                                                                                                                                     |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Orkiestracja czatu         | [`ChatService`](src/chat/chat.service.ts)                                                                                                       |
-| Wywołania providerów + SSE | [`ChatProviderCallService`](src/chat/chat-provider-call.service.ts)                                                                             |
+| Wywołania providerów + SSE | [`ChatProviderCallService`](src/chat/services/chat-provider-call.service.ts)                                                                    |
 | Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`)                                                   |
 | Błędy / `requestId`        | [`GlobalExceptionFilter`](src/common/filters/http-exception.filter.ts), [`RequestIdMiddleware`](src/common/middleware/request-id.middleware.ts) |
 
@@ -220,7 +220,7 @@ npm run start:prod      # po build
 npm run openapi:export  # openapi.json z dekoratorów @nestjs/swagger
 npm run cli             # Gateway CLI (alias: npx gateway)
 npm run config:validate # walidacja offline (scripts/validate-config.ts)
-npm test                # testy jednostkowe (src/**/*.spec.ts)
-npm run test:e2e        # testy E2E HTTP (test/e2e/)
+npm test                # testy jednostkowe (58 zestawów, src/**/*.spec.ts)
+npm run test:e2e        # testy E2E HTTP (7 zestawów, test/e2e/)
 npm run test:all        # jednostkowe + E2E
 ```

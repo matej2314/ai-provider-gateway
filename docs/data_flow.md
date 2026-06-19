@@ -39,17 +39,17 @@ sequenceDiagram
   S->>C: get (opcjonalnie)
   alt cache HIT
     C-->>S: zapisana odpowiedź
-    S-->>-H: 200 JSON (cached)
+    S-->>-H: 201 JSON (cached)
   else cache MISS / wyłączony
     Note over S: resolve + provider (szczegóły: sekcja 1)
     S-->>-H: wynik lub wyjątek HTTP
   end
-  H-->>-K: 200 JSON lub błąd
+  H-->>-K: 201 JSON lub błąd
 ```
 
 ---
 
-## 1. Standard `POST /api/v1/chat` — sukces (200)
+## 1. Standard `POST /api/v1/chat` — sukces (201)
 
 ```mermaid
 sequenceDiagram
@@ -90,7 +90,7 @@ sequenceDiagram
     S->>C: setCachedResponse
     S-->>-H: ChatResponse (id, usage, requestId, conversationId, effectiveModelAlias?, …)
   end
-  H-->>-K: 200 JSON (+ conversationId)
+  H-->>-K: 201 JSON (+ conversationId)
 ```
 
 **Uwagi:** opcjonalne **`params`** w body są scalane z `policy.params` w YAML (`resolveProviderCallOptions`) przed cache i wywołaniem providera. Odpowiedź z cache zawiera **`cached: true`** i **`cachedAt`**; pole **`requestId`** pochodzi z żądania zapisanej w cache (nie jest nadpisywane na nowe ID per request). Błąd **`MODEL_NOT_ALLOWED`** może powstać już po `resolve`, przed wywołaniem LLM.
@@ -186,7 +186,7 @@ sequenceDiagram
   Note over S,PC: Ten sam przepływ co sekcja 1 (cache, ResilientExecutor, completeOnce)
   S-->>-F: ChatResponse
   F->>F: openai-response.mapper
-  F-->>-K: 200 JSON (kształt OpenAI)
+  F-->>-K: 201 JSON (kształt OpenAI)
 ```
 
 **Streaming (`stream: true`):** kontroler → `executeStream` → `openai-stream.mapper` (SSE OpenAI). Slot równoległego streamu — w kontrolerze fasady, nie w `StreamCleanupInterceptor` (ścieżka bez `/stream` w URL).
@@ -214,7 +214,7 @@ sequenceDiagram
   Note over S,PC: Ten sam przepływ co sekcja 1 (cache, ResilientExecutor, completeOnce)
   S-->>-F: ChatResponse
   F->>F: anthropic-response.mapper
-  F-->>-K: 200 JSON (kształt Message)
+  F-->>-K: 201 JSON (kształt Message)
 ```
 
 **Streaming (`stream: true`):** kontroler → `executeStream` → `anthropic-stream.mapper` (SSE Anthropic: `message_start`, `content_block_delta`, …). Slot równoległego streamu — w `AnthropicMessagesController`, analogicznie do OpenAI.

@@ -1,6 +1,6 @@
 # Testy — AI Provider Gateway
 
-Wersja dokumentu: **1.1** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
+Wersja dokumentu: **1.2** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
 
 ## Przegląd
 
@@ -22,20 +22,20 @@ Testy **nie wymagają** uruchomionego serwera HTTP, Redis ani kluczy API provide
 
 Konfiguracja: sekcja `"jest"` w `package.json` (`testRegex: .*\.spec\.ts$`, `rootDir: src`).
 
-**Stan repozytorium:** ok. **40** zestawów testów, **~760** przypadków (uruchom `npm test` dla aktualnej liczby).
+**Stan repozytorium:** **58** zestawów testów, **1009** przypadków (`npm test`).
 
 ### Obszary pokrycia
 
 | Moduł / obszar | Przykładowe pliki |
 |----------------|-------------------|
 | **Czat** | `chat.service.spec.ts`, `chat.controller.spec.ts`, `chat-stream.controller.spec.ts`, `services/chat-*.spec.ts`, `helpers/*.spec.ts`, `sse/sse.serializer.spec.ts` |
-| **Providery** | `provider-registry.service.spec.ts` |
+| **Providery** | `provider-registry.service.spec.ts`, `factories/create-*-provider.spec.ts`, `anthropic/anthropic-*.mapper.spec.ts`, `google/google-tools.mapper.spec.ts` |
 | **Cache** | `cache-registry.service.spec.ts`, `response-cache.service.spec.ts`, adaptery `noop` / `redis` |
 | **Rate limit** | `smart-rate-limiter.service.spec.ts` |
 | **Guardy** | `gateway-key.guard.spec.ts`, `openai-bearer-auth.guard.spec.ts`, `anthropic-api-key.guard.spec.ts` |
-| **Integracje (mapery)** | `openai-*.mapper.spec.ts`, `anthropic-*.mapper.spec.ts` |
+| **Integracje** | kontrolery fasad (`openai-chat-completions.controller.spec.ts`, `anthropic-messages.controller.spec.ts`, …), filtry błędów (`openai-exception.filter.spec.ts`, `anthropic-exception.filter.spec.ts`), katalogi modeli (`*-models-catalog.service.spec.ts`), mapery (`openai-*.mapper.spec.ts`, `anthropic-*.mapper.spec.ts`), helpery (`normalize-openai-content.spec.ts`) |
 | **Odporność** | `resilient-executor.spec.ts`, `fallback-chain.spec.ts`, `is-retryable-http-error.spec.ts` |
-| **Błędy** | `provider-error.mapper.spec.ts` |
+| **Błędy** | `provider-error.mapper.spec.ts`, `provider-error-mapper.helpers.spec.ts` |
 | **Health / logging / metrics** | `health.*.spec.ts`, `logging.service.spec.ts`, `metrics.service.spec.ts` |
 | **Wspólne** | `readGatewayKeyHeader.spec.ts` |
 
@@ -45,15 +45,19 @@ Współdzielone stałe i fabryki mocków: `src/common/mocks/` (`test-constants.t
 
 Konfiguracja: `test/jest-e2e.json` — `testRegex: .e2e-spec.ts$`, `setupFilesAfterEnv: e2e/setup/jest-e2e.setup.ts`, `moduleNameMapper` dla aliasu `src/`.
 
-**Stan repozytorium:** **3** zestawy, **42** przypadki (`npm run test:e2e`).
+**Stan repozytorium:** **7** zestawów, **60** przypadków (`npm run test:e2e`).
 
 ### Pliki spec
 
 | Plik | Zakres |
 |------|--------|
 | `gateway-chat.e2e-spec.ts` | Natywny czat: `POST /api/v1/chat`, `POST /api/v1/chat/stream` |
-| `openai-integration.e2e-spec.ts` | Fasada OpenAI: `POST /api/v1/openai/chat/completions` |
-| `anthropic-integration.e2e-spec.ts` | Fasada Anthropic: `POST /api/v1/anthropic/messages` |
+| `gateway-chat-stream-scenarios.e2e-spec.ts` | SSE: nagłówki, zdarzenia, fallback w streamie, limity równoległych streamów |
+| `gateway-chat-cache.e2e-spec.ts` | Cache odpowiedzi `POST /api/v1/chat` (mock backendu cache) |
+| `openai-integration.e2e-spec.ts` | Fasada OpenAI: auth, kształt odpowiedzi, streaming |
+| `openai-integration-extended.e2e-spec.ts` | Fasada OpenAI: tool calling, rozszerzone scenariusze kontraktu |
+| `anthropic-integration.e2e-spec.ts` | Fasada Anthropic: auth, kształt odpowiedzi, streaming |
+| `anthropic-integration-extended.e2e-spec.ts` | Fasada Anthropic: thinking mode, tool calling |
 
 Usunięty został wcześniejszy szkielet `test/app.e2e-spec.ts` — zastąpiony przez powyższe zestawy z dedykowanymi helperami.
 
@@ -91,7 +95,7 @@ Usunięty został wcześniejszy szkielet `test/app.e2e-spec.ts` — zastąpiony 
 - Mapowanie błędów providera → envelope gateway
 - Fallback: `effectiveModelAlias` przy awarii primary
 
-**OpenAI (`openai-integration.e2e-spec.ts`):**
+**OpenAI (`openai-integration.e2e-spec.ts`, `openai-integration-extended.e2e-spec.ts`):**
 
 - Auth Bearer (401 / 403 / 201)
 - Kształt `chat.completion` (non-stream)
@@ -99,8 +103,9 @@ Usunięty został wcześniejszy szkielet `test/app.e2e-spec.ts` — zastąpiony 
 - Walidacja w formacie OpenAI (`error.message`, `error.type`)
 - Concurrent streams → 429 w formacie OpenAI
 - Błędy providera → 400 / 500 w formacie OpenAI
+- Extended: tool calling (`tools` / `tool_calls` w kontrakcie OpenAI)
 
-**Anthropic (`anthropic-integration.e2e-spec.ts`):**
+**Anthropic (`anthropic-integration.e2e-spec.ts`, `anthropic-integration-extended.e2e-spec.ts`):**
 
 - Auth `x-api-key` (401 / 403 / 201)
 - Kształt `message` (non-stream)
@@ -108,6 +113,19 @@ Usunięty został wcześniejszy szkielet `test/app.e2e-spec.ts` — zastąpiony 
 - Walidacja (`max_tokens`, brak `model`)
 - Concurrent streams → 429 w formacie Anthropic
 - Błędy providera → 400 / 500 w formacie Anthropic
+- Extended: thinking mode (`thinking` w request → thinking block w response), tool calling
+
+**Gateway cache (`gateway-chat-cache.e2e-spec.ts`):**
+
+- Trafienie cache → `cached: true`, `cachedAt` w odpowiedzi JSON
+- Pominięcie cache dla żądań z toolingiem
+
+**Gateway stream scenarios (`gateway-chat-stream-scenarios.e2e-spec.ts`):**
+
+- Nagłówki SSE (`Cache-Control`, `Connection`)
+- Sekwencja zdarzeń `meta` / `delta` / `done`
+- Fallback alias w `meta.effectiveModelAlias`
+- Rate limit równoległych streamów
 
 ### Kody HTTP w E2E (201 vs 200)
 
@@ -125,10 +143,11 @@ Runtime: NestJS domyślnie **201** dla udanego `POST` bez `@HttpCode` (natywny c
 ## Czego testy E2E nie obejmują
 
 - Rzeczywiste wywołania API Anthropic / Google (SDK mockowane przez `ProviderRegistryService`).
-- Redis (connection mock — fail-open / brak persystencji).
+- **Realny** Redis (connection mock — fail-open / brak persystencji; cache E2E używa mock backendu, nie `RedisCacheModule` produkcyjnego).
 - Pełny łańcuch `configuration.ts` z plikiem YAML na dysku (mock w setup).
 - Health endpoints (`GET /health`, `/health/ready`) — pokrycie jednostkowe w `src/health/`.
 - CLI (`gateway *`) — brak dedykowanych testów E2E CLI (planowane opcjonalnie).
+- Natywny czat: extended thinking mode w E2E (pokrycie jednostkowe w `anthropic-thinking.mapper.spec.ts`; fasada Anthropic — `anthropic-integration-extended.e2e-spec.ts`).
 
 ## CI / lokalnie
 

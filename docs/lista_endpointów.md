@@ -1,6 +1,6 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **1.4**.  
+Wersja dokumentu: **1.5**.  
 **OpenAPI:** `openapi.json` (v0.12.0) — zsynchronizowany z `src/` (health, czat natywny, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`, dekoratory `@nestjs/swagger`). **Błędy:** natywny czat — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
 
 ## Konwencje globalne

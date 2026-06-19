@@ -77,6 +77,7 @@ F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK (`ProviderCallOpti
 - `seed` — **Google** (`create-google-provider.ts`); Anthropic ignoruje
 - `frequencyPenalty`, `presencePenalty` — **nie przekazywane** do SDK przez bieżące adaptery (pola akceptowane w API, brak efektu u vendora)
 - `responseFormat` — tylko z body; **mapowane do SDK** przez adaptery **`anthropic`** (`output_config.format` + `jsonSchema`) i **`google`** (`response_format` / `response_schema`) gdy `type === json_object`
+- `thinkingEnabled`, `thinkingBudget` — **Anthropic** (`anthropic-thinking.mapper.ts` → `thinking` + `output_config.effort`) i **Google Gemini 3.0+** (`thinkingConfig` w `create-google-provider.ts`); wymaga `capabilities.thinking: true` + wpisów w `allowOverrides`; odpowiedź może zawierać `thinkingContent`
 
 **Macierz per provider** (szczegóły i reguły YAML): `docs/dictionary.md` — sekcja „Mapowanie parametrów na providerów”, `docs/konfiguracja.md`.
 

@@ -51,6 +51,8 @@ Założenie: `modelAlias` jest zwyczajową/czytelną nazwą modelu (np. `claude-
 
 Gateway odpowiada JSON w spójnym kształcie, niezależnym od providera.
 
+**Kody HTTP:** udany **`POST /api/v1/chat`** (JSON) oraz udany **`POST`** fasad IDE bez streamu → **201 Created** (domyślne NestJS; `@ApiResponse({ status: 201 })` w kontrolerach). Streaming SSE → **200** (`POST /chat/stream`, `stream: true` na fasadach). Szczegóły: `dokumentacja_api.md`, `lista_endpointów.md`.
+
 Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 
 - `id` — identyfikator odpowiedzi (gateway),
@@ -63,6 +65,7 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 - `effectiveModelAlias` — opcjonalnie, gdy `ResilientExecutor` obsłużył żądanie na aliasie `fallback` z YAML (pole `model` = żądany alias).
 - `toolCalls`, `finishReason` — opcjonalnie przy function calling (`capabilities.tools` w YAML); `finishReason` w runtime: `stop` | `tool_calls` | `length` (`mapStopReasonToFinishReason`).
 - `usageDetails` — opcjonalnie tokeny cache Anthropic (`promptCacheHitTokens`, `promptCacheCreationTokens`).
+- `thinkingContent` — opcjonalnie treść extended thinking (Anthropic / Gemini 3.0+), gdy `params.thinkingEnabled: true` i alias ma `capabilities.thinking`.
 - `systemFingerprint` — opcjonalne pole kontraktu (bieżące adaptery zwykle puste).
 
 ## Streaming (SSE)
@@ -80,7 +83,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Parametry generacji (`params` w body)
 
-**Stan kodu:** opcjonalne **`params`** w `ChatRequestDto` (`ChatParamsDto`, `ResponseFormatDto`): `temperature`, `maxOutputTokens`, `topP`, `topK`, `stop` (string \| string[]), `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` (`type`, opcjonalny `jsonSchema`); merge z `policy.params.defaults` w YAML przez `resolveProviderCallOptions` (defaults YAML ← body dla pierwszej grupy pól; **`topK`**, **`stop`**, **`responseFormat`** — tylko z body). **Efekt u vendora** zależy od adaptera aliasu — macierz: `dictionary.md`, YAML: `konfiguracja.md` (Anthropic: jeden parametr losowości — priorytet `topK` > `topP` > `temperature`). Opcjonalne **`tooling`** (`definitions`, `toolChoice`) — wymaga `capabilities.tools` na aliasie. Opcjonalne **`metadata`** w body — propagacja do adaptera (Anthropic: `userId` → SDK `metadata.user_id`). Niedozwolony override params → **`MODEL_NOT_ALLOWED`**; tooling bez capability → **`TOOLS_NOT_SUPPORTED`**. Cache pomijany dla żądań z toolingiem. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API, ale adaptery `anthropic` / `google` ich nie przekazują do SDK. **`responseFormat`**: mapowane do SDK Anthropic i Google gdy `type: json_object`. **Adapter OpenAI** — nie wdrożony; fasada `/openai` mapuje parametry na `params.*`.
+**Stan kodu:** opcjonalne **`params`** w `ChatRequestDto` (`ChatParamsDto`, `ResponseFormatDto`): `temperature`, `maxOutputTokens`, `topP`, `topK`, `stop` (string \| string[]), `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` (`type`, opcjonalny `jsonSchema`), `thinkingEnabled`, `thinkingBudget`; merge z `policy.params.defaults` w YAML przez `resolveProviderCallOptions` (defaults YAML ← body dla pierwszej grupy pól; **`topK`**, **`stop`**, **`responseFormat`**, **`thinkingBudget`** — tylko z body). **Efekt u vendora** zależy od adaptera aliasu — macierz: `dictionary.md`, YAML: `konfiguracja.md` (Anthropic: jeden parametr losowości — priorytet `topK` > `topP` > `temperature`). Opcjonalne **`tooling`** (`definitions`, `toolChoice`) — wymaga `capabilities.tools` na aliasie. Opcjonalne **`metadata`** w body — propagacja do adaptera (Anthropic: `userId` → SDK `metadata.user_id`). Niedozwolony override params → **`MODEL_NOT_ALLOWED`**; tooling bez capability → **`TOOLS_NOT_SUPPORTED`**. Cache pomijany dla żądań z toolingiem. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API, ale adaptery `anthropic` / `google` ich nie przekazują do SDK. **`responseFormat`**: mapowane do SDK Anthropic i Google gdy `type: json_object`. **`thinkingEnabled` / `thinkingBudget`**: wymaga `capabilities.thinking: true` + `allowOverrides`; mapowanie w `anthropic-thinking.mapper.ts` i fabryce Google. **Adapter OpenAI** — nie wdrożony; fasada `/openai` mapuje parametry na `params.*`.
 
 ## Rozszerzenia (pozostałość v1)
 

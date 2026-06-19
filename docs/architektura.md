@@ -152,8 +152,8 @@ Szczegóły: `architektura_api.md` + `anty-patterny.md` + `integracje.md`.
 
 ## Testy
 
-- **Jednostkowe:** `src/**/*.spec.ts` — logika czatu, mapery integracji, cache, rate limit, guardy, `ResilientExecutor`, health; mocki w `src/common/mocks/`. Uruchomienie: `npm test` (~40 zestawów).
-- **E2E HTTP:** `test/e2e/` — pełny `AppModule` z override mocków (`createE2eApp`); scenariusze kontraktu dla natywnego czatu oraz fasad OpenAI/Anthropic bez realnych kluczy API i Redis. Uruchomienie: `npm run test:e2e` (3 zestawy, 42 przypadki); `npm run test:all` łączy oba poziomy.
+- **Jednostkowe:** `src/**/*.spec.ts` — logika czatu, mapery integracji, cache, rate limit, guardy, `ResilientExecutor`, health; mocki w `src/common/mocks/`. Uruchomienie: `npm test` (**58** zestawów, **1009** przypadków).
+- **E2E HTTP:** `test/e2e/` — pełny `AppModule` z override mocków (`createE2eApp`); scenariusze kontraktu dla natywnego czatu (w tym cache i stream), fasad OpenAI/Anthropic (w tym tooling i thinking) bez realnych kluczy API i Redis. Uruchomienie: `npm run test:e2e` (**7** zestawów, **60** przypadków); `npm run test:all` łączy oba poziomy.
 - Szczegóły struktury, helperów i ograniczeń: **`testy.md`**.
 
 ## Struktura repo (orientacyjnie)

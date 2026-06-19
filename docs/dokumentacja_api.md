@@ -151,7 +151,7 @@ Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeade
 - **Przed SSE (pewny JSON):** `ValidationPipe`, guardy (`GatewayKeyGuard`, `SmartRateLimitGuard`), **`validateForStreaming`** — m.in. `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`.
 - **Po `flushHeaders`:** błędy z **`executeStream`** / **`ChatProviderCallService.streamOnce`** — m.in. `MODEL_NOT_ALLOWED` (niedozwolone pole w `params` sprawdzane dopiero w `resolveProviderCallOptions` wewnątrz `streamOnce`), błędy providera (`PROVIDER_*`), timeout (`PROVIDER_TIMEOUT`), wyczerpanie retry+fallback (`PROVIDER_UNAVAILABLE`). Klient może dostać **częściowy** strumień (`meta` / `delta`) zamiast poprawnego JSON; połączenie kończy się w `finally` kontrolera (`res.end()`).
 
-Patrz: `src/chat/chat-stream.controller.ts`, `src/chat/chat.service.ts`, `src/chat/chat-provider-call.service.ts`.
+Patrz: `src/chat/chat-stream.controller.ts`, `src/chat/chat.service.ts`, `src/chat/services/chat-provider-call.service.ts`.
 
 ---
 
