@@ -16,7 +16,7 @@ import {
   IsIn,
 } from 'class-validator';
 import { OpenAiChatMessageDto } from './openai-chat-message.dto';
-import { IsStringOrArrayOfStrings } from 'src/common/validators/is-string-or-array-of-strings.validator';
+import { IsStringOrArrayOfStrings } from '../../../common/validators/is-string-or-array-of-strings.validator';
 
 const MAX_MESSAGES = 15000;
 

@@ -5,7 +5,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
 
 @Catch()
 export class OpenAiExceptionFilter implements ExceptionFilter {

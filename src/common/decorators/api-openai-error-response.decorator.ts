@@ -1,6 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
-import { OpenAiErrorResponseDto } from 'src/integrations/openai/dtos/openai-error-response.dto';
+import { OpenAiErrorResponseDto } from '../../integrations/openai/dtos/openai-error-response.dto';
 
 export function ApiOpenAiErrorResponses() {
   return applyDecorators(

@@ -15,10 +15,10 @@ import {
   ApiProduces,
   ApiResponse,
 } from '@nestjs/swagger';
-import { ChatService } from 'src/chat/chat.service';
-import { SmartRateLimiterService } from 'src/rate-limit/smart-rate-limiter.service';
+import { ChatService } from '../../../chat/chat.service';
+import { SmartRateLimiterService } from '../../../rate-limit/smart-rate-limiter.service';
 import { OpenAiAuth } from '../decorators/openai-auth.decorator';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { OpenAiChatCompletionRequestDto } from '../dtos/openai-chat-completion-request.dto';
 import { mapOpenAiChatRequestToGateway } from '../mappers/openai-request.mapper';
 import { mapChatResponseToOpenAi } from '../mappers/openai-response.mapper';
@@ -29,12 +29,12 @@ import {
 import { OPENAI_STREAM_API_DESCRIPTION } from '../helpers/openai-stream-api-description';
 
 import type { Request, Response } from 'express';
-import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
-import type { SseEvent } from 'src/chat/sse/sse-event.type';
+import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
+import type { SseEvent } from '../../../chat/sse/sse-event.type';
 
-import { OPENAI_INTEGRATION_PATH } from 'src/integrations/integrations.constants';
-import { ApiRequestIdHeader } from 'src/common/decorators/api-request-id-header.decorator';
-import { ApiOpenAiErrorResponses } from 'src/common/decorators/api-openai-error-response.decorator';
+import { OPENAI_INTEGRATION_PATH } from '../../../integrations/integrations.constants';
+import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-header.decorator';
+import { ApiOpenAiErrorResponses } from '../../../common/decorators/api-openai-error-response.decorator';
 import { OpenAiChatCompletionResponseDto } from '../dtos/openai-chat-completion-response.dto';
 
 @ApiTags('OpenAI API')

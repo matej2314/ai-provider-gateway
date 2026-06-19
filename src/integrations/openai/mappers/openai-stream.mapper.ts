@@ -56,11 +56,11 @@ function baseChunkFields(state: OpenAiStreamState): Record<string, unknown> {
 function resolveOpenAiFinishReason(
   done: SseDoneEvent,
 ): ReturnType<typeof mapFinishReasontoOpenAI> {
-  if (done.finishReason) {
-    return mapFinishReasontoOpenAI(done.finishReason);
-  }
   if (done.toolCalls?.length) {
     return 'tool_calls';
+  }
+  if (done.finishReason) {
+    return mapFinishReasontoOpenAI(done.finishReason);
   }
   return 'stop';
 }

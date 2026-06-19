@@ -9,13 +9,13 @@ import {
 } from '@nestjs/swagger';
 import { OpenAiAuth } from '../decorators/openai-auth.decorator';
 import { OpenAiModelsCatalogService } from '../services/openai-models-catalog.service';
-import { OPENAI_INTEGRATION_PATH } from 'src/integrations/integrations.constants';
+import { OPENAI_INTEGRATION_PATH } from '../../../integrations/integrations.constants';
 import {
   OpenAiModelsListResponseDto,
   OpenAiModelDto,
 } from '../dtos/openai-models-list-response.dto';
-import { ApiOpenAiErrorResponses } from 'src/common/decorators/api-openai-error-response.decorator';
-import { ApiRequestIdHeader } from 'src/common/decorators/api-request-id-header.decorator';
+import { ApiOpenAiErrorResponses } from '../../../common/decorators/api-openai-error-response.decorator';
+import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-header.decorator';
 import { OpenAiErrorResponseDto } from '../dtos/openai-error-response.dto';
 
 @ApiTags('OpenAI API')
