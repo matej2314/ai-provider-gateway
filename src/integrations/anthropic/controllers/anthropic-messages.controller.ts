@@ -16,26 +16,26 @@ import {
   ApiResponse,
   ApiHeader,
 } from '@nestjs/swagger';
-import { ChatService } from 'src/chat/chat.service';
-import { SmartRateLimiterService } from 'src/rate-limit/smart-rate-limiter.service';
+import { ChatService } from '../../../chat/chat.service';
+import { SmartRateLimiterService } from '../../../rate-limit/smart-rate-limiter.service';
 import { AnthropicAuth } from '../decorators/anthropic-auth.decorator';
 import { AnthropicMessagesRequestDto } from '../dtos/anthropic-messages-request.dto';
 import { AnthropicMessagesResponseDto } from '../dtos/anthropic-messages-response.dto';
-import { ApiAnthropicErrorResponses } from 'src/common/decorators/api-anthropic-error-response.decorator';
-import { ApiRequestIdHeader } from 'src/common/decorators/api-request-id-header.decorator';
+import { ApiAnthropicErrorResponses } from '../../../common/decorators/api-anthropic-error-response.decorator';
+import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-header.decorator';
 import { mapAnthropicRequestToGateway } from '../mappers/anthropic-request.mapper';
 import { mapGatewayResponseToAnthropicFormat } from '../mappers/anthropic-response.mapper';
 import {
   createAnthropicStreamState,
   mapSseEventToAnthropic,
 } from '../mappers/anthropic-stream.mapper';
-import type { SseEvent } from 'src/chat/sse/sse-event.type';
+import type { SseEvent } from '../../../chat/sse/sse-event.type';
 import type { Request, Response } from 'express';
-import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
+import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
 
-import { ANTHROPIC_INTEGRATION_PATH } from 'src/integrations/integrations.constants';
+import { ANTHROPIC_INTEGRATION_PATH } from '../../../integrations/integrations.constants';
 import { ANTHROPIC_STREAM_API_DESCRIPTION } from '../helpers/anthropic-stream-api-description';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
 
 @ApiTags('Anthropic API')
 @ApiSecurity('ApiKeyAuth')

@@ -1,6 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
-import { AnthropicErrorResponseDto } from 'src/integrations/anthropic/dtos/anthropic-error-response.dto';
+import { AnthropicErrorResponseDto } from '../../integrations/anthropic/dtos/anthropic-error-response.dto';
 
 export function ApiAnthropicErrorResponses() {
   return applyDecorators(

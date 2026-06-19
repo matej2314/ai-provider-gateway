@@ -13,10 +13,10 @@ import {
   AnthropicModelsListResponseDto,
   AnthropicModelDto,
 } from '../dtos/anthropic-models-list-response.dto';
-import { ApiAnthropicErrorResponses } from 'src/common/decorators/api-anthropic-error-response.decorator';
-import { ApiRequestIdHeader } from 'src/common/decorators/api-request-id-header.decorator';
+import { ApiAnthropicErrorResponses } from '../../../common/decorators/api-anthropic-error-response.decorator';
+import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-header.decorator';
 import { AnthropicErrorResponseDto } from '../dtos/anthropic-error-response.dto';
-import { ANTHROPIC_INTEGRATION_PATH } from 'src/integrations/integrations.constants';
+import { ANTHROPIC_INTEGRATION_PATH } from '../../../integrations/integrations.constants';
 
 @ApiTags('Anthropic API')
 @ApiSecurity('ApiKeyAuth')
