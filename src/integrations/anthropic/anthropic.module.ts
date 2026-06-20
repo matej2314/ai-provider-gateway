@@ -5,10 +5,8 @@ import { AnthropicExceptionFilter } from './filters/anthropic-exception.filter';
 import { AnthropicModelsCatalogService } from './services/anthropic-models-catalog.service';
 import { AnthropicModelsController } from './controllers/anthropic-models.controller';
 import { AnthropicMessagesController } from './controllers/anthropic-messages.controller';
-import { RateLimitModule } from 'src/rate-limit/rate-limit.module';
-
 @Module({
-  imports: [ChatModule, RateLimitModule],
+  imports: [ChatModule],
   controllers: [AnthropicModelsController, AnthropicMessagesController],
   providers: [
     AnthropicApiKeyGuard,

@@ -14,16 +14,12 @@ import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { CacheModule } from './cache/cache.module';
+import { shouldIncludeRedisStack } from './cache/should-include-redis-stack';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { LoggingModule } from './logging/logging.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { IntegrationsModule } from './integrations/integrations.module';
-
-const includeRedisCacheStack = (): boolean => {
-  if (process.env.CACHE_ENABLED !== 'true') return false;
-  return (process.env.CACHE_BACKEND || 'noop').toLowerCase() === 'redis';
-};
 
 @Module({
   providers: [
@@ -39,12 +35,14 @@ const includeRedisCacheStack = (): boolean => {
     LoggingModule,
     ProviderRegistryModule,
     CacheModule.register({
-      includeRedisStack: includeRedisCacheStack(),
+      includeRedisStack: shouldIncludeRedisStack(),
     }),
     ChatModule,
     ProvidersModule.register(),
     HealthModule,
-    RateLimitModule,
+    RateLimitModule.register({
+      smartRateLimitEnabled: process.env.RATE_LIMIT_SMART_ENABLED === 'true',
+    }),
     MetricsModule,
     IntegrationsModule,
   ],

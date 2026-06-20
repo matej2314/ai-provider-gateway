@@ -2,6 +2,7 @@ import { Module, DynamicModule } from '@nestjs/common';
 import { CacheRegistryService } from './cache-registry.service';
 import { NoopCacheModule } from './adapters/noop-cache/noop-cache.module';
 import { RedisCacheModule } from './adapters/redis-cache/redis-cache.module';
+import { RedisConnectionService } from './adapters/redis-cache/redis-connection.service';
 import { CACHE_BACKEND } from './cache.tokens';
 import { ResponseCacheService } from './response-cache.service';
 
@@ -21,11 +22,14 @@ export class CacheModule {
       | typeof CACHE_BACKEND
       | typeof CacheRegistryService
       | typeof RedisCacheModule
+      | typeof RedisConnectionService
       | typeof ResponseCacheService
     > = [CACHE_BACKEND, CacheRegistryService, ResponseCacheService];
 
     if (options.includeRedisStack) {
       exports.push(RedisCacheModule);
+    } else {
+      exports.push(RedisConnectionService);
     }
 
     return {
@@ -35,6 +39,7 @@ export class CacheModule {
       providers: [
         CacheRegistryService,
         ResponseCacheService,
+        ...(options.includeRedisStack ? [] : [RedisConnectionService]),
         {
           provide: CACHE_BACKEND,
           useFactory: (reg: CacheRegistryService) => ({
