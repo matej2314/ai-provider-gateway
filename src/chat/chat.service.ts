@@ -17,6 +17,8 @@ import { ChatCacheGuardService } from './services/chat-cache-guard.service';
 import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
+import { validateChatIngress } from './validation/chat-ingress.validator';
+import type { ChatIngressProfile } from './validation/chat-ingress.types';
 
 @Injectable()
 export class ChatService {
@@ -40,7 +42,10 @@ export class ChatService {
     requestBody: ChatRequestDto,
     requestId: string,
     gatewayKey: string,
+    ingressProfile: ChatIngressProfile,
   ) {
+    validateChatIngress(requestBody, ingressProfile);
+
     const log = this.loggingService.child({
       module: 'ChatService',
       requestId,
@@ -171,8 +176,11 @@ export class ChatService {
     requestBody: ChatRequestDto,
     requestId: string,
     emit: (event: SseEvent) => void,
+    ingressProfile: ChatIngressProfile,
     gatewayKey?: string,
   ): Promise<void> {
+    validateChatIngress(requestBody, ingressProfile);
+
     const log = this.loggingService.child({
       module: 'ChatService',
       requestId,

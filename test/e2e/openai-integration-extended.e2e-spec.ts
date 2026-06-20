@@ -84,6 +84,7 @@ describe('OpenAI Integration Extended (E2E)', () => {
         {
           providerRegistry: createE2eProviderRegistry({
             modelAlias: openAiModel,
+            capabilities: { thinking: true },
             completeResponse: {
               text: 'Answer with reasoning',
               stopReason: 'end_turn',

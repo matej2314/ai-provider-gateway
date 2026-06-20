@@ -174,6 +174,22 @@ describe('Gateway Chat API (E2E)', () => {
         code: expect.any(String),
       });
     });
+
+    it('should reject request with more than 150 messages', async () => {
+      const messages = Array(151).fill({ role: 'user', content: 'test' });
+
+      const response = await request(app.getHttpServer())
+        .post(E2E_ROUTES.chat)
+        .set('x-gateway-key', E2E_GATEWAY_KEY)
+        .send({
+          modelAlias: TEST_MODEL_ALIAS,
+          messages,
+        })
+        .expect(400);
+
+      expect(response.body.code).toBe(ApiErrorCode.VALIDATION_FAILED);
+      expect(response.body.message).toMatch(/150|Too many messages/i);
+    });
   });
 
   describe('Rate limiting', () => {

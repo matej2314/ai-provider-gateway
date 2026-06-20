@@ -32,6 +32,12 @@ function createDefaultParams() {
   };
 }
 
+export type E2eProviderCapabilities = {
+  tools?: boolean;
+  streaming?: boolean;
+  thinking?: boolean;
+};
+
 export type E2eProviderRegistryOptions = {
   modelAlias?: string;
   fallbackAlias?: string;
@@ -40,11 +46,20 @@ export type E2eProviderRegistryOptions = {
   completeResponse?: Partial<ProviderChatResponse>;
   streamChunks?: string[];
   hangStream?: boolean;
+  capabilities?: E2eProviderCapabilities;
 };
+
+const capabilities = (options: E2eProviderRegistryOptions) => ({
+  tools: true,
+  streaming: true,
+  thinking: false,
+  ...options?.capabilities,
+});
 
 export type E2eProviderRegistryMock = Partial<ProviderRegistryService> & {
   provider: AIProvider;
   resolveMock: jest.Mock;
+  capabilities: E2eProviderCapabilities;
 };
 
 function createDefaultCompleteResponse(
@@ -105,9 +120,8 @@ export function createE2eProviderRegistry(
     providerName: options.providerName ?? TEST_PROVIDER_INSTANCE,
     modelId: options.modelId ?? 'claude-sonnet-4-5',
     modelAlias: alias,
-    fallbackAlias:
-      alias === primaryAlias ? options.fallbackAlias : undefined,
-    capabilities: { tools: true, streaming: true },
+    fallbackAlias: alias === primaryAlias ? options.fallbackAlias : undefined,
+    capabilities: capabilities(options),
     policy: {
       retry: { maxAttempts: 1, onStatus: [429, 500, 502, 503, 504] },
     },
@@ -118,6 +132,7 @@ export function createE2eProviderRegistry(
     provider,
     resolveMock,
     resolve: resolveMock,
+    capabilities: capabilities(options),
     registerInstance: jest.fn(),
     list: jest.fn().mockReturnValue([]),
   };
@@ -129,18 +144,16 @@ export function createE2eFallbackProviderRegistry(options: {
   fallbackText?: string;
 }): E2eProviderRegistryMock {
   const primaryProvider: AIProvider = {
-    complete: jest
-      .fn()
-      .mockRejectedValue(
-        new HttpException(
-          {
-            code: 'PROVIDER_ERROR',
-            message: 'Server error',
-            details: [],
-          },
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        ),
+    complete: jest.fn().mockRejectedValue(
+      new HttpException(
+        {
+          code: 'PROVIDER_ERROR',
+          message: 'Server error',
+          details: [],
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
       ),
+    ),
     stream: jest.fn(),
   };
 
@@ -163,7 +176,7 @@ export function createE2eFallbackProviderRegistry(options: {
       modelAlias: alias,
       fallbackAlias:
         alias === options.primaryAlias ? options.fallbackAlias : undefined,
-      capabilities: { tools: true, streaming: true },
+      capabilities: capabilities({}),
       policy: {
         retry: { maxAttempts: 1, onStatus: [429, 500, 502, 503, 504] },
       },
@@ -175,6 +188,7 @@ export function createE2eFallbackProviderRegistry(options: {
     provider: primaryProvider,
     resolveMock,
     resolve: resolveMock,
+    capabilities: capabilities(options),
     registerInstance: jest.fn(),
     list: jest.fn().mockReturnValue([]),
   };

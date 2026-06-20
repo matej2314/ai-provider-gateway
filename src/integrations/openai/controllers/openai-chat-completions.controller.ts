@@ -96,6 +96,8 @@ export class OpenAiChatCompletionsController {
             res.write(line);
           }
         },
+        'facade-openai',
+        gatewayKey,
       );
     } finally {
       await this.rateLimiter.releaseStream(gatewayKey);
@@ -157,6 +159,7 @@ export class OpenAiChatCompletionsController {
       gatewayRequest,
       req.requestId,
       gatewayKey,
+      'facade-openai',
     )) as ChatResponseDto;
 
     res.json(mapChatResponseToOpenAi(result, body.model));

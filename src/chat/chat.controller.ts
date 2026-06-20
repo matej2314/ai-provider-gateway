@@ -35,6 +35,11 @@ export class ChatController {
   @ApiRequestIdHeader()
   async chat(@Req() req: Request, @Body() requestBody: ChatRequestDto) {
     const gatewayKey = readGatewayKeyHeader(req);
-    return this.chatService.executeChat(requestBody, req.requestId, gatewayKey);
+    return this.chatService.executeChat(
+      requestBody,
+      req.requestId,
+      gatewayKey,
+      'native',
+    );
   }
 }

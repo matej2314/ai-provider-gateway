@@ -100,6 +100,7 @@ export class AnthropicMessagesController {
       gatewayRequest,
       req.requestId,
       gatewayKey,
+      'facade-anthropic',
     )) as ChatResponseDto;
     res.json(mapGatewayResponseToAnthropicFormat(result, body.model));
   }
@@ -150,6 +151,8 @@ export class AnthropicMessagesController {
             res.write(line);
           }
         },
+        'facade-anthropic',
+        gatewayKey,
       );
     } finally {
       await this.rateLimiter.releaseStream(gatewayKey);

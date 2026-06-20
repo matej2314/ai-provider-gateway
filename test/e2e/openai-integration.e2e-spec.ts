@@ -291,6 +291,28 @@ describe('OpenAI Integration API (E2E)', () => {
     });
   });
 
+  describe('Ingress profile (facade-openai)', () => {
+    it('should accept request with 200 messages (facade profile)', async () => {
+      const messages = Array(200)
+        .fill(null)
+        .map((_, i) => ({
+          role: i % 2 === 0 ? 'user' : 'assistant',
+          content: 'test',
+        }));
+
+      const response = await request(app.getHttpServer())
+        .post(E2E_ROUTES.openAiCompletions)
+        .set('Authorization', `Bearer ${E2E_GATEWAY_KEY}`)
+        .send({
+          model: openAiModel,
+          messages,
+        })
+        .expect(E2E_POST_SUCCESS_STATUS);
+
+      expect(response.body.choices).toBeDefined();
+    });
+  });
+
   describe('Contract compliance', () => {
     it('should map gateway response to OpenAI format correctly', async () => {
       const response = await request(app.getHttpServer())

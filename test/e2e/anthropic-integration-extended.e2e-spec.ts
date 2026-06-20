@@ -27,6 +27,7 @@ describe('Anthropic Integration Extended (E2E)', () => {
         {
           providerRegistry: createE2eProviderRegistry({
             modelAlias: anthropicModel,
+            capabilities: { thinking: true },
             completeResponse: {
               text: 'Final answer',
               stopReason: 'end_turn',
@@ -68,7 +69,10 @@ describe('Anthropic Integration Extended (E2E)', () => {
     it('should support adaptive thinking without budget_tokens', async () => {
       await withE2eApp(
         {
-          providerRegistry: createE2eProviderRegistry({ modelAlias: anthropicModel }),
+          providerRegistry: createE2eProviderRegistry({
+            modelAlias: anthropicModel,
+            capabilities: { thinking: true },
+          }),
         },
         async ({ app, providerRegistry }) => {
           await request(app.getHttpServer())
@@ -143,6 +147,7 @@ describe('Anthropic Integration Extended (E2E)', () => {
         {
           providerRegistry: createE2eProviderRegistry({
             modelAlias: anthropicModel,
+            capabilities: { thinking: true },
             streamChunks: ['Hello'],
           }),
         },

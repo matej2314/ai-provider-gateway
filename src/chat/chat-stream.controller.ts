@@ -89,6 +89,7 @@ export class ChatStreamController {
         (event) => {
           res.write(this.sse.serialize(event));
         },
+        'native',
         gatewayKey,
       );
     } finally {
