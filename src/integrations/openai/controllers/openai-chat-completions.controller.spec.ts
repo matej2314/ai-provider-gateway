@@ -114,6 +114,7 @@ describe('OpenAiChatCompletionsController', () => {
       expect.objectContaining({ modelAlias: 'claude-sonnet-4-5' }),
       'req_1',
       'gw_app_key',
+      'facade-openai',
     );
     expect(chatService.executeStream).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
@@ -142,6 +143,7 @@ describe('OpenAiChatCompletionsController', () => {
       expect.anything(),
       'req_1',
       '',
+      'facade-openai',
     );
   });
 
@@ -162,9 +164,11 @@ describe('OpenAiChatCompletionsController', () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
       const res = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      chatService.executeStream.mockImplementation(async (_req, _id, onEvent) => {
-        onEvent({ name: 'delta', data: { text: 'Hi' } } as SseEvent);
-      });
+      chatService.executeStream.mockImplementation(
+        async (_req, _id, onEvent) => {
+          onEvent({ name: 'delta', data: { text: 'Hi' } } as SseEvent);
+        },
+      );
 
       await controller.completions(req, streamBody, res);
 
@@ -242,7 +246,9 @@ describe('OpenAiChatCompletionsController', () => {
         reason: 'Max 3 concurrent streams',
       });
 
-      await expect(controller.completions(req, streamBody, res)).rejects.toMatchObject({
+      await expect(
+        controller.completions(req, streamBody, res),
+      ).rejects.toMatchObject({
         response: {
           statusCode: 429,
           code: ApiErrorCode.RATE_LIMITED,
@@ -263,7 +269,9 @@ describe('OpenAiChatCompletionsController', () => {
         resetAt: new Date(),
       });
 
-      await expect(controller.completions(req, streamBody, res)).rejects.toMatchObject({
+      await expect(
+        controller.completions(req, streamBody, res),
+      ).rejects.toMatchObject({
         response: { message: 'Concurrent stream limit exceeded' },
       });
     });
@@ -274,9 +282,9 @@ describe('OpenAiChatCompletionsController', () => {
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
       chatService.executeStream.mockRejectedValue(new Error('stream failed'));
 
-      await expect(controller.completions(req, streamBody, res)).rejects.toThrow(
-        'stream failed',
-      );
+      await expect(
+        controller.completions(req, streamBody, res),
+      ).rejects.toThrow('stream failed');
       expect(rateLimiter.releaseStream).toHaveBeenCalledWith('gw_key');
       expect(res.end).toHaveBeenCalled();
     });

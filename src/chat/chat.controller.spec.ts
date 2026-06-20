@@ -47,7 +47,7 @@ describe('ChatController', () => {
         requestId: 'req-123',
         header: jest.fn().mockReturnValue('gw_key_123'),
         headers: { 'x-gateway-key': 'gw_key_123' },
-      }) ;
+      });
 
       const requestBody = {
         modelAlias: TEST_MODEL_ALIAS,
@@ -60,6 +60,7 @@ describe('ChatController', () => {
         requestBody,
         'req-123',
         'gw_key_123',
+        'native',
       );
     });
   });

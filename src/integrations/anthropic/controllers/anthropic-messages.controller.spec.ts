@@ -103,6 +103,7 @@ describe('AnthropicMessagesController', () => {
       expect.objectContaining({ modelAlias: 'claude-3' }),
       'req_1',
       'gw_key',
+      'facade-anthropic',
     );
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -130,6 +131,7 @@ describe('AnthropicMessagesController', () => {
       expect.anything(),
       'req_1',
       '',
+      'facade-anthropic',
     );
   });
 
@@ -137,9 +139,7 @@ describe('AnthropicMessagesController', () => {
     const streamBody: AnthropicMessagesRequestDto = {
       model: 'claude-3',
       max_tokens: 100,
-      messages: [
-        { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
-      ],
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello' }] }],
       stream: true,
     };
 
@@ -153,9 +153,11 @@ describe('AnthropicMessagesController', () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
       const res = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      chatService.executeStream.mockImplementation(async (_req, _id, onEvent) => {
-        onEvent({ name: 'delta', data: { text: 'Hi' } } as SseEvent);
-      });
+      chatService.executeStream.mockImplementation(
+        async (_req, _id, onEvent) => {
+          onEvent({ name: 'delta', data: { text: 'Hi' } } as SseEvent);
+        },
+      );
 
       await controller.createMessage(req, res, streamBody);
 
@@ -221,9 +223,9 @@ describe('AnthropicMessagesController', () => {
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
       chatService.executeStream.mockRejectedValue(new Error('stream failed'));
 
-      await expect(controller.createMessage(req, res, streamBody)).rejects.toThrow(
-        'stream failed',
-      );
+      await expect(
+        controller.createMessage(req, res, streamBody),
+      ).rejects.toThrow('stream failed');
       expect(rateLimiter.releaseStream).toHaveBeenCalledWith('gw_key');
       expect(res.end).toHaveBeenCalled();
     });

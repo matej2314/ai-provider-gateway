@@ -202,6 +202,7 @@ describe('ChatService', () => {
         baseRequest,
         'req-123',
         'gw_key_123',
+        'native',
       );
 
       expect(mockValidation.validateTooling).toHaveBeenCalledWith(
@@ -237,6 +238,7 @@ describe('ChatService', () => {
         baseRequest,
         'req-123',
         'gw_key_123',
+        'native',
       );
 
       expect(mockCacheGuard.getCachedIfAllowed).toHaveBeenCalled();
@@ -252,7 +254,7 @@ describe('ChatService', () => {
       );
 
       await expect(
-        service.executeChat(baseRequest, 'req-123', 'gw_key_123'),
+        service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native'),
       ).rejects.toBe(rateLimitError);
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
     });
@@ -266,7 +268,12 @@ describe('ChatService', () => {
         },
       };
 
-      await service.executeChat(toolingRequest, 'req-123', 'gw_key_123');
+      await service.executeChat(
+        toolingRequest,
+        'req-123',
+        'gw_key_123',
+        'native',
+      );
 
       expect(mockValidation.validateTooling).toHaveBeenCalledWith(
         toolingRequest,
@@ -288,6 +295,7 @@ describe('ChatService', () => {
           },
           'req-123',
           'gw_key_123',
+          'native',
         ),
       ).rejects.toBe(validationError);
     });
@@ -299,7 +307,7 @@ describe('ChatService', () => {
       });
 
       await expect(
-        service.executeChat(baseRequest, 'req-123', 'gw_key_123'),
+        service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native'),
       ).rejects.toBe(validationError);
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
     });
@@ -311,7 +319,7 @@ describe('ChatService', () => {
         conversationId: VALID_CONVERSATION_ID,
       };
 
-      await service.executeChat(request, 'req-123', 'gw_key_123');
+      await service.executeChat(request, 'req-123', 'gw_key_123', 'native');
 
       expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
         expect.any(Object),
@@ -326,7 +334,7 @@ describe('ChatService', () => {
     it('should delegate cache write after successful execution', async () => {
       mockExecutorChatSuccess({ text: 'Fresh answer' });
 
-      await service.executeChat(baseRequest, 'req-123', 'gw_key_123');
+      await service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native');
 
       expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
@@ -340,7 +348,7 @@ describe('ChatService', () => {
     it('should skip rate limit and cache when gatewayKey is empty', async () => {
       mockExecutorChatSuccess();
 
-      await service.executeChat(baseRequest, 'req-123', '');
+      await service.executeChat(baseRequest, 'req-123', '', 'native');
 
       expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
       expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
@@ -365,7 +373,7 @@ describe('ChatService', () => {
         },
       );
 
-      await service.executeChat(baseRequest, 'req-123', 'gw_key_123');
+      await service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native');
 
       expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
         expect.objectContaining({ text: 'Fallback response' }),
@@ -386,7 +394,12 @@ describe('ChatService', () => {
         },
       };
 
-      await service.executeChat(toolingRequest, 'req-123', 'gw_key_123');
+      await service.executeChat(
+        toolingRequest,
+        'req-123',
+        'gw_key_123',
+        'native',
+      );
 
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -404,7 +417,7 @@ describe('ChatService', () => {
       (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
       mockExecutorChatSuccess();
 
-      await service.executeChat(baseRequest, 'req-123', 'gw_key_123');
+      await service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native');
 
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -421,7 +434,7 @@ describe('ChatService', () => {
       );
 
       await expect(
-        service.executeChat(baseRequest, 'req-123', 'gw_key_123'),
+        service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native'),
       ).rejects.toBe(error);
 
       expect(mockErrorHandler.handleProviderError).toHaveBeenCalledWith(
@@ -448,9 +461,14 @@ describe('ChatService', () => {
         baseRequest.params,
       );
 
-      await service.executeStream(baseRequest, 'req-123', (event) => {
-        emitted.push(event);
-      });
+      await service.executeStream(
+        baseRequest,
+        'req-123',
+        (event) => {
+          emitted.push(event);
+        },
+        'native',
+      );
 
       expect(mockValidation.validateTooling).toHaveBeenCalledWith(
         baseRequest,
@@ -483,7 +501,7 @@ describe('ChatService', () => {
         thinkingContent: 'Stream thinking',
       });
 
-      await service.executeStream(baseRequest, 'req-123', jest.fn());
+      await service.executeStream(baseRequest, 'req-123', jest.fn(), 'native');
 
       expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalledWith(
         { inputTokens: 15, outputTokens: 25 },
@@ -502,7 +520,7 @@ describe('ChatService', () => {
       (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
       mockStreamExecutorSuccess();
 
-      await service.executeStream(baseRequest, 'req-123', jest.fn());
+      await service.executeStream(baseRequest, 'req-123', jest.fn(), 'native');
 
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -519,7 +537,13 @@ describe('ChatService', () => {
       );
 
       await expect(
-        service.executeStream(baseRequest, 'req-123', jest.fn(), 'gw_key_123'),
+        service.executeStream(
+          baseRequest,
+          'req-123',
+          jest.fn(),
+          'native',
+          'gw_key_123',
+        ),
       ).rejects.toBe(error);
 
       expect(mockErrorHandler.handleProviderError).toHaveBeenCalledWith(
