@@ -16,6 +16,7 @@ import {
   ChatResponseBuilderService,
   type ProviderResponse,
 } from './services/chat-response-builder.service';
+import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
 import { ResilientExecutor } from '../common/resilience/resilient-executor';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockResilientExecutor } from '../common/mocks/createMockResilientExecutor';
@@ -104,6 +105,7 @@ describe('ChatService', () => {
 
     mockValidation = {
       validateTooling: jest.fn(),
+      validateThinking: jest.fn(),
       validateForStreaming: jest.fn().mockReturnValue(resolvedConfig),
     };
 
@@ -185,10 +187,16 @@ describe('ChatService', () => {
     const baseRequest = {
       modelAlias: TEST_MODEL_ALIAS,
       messages: [{ role: 'user' as const, content: 'Hi' }],
+      params: {},
     };
 
     it('should orchestrate validation, executor and response builder', async () => {
       mockExecutorChatSuccess({ text: 'Hello!' });
+
+      const expectedOptions = resolveProviderCallOptions(
+        resolvedConfig.params,
+        baseRequest.params,
+      );
 
       const result = await service.executeChat(
         baseRequest,
@@ -207,6 +215,11 @@ describe('ChatService', () => {
       );
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
       expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalled();
+      expect(mockValidation.validateThinking).toHaveBeenCalledWith(
+        baseRequest,
+        resolvedConfig,
+        expectedOptions,
+      );
       expect(result.output.text).toBe('Hello!');
       expect(result.id).toBe('gw_test-uuid');
     });
@@ -277,6 +290,18 @@ describe('ChatService', () => {
           'gw_key_123',
         ),
       ).rejects.toBe(validationError);
+    });
+
+    it('should propagate validateThinking errors', async () => {
+      const validationError = new HttpException('Thinking not supported', 400);
+      (mockValidation.validateThinking as jest.Mock).mockImplementation(() => {
+        throw validationError;
+      });
+
+      await expect(
+        service.executeChat(baseRequest, 'req-123', 'gw_key_123'),
+      ).rejects.toBe(validationError);
+      expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
     });
 
     it('should pass conversationId to response builder', async () => {
@@ -412,11 +437,16 @@ describe('ChatService', () => {
     const baseRequest = {
       modelAlias: TEST_MODEL_ALIAS,
       messages: [{ role: 'user' as const, content: 'Hi' }],
+      params: {},
     };
 
     it('should orchestrate validation, executor, done event and emit', async () => {
       mockStreamExecutorSuccess();
       const emitted: Array<{ name: string; data: unknown }> = [];
+      const expectedOptions = resolveProviderCallOptions(
+        resolvedConfig.params,
+        baseRequest.params,
+      );
 
       await service.executeStream(baseRequest, 'req-123', (event) => {
         emitted.push(event);
@@ -425,6 +455,11 @@ describe('ChatService', () => {
       expect(mockValidation.validateTooling).toHaveBeenCalledWith(
         baseRequest,
         resolvedConfig,
+      );
+      expect(mockValidation.validateThinking).toHaveBeenCalledWith(
+        baseRequest,
+        resolvedConfig,
+        expectedOptions,
       );
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({

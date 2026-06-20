@@ -63,6 +63,12 @@ export class ChatService {
       requestBody.params,
     );
 
+    this.validationService.validateThinking(
+      requestBody,
+      primaryResolved,
+      options,
+    );
+
     if (gatewayKey) {
       await this.cacheGuardService.checkRateLimit(
         gatewayKey,
@@ -183,6 +189,17 @@ export class ChatService {
     const primaryResolved = this.registry.resolve(requestBody.modelAlias);
 
     this.validationService.validateTooling(requestBody, primaryResolved);
+
+    const options = resolveProviderCallOptions(
+      primaryResolved.params,
+      requestBody.params,
+    );
+
+    this.validationService.validateThinking(
+      requestBody,
+      primaryResolved,
+      options,
+    );
 
     const startedAt = Date.now();
     const id = `gw_${uuidv4()}`;

@@ -5,6 +5,7 @@ import { ProviderRegistryService } from '../../providers/provider-registry.servi
 import { isToolingRequest } from '../helpers/tooling-request';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
+import { ProviderCallOptions } from 'src/providers/interfaces/ai-provider.interface';
 
 @Injectable()
 export class ChatValidationService {
@@ -24,6 +25,25 @@ export class ChatValidationService {
         {
           code: ApiErrorCode.TOOLS_NOT_SUPPORTED,
           message: 'Tools are not supported for this model alias.',
+          details: [],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  validateThinking(
+    requestBody: ChatRequestDto,
+    resolved: ResolvedProviderConfig,
+    options: ProviderCallOptions,
+  ): void {
+    const effectiveThinkingEnabled = options.thinkingEnabled === true;
+
+    if (effectiveThinkingEnabled && !resolved.capabilities?.thinking) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.THINKING_NOT_SUPPORTED,
+          message: 'Extended thinking is not supported for this model alias.',
           details: [],
         },
         HttpStatus.BAD_REQUEST,

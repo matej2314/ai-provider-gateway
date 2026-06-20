@@ -92,6 +92,7 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 | `PROVIDER_UNAVAILABLE` | Provider zwrócił błąd 5xx lub jest niedostępny. |
 | `STREAMING_NOT_SUPPORTED` | Wybrany model/provider nie wspiera streamingu. |
 | `TOOLS_NOT_SUPPORTED` | Żądanie zawiera tooling (`tooling`, `tool` w messages, `toolCalls`), a alias nie ma `capabilities.tools: true` w YAML. |
+| `THINKING_NOT_SUPPORTED` | Żądanie zawiera `thinkingEnabled: true` (w `params` lub defaults), a alias nie ma `capabilities.thinking: true` w YAML. HTTP **400**. |
 | `GATEWAY_KEY_NOT_CONFIGURED` | Brak allowlisty kluczy w runtime (np. nie zarejestrowano `gatewayKey` w konfiguracji) — **500**, guard zwraca ten kod (`GatewayKeyGuard`). Przy poprawnym starcie z `gateway.config.yaml` i env scenariusz nie występuje. |
 | `GATEWAY_KEY_MISSING` | Brak nagłówka `X-Gateway-Key` dla chronionego endpointu — **401** (`GatewayKeyGuard`). |
 | `GATEWAY_KEY_INVALID` | Wartość `X-Gateway-Key` spoza allowlisty — **403** (`GatewayKeyGuard`). |

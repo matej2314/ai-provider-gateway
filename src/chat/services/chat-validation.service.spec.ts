@@ -156,6 +156,77 @@ describe('ChatValidationService', () => {
     });
   });
 
+  describe('validateThinking', () => {
+    const baseRequest: ChatRequestDto = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [{ role: 'user', content: 'Hi' }],
+    };
+
+    describe('Happy path', () => {
+      it('should pass when thinkingEnabled is false', () => {
+        const options = { thinkingEnabled: false };
+
+        expect(() =>
+          service.validateThinking(baseRequest, resolvedConfig, options),
+        ).not.toThrow();
+      });
+
+      it('should pass when thinkingEnabled is true and capability is true', () => {
+        const configWithThinking: ResolvedProviderConfig = {
+          ...resolvedConfig,
+          capabilities: { tools: true, streaming: true, thinking: true },
+        };
+        const options = { thinkingEnabled: true };
+
+        expect(() =>
+          service.validateThinking(baseRequest, configWithThinking, options),
+        ).not.toThrow();
+      });
+    });
+
+    describe('Errors', () => {
+      it('should throw THINKING_NOT_SUPPORTED when thinkingEnabled is true but capability is false', () => {
+        const configWithoutThinking: ResolvedProviderConfig = {
+          ...resolvedConfig,
+          capabilities: { tools: true, streaming: true, thinking: false },
+        };
+        const options = { thinkingEnabled: true };
+
+        try {
+          service.validateThinking(baseRequest, configWithoutThinking, options);
+          fail('Expected HttpException');
+        } catch (error) {
+          expect(error).toBeInstanceOf(HttpException);
+          const ex = error as HttpException;
+          expect(ex.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+          expect(ex.getResponse()).toEqual({
+            code: ApiErrorCode.THINKING_NOT_SUPPORTED,
+            message: 'Extended thinking is not supported for this model alias.',
+            details: [],
+          });
+        }
+      });
+
+      it('should throw THINKING_NOT_SUPPORTED when thinkingEnabled is true but capability is undefined', () => {
+        const configNoThinking = {
+          ...resolvedConfig,
+          capabilities: {},
+        } as unknown as ResolvedProviderConfig;
+        const options = { thinkingEnabled: true };
+
+        expect(() =>
+          service.validateThinking(baseRequest, configNoThinking, options),
+        ).toThrow(
+          expect.objectContaining({
+            response: expect.objectContaining({
+              code: ApiErrorCode.THINKING_NOT_SUPPORTED,
+            }),
+          }),
+        );
+      });
+    });
+  });
+
   describe('validateForStreaming', () => {
     describe('Happy path', () => {
       it('should return resolved config when streaming is supported and adapter exists', () => {
