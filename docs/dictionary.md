@@ -75,6 +75,16 @@ Pole w **`params`** (natywny czat) / mapowanie fasad OpenAI / Anthropic → **`P
 | **thinkingEnabled** | Włącza extended thinking/reasoning mode dla reasoning-capable models (boolean). | Pole w `ChatParamsDto` i `ProviderCallOptions`; może pochodzić z body lub YAML `defaults`. **Anthropic Claude Opus/Sonnet 4.5+** → `thinking: { type: 'enabled' \| 'adaptive', budget_tokens?, display }`. **Google Gemini 3.0+** → `thinkingConfig: { includeThoughts: true }`. **OpenAI**: nieobsługiwane (wymaga `/v1/responses` API). Wymaga `capabilities.thinking: true` i wpisu w `allowOverrides`. **Koszty:** 2-10x więcej tokenów. |
 | **thinkingBudget** | Budżet/intensywność thinking: string (`"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"`) lub integer (min 1024). | Override tylko z body (brak merge z YAML `defaults`). **Anthropic**: number → `thinking.budget_tokens`; string → `output_config.effort`. **Google Gemini 3.0+**: number → `thinkingConfig.thinkingBudget`; string → `thinkingConfig.thinkingLevel`. **OpenAI**: nieobsługiwane. **Cross-validation:** gdy number, wymagane `maxOutputTokens >= thinkingBudget + 512`. Wymaga wpisu w `allowOverrides`. |
 
+## Kody ostrzeżeń (warnings)
+
+Ostrzeżenia (pole `warnings` w odpowiedzi) informują klienta o parametrach, które zostały zaakceptowane w body, ale **nie zostały przekazane do providera**. Ostrzeżenia **nie** blokują wywołania — odpowiedź HTTP 200/201.
+
+| Code | Znaczenie |
+|------|-----------|
+| `PARAM_IGNORED_BY_PROVIDER` | Parametr z `params` (np. `frequencyPenalty`, `presencePenalty`, `seed`) nie jest wspierany przez wybrany provider (`anthropic` / `google`) i został zignorowany. |
+
+**Uwaga:** Fasady OpenAI i Anthropic Messages API **nie** eksponują pola `warnings` w odpowiedzi (zgodność z formatem vendora). Ostrzeżenia są dostępne **wyłącznie** w natywnym API gateway (`POST /api/v1/chat` i SSE `done`).
+
 ## Kody błędów (stabilne)
 
 Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a nie na `message`.

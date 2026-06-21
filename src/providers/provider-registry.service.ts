@@ -17,10 +17,11 @@ import { UnsupportedProviderException } from '../common/exceptions/unsupported-p
 import { LoggingService } from '../logging/logging.service';
 import { RETRY_POLICY_DEFAULTS } from '../common/retry-policy-defaults';
 import type { ProviderToolCall } from './interfaces/ai-provider.interface';
+import type { GatewayProviderType } from '../config/provider-types';
 
 export interface RegisteredProviderInstance {
   instanceId: string;
-  type: string;
+  type: GatewayProviderType;
   provider: AIProvider;
 }
 
@@ -40,7 +41,7 @@ export interface ResolvedProviderConfig {
   };
   params?: GatewayParamsConfig;
   toolCalls?: ProviderToolCall[];
-
+  providerType: GatewayProviderType;
 }
 
 @Injectable()
@@ -57,10 +58,14 @@ export class ProviderRegistryService {
 
   registerInstance(
     instanceId: string,
-    type: string,
+    type: GatewayProviderType,
     provider: AIProvider,
   ): void {
-    this.instances.set(instanceId, { instanceId, type, provider });
+    this.instances.set(instanceId, {
+      instanceId,
+      type: type,
+      provider,
+    });
   }
 
   private getGatewayConfig(): GatewayConfig {
@@ -182,6 +187,7 @@ export class ProviderRegistryService {
     return {
       provider: providerEntry.provider,
       providerName: providerEntry.instanceId,
+      providerType: providerEntry.type,
       modelId: modelConfig.modelId,
       modelAlias,
       fallbackAlias,

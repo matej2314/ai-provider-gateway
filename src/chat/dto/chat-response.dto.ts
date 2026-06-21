@@ -3,6 +3,7 @@ import { IsOptional, IsString } from 'class-validator';
 import { ChatOutputTextDto } from './chat-output-text.dto';
 import { GatewayToolCallDto } from '../../common/dtos/gateway-tool-call.dto';
 import { ChatUsageDto } from './chat-usage.dto';
+import { ChatWarningDto } from './chat-warning.dto';
 
 export class ChatUsageDetailsDto {
   @ApiPropertyOptional({
@@ -124,4 +125,12 @@ export class ChatResponseDto {
   @IsOptional()
   @IsString()
   thinkingContent?: string;
+
+  @ApiPropertyOptional({
+    type: [ChatWarningDto],
+    description:
+      'Optional warnings about parameters that were accepted but ignored or modified by the provider.',
+  })
+  @IsOptional()
+  warnings?: ChatWarningDto[];
 }

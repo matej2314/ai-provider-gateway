@@ -7,6 +7,7 @@ import {
   ChatResponseBuilderService,
   type ProviderResponse,
 } from './chat-response-builder.service';
+import { buildGenerationWarnings } from '../helpers/generation-warnings';
 import { VALID_CONVERSATION_ID } from '../../common/mocks/test-constants';
 import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
 import type { GatewayToolCall } from '../../providers/types/tooling-types';

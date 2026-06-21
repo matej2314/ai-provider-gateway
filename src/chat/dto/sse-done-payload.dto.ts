@@ -1,5 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional } from 'class-validator';
 import { GatewayToolCallDto } from 'src/common/dtos/gateway-tool-call.dto';
+import { ChatWarningDto } from './chat-warning.dto';
 
 export class SseDoneUsageDto {
   @ApiPropertyOptional({ minimum: 0, example: 12 })
@@ -23,4 +25,11 @@ export class SseDonePayloadDto {
     enum: ['stop', 'tool_calls', 'length', 'content_filter'],
   })
   finishReason?: 'stop' | 'tool_calls' | 'length' | 'content_filter';
+
+  @ApiPropertyOptional({
+    type: [ChatWarningDto],
+    description: 'Optional warnings about ignored parameters.',
+  })
+  @IsOptional()
+  warnings?: ChatWarningDto[];
 }

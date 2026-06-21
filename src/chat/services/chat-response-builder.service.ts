@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { mapStopReasonToFinishReason } from '../helpers/map-provider-finish-reason';
+import { buildGenerationWarnings } from '../helpers/generation-warnings';
 import type { SseEvent } from '../sse/sse-event.type';
 import type {
   ProviderChatResponse,
   ProviderUsageDetails,
 } from '../../providers/interfaces/ai-provider.interface';
 import type { GatewayToolCall } from '../../providers/types/tooling-types';
+import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
+import { ChatWarningDto } from '../dto/chat-warning.dto';
+import { GatewayProviderType } from '../../config/provider-types';
 
 export interface ProviderResponse {
   text: string;
@@ -43,6 +47,7 @@ export interface ChatResponseData {
   usageDetails?: any;
   systemFingerprint?: string;
   thinkingContent?: string;
+  warnings?: ChatWarningDto[];
 }
 
 @Injectable()
@@ -54,7 +59,14 @@ export class ChatResponseBuilderService {
     requestId: string,
     conversationId: string,
     effectiveModelAlias?: string,
+    options?: ProviderCallOptions,
+    providerType?: GatewayProviderType,
   ): ChatResponseData {
+    const warnings =
+      options && providerType
+        ? buildGenerationWarnings(options, providerType)
+        : [];
+
     return {
       id: `gw_${uuidv4()}`,
       provider: providerName,
@@ -79,6 +91,7 @@ export class ChatResponseBuilderService {
       ...(response.thinkingContent && {
         thinkingContent: response.thinkingContent,
       }),
+      ...(warnings.length > 0 && { warnings }),
     };
   }
 
@@ -93,7 +106,14 @@ export class ChatResponseBuilderService {
     stopReason: ProviderChatResponse['stopReason'] | undefined,
     systemFingerprint: string | undefined,
     thinkingContent: string | undefined,
+    options?: ProviderCallOptions,
+    providerType?: GatewayProviderType,
   ): SseEvent {
+    const warnings =
+      options && providerType
+        ? buildGenerationWarnings(options, providerType)
+        : [];
+
     return {
       name: 'done',
       data: {
@@ -108,6 +128,7 @@ export class ChatResponseBuilderService {
         finishReason: mapStopReasonToFinishReason(stopReason, toolCalls),
         ...(systemFingerprint && { systemFingerprint }),
         ...(thinkingContent && { thinkingContent }),
+        ...(warnings.length > 0 && { warnings }),
       },
     };
   }

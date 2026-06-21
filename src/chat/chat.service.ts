@@ -135,6 +135,8 @@ export class ChatService {
         requestId,
         responseConversationId,
         didFallback ? usedAlias : undefined,
+        options,
+        resolved.providerType,
       );
 
       const latency = Date.now() - startedAt;
@@ -261,6 +263,8 @@ export class ChatService {
         stopReason,
         systemFingerprint,
         thinkingContent,
+        options,
+        resolved.providerType,
       );
       emit(doneEvent);
 
