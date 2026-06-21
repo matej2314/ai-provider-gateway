@@ -17,7 +17,10 @@ export class OpenAiExceptionFilter implements ExceptionFilter {
       return 'rate_limit_error';
     }
 
-    if (code === ApiErrorCode.TOOLS_NOT_SUPPORTED) {
+    if (
+      code === ApiErrorCode.TOOLS_NOT_SUPPORTED ||
+      code === ApiErrorCode.THINKING_NOT_SUPPORTED
+    ) {
       return 'invalid_request_error';
     }
 
