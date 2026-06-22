@@ -172,6 +172,7 @@ Wewnętrznie fasady korzystają z `ChatProviderCallService.streamOnce` i mapują
 | Tools / function calling | Mapowane na wewnętrzne `tooling` (`openai-tools.mapper.ts`, `anthropic-tools.mapper.ts`); wymaga `capabilities.tools: true` na aliasie |
 | Multimodal (obrazy) | Nieobsługiwane — 400 przy blokach `image` (Anthropic) |
 | Cache odpowiedzi | Działa przez `ChatService` dla wywołań non-stream; pola `cached` ukryte w odpowiedzi fasady |
+| `system_fingerprint` / `systemFingerprint` | Fasada OpenAI: pass-through gdy upstream zwraca (praktycznie OpenAI). Fasada Anthropic: brak pola. Anthropic/Gemini nie mają odpowiednika upstream — patrz `dictionary.md` |
 | OpenAPI / Swagger | Tagi **OpenAI API** i **Anthropic API** w `openapi.json` i Swagger UI; osobne schematy błędów (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`) |
 
 ## Struktura plików

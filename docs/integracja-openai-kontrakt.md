@@ -72,7 +72,15 @@ Lista dostępnych ID: `GET /api/v1/openai/models`.
 | `seed` | Opcjonalnie (integer), mapowane na `params.seed` (Anthropic ignoruje) |
 | `response_format` | Opcjonalnie (`{ type: "text" \| "json_object" }`), mapowane na `params.responseFormat.type` (bez `jsonSchema` z body OpenAI — tylko `type`) |
 
-**Provider docelowy:** fasada mapuje pola OpenAI na wspólne `params.*`, ale **wywołanie LLM** idzie do adaptera wskazanego przez **`model`** (= `modelAlias` w YAML). Dla aliasu na Anthropic obowiązuje wykluczenie `temperature` + `top_p` (patrz `integracja-anthropic-messages.md`). **Adapter OpenAI** (`create-openai-provider.ts`) **nie jest wdrożony** — parametry penalties/seed nie trafią do OpenAI.com, dopóki alias nie wskazuje przyszłego providera OpenAI. Macierz: `dictionary.md`, `konfiguracja.md`.
+## Odpowiedź (`chat.completion`)
+
+| Pole OpenAI | Kiedy występuje |
+|-------------|-----------------|
+| `system_fingerprint` | Tylko gdy adapter upstream zwróci `systemFingerprint` — w praktyce **OpenAI Chat Completions**. Przy aliasie na **Anthropic** lub **Google** pole **nie występuje** (vendorzy nie mają odpowiednika). Fasada mapuje pass-through z `ChatService`; nie generuje fingerprintu sama. |
+
+Szczegóły: [`dictionary.md`](dictionary.md) (sekcja „`systemFingerprint` — semantyka i providerzy”).
+
+**Provider docelowy:** fasada mapuje pola OpenAI na wspólne `params.*`, ale **wywołanie LLM** idzie do adaptera wskazanego przez **`model`** (= `modelAlias` w YAML). Dla aliasu na Anthropic obowiązuje wykluczenie `temperature` + `top_p` (patrz `integracja-anthropic-messages.md`). **Adapter OpenAI** (`create-openai-provider.ts`) **nie jest wdrożony** — parametry penalties/seed oraz `system_fingerprint` w odpowiedzi nie trafią z OpenAI.com, dopóki alias nie wskazuje przyszłego providera OpenAI. Macierz: `dictionary.md`, `konfiguracja.md`.
 
 Limit **`messages`**: 1–15 000 (DTO fasady; natywny czat: 1–150).
 

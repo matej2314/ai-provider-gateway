@@ -44,7 +44,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 
 | | |
 |--|--|
-| **201** | odpowiedź gateway (JSON); opcjonalnie `toolCalls`, `finishReason` (`stop` \| `tool_calls` \| `length`), `usageDetails`, `systemFingerprint`, `effectiveModelAlias`, `cached` |
+| **201** | odpowiedź gateway (JSON); opcjonalnie `toolCalls`, `finishReason` (`stop` \| `tool_calls` \| `length`), `usageDetails`, `systemFingerprint` (tylko gdy upstream OpenAI — patrz `dictionary.md`), `effectiveModelAlias`, `cached` |
 | **400** | walidacja DTO; `MODEL_ALIAS_NOT_FOUND`; `MODEL_NOT_ALLOWED`; `TOOLS_NOT_SUPPORTED`; inne jawne `code` |
 | **401** | brak `X-Gateway-Key` — `GATEWAY_KEY_MISSING` |
 | **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |

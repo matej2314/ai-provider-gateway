@@ -19,7 +19,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Tool calling / tooling** | Function calling: definicje narzędzi w body (`tooling.definitions`), wyniki w `messages[]` z rolą `tool`, odpowiedzi modelu z `toolCalls`. | Wymaga `capabilities.tools: true` dla aliasu; mapowanie SDK w `anthropic-tools.mapper.ts` / `google-tools.mapper.ts`; fasady OpenAI/Anthropic mapują kontrakt vendora. Cache i fallback YAML wyłączone dla tooling w czacie JSON. |
 | **Request metadata** | Opcjonalne pole `metadata` w body czatu (`Record<string, string \| number \| boolean>`). | Propagowane przez `buildProviderInputForAlias` do `ProviderChatInput.metadata`. **Anthropic:** gdy `metadata.userId` jest ustawione → `messages.create({ metadata: { user_id } })`. **Google:** obecnie ignorowane. |
 | **Usage details** | Rozszerzone statystyki użycia w odpowiedzi JSON (`usageDetails`). | Pola `promptCacheHitTokens`, `promptCacheCreationTokens` — gdy adapter Anthropic zwraca cache token stats (obecnie w ścieżce `parseAnthropicResponseWithTools`). |
-| **System fingerprint** | Opcjonalne pole `systemFingerprint` w odpowiedzi JSON i SSE `done`. | W kontrakcie DTO; bieżące fabryki Anthropic/Google **nie** wypełniają tego pola (brak implementacji w adapterach sync/stream). |
+| **System fingerprint** | Opcjonalne pole `systemFingerprint` w odpowiedzi JSON natywnego czatu i w SSE `done`. | Pochodzi z upstreamu **tylko gdy vendor je zwraca** — w praktyce dotyczy **OpenAI Chat Completions** (`system_fingerprint`). **Anthropic Messages API** i **Google Gemini** **nie mają** odpowiednika; adaptery `anthropic` / `google` **nie wypełniają** tego pola (to oczekiwane, nie brak implementacji). Planowany adapter `type: openai` ma mapować `system_fingerprint` → `systemFingerprint`. Fasada `/api/v1/openai` przekazuje je jako `system_fingerprint` gdy obecne; fasada Anthropic **nie** eksponuje tego pola. Szczegóły: sekcja poniżej. |
 | **Fallback alias** | Opcjonalny alias zapasowy (`models[].fallback` w YAML). | Używany przez `ResilientExecutor` po wyczerpaniu retry na aliasie żądanym. |
 | **Effective model alias** (`effectiveModelAlias`) | Alias faktycznie użyty do wywołania providera. | Obecny w odpowiedzi JSON / SSE `meta` tylko gdy żądany alias różni się od użytego (sukces na fallbacku). Pole `model` = żądany `modelAlias`. |
 | **Standard** | Tryb odpowiedzi: pełna odpowiedź JSON. | `POST /api/v1/chat`. |
@@ -55,6 +55,20 @@ Przykład: żądanie na `/api/v1/openai/chat/completions` z `model: "gemini-flas
 **Autoryzacja na fasadach:** nagłówki w stylu vendora (`Authorization: Bearer`, `x-api-key`) niosą **klucz klienta gateway** z allowlisty (`GATEWAY_KEY_*`), **nie** klucz API OpenAI.com ani Anthropic. Klucze providerów są wyłącznie w `.env` (`apiKeyRef`).
 
 **Powiązane dokumenty:** `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`, `SECURITY.md`.
+
+## `systemFingerprint` — semantyka i providerzy
+
+| Warstwa | Zachowanie |
+|---------|------------|
+| **Kontrakt gateway** (`ChatResponseDto`, SSE `done`) | Opcjonalne pole `systemFingerprint` — **pass-through** z adaptera; pomijane w JSON/SSE, gdy brak wartości |
+| **OpenAI (upstream)** | `system_fingerprint` w Chat Completions — identyfikator snapshotu konfiguracji backendu OpenAI |
+| **Anthropic** | Brak pola w Messages API — wartość **zawsze** pominięta |
+| **Google Gemini** | Brak `system_fingerprint`; są `responseId` (ID odpowiedzi) i `modelVersion` — **inna semantyka**, gateway **nie** mapuje ich na `systemFingerprint` |
+| **Adapter OpenAI** (`create-openai-provider.ts`) | Planowany: ekstrakcja `system_fingerprint` w `complete` / `getSystemFingerprint` |
+| **Fasada OpenAI** | Mapuje `systemFingerprint` → `system_fingerprint`, gdy pole jest ustawione |
+| **Fasada Anthropic** | Brak odpowiednika w kontrakcie Anthropic Messages API |
+
+**Integrator:** nie oczekuj `systemFingerprint` przy aliasach na Anthropic lub Google. Przy fasadzie OpenAI z aliasem na inny backend pole zwykle **nie wystąpi**, mimo że klient „rozmawia” z kształtem OpenAI API.
 
 ## Parametry generacji (rozszerzenia C0-C7)
 

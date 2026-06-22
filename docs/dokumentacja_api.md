@@ -82,9 +82,9 @@ Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; *
 
 **Odpowiedź:** opcjonalne **`toolCalls`** (`id`, `name`, `arguments` jako JSON string) oraz **`finishReason`**. W runtime gateway mapuje `stopReason` providera funkcją **`mapStopReasonToFinishReason`** (`src/chat/helpers/map-provider-finish-reason.ts`) na: **`stop`** (domyślnie, m.in. `end_turn`, `stop_sequence`), **`tool_calls`** (gdy są `toolCalls` lub `stopReason === tool_use`), **`length`** (gdy `stopReason === max_tokens`). Enum w OpenAPI/DTO może zawierać dodatkowe wartości vendora — **emitowane w odpowiedzi są wyłącznie powyższe trzy**.
 
-Opcjonalnie w odpowiedzi JSON: **`usageDetails`** (`promptCacheHitTokens`, `promptCacheCreationTokens` — gdy adapter Anthropic zwraca statystyki cache, obecnie w ścieżce `parseAnthropicResponseWithTools`) oraz **`systemFingerprint`** (pole kontraktu; bieżące fabryki Anthropic/Google zwykle go nie wypełniają).
+Opcjonalnie w odpowiedzi JSON: **`usageDetails`** (`promptCacheHitTokens`, `promptCacheCreationTokens` — gdy adapter Anthropic zwraca statystyki cache, obecnie w ścieżce `parseAnthropicResponseWithTools`) oraz **`systemFingerprint`** — opcjonalne, **provider-specific**: w praktyce wypełniane tylko gdy upstream zwraca odpowiednik OpenAI `system_fingerprint` (planowany adapter `type: openai`). **Anthropic i Google Gemini nie mają tego pola** — przy aliasach na te providery pole **nie występuje** w odpowiedzi (gateway pomija klucz). Nie mylić z `model` / `modelVersion` z Gemini. Szczegóły: **`dictionary.md`** (sekcja „`systemFingerprint` — semantyka i providerzy”).
 
-**SSE `done`:** może zawierać `usage` (z `totalTokens`), `toolCalls`, `finishReason` (jak wyżej), opcjonalnie `systemFingerprint`. W czacie standardowym `done` bywa pusty `{}` tylko gdy brak metadanych końcowych.
+**SSE `done`:** może zawierać `usage` (z `totalTokens`), `toolCalls`, `finishReason` (jak wyżej), opcjonalnie `systemFingerprint` (te same reguły co w JSON). W czacie standardowym `done` bywa pusty `{}` tylko gdy brak metadanych końcowych.
 
 **Cache i fallback:** żądania z toolingiem (`isToolingRequest`) **pomijają cache** i **nie używają fallbacku** w `POST /api/v1/chat`. Streaming **nadal** stosuje fallback z YAML.
 
@@ -102,6 +102,7 @@ Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `too
 | Max długość `content` (user/assistant) | 3000 znaków | 128000 znaków |
 | Max długość `content` (tool) | 32000 znaków | 128000 znaków |
 | Pole `warnings` w response | Tak | Nie (zgodność z vendorem) |
+| `systemFingerprint` / `system_fingerprint` | Opcjonalnie w JSON i SSE `done` — tylko gdy upstream zwraca (praktycznie OpenAI) | OpenAI fasada: `system_fingerprint` gdy ustawione; Anthropic fasada: brak pola |
 | System prompt | Serwer | Serwer (ignorowane z body) |
 
 **Uzasadnienie:** Fasady IDE są zaprojektowane dla długich konwersacji i dużych kontekstów (Cursor, Claude Code), podczas gdy natywne API ma konserwatywne limity dla własnych aplikacji. Szczegóły profili walidacji: `integracje.md`, implementacja: `src/chat/validation/chat-ingress.validator.ts`.
@@ -128,7 +129,7 @@ Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`, `response-format.dt
 
 Udana odpowiedź JSON: **201 Created** — domyślne zachowanie NestJS dla `POST` bez `@HttpCode` (`ChatController` zwraca wynik z handlera; dekorator `@ApiResponse({ status: 201 })` w `src/chat/chat.controller.ts`). **`openapi.json`** i Swagger UI opisują ten sam kod. Streaming SSE — **200** (`POST /chat/stream`).
 
-`ChatService.executeChat`: `id`, **`provider`** (identyfikator **`providerInstance`** z YAML), `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`**, opcjonalnie **`toolCalls`**, **`finishReason`**, **`usageDetails`**, **`systemFingerprint`**, `output`, `usage`, `requestId`, **`conversationId`**.
+`ChatService.executeChat`: `id`, **`provider`** (identyfikator **`providerInstance`** z YAML), `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`**, opcjonalnie **`toolCalls`**, **`finishReason`**, **`usageDetails`**, opcjonalnie **`systemFingerprint`** (tylko gdy adapter upstream je dostarczy — patrz `dictionary.md`), `output`, `usage`, `requestId`, **`conversationId`**.
 
 **Cache (opcjonalny):** lookup przed wywołaniem providera; **pomijany** dla żądań z toolingiem. Przy trafieniu — gdy alias i provider są **włączone** w YAML — zwracany JSON z **`cached: true`**, **`cachedAt`**. Streaming nie jest cache’owany.
 
@@ -158,7 +159,7 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation-tracking.md`).
 
-**Zdarzenia:** `meta` → `delta`* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage` (z `totalTokens`), **`toolCalls`**, **`finishReason`**, **`systemFingerprint`**. Retry/fallback — `ResilientExecutor` (fallback aktywny także przy tooling w streamingu).
+**Zdarzenia:** `meta` → `delta`* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage` (z `totalTokens`), **`toolCalls`**, **`finishReason`**, opcjonalnie **`systemFingerprint`** (reguły jak w JSON powyżej). Retry/fallback — `ResilientExecutor` (fallback aktywny także przy tooling w streamingu).
 
 **Błędy i JSON `ErrorEnvelope`:**
 
@@ -412,7 +413,7 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 3. **`params`** w body są opcjonalne — bez nich używane są wyłącznie `policy.params.defaults` z YAML; override wymaga wpisu pola w `allowOverrides` dla aliasu (`konfiguracja.md`). **Skutek u vendora** zależy od providera aliasu (np. Anthropic odrzuca jednoczesne `temperature` + `topP`) — `dictionary.md`.
 4. Przy włączonym cache powtórzone **`POST /api/v1/chat`** z tym samym body mogą zwrócić odpowiedź z **`cached: true`** bez wywołania providera (`konfiguracja.md`).
 5. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator w `src/config/system-prompt/`.
-6. Przy streamingu składaj tekst z kolejnych `delta`; metadane końcowe (`usage`, `toolCalls`, `finishReason`, opcjonalnie `systemFingerprint`) są w evencie **`done`**.
+6. Przy streamingu składaj tekst z kolejnych `delta`; metadane końcowe (`usage`, `toolCalls`, `finishReason`, opcjonalnie `systemFingerprint` — tylko gdy upstream je dostarczy) są w evencie **`done`**.
 7. **`usage`** może być niekompletne między providerami.
 8. **`conversationId`**: w odpowiedzi zawsze (echo lub `conv_*`). W **request** — tylko wtedy Sentry grupuje turę jako konwersację; typowy start: tura 1 bez ID, tura 2+ z ID z odpowiedzi + pełne `messages[]` (`conversation-tracking.md`).
 9. **Streaming:** nieprawidłowe `params` (poza `allowOverrides`) mogą zwrócić `MODEL_NOT_ALLOWED` **po** rozpoczęciu SSE — w czacie standardowym ten sam błąd jest **przed** wywołaniem providera.

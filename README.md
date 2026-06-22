@@ -195,7 +195,7 @@ Rola **`system`** w `messages[]` jest zablokowana — instrukcja systemowa jest 
 
 W `messages[]` dozwolone są role **`user`**, **`assistant`** i **`tool`** (wynik wywołania narzędzia — wymaga `toolCallId`). Asystent może zwracać **`toolCalls`** w odpowiedzi. Opcjonalne pole **`tooling`** w body (`definitions`, `toolChoice`) włącza function calling — wymaga `capabilities.tools: true` dla aliasu w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
 
-Odpowiedź JSON / SSE `done` może zawierać **`toolCalls`**, **`finishReason`** (runtime: `stop` | `tool_calls` | `length` — `mapStopReasonToFinishReason`), opcjonalnie **`usageDetails`** (tokeny cache Anthropic) oraz **`systemFingerprint`** (pole kontraktu; bieżące adaptery Anthropic/Google zwykle go nie wypełniają). Cache i fallback YAML są **wyłączone** dla żądań z toolingiem w czacie standardowym; streaming nadal używa fallbacku z YAML.
+Odpowiedź JSON / SSE `done` może zawierać **`toolCalls`**, **`finishReason`** (runtime: `stop` | `tool_calls` | `length` — `mapStopReasonToFinishReason`), opcjonalnie **`usageDetails`** (tokeny cache Anthropic) oraz opcjonalnie **`systemFingerprint`** — tylko gdy upstream zwraca odpowiednik OpenAI `system_fingerprint` (Anthropic i Gemini **nie** mają tego pola; przy aliasach na te providery klucz jest pomijany). Fasada OpenAI mapuje je na `system_fingerprint` gdy obecne. Szczegóły: [`docs/dictionary.md`](docs/dictionary.md). Cache i fallback YAML są **wyłączone** dla żądań z toolingiem w czacie standardowym; streaming nadal używa fallbacku z YAML.
 
 Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/architektura.md`](docs/architektura.md).
 

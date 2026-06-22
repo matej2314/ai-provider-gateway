@@ -52,7 +52,7 @@ F-2. `messages[]` wspiera role: `user`, `assistant`, `tool` (rola `system` w API
 
 F-2a. Gateway buduje `system` dla adaptera **wyłącznie z plików** w `src/config/system-prompt/`. Do adaptera trafia `messages[]` z turami użytkownika, asystenta i wyników narzędzi. Opcjonalne **`tooling`** w body (`definitions`, `toolChoice`) wymaga `capabilities.tools: true` w YAML — inaczej `TOOLS_NOT_SUPPORTED`.
 
-F-2b. Odpowiedź może zawierać `toolCalls`, `finishReason` (`stop` | `tool_calls` | `length` — `mapStopReasonToFinishReason`), opcjonalnie `usageDetails`, `systemFingerprint`. Żądania z toolingiem pomijają cache i fallback YAML w czacie standardowym.
+F-2b. Odpowiedź może zawierać `toolCalls`, `finishReason` (`stop` | `tool_calls` | `length` — `mapStopReasonToFinishReason`), opcjonalnie `usageDetails`, opcjonalnie `systemFingerprint` (provider-specific — praktycznie OpenAI upstream; Anthropic/Gemini nie mają odpowiednika). Żądania z toolingiem pomijają cache i fallback YAML w czacie standardowym.
 
 F-3. Gateway musi zwrócić odpowiedź w spójnym formacie niezależnym od providera.
 
