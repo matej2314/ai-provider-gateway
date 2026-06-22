@@ -1,6 +1,19 @@
 # Fasady integracji (IDE) — AI Provider Gateway
 
-Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzędzi, które oczekują natywnego API vendora (OpenAI lub Anthropic), bez zmiany rdzenia gatewaya (`POST /api/v1/chat`, warstwa providerów w `src/providers/`).
+Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzędzi, które oczekują kształtu API vendora (OpenAI lub Anthropic), bez zmiany rdzenia gatewaya (`POST /api/v1/chat`, warstwa providerów w `src/providers/`).
+
+## Fasada ≠ provider runtime
+
+| | **Fasada** (`src/integrations/`) | **Provider runtime** (`src/providers/`) |
+|---|----------------------------------|----------------------------------------|
+| **Cel** | Kompatybilność **kontraktu HTTP** z narzędziami (Cursor, Claude Code) | Wywołanie LLM u vendora przez SDK |
+| **OpenAI** | `/api/v1/openai/*` — kształt OpenAI API | `type: openai` w YAML (planowany adapter) — osobna sprawa |
+| **Anthropic** | `/api/v1/anthropic/*` — kształt Anthropic Messages API | `type: anthropic` w YAML — adapter SDK |
+| **Gwarancja backendu** | **Brak** — fasada nie wiąże się z vendorem | Tak — `providerInstance` + `modelId` w konfiguracji |
+
+Fasady istnieją, ponieważ OpenAI Chat Completions API i Anthropic Messages API stały się **de facto standardami** dla klientów IDE. Gateway implementuje te kształty HTTP nad jednym `ChatService`; **kierowanie zapytań do providera** odbywa się wyłącznie przez **`modelAlias`** (`model` w fasadzie) i `gateway.config.yaml`, nie przez wybór trasy `/openai` vs `/anthropic`.
+
+Pełna definicja terminów: [`dictionary.md`](dictionary.md) (sekcja „Fasada vs provider runtime”).
 
 ## Filozofia
 

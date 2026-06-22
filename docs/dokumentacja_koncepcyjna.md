@@ -122,13 +122,17 @@ Wszystkie trzy delegują do **`ChatService`** (jeden silnik: cache, retry, fallb
 
 ### Powierzchnia HTTP vs silnik LLM
 
+Gateway rozdziela **fasadę integracji** (kształt kontraktu HTTP dla narzędzi) od **providera runtime** (adapter SDK w `src/providers/`). Fasada OpenAI lub Anthropic **nie gwarantuje**, że wywołanie LLM trafi do tego samego vendora — routing jest wyłącznie konfiguracyjny (`modelAlias` → `providerInstance` w YAML).
+
 | Powierzchnia | Format kontraktu HTTP | Backend LLM (wywołanie SDK) |
 |--------------|----------------------|----------------------------|
-| Natywny `/api/v1/chat` | Kontrakt gateway (`modelAlias`, `messages`, `params`) | Adapter wskazany przez alias w YAML (Anthropic / Google) |
-| Fasada OpenAI `/api/v1/openai/*` | Kształt OpenAI API (Cursor) | Ten sam silnik — **nie** api.openai.com; brak providera `openai` w `src/providers/` |
-| Fasada Anthropic `/api/v1/anthropic/*` | Kształt Anthropic Messages API | Ten sam silnik — klucze providerów z `.env`, nie klucz klienta IDE |
+| Natywny `/api/v1/chat` | Kontrakt gateway (`modelAlias`, `messages`, `params`) | Adapter wskazany przez alias w YAML (dowolny włączony `providerInstance`) |
+| Fasada OpenAI `/api/v1/openai/*` | Kształt OpenAI Chat Completions API (standard dla IDE, np. Cursor) | **Nie** api.openai.com z definicji fasady — ten sam silnik `ChatService`; backend z YAML |
+| Fasada Anthropic `/api/v1/anthropic/*` | Kształt Anthropic Messages API (standard dla IDE, np. Claude Code) | **Nie** API Anthropic z definicji fasady — backend z YAML (np. Anthropic, Google, …) |
 
-Pole `model` w fasadach = `modelAlias` z `gateway.config.yaml`. Szczegóły fasady OpenAI: `integracja-openai-kontrakt.md`.
+Pole `model` w fasadach = `modelAlias` z `gateway.config.yaml` (nie vendorowy `modelId`). Auth na fasadach: klucz **klienta gateway** (Bearer / `x-api-key`), nie klucz vendora.
+
+Szczegóły: `integracje.md`, `dictionary.md` (sekcja „Fasada vs provider runtime”), `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
 
 ## Kierunek rozwoju (v1 i dalej)
 

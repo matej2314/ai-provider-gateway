@@ -7,7 +7,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | Termin | Definicja | Uwagi |
 |--------|-----------|------|
 | **Gateway / Proxy** | Warstwa pośrednia unifikująca integrację z LLM providerami. | Nie jest “open proxy” do dowolnych URL. |
-| **Fasada integracji** | Warstwa HTTP w `src/integrations/` mapująca kontrakt vendora (OpenAI / Anthropic Messages) na wewnętrzny `ChatRequestDto` i `ChatService`. | Osobne ścieżki `/api/v1/openai/…`, `/api/v1/anthropic/…`; nie zastępuje natywnego `/chat`. Trasy i schematy błędów vendora są w `openapi.json` (tagi OpenAI API / Anthropic API). |
+| **Fasada integracji** | Warstwa HTTP w `src/integrations/` mapująca **kształt kontraktu** vendora (OpenAI Chat Completions, Anthropic Messages) na wewnętrzny `ChatRequestDto` i `ChatService`. | Osobne ścieżki `/api/v1/openai/…`, `/api/v1/anthropic/…`; nie zastępuje natywnego `/chat`. **Fasada ≠ integracja z vendorem** — służy kompatybilności klientów (Cursor, Claude Code), nie gwarantuje backendu LLM tego samego vendora. Szczegóły: sekcja „Fasada vs provider runtime” poniżej. |
 | **Klucz klienta** | Sekret z allowlisty gateway (`GATEWAY_KEY_*` / YAML) używany przez aplikację lub IDE. | `X-Gateway-Key`, Bearer (OpenAI fasada) lub `x-api-key` (Anthropic fasada) — ta sama lista, różne nagłówki. |
 | **Klucz providera** | Sekret w `.env` do wywołań SDK; w YAML wskazany przez **`apiKeyRef` per `providerInstance`** (np. `GOOGLE_API_KEY`, `GOOGLE_OFFICE_API_KEY`). | Fabryki w `src/providers/factories/`; bootstrap w `ProviderInstancesBootstrap`; nigdy klucz klienta. |
 | **Provider type** | Wartość z `PROVIDER_TYPES` — wybór fabryki SDK w kodzie (`anthropic`, `google`, …). | W YAML: pole `type` wpisu w `providers:`. |
@@ -35,6 +35,27 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **CliConfigLoader** | Serwis CLI (`CliConfigLoaderService`) ładujący `gateway.config.yaml` przez `GatewayConfigSchema` **bez** wymagania `.env`. | Metody: `loadRawConfig`, `loadWithEnvCheck`, `isBoilerplateConfig`, `configExists`, `envExists`. Nie wywołuje `buildEffectiveGatewayConfig()`. |
 | **Wizard state** | Plik `.gateway-wizard-state.json` w katalogu roboczym — persistencja niedokończonego `config:init` (`WizardStateManager`). | Resume po ponownym uruchomieniu; rollback utworzonych plików przy odrzuceniu resume. |
 
+## Fasada vs provider runtime
+
+Gateway rozdziela **dwa niezależne pojęcia**. Mylenie ich to najczęstszy błąd semantyczny integratorów.
+
+| Pojęcie | Warstwa | Rola | Czego **nie** oznacza |
+|---------|---------|------|------------------------|
+| **Fasada integracji** | `src/integrations/` — HTTP | Implementuje **kształt** kontraktu OpenAI lub Anthropic Messages, bo te API stały się standardem de facto dla narzędzi IDE | Połączenia z api.openai.com / API Anthropic; obecności providera `anthropic` lub `openai` w konfiguracji |
+| **Provider runtime** | `src/providers/` — adapter SDK | Wywołanie LLM u konkretnego vendora (klucz z `.env`, `modelId` z YAML) | Wyboru powierzchni HTTP przez klienta |
+
+**Routing LLM** jest wyłącznie **konfiguracyjny**:
+
+1. Klient podaje `model` (fasady) lub `modelAlias` (natywny API) — to **alias** z `gateway.config.yaml`, nie vendorowy `modelId`.
+2. Wpis `models[<alias>]` wskazuje `providerInstance` i `modelId`.
+3. `ProviderRegistryService` zwraca adapter `AIProvider` dla tej instancji.
+
+Przykład: żądanie na `/api/v1/openai/chat/completions` z `model: "gemini-flash"` może trafić do Google Gemini, jeśli alias tak skonfigurowano. Analogicznie `/api/v1/anthropic/messages` **nie wymaga** providera `anthropic` w YAML.
+
+**Autoryzacja na fasadach:** nagłówki w stylu vendora (`Authorization: Bearer`, `x-api-key`) niosą **klucz klienta gateway** z allowlisty (`GATEWAY_KEY_*`), **nie** klucz API OpenAI.com ani Anthropic. Klucze providerów są wyłącznie w `.env` (`apiKeyRef`).
+
+**Powiązane dokumenty:** `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`, `SECURITY.md`.
+
 ## Parametry generacji (rozszerzenia C0-C7)
 
 ### Mapowanie parametrów na providerów
@@ -59,7 +80,9 @@ Pole w **`params`** (natywny czat) / mapowanie fasad OpenAI / Anthropic → **`P
 
 **Merge z YAML `policy.params.defaults`:** w `resolveProviderCallOptions` wartości domyślne z YAML ładowane są dla `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`, `thinkingEnabled`. Pola **`topK`**, **`stop`**, **`responseFormat`** i **`thinkingBudget`** pochodzą **wyłącznie z body** (gdy podane i dozwolone w `allowOverrides`); schemat Zod (`gateway-config.schema.ts`) **nie** definiuje ich w `defaults`.
 
-**Fasada OpenAI vs adapter OpenAI:** moduł `src/integrations/openai/` tłumaczy kontrakt Cursor na `ChatRequestDto`; **nie** istnieje jeszcze `create-openai-provider.ts`. Alias `model` / `modelAlias` decyduje, czy wywołanie trafi do Anthropic czy Google.
+**Fasada OpenAI vs adapter OpenAI:** moduł `src/integrations/openai/` tłumaczy kontrakt klienta (np. Cursor) na `ChatRequestDto` — to **fasada HTTP**, nie wywołanie api.openai.com. Adapter runtime `type: openai` w `src/providers/` (fabryka `create-openai-provider.ts`) jest **osobnym** elementem: dotyczy wyłącznie routingu skonfigurowanego aliasu. To samo rozróżnienie dotyczy **fasady Anthropic** (`src/integrations/anthropic/`) vs adaptera `type: anthropic` — fasada Messages API nie gwarantuje backendu Anthropic.
+
+**Fasada Anthropic vs adapter Anthropic:** pole `model` w `/api/v1/anthropic/messages` = `modelAlias`; backend może być dowolnym `providerInstance` z YAML (np. Google), jeśli alias tak wskazuje.
 
 ### Słownik pól
 

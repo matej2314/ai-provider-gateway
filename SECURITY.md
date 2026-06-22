@@ -44,6 +44,16 @@ Wszystkie ścieżki chat wymagają klucza z allowlisty gateway. Różne fasady k
 
 Endpointy health (`/api/v1/health`, `/api/v1/health/ready`) **nie** wymagają klucza — przeznaczone wyłącznie do probe'ów operacyjnych.
 
+### Fasady HTTP a klucze vendorów (ważne semantycznie)
+
+- Wartość w **`Authorization: Bearer`** na `/api/v1/openai/*` to **klucz klienta gateway** z allowlisty (`GATEWAY_KEY_*`), **nie** klucz API OpenAI.com.
+- Wartość w **`x-api-key`** (lub Bearer) na `/api/v1/anthropic/*` to **ten sam klucz klienta gateway**, **nie** klucz API Anthropic z konsole vendora.
+- Gateway **nigdy** nie przyjmuje klucza providera w body ani nagłówkach żądania klienta — klucze upstream są wyłącznie w `.env` (`apiKeyRef` per `providerInstance` w YAML).
+
+### Fasady a routing do LLM
+
+Obecność tras `/openai/*` lub `/anthropic/*` **nie gwarantuje**, że wywołanie LLM trafi do api.openai.com ani do API Anthropic. Kierunek zapytania wynika wyłącznie z **`modelAlias`** (pole `model` w fasadzie) i konfiguracji `gateway.config.yaml` (`models[].providerInstance`, `modelId`). Szczegóły: [`docs/integracje.md`](docs/integracje.md), [`docs/dictionary.md`](docs/dictionary.md).
+
 ## Zgłaszanie podatności
 
 Jeśli znalazłeś problem bezpieczeństwa:

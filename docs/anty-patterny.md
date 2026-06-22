@@ -135,6 +135,8 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 - wystawiania jednej trasy `GET /api/v1/models` dla wszystkich klientów (OpenAI i Anthropic mają różny kształt listy),
 - przekazywania klucza klienta (Bearer / `x-api-key`) do warstwy providerów zamiast kluczy z `.env` (per `apiKeyRef`),
+- **zakładania, że fasada `/openai` lub `/anthropic` oznacza backend tego samego vendora** — to tylko kształt HTTP; LLM wybiera `modelAlias` → `providerInstance` w YAML,
+- **traktowania Bearer na `/openai` jako klucza OpenAI.com** lub `x-api-key` na `/anthropic` jako klucza z konsole Anthropic — to klucze klienta gateway,
 - duplikowania logiki cache/retry/fallback w kontrolerach fasad zamiast delegacji do `ChatService`,
 - oczekiwania `ErrorEnvelope` z fasad OpenAI/Anthropic — mają własne filtry błędów.
 
@@ -142,7 +144,8 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 - osobne prefiksy `/api/v1/openai` i `/api/v1/anthropic` + natywny `/api/v1/chat`,
 - `readClientGatewayKey` + ta sama allowlista dla wszystkich powierzchni,
-- mapowanie `model` (vendor) → `modelAlias` (YAML) w warstwie mapperów.
+- mapowanie `model` (vendor) → `modelAlias` (YAML) w warstwie mapperów,
+- rozróżnienie **fasady integracji** (`src/integrations/`) vs **providera runtime** (`src/providers/`) — patrz `dictionary.md` (sekcja „Fasada vs provider runtime”).
 
 Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
 

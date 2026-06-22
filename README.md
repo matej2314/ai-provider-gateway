@@ -54,24 +54,35 @@ Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 | **OpenAI API** | `/api/v1/openai/models`, `/api/v1/openai/chat/completions` | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md) | Cursor IDE |
 | **Anthropic Messages API** | `/api/v1/anthropic/messages`, `/api/v1/anthropic/models` | [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md) | Claude Code |
 
-> **Ważne — OpenAI: kształt API vs backend LLM:**  
-> Endpointy `/api/v1/openai/*` implementują **kształt** OpenAI API (kompatybilność z Cursor IDE), **nie** bezpośrednie połączenie z api.openai.com.  
-> Pole `model` w żądaniu to `modelAlias` z YAML; wywołanie LLM idzie do adaptera wskazanego przez alias (Anthropic / Google).  
-> **Brak providera `openai`** w `src/providers/` — OpenAI API istnieje tylko jako **fasada** (format klienta).  
-> Patrz: [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md).
+### Fasady integracji ≠ providerzy runtime
 
-**Autoryzacja:** ta sama allowlista (`GATEWAY_KEY_*` z `.env`), różne nagłówki:
+**Fasada** (`/api/v1/openai/*`, `/api/v1/anthropic/*`) to **warstwa HTTP** — implementuje kształt kontraktu, który stał się standardem branżowym dla narzędzi (OpenAI Chat Completions API, Anthropic Messages API). Służy kompatybilności klientów (Cursor, Claude Code), **nie** oznacza integracji z api.openai.com ani z API Anthropic po stronie gatewaya.
+
+**Provider runtime** (`src/providers/`) to **adaptery SDK** wywoływane po konfiguracji — każdy alias modelu w `gateway.config.yaml` wskazuje `providerInstance` i vendorowy `modelId`. Za aliasem może stać dowolny włączony typ providera (obecnie Anthropic, Google); **nie musi** to być ten sam vendor co kształt HTTP fasady.
+
+| Fasada | Kontrakt HTTP dla klienta | Gwarancja backendu LLM |
+|--------|---------------------------|-------------------------|
+| `/api/v1/openai/*` | OpenAI API (np. Cursor) | **Brak** — routing zależy wyłącznie od `model` (= `modelAlias`) w YAML |
+| `/api/v1/anthropic/*` | Anthropic Messages API (np. Claude Code) | **Brak** — alias może wskazywać np. Google Gemini, nie Anthropic |
+
+**Routing do providera** jest wyłącznie **konfiguracyjny**: `model` / `modelAlias` → wpis `models[]` → `providerInstance` → fabryka w `src/providers/`. Nie wynika z nagłówka auth ani z wyboru fasady.
+
+Szczegóły: [`docs/integracje.md`](docs/integracje.md), [`docs/dictionary.md`](docs/dictionary.md) (sekcja „Fasada vs provider runtime”), [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md), [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md).
+
+**Autoryzacja klienta** — ta sama allowlista gateway (`GATEWAY_KEY_*` z `.env` / YAML), **nie** klucze vendorów OpenAI ani Anthropic:
 
 - Natywny: `X-Gateway-Key`
-- OpenAI: `Authorization: Bearer` — Base URL: `.../api/v1/openai`
-- Anthropic: `x-api-key` (lub Bearer) — Base URL: `.../api/v1/anthropic`
+- OpenAI fasada: `Authorization: Bearer <klucz_klienta_gateway>` — Base URL: `.../api/v1/openai`
+- Anthropic fasada: `x-api-key` lub Bearer `<klucz_klienta_gateway>` — Base URL: `.../api/v1/anthropic`
+
+Klucze providerów (`.env`, `apiKeyRef` w YAML) są używane **wyłącznie** w warstwie `src/providers/` przy wywołaniu SDK.
 
 ## Features
 
 Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 
 - **Advanced generation params**: nucleus sampling (`topP`), stop sequences, frequency/presence penalties, deterministic seed
-- **Structured outputs**: JSON mode z opcjonalnym JSON Schema (natywne wsparcie OpenAI, Anthropic, Google)
+- **Structured outputs**: JSON mode z opcjonalnym JSON Schema (w adapterach runtime — zależy od aliasu i `providerInstance` w YAML, nie od powierzchni HTTP / fasady)
 - **Extended thinking mode**: wsparcie reasoning models (Anthropic Claude Opus/Sonnet 4.5+, Google Gemini 3.0+) z parametrami `thinkingEnabled` i `thinkingBudget` — zwiększa jakość odpowiedzi dla złożonych zadań (2-10x koszt)
 - **Extended usage tracking**: prompt cache tokens (Anthropic — 90% discount na cached tokens), `usageDetails` w response
 - **Tool calling / Function calling**: definicje narzędzi w `tooling`, wyniki w `toolCalls`, wsparcie dla `tool` role w messages
@@ -81,7 +92,7 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 - **Response caching**: opcjonalny cache dla `POST /api/v1/chat` (Redis backend)
 - **Resilient execution**: retry z exponential backoff, timeout per model, opcjonalny fallback chain
 - **Multi-provider**: abstrakcja nad Anthropic, Google Gemini (OpenAI planowany)
-- **IDE-friendly facades**: OpenAI API (Cursor), Anthropic Messages API (Claude Code) — zero-config proxies
+- **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
 - **Production-ready**: Pino logging, Sentry observability, graceful shutdown, readiness probes
 - **CLI wizard**: `gateway config:init` — interaktywna konfiguracja, `provider:test`, model/client management
 

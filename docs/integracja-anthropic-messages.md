@@ -1,5 +1,11 @@
 # Integracja Anthropic Messages API (Claude Code)
 
+> **Ważne — fasada ≠ provider Anthropic:**  
+> Ten dokument opisuje **fasadę integracji** — warstwę HTTP w `src/integrations/anthropic/`, która implementuje **kształt** Anthropic Messages API. Służy kompatybilności z Claude Code i podobnymi klientami; Anthropic Messages API jest standardem de facto dla tego ekosystemu narzędzi.  
+> **To nie jest** gwarancja, że w projekcie istnieje włączony provider `type: anthropic` ani że wywołanie LLM trafi do API Anthropic. Routing zależy wyłącznie od **`model`** (= `modelAlias` w YAML) i `providerInstance` — alias może wskazywać np. Google Gemini.  
+> **Auth:** `x-api-key` / Bearer to **klucz klienta gateway** z allowlisty, nie klucz z konsole Anthropic.  
+> Odpowiednik dla fasady OpenAI: [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md), [`dictionary.md`](dictionary.md).
+
 Fasada **`/api/v1/anthropic`** pozwala podłączyć **Claude Code** i inne klienty oczekujące Anthropic Messages API do gatewaya z własną allowlistą kluców.
 
 > **Stan:** moduł `src/integrations/anthropic/` jest **wdrożony** — `GET /models`, `POST /messages` (JSON + stream SSE w formacie Anthropic). Architektura wspólna: [`integracje.md`](integracje.md).
