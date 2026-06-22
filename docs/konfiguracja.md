@@ -269,7 +269,7 @@ Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (
 | **`google`** | `create-google-provider.ts` | `gemini-flash` |
 | **`openai`** | **brak** — fabryka `create-openai-provider.ts` nie jest wdrożona | — |
 
-**OpenAI w projekcie:** istnieje **fasada HTTP** `/api/v1/openai` (mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`), ale wywołanie LLM i tak trafia do adaptera **Anthropic** lub **Google** wskazanego przez **`modelAlias`**. Docelowy adapter OpenAI (bezpośrednie wywołanie API OpenAI) jest **poza zakresem MVP** — patrz `spec/SPEC-PROVIDERS.md` (scenariusz A).
+**OpenAI w projekcie:** istnieje **fasada HTTP** `/api/v1/openai` (mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`), ale wywołanie LLM i tak trafia do adaptera **Anthropic** lub **Google** wskazanego przez **`modelAlias`**. Docelowy **adapter runtime** OpenAI (bezpośrednie wywołanie API OpenAI) jest **poza zakresem MVP** — [`provider-openai-runtime.md`](provider-openai-runtime.md), [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md) (scenariusz A).
 
 #### Reguły konfiguracji YAML (`policy.params`)
 

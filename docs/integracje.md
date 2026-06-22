@@ -15,6 +15,36 @@ Fasady istnieją, ponieważ OpenAI Chat Completions API i Anthropic Messages API
 
 Pełna definicja terminów: [`dictionary.md`](dictionary.md) (sekcja „Fasada vs provider runtime”).
 
+```mermaid
+flowchart LR
+  subgraph client [Klient IDE]
+    Cursor[Cursor]
+  end
+  subgraph facade [Fasada — src/integrations/openai]
+    Routes["/api/v1/openai/*"]
+  end
+  subgraph core [Rdzeń]
+    Chat[ChatService]
+  end
+  subgraph runtime [Adaptery — src/providers]
+    Anthropic[adapter anthropic]
+    Google[adapter google]
+    OpenAIAdapter["adapter openai — planowany"]
+  end
+  subgraph vendors [Vendory]
+    OAI[(api.openai.com)]
+    Ant[(api.anthropic.com)]
+    Gem[(Google Gemini)]
+  end
+
+  Cursor --> Routes --> Chat
+  Chat --> Anthropic --> Ant
+  Chat --> Google --> Gem
+  Chat -.->|tylko gdy type: openai w YAML| OpenAIAdapter -.-> OAI
+```
+
+Ścieżka fasady i ścieżka adaptera są **ortogonalne** — wybór `/openai` vs `/anthropic` nie wybiera vendora LLM.
+
 ## Filozofia
 
 | Zasada | Opis |
@@ -35,7 +65,7 @@ Pełna definicja terminów: [`dictionary.md`](dictionary.md) (sekcja „Fasada v
 | `readClientGatewayKey` + aktualizacja `SmartRateLimitGuard` / `StreamCleanupInterceptor` | **Wdrożone** (`src/common/readClientGatewayKey.ts`) |
 | **Fasada OpenAI** (`OpenAiModule`) — auth, models, completions JSON + stream | **Wdrożona** — [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md) |
 | **Fasada Anthropic** (`AnthropicModule`) — auth, models, messages JSON + stream | **Wdrożona** — [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md) |
-| Testy E2E kontraktu HTTP (mock providerów) | **Wdrożone** — `test/e2e/gateway-chat*.e2e-spec.ts`, `openai-integration*.e2e-spec.ts`, `anthropic-integration*.e2e-spec.ts` — [`testy.md`](testy.md) |
+| Testy E2E kontraktu HTTP fasad (mock adapterów runtime) | **Wdrożone** — `test/e2e/gateway-chat*.e2e-spec.ts`, `openai-facade*.e2e-spec.ts`, `anthropic-facade*.e2e-spec.ts` — [`testy.md`](testy.md) |
 
 Szczegóły konfiguracji klientów (Cursor, Claude Code): **`integracja-openai-kontrakt.md`**, **`integracja-anthropic-messages.md`**.
 
@@ -203,8 +233,9 @@ src/integrations/
 
 ## Powiązane dokumenty
 
-- `integracja-openai-kontrakt.md` — konfiguracja Cursor IDE
-- `integracja-anthropic-messages.md` — konfiguracja Claude Code
+- `integracja-openai-kontrakt.md` — fasada OpenAI, konfiguracja Cursor IDE
+- `provider-openai-runtime.md` — adapter runtime OpenAI (`src/providers/`, plan)
+- `integracja-anthropic-messages.md` — fasada Anthropic, konfiguracja Claude Code
 - `lista_endpointów.md` — pełna lista tras (w tym fasady)
 - `data_flow.md` — diagramy przepływu
 - `architektura.md`, `architektura-katalogi-pliki.md`

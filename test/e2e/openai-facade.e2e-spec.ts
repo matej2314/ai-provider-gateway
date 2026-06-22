@@ -16,7 +16,7 @@ import {
   E2E_ROUTES,
 } from './helpers/e2e-constants';
 
-describe('OpenAI Integration API (E2E)', () => {
+describe('OpenAI Facade API (E2E)', () => {
   let app: INestApplication;
   let providerRegistry: ReturnType<typeof createE2eProviderRegistry>;
 

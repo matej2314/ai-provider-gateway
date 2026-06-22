@@ -7,7 +7,7 @@ import {
   E2E_ROUTES,
 } from './helpers/e2e-constants';
 
-describe('OpenAI Integration Extended (E2E)', () => {
+describe('OpenAI Facade Extended (E2E)', () => {
   const openAiModel = 'gpt-4';
 
   const weatherTool = {

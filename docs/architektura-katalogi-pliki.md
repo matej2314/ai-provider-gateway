@@ -51,10 +51,10 @@ ai-provider-gateway/
 │       ├── gateway-chat.e2e-spec.ts
 │       ├── gateway-chat-stream-scenarios.e2e-spec.ts
 │       ├── gateway-chat-cache.e2e-spec.ts
-│       ├── openai-integration.e2e-spec.ts
-│       ├── openai-integration-extended.e2e-spec.ts
-│       ├── anthropic-integration.e2e-spec.ts
-│       ├── anthropic-integration-extended.e2e-spec.ts
+│       ├── openai-facade.e2e-spec.ts
+│       ├── openai-facade-extended.e2e-spec.ts
+│       ├── anthropic-facade.e2e-spec.ts
+│       ├── anthropic-facade-extended.e2e-spec.ts
 │       ├── helpers/
 │       │   ├── create-e2e-app.ts
 │       │   ├── e2e-constants.ts
@@ -407,8 +407,9 @@ ai-provider-gateway/
     ├── dictionary.md
     ├── anty-patterny.md
     ├── integracje.md                       # fasady OpenAI / Anthropic (IDE)
-    ├── integracja-openai-kontrakt.md
-    ├── integracja-anthropic-messages.md
+    ├── integracja-openai-kontrakt.md       # fasada OpenAI (Cursor)
+    ├── provider-openai-runtime.md          # adapter runtime OpenAI (plan)
+    ├── integracja-anthropic-messages.md  # fasada Anthropic (Claude Code)
     ├── opis_koncepcyjny.md                 # alias → dokumentacja_koncepcyjna.md
     ├── CLI.md                              # dokumentacja Gateway CLI (wizard, uruchomienie)
     ├── testy.md                            # testy jednostkowe i E2E
@@ -495,7 +496,7 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
 - System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.cache`), graceful shutdown.
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad IDE; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
-- **Integracje IDE:** `src/integrations/` — fasady OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`).
+- **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — plan OpenAI: `provider-openai-runtime.md`.
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
 **Pozostałość v1:** tryb non-interactive CLI; testy E2E health/CLI; E2E z **realnym** Redis (obecnie mock connection); natywny extended thinking w E2E (pokrycie jednostkowe + fasada Anthropic extended).

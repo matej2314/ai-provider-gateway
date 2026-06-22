@@ -33,7 +33,7 @@ Konfiguracja: sekcja `"jest"` w `package.json` (`testRegex: .*\.spec\.ts$`, `roo
 | **Cache** | `cache-registry.service.spec.ts`, `response-cache.service.spec.ts`, adaptery `noop` / `redis` |
 | **Rate limit** | `smart-rate-limiter.service.spec.ts` |
 | **Guardy** | `gateway-key.guard.spec.ts`, `openai-bearer-auth.guard.spec.ts`, `anthropic-api-key.guard.spec.ts` |
-| **Integracje** | kontrolery fasad (`openai-chat-completions.controller.spec.ts`, `anthropic-messages.controller.spec.ts`, …), filtry błędów (`openai-exception.filter.spec.ts`, `anthropic-exception.filter.spec.ts`), katalogi modeli (`*-models-catalog.service.spec.ts`), mapery (`openai-*.mapper.spec.ts`, `anthropic-*.mapper.spec.ts`), helpery (`normalize-openai-content.spec.ts`) |
+| **Fasady** (`src/integrations/`) | kontrolery fasad (`openai-chat-completions.controller.spec.ts`, `anthropic-messages.controller.spec.ts`, …), filtry błędów (`openai-exception.filter.spec.ts`, `anthropic-exception.filter.spec.ts`), katalogi modeli (`*-models-catalog.service.spec.ts`), mapery (`openai-*.mapper.spec.ts`, `anthropic-*.mapper.spec.ts`), helpery (`normalize-openai-content.spec.ts`) |
 | **Odporność** | `resilient-executor.spec.ts`, `fallback-chain.spec.ts`, `is-retryable-http-error.spec.ts` |
 | **Błędy** | `provider-error.mapper.spec.ts`, `provider-error-mapper.helpers.spec.ts` |
 | **Health / logging / metrics** | `health.*.spec.ts`, `logging.service.spec.ts`, `metrics.service.spec.ts` |
@@ -49,15 +49,17 @@ Konfiguracja: `test/jest-e2e.json` — `testRegex: .e2e-spec.ts$`, `setupFilesAf
 
 ### Pliki spec
 
+Konwencja nazw: `*-facade*.e2e-spec.ts` = test **fasady HTTP** (`src/integrations/`), nie adaptera SDK (`src/providers/`). Adaptery runtime są mockowane przez `e2e-provider-registry.ts`.
+
 | Plik | Zakres |
 |------|--------|
 | `gateway-chat.e2e-spec.ts` | Natywny czat: `POST /api/v1/chat`, `POST /api/v1/chat/stream`, generation warnings |
 | `gateway-chat-stream-scenarios.e2e-spec.ts` | SSE: nagłówki, zdarzenia, fallback w streamie, limity równoległych streamów, `warnings` w `done` |
 | `gateway-chat-cache.e2e-spec.ts` | Cache odpowiedzi `POST /api/v1/chat` (mock backendu cache), persystencja `warnings` |
-| `openai-integration.e2e-spec.ts` | Fasada OpenAI: auth, kształt odpowiedzi, streaming |
-| `openai-integration-extended.e2e-spec.ts` | Fasada OpenAI: tool calling, rozszerzone scenariusze kontraktu |
-| `anthropic-integration.e2e-spec.ts` | Fasada Anthropic: auth, kształt odpowiedzi, streaming |
-| `anthropic-integration-extended.e2e-spec.ts` | Fasada Anthropic: thinking mode, tool calling |
+| `openai-facade.e2e-spec.ts` | Fasada OpenAI: auth, kształt odpowiedzi, streaming |
+| `openai-facade-extended.e2e-spec.ts` | Fasada OpenAI: tool calling, rozszerzone scenariusze kontraktu |
+| `anthropic-facade.e2e-spec.ts` | Fasada Anthropic: auth, kształt odpowiedzi, streaming |
+| `anthropic-facade-extended.e2e-spec.ts` | Fasada Anthropic: thinking mode, tool calling |
 
 Usunięty został wcześniejszy szkielet `test/app.e2e-spec.ts` — zastąpiony przez powyższe zestawy z dedykowanymi helperami.
 
@@ -98,7 +100,7 @@ Usunięty został wcześniejszy szkielet `test/app.e2e-spec.ts` — zastąpiony 
 - Fallback: `effectiveModelAlias` przy awarii primary
 - **Generation warnings (D5):** ignorowane parametry generacji (`frequencyPenalty`, `presencePenalty`, `seed`) → pole `warnings` w odpowiedzi JSON (provider Anthropic)
 
-**OpenAI (`openai-integration.e2e-spec.ts`, `openai-integration-extended.e2e-spec.ts`):**
+**OpenAI fasada (`openai-facade.e2e-spec.ts`, `openai-facade-extended.e2e-spec.ts`):**
 
 - Auth Bearer (401 / 403 / 201)
 - Kształt `chat.completion` (non-stream)
@@ -109,7 +111,7 @@ Usunięty został wcześniejszy szkielet `test/app.e2e-spec.ts` — zastąpiony 
 - Brak pola `warnings` w odpowiedzi OpenAI (ostrzeżenia generacji tylko w natywnym czacie)
 - Extended: tool calling (`tools` / `tool_calls` w kontrakcie OpenAI)
 
-**Anthropic (`anthropic-integration.e2e-spec.ts`, `anthropic-integration-extended.e2e-spec.ts`):**
+**Anthropic fasada (`anthropic-facade.e2e-spec.ts`, `anthropic-facade-extended.e2e-spec.ts`):**
 
 - Auth `x-api-key` (401 / 403 / 201)
 - Kształt `message` (non-stream)
@@ -153,7 +155,7 @@ Runtime: NestJS domyślnie **201** dla udanego `POST` bez `@HttpCode` (natywny c
 - Pełny łańcuch `configuration.ts` z plikiem YAML na dysku (mock w setup).
 - Health endpoints (`GET /health`, `/health/ready`) — pokrycie jednostkowe w `src/health/`.
 - CLI (`gateway *`) — brak dedykowanych testów E2E CLI (planowane opcjonalnie).
-- Natywny czat: extended thinking mode w E2E (pokrycie jednostkowe w `anthropic-thinking.mapper.spec.ts`; fasada Anthropic — `anthropic-integration-extended.e2e-spec.ts`).
+- Natywny czat: extended thinking mode w E2E (pokrycie jednostkowe w `anthropic-thinking.mapper.spec.ts`; fasada Anthropic — `anthropic-facade-extended.e2e-spec.ts`).
 - Pole `warnings` w fasadach OpenAI / Anthropic (tylko natywny `POST /api/v1/chat` i stream gateway).
 
 ## CI / lokalnie

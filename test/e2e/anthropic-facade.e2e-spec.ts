@@ -17,7 +17,7 @@ import {
   E2E_ROUTES,
 } from './helpers/e2e-constants';
 
-describe('Anthropic Integration API (E2E)', () => {
+describe('Anthropic Facade API (E2E)', () => {
   let app: INestApplication;
   let providerRegistry: ReturnType<typeof createE2eProviderRegistry>;
 

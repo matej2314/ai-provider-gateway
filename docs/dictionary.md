@@ -39,6 +39,30 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 
 Gateway rozdziela **dwa niezależne pojęcia**. Mylenie ich to najczęstszy błąd semantyczny integratorów.
 
+**Reguła redakcyjna:** pierwsze wystąpienie słowa „OpenAI” w dokumencie powinno mieć kwalifikator — **fasada**, **adapter (runtime)** lub **upstream** (api.openai.com).
+
+### Terminy kanoniczne
+
+| Termin | Ścieżka | Rola |
+|--------|---------|------|
+| **Fasada OpenAI** | `src/integrations/openai/` | Tłumaczy HTTP w kształcie OpenAI Chat Completions → `ChatService`; **nie** woła api.openai.com |
+| **Adapter OpenAI** (provider runtime) | `src/providers/factories/create-openai-provider.ts` *(planowany)* | Woła SDK OpenAI po `type: openai` w YAML; **nie** obsługuje tras `/api/v1/openai/*` |
+| **Fasada Anthropic** | `src/integrations/anthropic/` | Kształt Anthropic Messages API → `ChatService` |
+| **Adapter Anthropic** | `src/providers/factories/create-anthropic-provider.ts` | Woła API Anthropic po `type: anthropic` w YAML |
+
+Analogia Anthropic (fasada + adapter **oba wdrożone**) uczy wzorca: nazwa vendora w ścieżce fasady **≠** gwarancja backendu tego vendora.
+
+### Macierz odpowiedzialności (OpenAI)
+
+| Pytanie | Fasada OpenAI | Adapter OpenAI |
+|---------|---------------|----------------|
+| Gdzie w kodzie? | `src/integrations/openai/` | `src/providers/factories/create-openai-provider.ts` |
+| Kto z niego korzysta? | Cursor, klienty OpenAI-shaped | `ChatProviderCallService` przez YAML |
+| Auth klienta | Bearer = klucz gateway | — |
+| Auth do vendora | — | `OPENAI_API_KEY` / `apiKeyRef` |
+| Wymaga drugiej warstwy? | Nie | Nie |
+| Status | Wdrożone | Planowane — [`provider-openai-runtime.md`](provider-openai-runtime.md) |
+
 | Pojęcie | Warstwa | Rola | Czego **nie** oznacza |
 |---------|---------|------|------------------------|
 | **Fasada integracji** | `src/integrations/` — HTTP | Implementuje **kształt** kontraktu OpenAI lub Anthropic Messages, bo te API stały się standardem de facto dla narzędzi IDE | Połączenia z api.openai.com / API Anthropic; obecności providera `anthropic` lub `openai` w konfiguracji |
@@ -54,7 +78,7 @@ Przykład: żądanie na `/api/v1/openai/chat/completions` z `model: "gemini-flas
 
 **Autoryzacja na fasadach:** nagłówki w stylu vendora (`Authorization: Bearer`, `x-api-key`) niosą **klucz klienta gateway** z allowlisty (`GATEWAY_KEY_*`), **nie** klucz API OpenAI.com ani Anthropic. Klucze providerów są wyłącznie w `.env` (`apiKeyRef`).
 
-**Powiązane dokumenty:** `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`, `SECURITY.md`.
+**Powiązane dokumenty:** `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`, `provider-openai-runtime.md`, `SECURITY.md`.
 
 ## `systemFingerprint` — semantyka i providerzy
 

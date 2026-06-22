@@ -7,10 +7,16 @@ Gateway HTTP dla LLM, który **ukrywa SDK providerów** i wystawia spójny kontr
 - healthchecka (`GET /api/v1/health`, `GET /api/v1/health/ready`),
 - odporności (retry, timeout, opcjonalny fallback aliasu z `gateway.config.yaml`) — **`ResilientExecutor`**.
 
-Aktualnie wspierani providerzy:
+Aktualnie wspierani **adaptery runtime** (`src/providers/`):
 
 - **Anthropic** (`@anthropic-ai/sdk`) — z pełnym wsparciem **extended thinking** (reasoning models)
 - **Google Gemini** (`@google/genai`) — z pełnym wsparciem **ThinkingConfig** (Gemini 3.0+)
+- **OpenAI** (`type: openai`) — **planowany** adapter SDK; fasada HTTP `/api/v1/openai` jest już wdrożona — patrz [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)
+
+> **Uwaga — dwa „OpenAI” w projekcie:**  
+> 1. **Fasada** — `/api/v1/openai/*`, `src/integrations/openai/` — kompatybilność kontraktu HTTP (np. Cursor).  
+> 2. **Adapter runtime** — `type: openai`, `src/providers/` — wywołanie api.openai.com (planowany).  
+> Fasada **nie wymaga** adaptera OpenAI; adapter **nie wymaga** fasady. Szczegóły: [`docs/dictionary.md`](docs/dictionary.md).
 
 ## Dokumentacja
 
@@ -19,13 +25,14 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 | Temat                       | Plik                                                                                       |
 | --------------------------- | ------------------------------------------------------------------------------------------ |
 | Kontrakt HTTP (OpenAPI 3.1) | [`openapi.json`](openapi.json) — natywny czat + health + fasady OpenAI/Anthropic; generowany: `npm run openapi:export` |
-| Swagger UI (runtime)        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`); tagi: Health, Chat, OpenAI API, Anthropic API |
+| Swagger UI (runtime)        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`); tagi: Health, Chat, OpenAI API *(fasada IDE)*, Anthropic API *(fasada IDE)* |
 | API (ludzki opis)           | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md)                                     |
 | Konfiguracja env + YAML     | [`docs/konfiguracja.md`](docs/konfiguracja.md)                                             |
 | Kody błędów                 | [`docs/dictionary.md`](docs/dictionary.md)                                                 |
 | Architektura                | [`docs/architektura.md`](docs/architektura.md)                                             |
 | Struktura katalogów         | [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md)               |
 | Fasada OpenAI (Cursor IDE)  | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md)                  |
+| Adapter OpenAI (runtime)  | [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md) *(planowany)*          |
 | Architektura fasad IDE      | [`docs/integracje.md`](docs/integracje.md)                                                  |
 | Gateway CLI                 | [`docs/CLI.md`](docs/CLI.md)                                                                |
 | Testy (jednostkowe + E2E)   | [`docs/testy.md`](docs/testy.md)                                                             |
@@ -51,8 +58,8 @@ Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 | Standard | Endpointy | Dokumentacja | Dla |
 |----------|-----------|--------------|-----|
 | **Natywny** | `/api/v1/chat`, `/api/v1/chat/stream` | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md) | Własne aplikacje |
-| **OpenAI API** | `/api/v1/openai/models`, `/api/v1/openai/chat/completions` | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md) | Cursor IDE |
-| **Anthropic Messages API** | `/api/v1/anthropic/messages`, `/api/v1/anthropic/models` | [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md) | Claude Code |
+| **Fasada OpenAI** (kontrakt HTTP) | `/api/v1/openai/models`, `/api/v1/openai/chat/completions` | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md) | Cursor IDE |
+| **Fasada Anthropic** (kontrakt HTTP) | `/api/v1/anthropic/messages`, `/api/v1/anthropic/models` | [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md) | Claude Code |
 
 ### Fasady integracji ≠ providerzy runtime
 
@@ -91,7 +98,7 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 - **Smart rate limiting**: per-client RPS/burst/concurrent streams (Redis backend)
 - **Response caching**: opcjonalny cache dla `POST /api/v1/chat` (Redis backend)
 - **Resilient execution**: retry z exponential backoff, timeout per model, opcjonalny fallback chain
-- **Multi-provider**: abstrakcja nad Anthropic, Google Gemini (OpenAI planowany)
+- **Multi-provider (runtime)**: adaptery SDK w `src/providers/` — Anthropic, Google Gemini; adapter OpenAI planowany (`docs/provider-openai-runtime.md`)
 - **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
 - **Production-ready**: Pino logging, Sentry observability, graceful shutdown, readiness probes
 - **CLI wizard**: `gateway config:init` — interaktywna konfiguracja, `provider:test`, model/client management

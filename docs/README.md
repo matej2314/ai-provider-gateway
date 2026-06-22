@@ -13,6 +13,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 ## Jak czytać tę dokumentację
 
 0. **Po sklonowaniu repozytorium:** uzupełnij `.env` i `gateway.config.yaml` albo uruchom `gateway config:init` — wizard generuje konfigurację z szablonów CLI (`konfiguracja.md` sekcja 0, `CLI.md`).
+0a. **Fasada (`src/integrations/`) ≠ adapter runtime (`src/providers/`):** szczególnie przy **OpenAI** — fasada `/api/v1/openai/*` to kształt HTTP dla IDE (Cursor); adapter `type: openai` to planowane wywołanie api.openai.com. Warstwy są **ortogonalne**. Skrót: [`dictionary.md`](dictionary.md) (sekcja „Fasada vs provider runtime”), fasada: `integracja-openai-kontrakt.md`, adapter: `provider-openai-runtime.md`.
 1. Zacznij od `dokumentacja_koncepcyjna.md` (WHAT/WHY).
 2. Następnie `architektura.md` (moduły i granice) oraz `architektura_api.md` (konwencje API).
 3. Dla szczegółów HTTP: **kontrakt** w `openapi.json` (katalog główny repo; generowany z kodu — `npm run openapi:export`), interaktywnie **Swagger UI** (`/api/v1/api-docs`), oraz opis ludzki: `lista_endpointów.md` i `dokumentacja_api.md`.
@@ -34,7 +35,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 15. **Odporność (retry, timeout, fallback)** — `ResilientExecutor` + `models[].fallback` w YAML; opcjonalne `effectiveModelAlias` w odpowiedzi; szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
 16. **Moduł czatu** — `ChatService` (cache, limity, odpowiedź gateway) + `ChatProviderCallService` (adaptery, metryki, SSE); helpery w `src/chat/helpers/` — `architektura-katalogi-pliki.md`, `data_flow.md`.
 17. **OpenAPI / Swagger** — `@nestjs/swagger` w kontrolerach i DTO (`src/swagger/`); jeden dokument obejmuje **natywny czat**, **health** oraz **fasady** OpenAI/Anthropic (osobne `securitySchemes`: `GatewayKeyAuth`, `BearerAuth`, `ApiKeyAuth`); dekoratory błędów: `ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport: `npm run openapi:export` → `openapi.json`; env `SWAGGER_ENABLED` — `konfiguracja.md`, `dokumentacja_api.md`.
-18. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`). **Fasada ≠ provider runtime:** `/api/v1/openai/*` i `/api/v1/anthropic/*` to kształty kontraktów HTTP (standardy dla Cursor / Claude Code), **nie** gwarancja backendu OpenAI.com ani Anthropic — routing LLM wyłącznie przez `modelAlias` w YAML. Szczegóły: **`dictionary.md`** (sekcja „Fasada vs provider runtime”), `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
+18. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`). **Fasada ≠ provider runtime:** `/api/v1/openai/*` i `/api/v1/anthropic/*` to kształty kontraktów HTTP (standardy dla Cursor / Claude Code), **nie** gwarancja backendu OpenAI.com ani Anthropic — routing LLM wyłącznie przez `modelAlias` w YAML. Szczegóły: **`dictionary.md`** (sekcja „Fasada vs provider runtime”), `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`, planowany adapter OpenAI: **`provider-openai-runtime.md`**.
 19. **CLI** — osobny entry point `bin/`, moduł `src/cli/` bez `ConfigModule`; wizard **`gateway config:init`**, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli i klientów, `provider:test`, `key:generate`. Backup mutacji YAML → katalog `backup/`. Uruchomienie: `npm run cli`, `npx gateway`, opcjonalnie `npm link` → `gateway`. Szczegóły: **`CLI.md`**, `architektura-katalogi-pliki.md` (sekcja 2a), `architektura.md`.
 20. **Testy** — jednostkowe (`src/**/*.spec.ts`, `npm test`) i E2E HTTP (`test/e2e/`, `npm run test:e2e`, `npm run test:all`); mocki providerów/Redis bez realnych kluczy API — **`testy.md`** (liczniki zestawów i przypadków — single source of truth).
 
@@ -52,8 +53,9 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 - `dictionary.md` — słownik pojęć, kody błędów, **macierz parametrów generacji ↔ provider** (Anthropic / Google / OpenAI planowany).
 - `anty-patterny.md` — na co uważać, czego nie robić.
 - `integracje.md` — architektura fasad OpenAI / Anthropic (IDE), auth, rate limit, stan wdrożenia.
-- `integracja-openai-kontrakt.md` — podłączenie Cursor (Base URL `/api/v1/openai`); models + chat/completions (JSON i stream).
-- `integracja-anthropic-messages.md` — podłączenie Claude Code (Base URL `/api/v1/anthropic`); models + messages (JSON i stream).
+- `integracja-openai-kontrakt.md` — **fasada** kontraktu OpenAI: podłączenie Cursor (Base URL `/api/v1/openai`); models + chat/completions (JSON i stream).
+- `provider-openai-runtime.md` — **adapter runtime** OpenAI (`type: openai`, `src/providers/`) — plan, mapowanie SDK, status wdrożenia.
+- `integracja-anthropic-messages.md` — **fasada** kontraktu Anthropic: podłączenie Claude Code (Base URL `/api/v1/anthropic`); models + messages (JSON i stream).
 - `architektura-katalogi-pliki.md` — drzewo katalogów repo, w tym **CLI** (`bin/`, `src/cli/`, sekcja 2a).
 - `CLI.md` — dokumentacja Gateway CLI (18 komend: `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate`; wizard, backup w `backup/`, uruchomienie).
 - `testy.md` — testy jednostkowe i E2E (`npm test`, `npm run test:e2e`, `npm run test:all`); struktura `test/e2e/`, mocki, scenariusze kontraktu HTTP.

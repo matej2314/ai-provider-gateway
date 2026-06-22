@@ -8,7 +8,7 @@ import {
   E2E_ROUTES,
 } from './helpers/e2e-constants';
 
-describe('Anthropic Integration Extended (E2E)', () => {
+describe('Anthropic Facade Extended (E2E)', () => {
   const anthropicModel = 'claude-3-opus-20240229';
 
   const weatherTool = {

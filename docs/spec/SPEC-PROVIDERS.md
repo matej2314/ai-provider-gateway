@@ -83,7 +83,7 @@ F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK (`ProviderCallOpti
 
 **Anthropic — jeden parametr losowości:** adapter wysyła do SDK wyłącznie jeden z `top_k`, `top_p`, `temperature` — priorytet: **`topK` > `topP` > `temperature`** (`resolveAnthropicSamplingParams` w `create-anthropic-provider.ts`). Operator konfiguruje `policy.params.defaults` zgodnie z zamierzonym trybem (np. tylko `temperature`).
 
-**OpenAI — adapter:** **nie wdrożony** (`create-openai-provider.ts` brak w repo). Fasada HTTP `/api/v1/openai` mapuje parametry vendora na `params.*`; wywołanie trafia do adaptera aliasu (Anthropic/Google). Docelowy adapter OpenAI — scenariusz A poniżej; penalties/seed/`response_format`/`top_k` będą mapowane po implementacji fabryki.
+**OpenAI — adapter:** **nie wdrożony** (`create-openai-provider.ts` brak w repo). Fasada HTTP `/api/v1/openai` mapuje parametry vendora na `params.*`; wywołanie trafia do adaptera aliasu (Anthropic/Google). Docelowy adapter OpenAI — scenariusz A poniżej oraz [`provider-openai-runtime.md`](../provider-openai-runtime.md); penalties/seed/`response_format`/`top_k` będą mapowane po implementacji fabryki.
 
 F-4. Adapter mapuje błędy SDK na błędy gateway:
 
@@ -165,6 +165,8 @@ SDK `@google/genai` zastąpiło wcześniejszy pakiet `@google/generative-ai`. Ad
 Dla rdzenia MVP wystarczy `chats.create` (obsługuje historię i system instruction). Dla pojedynczych zapytań bez historii idiomatyczne jest `ai.models.generateContent({ model, contents, config })`.
 
 ### OpenAI — `@openai/openai` (plan, post-MVP)
+
+Szczegóły warstwy runtime (rola, status, konfiguracja YAML): [`provider-openai-runtime.md`](../provider-openai-runtime.md).
 
 Fabryka **`create-openai-provider.ts`** **nie istnieje** w repozytorium. Fasada `src/integrations/openai/` mapuje już `temperature`, `top_p`, `stop`, `frequency_penalty`, `presence_penalty`, `seed` na `params.*`. Po wdrożeniu adaptera oczekiwane mapowanie (orientacyjnie):
 
