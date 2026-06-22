@@ -8,7 +8,8 @@ Zasady:
 - Elementy oznaczone *(plan)* nie istnieją w kodzie lub są poza rdzeniem MVP.
 - **Pominięte w drzewie:** `node_modules/`, `dist/`, `.git/`, lokalne `.env` (nie commitować).
 - Pliki **`*.spec.ts`** — testy jednostkowe obok modułów; wypisane zbiorczo tam, gdzie występują.
-- Pliki **`*.md`** w katalogu głównym poza `README.md` — notatki/plany robocze (poza kontraktem produktu).
+- Pliki **`*.md`** w katalogu głównym poza `README.md`, `SECURITY.md` i `LICENSE` — notatki/plany robocze (poza kontraktem produktu).
+- **Upstream bez zewnętrznych kontrybucji:** repozytorium jest MIT i można je klonować/forkować, ale **PR-y od osób trzecich do upstream nie są przyjmowane** — rozwój własnej kopii przez fork; szczegóły: [`../README.md`](../README.md), [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md).
 
 ---
 

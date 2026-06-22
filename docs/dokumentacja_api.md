@@ -372,6 +372,33 @@ models:
 
 ---
 
+## Wersjonowanie
+
+Gateway stosuje **trzy niezależne numeracje wersji** (nie mylić ze sobą):
+
+| Wersja | Lokalizacja | Pole w `openapi.json` | Znaczenie | Semver |
+|--------|-------------|----------------------|-----------|--------|
+| **App version** | `package.json` → `version` | — | Wersja aplikacji (release) | ✅ |
+| **OpenAPI version** | `src/swagger/swagger.constants.ts` → `OPENAPI_VERSION` | `info.version` | Semver kontraktu HTTP API | ✅ |
+| **OpenAPI spec version** | `src/swagger/swagger.constants.ts` → `OPENAPI_SPEC_VERSION` | `"openapi"` (root) | Wersja formatu dokumentu (3.0 / 3.1) | ❌ (stała specyfikacji) |
+
+### Zasady bump
+
+- **OPENAPI_VERSION:**
+  - **MAJOR** — breaking change w JSON (usunięte pola, zmiana typów wymaganych pól).
+  - **MINOR** — additive (nowe pola opcjonalne, nowe kody błędów).
+  - **PATCH** — fixy bez zmian kontraktu (typo w opisie OpenAPI).
+
+- **package.json version:**
+  - Wersja aplikacji; nie musi być zsynchronizowana 1:1 z OpenAPI.
+  - Bump przy każdym release (feat, fix, docs, refactor).
+
+**Przykład:** `OPENAPI_VERSION = 0.12.1`, `package.json version = 1.0.5` — OK (app ma więcej wydań niż breaking changes API).
+
+**Eksport OpenAPI:** `npm run openapi:export` — generuje `openapi.json`; `info.version` z `OPENAPI_VERSION`, klucz `"openapi"` z `OPENAPI_SPEC_VERSION` (`export-openapi.ts`).
+
+---
+
 ## Kody i słownik
 
 Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zachowuje **`code`** z obiektowego payloadu wyjątku (m.in. `GATEWAY_KEY_*`, `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`), w przeciwnym razie stosuje mapowanie ze statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE`).

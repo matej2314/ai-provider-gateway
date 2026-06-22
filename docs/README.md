@@ -2,6 +2,14 @@
 
 Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): koncepcję, architekturę, kontrakty API oraz specyfikacje w duchu **Spec‑Driven Development**.
 
+## Dystrybucja i kontrybucje (upstream)
+
+Projekt jest na licencji **MIT**: możesz **klonować**, **forkować**, modyfikować i wdrażać gateway we **własnej infrastrukturze**.
+
+**To repozytorium upstream nie przyjmuje zewnętrznych kontrybucji** — pull requesty od osób trzecich **nie będą mergowane**. Kod w oryginalnym remote utrzymuje wyłącznie autor. Chcesz własne zmiany? **Sforkuj repo na swój GitHub** i rozwijaj kopię u siebie. Klonowanie w celach rekrutacyjnych (portfolio, code review) jest mile widziane.
+
+Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md) (sekcja „Model repozytorium”). Skrót w katalogu głównym: [`../README.md`](../README.md) (sekcja „Dystrybucja”).
+
 ## Jak czytać tę dokumentację
 
 0. **Po sklonowaniu repozytorium:** uzupełnij `.env` i `gateway.config.yaml` albo uruchom `gateway config:init` — wizard generuje konfigurację z szablonów CLI (`konfiguracja.md` sekcja 0, `CLI.md`).

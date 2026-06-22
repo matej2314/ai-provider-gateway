@@ -19,6 +19,17 @@ Projekt powstaje jako ćwiczenie NestJS, architektury i wzorców projektowych, a
 | **Użytkownik (developer / zespół)** | Szybko uruchomić gateway lokalnie lub w swojej infrastrukturze; używać własnych kluczy do **Anthropic i Google** (providery runtime); korzystać z fasady **OpenAI** dla IDE (Cursor) bez osobnego providera OpenAI; mieć przewidywalne API. |
 | **Integrator / platform team** | Ustandaryzować integrację z LLM w organizacji, spiąć limity, logi, requestId, polityki retry i timeouts. |
 | **Operacje / DevOps** | Statyczne, proste wdrożenie; konfiguracja przez env + pliki; healthchecki; logi na stdout. |
+| **Rekruter / reviewer** | Klonowanie repozytorium i przegląd kodu (portfolio) — bez konieczności forkowania ani wysyłania PR. |
+
+## Model repozytorium (open source, bez kontrybucji upstream)
+
+Repozytorium jest **publiczne** i na licencji **MIT**, ale **nie jest projektem community-driven**:
+
+- **Dozwolone:** `git clone`, fork na własny GitHub, modyfikacje i deploy na własnej infrastrukturze, użycie kodu zgodnie z MIT.
+- **Niedozwolone / nieakceptowane:** pull requesty i inne próby mergowania zmian do **upstream** (oryginalnego repozytorium autora) przez osoby trzecich.
+- **Własny rozwój:** sforkuj repozytorium i utrzymuj zmiany wyłącznie we **swojej kopii** — upstream pozostaje pod kontrolą maintainera.
+
+Ten model nie ogranicza użytkowania produktu — ogranicza wyłącznie współtworzenie kodu w oryginalnym remote. Skrót: [`../README.md`](../README.md) (sekcja „Dystrybucja”), [`README.md`](README.md) (sekcja „Dystrybucja i kontrybucje”).
 
 ## Zakres produktu (MVP i v1)
 

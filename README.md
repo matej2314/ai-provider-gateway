@@ -30,6 +30,20 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 | Gateway CLI                 | [`docs/CLI.md`](docs/CLI.md)                                                                |
 | Testy (jednostkowe + E2E)   | [`docs/testy.md`](docs/testy.md)                                                             |
 
+## Dystrybucja
+
+Projekt jest open-source pod licencją **MIT** — możesz **klonować**, **forkować**, modyfikować i deployować własne instancje (np. na VPS, Kubernetes, Docker Compose).
+
+**Brak zewnętrznych kontrybucji do upstream:** to repozytorium **nie przyjmuje pull requestów** od osób trzecich. Zmiany w gałęzi `main` autora wprowadza wyłącznie maintainer. Jeśli chcesz rozwijać gateway — **sforkuj repozytorium na swój GitHub** i pracuj na własnej kopii. Klonowanie w celach rekrutacyjnych (przegląd kodu, portfolio) jest w pełni OK.
+
+**Uwaga:** `"private": true` w `package.json` oznacza, że **nie publikujemy** tego pakietu na npm. Jeśli chcesz użyć gateway:
+
+1. Fork repozytorium.
+2. Clone lokalnie i skonfiguruj (patrz „Szybki start”).
+3. Deploy na własnej infrastrukturze (VPS, Kubernetes, Docker Compose).
+
+Alternatywnie: jeśli potrzebujesz pakietu npm, otwórz issue z use case.
+
 ## Integracje API
 
 Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
