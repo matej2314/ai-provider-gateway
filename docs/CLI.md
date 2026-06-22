@@ -141,14 +141,37 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
    - **1/5** Master key (`KeyPromptService` + `KeyGeneratorService` — format `gw_mk_<base64url>`)
    - **2/5** Providery i klucze API (`ProviderPromptService`)
    - **3/5** Modele / aliasy (`ModelPromptService`, domyślne `modelId` z `constants/default-models.ts`: Anthropic `claude-sonnet-4-5-20250929`, Google `gemini-2.5-flash`)
-   - **4/5** Klienci gateway (`ClientPromptService` — typ: `webapp` | `ide` | `cli` | `service` | `backend` | `automation`; klucze `gw_<slug>_<base64url>`; env ref `GATEWAY_KEY_<ID>`; opcjonalny `rateLimit` per klient)
-   - **5/5** Ustawienia serwera (`ServerPromptService` — port, `NODE_ENV`, Swagger, cache/Redis, smart rate limit, Sentry). Wizard może zapisać `CACHE_BACKEND=memory` — runtime rejestruje tylko `noop` i `redis`; wartość `memory` traktowana jak **`noop`** (`CacheRegistryService`).
+   - **4/5** Klienci gateway (`ClientPromptService` — typ: `webapp` | `ide` | `cli` | `service` | `backend` | `automation`; klucze `gw_<slug>_<base64url>`; env ref `GATEWAY_KEY_<ID>`; opcjonalny `rateLimit` per klient **w YAML** — limity per klucz klienta; wymaga w runtime `RATE_LIMIT_SMART_ENABLED=true`, patrz krok 5/5)
+   - **5/5** Ustawienia serwera (`ServerPromptService`) — kolejno:
+     - **Podstawowe:** port, `NODE_ENV`, Swagger (`SWAGGER_ENABLED`).
+     - **Response cache:** `CACHE_ENABLED`, `CACHE_BACKEND` (`redis` | `memory` | `noop`). Wizard może zapisać `CACHE_BACKEND=memory` — runtime rejestruje tylko `noop` i `redis`; wartość `memory` traktowana jak **`noop`** (`CacheRegistryService`).
+     - **Smart rate limit:** `RATE_LIMIT_SMART_ENABLED` (niezależnie od backendu cache).
+     - **Redis (wspólna infrastruktura):** host, port, hasło — **tylko gdy** `isRedisRequired()` z `src/cache/should-include-redis-stack.ts` zwraca `true`, tj. gdy `CACHE_ENABLED=true` **oraz** `CACHE_BACKEND=redis`, **lub** gdy `RATE_LIMIT_SMART_ENABLED=true`. Ta sama reguła co przy starcie HTTP (`isRedisRequiredFromEnv()` w `AppModule`).
+     - **Monitoring:** Sentry (`METRICS_BACKEND`, `SENTRY_*`) lub `noop`.
 
 3. **Zapis plików** — `ConfigGeneratorService.generateFullConfig()`:
    - `gateway.config.yaml` (wszystkie providery `enabled: true`, `masterKeyRef: MASTER_KEY`)
-   - `.env` i `.env.example` (szablon z `templates/env.template.ts` — wartości sekretów puste w `.env.example`)
+   - `.env` i `.env.example` (szablon z `templates/env.template.ts` — wartości sekretów puste w `.env.example`; dane Redis w `.env.example` czyszczone gdy `isEnvInputRedisRequired()`)
    - `src/config/system-prompt/MASTER_SYSTEM_PROMPT.md` (jeśli nie istnieje)
    - `src/config/system-prompt/models/<alias>.md` per model (jeśli nie istnieją)
+
+   **Generowanie `.env` (`generateEnvTemplate`):**
+
+   | Zmienna / grupa | Zachowanie wizarda |
+   |-----------------|-------------------|
+   | `CACHE_*` | Z odpowiedzi kroku cache (`CACHE_ENABLED`, `CACHE_BACKEND`, stałe `CACHE_TTL`, `CACHE_KEY_PREFIX`). |
+   | `REDIS_*` | Ustawiane tylko gdy Redis wymagany (`isEnvInputRedisRequired` → `isRedisRequired`); w przeciwnym razie puste stringi. Zawsze: `REDIS_DB`, `REDIS_KEY_PREFIX`. |
+   | `RATE_LIMIT_SMART_ENABLED` | Zawsze z wyboru użytkownika w kroku rate limit (nie wiązane z `CACHE_BACKEND`). |
+   | `RATE_LIMIT_*` (RPS, burst, streamy, cooldown) | Stałe domyślne w szablonie. |
+   | Sekrety providerów / klientów | Pełne wartości w `.env`; puste w `.env.example`. |
+
+   Przykładowe kombinacje (zgodne z runtime):
+
+   | Cache | Smart rate limit | `.env`: `REDIS_*` | `.env`: `RATE_LIMIT_SMART_ENABLED` |
+   |-------|------------------|-------------------|-------------------------------------|
+   | `redis` | wł. / wył. | tak | wg wyboru |
+   | `memory` / wył. | wł. | tak | `true` |
+   | wył. / `memory` | wył. | nie (puste) | `false` |
 
 4. **Walidacja końcowa** — `validateGatewayConfig()` z `src/config/config-validator.ts`:
    - Przed każdą iteracją doładowanie `.env` (gdy dostępny `dotenv`)
@@ -397,7 +420,7 @@ Komendy add/edit/remove (poza samym wizardem) stosują wspólny wzorzec:
 5. Zapis YAML — `ConfigPersistenceService.persistConfig()`
 6. Sekrety — `EnvPatchService` (`setVar` / `removeVar` w `.env`)
 
-Kierunek zależności: **config → cli** (typy, schematy, `validateGatewayConfig()`); CLI **nie** importuje `ConfigModule` ani `buildEffectiveGatewayConfig()`.
+Kierunek zależności: **config → cli**, **cache/should-include-redis-stack → cli** (predykat Redis); CLI **nie** importuje `ConfigModule` ani `buildEffectiveGatewayConfig()`.
 
 ## Warstwa CLI — skrót
 
@@ -416,8 +439,11 @@ Kierunek zależności: **config → cli** (typy, schematy, `validateGatewayConfi
 | `ClientManagerService` | add / remove / edit klientów |
 | `ProviderTestService` | Lekkie testy SDK Anthropic / Google |
 | `KeyGeneratorService` | Klucze master `gw_mk_*`, klient `gw_<slug>_*` |
+| `ServerPromptService` | Prompty kroku 5/5 wizarda (cache, rate limit, Redis, Sentry) |
+| `templates/env.template.ts` | `generateEnvTemplate()`, `isEnvInputRedisRequired()` — mapowanie odpowiedzi wizarda na `.env` |
+| `src/cache/should-include-redis-stack.ts` | Współdzielona z runtime logika `isRedisRequired()` (CLI importuje **bez** `ConfigModule`) |
 
-Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Patrz `anty-patterny.md` (§14).
+Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import z `src/cache/should-include-redis-stack.ts`: predykat wymagania Redis (cache redis i/lub smart rate limit). Patrz `anty-patterny.md` (§14).
 
 ## Wskazówki
 
@@ -429,7 +455,7 @@ Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `PROVIDE
 
 ## Powiązane dokumenty
 
-- `konfiguracja.md` — runtime vs CLI loader, `npm run config:validate`, placeholder config, multi-instance
+- `konfiguracja.md` — runtime vs CLI loader, Redis współdzielony (cache + rate limit), `npm run config:validate`, placeholder config, multi-instance
 - `architektura.md` — diagram izolacji CLI / HTTP
 - `architektura-katalogi-pliki.md` — drzewo `src/cli/`
 - `dictionary.md` — terminy *Gateway CLI*, *CliConfigLoader*, *placeholder config*, *providerInstance*

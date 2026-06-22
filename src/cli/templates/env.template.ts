@@ -1,3 +1,5 @@
+import { isRedisRequired } from '../../cache/should-include-redis-stack';
+
 export interface ProviderCli {
   apiKeyRef: string;
   apiKey: string;
@@ -29,6 +31,19 @@ export interface EnvTemplateInput {
   sentryDsn?: string;
 }
 
+export function isEnvInputRedisRequired(input: EnvTemplateInput): boolean {
+  const cacheEnabled = input.cacheEnabled === true;
+  const cacheBackend = input.cacheBackend ?? 'noop';
+
+  return isRedisRequired({
+    cache: {
+      enabled: cacheEnabled,
+      backend: cacheEnabled ? cacheBackend : 'noop',
+    },
+    rateLimitSmartEnabled: input.rateLimitSmartEnabled === true,
+  });
+}
+
 export function generateEnvTemplate(
   input: EnvTemplateInput,
 ): Record<string, string> {
@@ -55,7 +70,9 @@ export function generateEnvTemplate(
   env.CACHE_TTL = '3600';
   env.CACHE_KEY_PREFIX = 'aigw:';
 
-  if (input.cacheBackend === 'redis') {
+  const redisRequired = isEnvInputRedisRequired(input);
+
+  if (redisRequired) {
     env.REDIS_HOST = input.redisHost ?? 'localhost';
     env.REDIS_PORT = String(input.redisPort ?? 6379);
     env.REDIS_PASSWORD = input.redisPassword ?? '';
@@ -67,11 +84,7 @@ export function generateEnvTemplate(
   env.REDIS_DB = '0';
   env.REDIS_KEY_PREFIX = 'aigw:';
 
-  if (input.cacheBackend === 'redis') {
-    env.RATE_LIMIT_SMART_ENABLED = String(input.rateLimitSmartEnabled ?? true);
-  } else {
-    env.RATE_LIMIT_SMART_ENABLED = 'false';
-  }
+  env.RATE_LIMIT_SMART_ENABLED = String(input.rateLimitSmartEnabled ?? false);
 
   env.RATE_LIMIT_RPS_PER_KEY = '10';
   env.RATE_LIMIT_BURST_PER_KEY = '20';

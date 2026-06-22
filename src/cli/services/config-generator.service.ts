@@ -9,6 +9,7 @@ import {
 import {
   generateEnvTemplate,
   EnvTemplateInput,
+  isEnvInputRedisRequired,
 } from '../templates/env.template';
 import { MASTER_PROMPT_TEMPLATE } from '../templates/master-prompt.template';
 import { generateModelPromptTemplate } from '../templates/model-prompt.template';
@@ -103,9 +104,10 @@ export class ConfigGeneratorService {
       gatewayKey: '',
     }));
 
-    if (exampleEnv.cacheBackend === 'redis') {
+    if (isEnvInputRedisRequired(exampleEnv)) {
       exampleEnv.redisHost = '';
       exampleEnv.redisPort = undefined;
+      exampleEnv.redisPassword = '';
     }
 
     if (exampleEnv.metricsBackend === 'sentry') {

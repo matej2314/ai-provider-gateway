@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as inquirer from 'inquirer';
 import chalk from 'chalk';
+import { isRedisRequired } from '../../../cache/should-include-redis-stack';
 import { CliLogger } from '../../utils/cli-logger.util';
 
 export interface ServerConfigPromptResult {
@@ -57,9 +58,14 @@ export class ServerPromptService {
         default: true,
       },
     ]);
+
     CliLogger.blank();
-    console.log(chalk.cyan('Cache & Redis configuration'));
-    console.log(chalk.dim('Redis is required for advanced rate limiting. \n'));
+    console.log(chalk.cyan('Response cache'));
+    console.log(
+      chalk.dim(
+        'Optional cache for POST /api/v1/chat. Redis backend shares infrastructure with smart rate limiting.\n',
+      ),
+    );
 
     const cacheAnswers = await inquirer.prompt([
       {
@@ -86,13 +92,52 @@ export class ServerPromptService {
       cacheAnswers.cacheBackend = 'noop';
     }
 
-    let redisAnswers: any = {};
+    CliLogger.blank();
+    console.log(chalk.cyan('Rate limiting'));
+    console.log(
+      chalk.dim(
+        'Smart rate limiting tracks usage per client key and requires shared Redis when enabled.\n',
+      ),
+    );
 
-    if (cacheAnswers.cacheBackend === 'redis') {
+    const rateLimitAnswers = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'rateLimitSmartEnabled',
+        message: 'Enable smart rate limiting (per X-Gateway-Key)?',
+        default: true,
+      },
+    ]);
+
+    const redisRequired = isRedisRequired({
+      cache: {
+        enabled: cacheAnswers.cacheEnabled === true,
+        backend: cacheAnswers.cacheEnabled
+          ? (cacheAnswers.cacheBackend ?? 'noop')
+          : 'noop',
+      },
+      rateLimitSmartEnabled: rateLimitAnswers.rateLimitSmartEnabled === true,
+    });
+
+    let redisAnswers: Pick<
+      ServerConfigPromptResult,
+      'redisHost' | 'redisPort' | 'redisPassword'
+    > = {};
+
+    if (redisRequired) {
+      CliLogger.blank();
+      console.log(chalk.cyan('Redis (shared infrastructure)'));
+      console.log(
+        chalk.dim(
+          'Connection settings for cache (redis backend) and/or smart rate limiting.\n',
+        ),
+      );
+
       redisAnswers = await inquirer.prompt([
         {
           type: 'input',
           name: 'redisHost',
+          message: 'Redis host:',
           default: 'localhost',
           validate: (input) => {
             if (!input || !input.trim()) {
@@ -121,25 +166,7 @@ export class ServerPromptService {
           mask: '*',
         },
       ]);
-
-      CliLogger.blank();
-      console.log(chalk.cyan('Rate limiting configuration'));
-      console.log(
-        chalk.dim(
-          'Smart rate limiting tracks usage per client key using Redis. \n',
-        ),
-      );
     }
-
-    const rateLimitAnswers = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'rateLimitSmartEnabled',
-        message: 'Enable smart rate limiting (per X-Gateway-Key)?',
-        default: true,
-      },
-    ]);
-    redisAnswers.rateLimitSmartEnabled = rateLimitAnswers.rateLimitSmartEnabled;
 
     CliLogger.blank();
     console.log(chalk.cyan('Monitoring & Error tracking.'));
@@ -162,7 +189,7 @@ export class ServerPromptService {
       },
     ]);
 
-    let sentryAnswers: any = {};
+    let sentryAnswers: Pick<ServerConfigPromptResult, 'sentryDsn'> = {};
     if (metricsAnswers.metricsBackend === 'sentry') {
       sentryAnswers = await inquirer.prompt([
         {
@@ -189,6 +216,7 @@ export class ServerPromptService {
       ...basicAnswers,
       ...cacheAnswers,
       ...redisAnswers,
+      rateLimitSmartEnabled: rateLimitAnswers.rateLimitSmartEnabled,
       ...metricsAnswers,
       ...sentryAnswers,
     };
