@@ -337,10 +337,12 @@ ai-provider-gateway/
 │   │   └── dto/
 │   │       ├── health-liveness-response.dto.ts
 │   │       ├── health-readiness-response.dto.ts
-│   │       └── health-check-item.dto.ts
+│   │       ├── health-check-item.dto.ts
+│   │       └── health-redis-check-item.dto.ts
 │   │
 │   ├── cache/
-│   │   ├── cache.module.ts                 # CacheModule.register({ includeRedisStack })
+│   │   ├── cache.module.ts                 # CacheModule.register({ includeRedisStack: isRedisRequiredFromEnv() })
+│   │   ├── should-include-redis-stack.ts   # isRedisRequired — cache redis i/lub smart rate limit
 │   │   ├── cache.tokens.ts
 │   │   ├── cache-registry.service.ts
 │   │   ├── response-cache.service.ts
@@ -439,10 +441,10 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
 | **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), typy Express, walidatory (`validators/` — np. `stop` jako string \| string[]). |
-| **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). |
-| **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez `RateLimitModule` → `RedisCacheModule`. |
+| **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). **`RedisConnectionService`** — współdzielona infrastruktura Redis (cache + rate limit); predykat `isRedisRequired()` w `should-include-redis-stack.ts`. |
+| **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez wspólny `RedisConnectionService` (ładowany gdy `isRedisRequiredFromEnv()`). |
 | **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |
-| **`src/health/`** | Liveness i readiness; DTO z dekoratorami `@Api*` dla OpenAPI. |
+| **`src/health/`** | Liveness i readiness (`checks.config`, `checks.redis`, `checks.cache`); DTO z dekoratorami `@Api*` dla OpenAPI. |
 | **`src/swagger/`** | Generowanie jednego dokumentu OpenAPI 3.1 z kodu (`@nestjs/swagger`) — czat natywny, health, fasady OpenAI/Anthropic; `extraModels` + trzy `securitySchemes` w `swagger.setup.ts`. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport → `openapi.json`. |
 | **`bin/`** | Entry point CLI: wrapper JS (`gateway-cli-wrapper.js`) uruchamia skompilowany `dist/bin/gateway-cli.js` lub — gdy brak build — TypeScript przez `ts-node` (`gateway-cli.ts` → `CliModule`). Dostęp: `npm run cli`, `npx gateway`, bin **`gateway`** z `package.json` (po `npm link` lub instalacji globalnej). |
 | **`src/cli/`** | Warstwa CLI: **nie importuje** `ConfigModule`. NestJS tylko dla DI. Wizard (`config:init`), walidacja/wyświetlanie configu, CRUD providerów (multi-instance), modeli, klientów, testy SDK, generowanie kluczy. Szczegóły: `CLI.md`, `architektura.md`. |
@@ -494,7 +496,7 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - Error envelope (`GlobalExceptionFilter`), kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
-- System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.cache`), graceful shutdown.
+- System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.redis`, `checks.cache`), graceful shutdown.
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad IDE; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
 - **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — plan OpenAI: `provider-openai-runtime.md`.
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.

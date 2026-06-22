@@ -12,13 +12,18 @@ describe('HealthController', () => {
         status: 'healthy',
         timestamp: new Date().toISOString(),
       }),
-      getReadiness: jest.fn().mockReturnValue({
+      getReadiness: jest.fn().mockResolvedValue({
         status: 'ready',
         timestamp: new Date().toISOString(),
         version: '1.0.0',
         uptime: 100,
         checks: {
           config: { status: 'healthy', message: 'Config loaded' },
+          redis: {
+            status: 'healthy',
+            message: 'Redis not required.',
+            required: false,
+          },
           cache: { status: 'healthy', message: 'Cache noop' },
         },
       }),
@@ -52,23 +57,24 @@ describe('HealthController', () => {
   });
 
   describe('getReadiness', () => {
-    it('should return readiness status', () => {
-      const result = controller.getReadiness();
+    it('should return readiness status', async () => {
+      const result = await controller.getReadiness();
 
       expect(result.status).toBe('ready');
       expect(result.checks).toBeDefined();
     });
 
-    it('should call healthService.getReadiness', () => {
-      controller.getReadiness();
+    it('should call healthService.getReadiness', async () => {
+      await controller.getReadiness();
 
       expect(mockHealthService.getReadiness).toHaveBeenCalled();
     });
 
-    it('should include checks in response', () => {
-      const result = controller.getReadiness();
+    it('should include checks in response', async () => {
+      const result = await controller.getReadiness();
 
       expect(result.checks.config).toBeDefined();
+      expect(result.checks.redis).toBeDefined();
       expect(result.checks.cache).toBeDefined();
     });
   });

@@ -1,6 +1,6 @@
 # Testy — AI Provider Gateway
 
-Wersja dokumentu: **1.3** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
+Wersja dokumentu: **1.4** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
 
 ## Przegląd
 
@@ -22,7 +22,7 @@ Testy **nie wymagają** uruchomionego serwera HTTP, Redis ani kluczy API provide
 
 Konfiguracja: sekcja `"jest"` w `package.json` (`testRegex: .*\.spec\.ts$`, `rootDir: src`).
 
-**Stan repozytorium:** **60** zestawów testów, **1036** przypadków (`npm test`).
+**Stan repozytorium:** **61** zestawów testów, **1046** przypadków (`npm test`).
 
 ### Obszary pokrycia
 
@@ -30,13 +30,13 @@ Konfiguracja: sekcja `"jest"` w `package.json` (`testRegex: .*\.spec\.ts$`, `roo
 |----------------|-------------------|
 | **Czat** | `chat.service.spec.ts`, `chat.controller.spec.ts`, `chat-stream.controller.spec.ts`, `services/chat-cache-guard.service.spec.ts`, `chat-validation.service.spec.ts`, `chat-error-handler.service.spec.ts`, `chat-provider-call.service.spec.ts`, `chat-response-builder.service.spec.ts`, `validation/chat-ingress.validator.spec.ts`, `helpers/*.spec.ts` (m.in. `generation-warnings.spec.ts`, `cache-policy`, `tooling-request`, `retry-policy`), `sse/sse.serializer.spec.ts` |
 | **Providery** | `provider-registry.service.spec.ts`, `factories/create-*-provider.spec.ts`, `anthropic/anthropic-*.mapper.spec.ts`, `google/google-tools.mapper.spec.ts` |
-| **Cache** | `cache-registry.service.spec.ts`, `response-cache.service.spec.ts`, adaptery `noop` / `redis` |
+| **Cache** | `cache-registry.service.spec.ts`, `response-cache.service.spec.ts`, `should-include-redis-stack.spec.ts`, adaptery `noop` / `redis` |
 | **Rate limit** | `smart-rate-limiter.service.spec.ts` |
 | **Guardy** | `gateway-key.guard.spec.ts`, `openai-bearer-auth.guard.spec.ts`, `anthropic-api-key.guard.spec.ts` |
 | **Fasady** (`src/integrations/`) | kontrolery fasad (`openai-chat-completions.controller.spec.ts`, `anthropic-messages.controller.spec.ts`, …), filtry błędów (`openai-exception.filter.spec.ts`, `anthropic-exception.filter.spec.ts`), katalogi modeli (`*-models-catalog.service.spec.ts`), mapery (`openai-*.mapper.spec.ts`, `anthropic-*.mapper.spec.ts`), helpery (`normalize-openai-content.spec.ts`) |
 | **Odporność** | `resilient-executor.spec.ts`, `fallback-chain.spec.ts`, `is-retryable-http-error.spec.ts` |
 | **Błędy** | `provider-error.mapper.spec.ts`, `provider-error-mapper.helpers.spec.ts` |
-| **Health / logging / metrics** | `health.*.spec.ts`, `logging.service.spec.ts`, `metrics.service.spec.ts` |
+| **Health / logging / metrics** | `health.*.spec.ts` (w tym `checkRedis`, mock `RedisConnectionService.ping`), `logging.service.spec.ts`, `metrics.service.spec.ts` |
 | **Wspólne** | `readGatewayKeyHeader.spec.ts` |
 
 Współdzielone stałe i fabryki mocków: `src/common/mocks/` (`test-constants.ts`, `createMockConfigService`, `createMockSmartRateLimiter`, `createMockResolvedProviderConfig`, `createMockResponseCacheService`, `http-mocks.ts`, itd.).
@@ -153,7 +153,7 @@ Runtime: NestJS domyślnie **201** dla udanego `POST` bez `@HttpCode` (natywny c
 - Rzeczywiste wywołania API Anthropic / Google (SDK mockowane przez `ProviderRegistryService`).
 - **Realny** Redis (connection mock — fail-open / brak persystencji; cache E2E używa mock backendu, nie `RedisCacheModule` produkcyjnego).
 - Pełny łańcuch `configuration.ts` z plikiem YAML na dysku (mock w setup).
-- Health endpoints (`GET /health`, `/health/ready`) — pokrycie jednostkowe w `src/health/`.
+- Health endpoints (`GET /health`, `/health/ready`) — pokrycie jednostkowe w `src/health/` (w tym `checks.redis` / `checkRedis`).
 - CLI (`gateway *`) — brak dedykowanych testów E2E CLI (planowane opcjonalnie).
 - Natywny czat: extended thinking mode w E2E (pokrycie jednostkowe w `anthropic-thinking.mapper.spec.ts`; fasada Anthropic — `anthropic-facade-extended.e2e-spec.ts`).
 - Pole `warnings` w fasadach OpenAI / Anthropic (tylko natywny `POST /api/v1/chat` i stream gateway).

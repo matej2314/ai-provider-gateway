@@ -152,7 +152,7 @@ curl -i http://localhost:3000/api/v1/health
 curl -i http://localhost:3000/api/v1/health/ready
 ```
 
-Readiness: HTTP zawsze **200** — sprawdzaj `body.status` (`ready` / `not_ready`). Pola w `checks`: **`config`**, **`cache`** (nie `redis`).
+Readiness: HTTP zawsze **200** — sprawdzaj `body.status` (`ready` / `not_ready`). Pola w `checks`: **`config`**, **`redis`** (współdzielona infrastruktura; probe tylko gdy `required: true`), **`cache`** (stan feature cache).
 
 ### Chat (wymaga `X-Gateway-Key`)
 
@@ -189,12 +189,12 @@ Odpowiedź zawiera opcjonalne pole **`thinkingContent`** z rozumowaniem modelu. 
 ## Auth i limity
 
 - **Auth:** nagłówek **`X-Gateway-Key`** — allowlista z `gateway.config.yaml` + env ([`docs/konfiguracja.md`](docs/konfiguracja.md)).
-- **Smart rate limit** (opcjonalnie): `RATE_LIMIT_SMART_ENABLED=true` + Redis — [`src/rate-limit/`](src/rate-limit/). Kody **429**: **`RATE_LIMITED`** (gateway) vs **`PROVIDER_RATE_LIMITED`** (upstream) — [`docs/dictionary.md`](docs/dictionary.md).
+- **Smart rate limit** (opcjonalnie): `RATE_LIMIT_SMART_ENABLED=true` + Redis (wspólny `RedisConnectionService` — ładowany także bez cache odpowiedzi) — [`src/rate-limit/`](src/rate-limit/). Kody **429**: **`RATE_LIMITED`** (gateway) vs **`PROVIDER_RATE_LIMITED`** (upstream) — [`docs/dictionary.md`](docs/dictionary.md).
 - **Cooldown** po 429 od providera — tylko `POST /api/v1/chat`, nie streaming.
 
 ## Cache odpowiedzi
 
-Opcjonalny cache tylko dla **`POST /api/v1/chat`** (`CACHE_ENABLED`, `CACHE_BACKEND=redis`) — [`src/cache/`](src/cache/). Pomijany dla żądań z toolingiem. Odpowiedź może zawierać `cached: true`, `cachedAt`.
+Opcjonalny cache tylko dla **`POST /api/v1/chat`** (`CACHE_ENABLED`, `CACHE_BACKEND=redis`) — [`src/cache/`](src/cache/). Redis łączy się także przy samym smart rate limit (`should-include-redis-stack.ts`). Pomijany dla żądań z toolingiem. Odpowiedź może zawierać `cached: true`, `cachedAt`.
 
 ## System prompt i tool calling
 

@@ -176,13 +176,14 @@ Liveness — `HealthService.getLiveness()`: `{ status: "healthy", timestamp }`. 
 
 ## `GET /api/v1/health/ready`
 
-Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `cache`).
+Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `redis`, `cache`).
 
 | Aspekt | Zachowanie w kodzie |
 |--------|---------------------|
 | **HTTP** | Zawsze **200** — gotowość oceniasz po polu **`status`** w body (`ready` / `not_ready`), nie po kodzie HTTP. |
 | **`checks.config`** | **`healthy`** gdy załadowane są **`gateway`** i **`resolvedSystemPrompts`** (typowy start po poprawnym YAML). **`unhealthy`** gdy brakuje któregoś z tych obiektów w config — wtedy body często ma `status: not_ready`. Implementacja: `HealthService.checkConfig`. |
-| **`checks.cache`** | Gdy cache wyłączony (`noop`) → **`healthy`** („Cache disabled”). Gdy backend `redis` włączony, ale adapter niedostępny → **`degraded`** — **nie** blokuje `ready` (traktowane jak OK w `allHealthy`). **Nie** jest to osobny probe smart rate limit; limitery mogą używać tego samego `RedisConnectionService` (`RateLimitModule` importuje `RedisCacheModule`). |
+| **`checks.redis`** | **`required: false`** → **`healthy`**, „Redis not required”, bez probe. **`required: true`** → `RedisConnectionService.ping()`; **`healthy`** gdy PONG OK, **`degraded`** gdy połączenie/ping niedostępne — **nie** blokuje `ready`. Pole **`consumers`**: `cache`, `rate-limit` (kto wymaga Redis w tym deploymencie). Implementacja: `isRedisRequiredFromConfig()` + `checkRedis`. |
+| **`checks.cache`** | Stan **feature** cache: wyłączony → **`healthy`** („Cache disabled (noop)”). Backend **`redis`** → status zależy od **`checks.redis`** (bez osobnego probe przez `CacheRegistryService`). Inne backendy → probe przez registry jak dotychczas. **`degraded`** nie blokuje `ready`. |
 
 Orchestrator powinien traktować instancję jako gotową tylko przy `status === "ready"` w JSON.
 
@@ -417,7 +418,7 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 7. **`usage`** może być niekompletne między providerami.
 8. **`conversationId`**: w odpowiedzi zawsze (echo lub `conv_*`). W **request** — tylko wtedy Sentry grupuje turę jako konwersację; typowy start: tura 1 bez ID, tura 2+ z ID z odpowiedzi + pełne `messages[]` (`conversation-tracking.md`).
 9. **Streaming:** nieprawidłowe `params` (poza `allowOverrides`) mogą zwrócić `MODEL_NOT_ALLOWED` **po** rozpoczęciu SSE — w czacie standardowym ten sam błąd jest **przed** wywołaniem providera.
-10. **Readiness:** `GET /health/ready` zawsze **200** — sprawdzaj `body.status === "ready"`; pole w `checks` to **`cache`** (nie `redis`).
+10. **Readiness:** `GET /health/ready` zawsze **200** — sprawdzaj `body.status === "ready"`. Pola w `checks`: **`config`**, **`redis`** (infrastruktura współdzielona; probe tylko gdy `required: true`), **`cache`** (stan feature cache).
 11. **Korelacja:** nagłówek odpowiedzi **`x-request-id`** = to samo ID co pole `requestId` w JSON (przy standardowym flow bez nadpisywania `requestId` w payloadzie wyjątku).
 
 Powiązane: `lista_endpointów.md`, `architektura_api.md`, `integracje.md`, `konfiguracja.md`, `conversation-tracking.md`, `dokumentacja_koncepcyjna.md`.

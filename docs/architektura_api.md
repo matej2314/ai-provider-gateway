@@ -14,7 +14,7 @@ Szczegóły fasad (mapowanie `model` → `modelAlias`, błędy vendora, stan wdr
 
 ### OpenAPI / Swagger (wszystkie powierzchnie)
 
-Jeden plik **`openapi.json`** (v0.12.0, OpenAPI 3.1) generowany z kodu (`npm run openapi:export`). Zawiera trasy health, czatu natywnego oraz fasad OpenAI i Anthropic. Schematy bezpieczeństwa:
+Jeden plik **`openapi.json`** (v0.13.0, OpenAPI 3.1) generowany z kodu (`npm run openapi:export`). Zawiera trasy health, czatu natywnego oraz fasad OpenAI i Anthropic. Schematy bezpieczeństwa:
 
 | Scheme | Nagłówek | Trasy |
 |--------|----------|-------|
@@ -115,7 +115,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 **Fasady IDE** używają tej samej allowlisty kluczy klienta, ale innych nagłówków — Bearer (OpenAI) lub `x-api-key` / Bearer (Anthropic); guard fasady ustawia `req.gatewayKey`, potem `SmartRateLimitGuard` (`readClientGatewayKey`). Klucze providerów w `.env` (per `apiKeyRef` / `providerInstance`) pozostają wyłącznie w warstwie `src/providers/`.
 
-Opcjonalny smart rate limit per klucz klienta (`RATE_LIMIT_SMART_ENABLED`, Redis). Health: **`GET /api/v1/health`**, **`GET /api/v1/health/ready`** — publiczne (bez guardów czatu). Readiness: HTTP **200** zawsze; ocena po `body.status` (`ready` / `not_ready`) — `dokumentacja_api.md`.
+Opcjonalny smart rate limit per klucz klienta (`RATE_LIMIT_SMART_ENABLED`, Redis przez wspólny `RedisConnectionService` — ładowany gdy `isRedisRequiredFromEnv()`). Health: **`GET /api/v1/health`**, **`GET /api/v1/health/ready`** — publiczne (bez guardów czatu). Readiness: HTTP **200** zawsze; ocena po `body.status` (`ready` / `not_ready`); pola `checks.config`, `checks.redis`, `checks.cache` — `dokumentacja_api.md`.
 
 W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** nie zastępuje izolacji sieciowej ani obrony przed nadużyciami na dużą skalę.
 

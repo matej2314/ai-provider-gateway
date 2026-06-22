@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
 Wersja dokumentu: **1.5**.  
-**OpenAPI:** `openapi.json` (v0.12.0) — zsynchronizowany z `src/` (health, czat natywny, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`, dekoratory `@nestjs/swagger`). **Błędy:** natywny czat — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
+**OpenAPI:** `openapi.json` (v0.13.0) — zsynchronizowany z `src/` (health, czat natywny, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`, dekoratory `@nestjs/swagger`). **Błędy:** natywny czat — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
 
 ## Konwencje globalne
 
@@ -32,7 +32,7 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + 
 
 | | |
 |--|--|
-| **200** | Readiness w body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.cache`. **HTTP zawsze 200** — probe ocenia pole `status`, nie kod HTTP. `checks.cache: degraded` (Redis cache niedostępny) nie blokuje `ready`. Szczegóły: `dokumentacja_api.md`. |
+| **200** | Readiness w body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.redis`, `checks.cache`. **HTTP zawsze 200** — probe ocenia pole `status`, nie kod HTTP. `checks.redis: degraded` (Redis wymagany, ale niedostępny) i `checks.cache: degraded` **nie** blokują `ready`. Szczegóły: `dokumentacja_api.md`. |
 
 ---
 
@@ -72,7 +72,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 | Metoda | Ścieżka | Opis |
 |--------|---------|------|
 | GET | `/api/v1/health` | liveness |
-| GET | `/api/v1/health/ready` | readiness (`checks.config`, `checks.cache`) |
+| GET | `/api/v1/health/ready` | readiness (`checks.config`, `checks.redis`, `checks.cache`) |
 | POST | `/api/v1/chat` | standard (pełna odpowiedź) |
 | POST | `/api/v1/chat/stream` | streaming SSE (`ChatStreamController`) |
 | GET | `/api/v1/openai/models` | lista modeli (fasada OpenAI) |

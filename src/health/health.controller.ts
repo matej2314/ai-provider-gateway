@@ -29,7 +29,7 @@ export class HealthController {
   })
   @ApiOkResponse({ type: HealthReadinessResponseDto })
   @ApiRequestIdHeader()
-  getReadiness() {
-    return this.healthService.getReadiness();
+  async getReadiness() {
+    return await this.healthService.getReadiness();
   }
 }

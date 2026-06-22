@@ -1,10 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CacheRegistryService } from '../cache/cache-registry.service';
+import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
+import {
+  getRedisConsumersFromConfig,
+  isRedisRequiredFromConfig,
+  RedisConsumer,
+} from '../cache/should-include-redis-stack';
 
 export interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';
   message: string;
+}
+
+export interface HealthRedisCheckResult extends HealthCheckResult {
+  required: boolean;
+  consumers?: RedisConsumer[];
 }
 
 @Injectable()
@@ -12,6 +23,7 @@ export class HealthService {
   constructor(
     private readonly config: ConfigService,
     private readonly cacheRegistry: CacheRegistryService,
+    private readonly redisConnection: RedisConnectionService,
   ) {}
 
   getLiveness() {
@@ -21,10 +33,15 @@ export class HealthService {
     };
   }
 
-  getReadiness() {
+  async getReadiness() {
+    const configCheck = this.checkConfig();
+    const redisCheck = await this.checkRedis();
+    const cacheCheck = this.checkCache(redisCheck);
+
     const checks = {
-      config: this.checkConfig(),
-      cache: this.checkCache(),
+      config: configCheck,
+      redis: redisCheck,
+      cache: cacheCheck,
     };
 
     const allHealthy = Object.values(checks).every(
@@ -57,7 +74,7 @@ export class HealthService {
     };
   }
 
-  private checkCache(): HealthCheckResult {
+  private checkCache(redisCheck: HealthRedisCheckResult): HealthCheckResult {
     const cacheConfig = this.config.get<{
       enabled?: boolean;
       backend?: string;
@@ -72,18 +89,72 @@ export class HealthService {
       };
     }
 
+    if (backendId === 'redis') {
+      if (redisCheck.status === 'healthy') {
+        return {
+          status: 'healthy',
+          message: 'Cache enabled (redis backend).',
+        };
+      }
+
+      return {
+        status: 'degraded',
+        message: 'Cache enabled (redis backend unavailable).',
+      };
+    }
+
     const backend = this.cacheRegistry.resolve();
 
     if (!backend.isAvailable()) {
       return {
         status: 'degraded',
-        message: `Cache backend "${backendId}" unavailable`,
+        message: `Cache backend ${backendId} unavailable`,
       };
     }
 
     return {
       status: 'healthy',
-      message: `Cache backend "${backendId}" available`,
+      message: `Cache backend ${backendId} available`,
+    };
+  }
+
+  private async checkRedis(): Promise<HealthRedisCheckResult> {
+    const required = isRedisRequiredFromConfig(this.config);
+
+    if (!required) {
+      return {
+        status: 'healthy',
+        message: 'Redis not required.',
+        required: false,
+      };
+    }
+
+    const consumers = getRedisConsumersFromConfig(this.config);
+    const pingOk = await this.redisConnection.ping();
+
+    if (pingOk) {
+      return {
+        status: 'healthy',
+        message: 'Redis available',
+        required: true,
+        consumers,
+      };
+    }
+
+    if (this.redisConnection.isReady()) {
+      return {
+        status: 'degraded',
+        message: 'Redis connected but ping failed',
+        required: true,
+        consumers,
+      };
+    }
+
+    return {
+      status: 'degraded',
+      message: 'Redis required but unavailable',
+      required: true,
+      consumers,
     };
   }
 }

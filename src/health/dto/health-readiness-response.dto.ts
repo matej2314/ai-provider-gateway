@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { HealthCheckItemDto } from './health-check-item.dto';
+import { HealthRedisCheckItemDto } from './health-redis-check-item.dto';
 
 class HealthReadinessChecksDto {
   @ApiProperty({
@@ -8,9 +9,15 @@ class HealthReadinessChecksDto {
   config: HealthCheckItemDto;
 
   @ApiProperty({
+    type: HealthRedisCheckItemDto,
+    description: 'Shared redis infrastructure. Probed only when required=true.',
+  })
+  redis: HealthRedisCheckItemDto;
+
+  @ApiProperty({
     type: HealthCheckItemDto,
     description:
-      'Response cache backend (noop/redis). Does not affect smart rate limit.',
+      'Response cache feature state. When backend is redis, availability follows checks.redis.',
   })
   cache: HealthCheckItemDto;
 }

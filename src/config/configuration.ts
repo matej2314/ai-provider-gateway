@@ -237,6 +237,8 @@ export default () => {
     keyPrefix: process.env.REDIS_KEY_PREFIX || 'aigw:',
   };
 
+  const rateLimitSmartEnabled = process.env.RATE_LIMIT_SMART_ENABLED === 'true';
+
   return {
     gateway: gatewayConfig,
     gatewayKey,
@@ -246,5 +248,6 @@ export default () => {
     resolvedSystemPrompts: systemPromptsResolved,
     cache: cacheConfig,
     redis: redisConfig,
+    RATE_LIMIT_SMART_ENABLED: rateLimitSmartEnabled,
   };
 };

@@ -1129,7 +1129,7 @@
   "info": {
     "title": "AI Provider Gateway API",
     "description": "REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/dokumentacja_api.md`.",
-    "version": "0.12.0",
+    "version": "0.13.0",
     "contact": {}
   },
   "tags": [
@@ -1731,14 +1731,63 @@
           "message"
         ]
       },
+      "HealthRedisCheckItemDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "healthy",
+              "degraded",
+              "unhealthy"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string",
+            "example": "Config is loaded"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether Redis is required in this deployment (cache redis and/or smart rate limit).",
+            "example": true
+          },
+          "consumers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "cache",
+                "rate-limit"
+              ]
+            },
+            "description": "Features that require Redis. Omitted when required=false.",
+            "example": [
+              "rate-limit"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "message",
+          "required"
+        ]
+      },
       "HealthReadinessChecksDto": {
         "type": "object",
         "properties": {
           "config": {
             "$ref": "#/components/schemas/HealthCheckItemDto"
           },
+          "redis": {
+            "description": "Shared redis infrastructure. Probed only when required=true.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthRedisCheckItemDto"
+              }
+            ]
+          },
           "cache": {
-            "description": "Response cache backend (noop/redis). Does not affect smart rate limit.",
+            "description": "Response cache feature state. When backend is redis, availability follows checks.redis.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/HealthCheckItemDto"
@@ -1748,6 +1797,7 @@
         },
         "required": [
           "config",
+          "redis",
           "cache"
         ]
       },

@@ -1,4 +1,4 @@
-export const OPENAPI_VERSION = '0.12.0';
+export const OPENAPI_VERSION = '0.13.0';
 // Semver kontraktu HTTP → openapi.json info.version
 // MAJOR - breaking change w JSON (usunięte/zmienione pola wymagane)
 // MINOR - additive (nowe pola opcjonalne, nowe kody błędów)

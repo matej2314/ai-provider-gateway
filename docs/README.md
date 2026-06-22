@@ -29,7 +29,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 9. **Cache odpowiedzi czatu** (`src/cache/`, env `CACHE_*` / `REDIS_*`) — wdrożony dla **`POST /api/v1/chat`**; szczegóły: `konfiguracja.md`.
 10. **Smart rate limiting** (`src/rate-limit/`, Redis; bez `@nestjs/throttler`), kody błędów **`RATE_LIMITED`** vs **`PROVIDER_RATE_LIMITED`** — `dictionary.md`; limity: YAML `clients[].rateLimit` lub env; szczegóły: `konfiguracja.md`, `architektura.md`.
 11. **Request ID** — propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`).
-12. **Observability** — logging/metrics (Pino, Sentry), readiness, graceful shutdown — `architektura.md`.
+12. **Observability** — logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.redis`, `checks.cache`), graceful shutdown — `architektura.md`.
 13. **Śledzenie rozmów (`conversationId`)** — response zawsze z ID; Sentry Conversations tylko przy ID w request (zalecany start od tury 2 + pełne `messages[]`); szczegóły: `conversation-tracking.md`.
 14. **Parametry generacji (`params`)** — opcjonalne pola w body; merge YAML `defaults` ← body (`resolveProviderCallOptions`) dla `temperature`, `maxOutputTokens`, `topP`, penalties, `seed`; **`topK`**, **`stop`**, **`responseFormat`** — tylko z body; **macierz wsparcia per provider**: `dictionary.md`, reguły YAML: `konfiguracja.md`; API: `dokumentacja_api.md`.
 15. **Odporność (retry, timeout, fallback)** — `ResilientExecutor` + `models[].fallback` w YAML; opcjonalne `effectiveModelAlias` w odpowiedzi; szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
@@ -41,7 +41,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 
 ## Spis plików
 
-- `../openapi.json` *(w katalogu głównym repo, v0.12.0)* — OpenAPI 3.1: kontrakt REST (czat natywny + SSE, health, fasady `/openai/*` i `/anthropic/*`, `ErrorEnvelope` + kształty błędów vendora, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`, smart rate limit, cache, tooling). **Generowany z kodu** (`src/swagger/export-openapi.ts`, dekoratory `@Api*` na kontrolerach/DTO). Źródło prawdy dla zachowania: `src/` + ten katalog `docs/`.
+- `../openapi.json` *(w katalogu głównym repo, v0.13.0)* — OpenAPI 3.1: kontrakt REST (czat natywny + SSE, health, fasady `/openai/*` i `/anthropic/*`, `ErrorEnvelope` + kształty błędów vendora, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`, smart rate limit, cache, tooling). **Generowany z kodu** (`src/swagger/export-openapi.ts`, dekoratory `@Api*` na kontrolerach/DTO). Źródło prawdy dla zachowania: `src/` + ten katalog `docs/`.
 - `dokumentacja_koncepcyjna.md` — cel produktu, zakres (MVP / v1), założenia.
 - `architektura.md` — widok logiczny, moduły, warstwy, integracje providerów.
 - `architektura_api.md` — styl API, envelope błędów, requestId, streaming.

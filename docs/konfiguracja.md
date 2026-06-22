@@ -58,8 +58,12 @@ Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/con
 
 **Ładowanie modułu Redis w Nest:**
 
-- **Cache odpowiedzi:** w `src/app.module.ts` stos Redis (`RedisCacheModule` w `CacheModule.register`) jest importowany tylko gdy **`CACHE_ENABLED === 'true'`** oraz **`CACHE_BACKEND=redis`**. W przeciwnym razie backend cache to **`noop`**.
-- **Smart rate limit:** `RateLimitModule` **zawsze** importuje `RedisCacheModule` (wspólny `RedisConnectionService`). Przy `RATE_LIMIT_SMART_ENABLED=true` i działającym Redis limitery działają **niezależnie** od tego, czy cache odpowiedzi jest włączony. Gdy Redis niedostępny → fail-open (żądania przepuszczane) — `konfiguracja.md` (sekcja smart rate limiting).
+- **Wspólna infrastruktura Redis:** `RedisConnectionService` (`src/cache/adapters/redis-cache/`) jest współdzielony przez **cache odpowiedzi** i **smart rate limiting**. Predykat: `isRedisRequired()` w `src/cache/should-include-redis-stack.ts`.
+- **Kiedy Redis się łączy:** gdy `isRedisRequiredFromEnv()` = true, tj.:
+  - `CACHE_ENABLED=true` **oraz** `CACHE_BACKEND=redis`, **lub**
+  - `RATE_LIMIT_SMART_ENABLED=true`.
+- **Implementacja:** `CacheModule.register({ includeRedisStack: isRedisRequiredFromEnv() })` w `src/app.module.ts`. Nazwa opcji `includeRedisStack` jest historyczna — dotyczy całej infrastruktury Redis, nie tylko cache.
+- **Gdy Redis wymagany, ale niedostępny:** smart rate limit → fail-open (żądania przepuszczane); readiness → `checks.redis: degraded` (szczegóły poniżej).
 
 **Zachowanie:** `ChatService.executeChat` przed wywołaniem providera sprawdza cache (`ResponseCacheService`); przy trafieniu — tylko gdy alias i powiązany provider są **włączone** w YAML (`isCachedChatAllowedForModelAlias` w `src/chat/helpers/cache-policy.ts`) — zwracana jest zapisana odpowiedź z polami **`cached: true`** i **`cachedAt`** (ISO 8601). Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z tej warstwy.
 
@@ -112,7 +116,11 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 - **`src/instrument.ts`** (przed bootstrapem Nest): SDK Sentry z `streamGenAiSpans: true` gdy metryki Sentry są aktywne — wymagane dla widoku **Conversations** (`conversation-tracking.md`).
 - **`LoggingModule`** / **`MetricsModule`**: adaptery error reporting i metryk LLM (`SentryAiMetricsAdapter`, `SentryErrorReportingAdapter`).
 
-**Readiness a Redis:** `GET /api/v1/health/ready` zwraca `checks.cache` (stan backendu cache `noop`/`redis`), **nie** osobny check pod smart rate limit. Przy `CACHE_ENABLED=false` i `RATE_LIMIT_SMART_ENABLED=true` operator powinien monitorować Redis poza readiness lub rozszerzyć health w przyszłości.
+**Readiness a Redis:** `GET /api/v1/health/ready` zwraca:
+- **`checks.redis`** — stan współdzielonej infrastruktury Redis (probe `PING` tylko gdy `required: true`; pola `required`, `consumers`: `cache`, `rate-limit`),
+- **`checks.cache`** — stan feature cache (gdy backend `redis`, dostępność wynika z `checks.redis`, bez osobnego probe).
+
+Przy `CACHE_ENABLED=false` i `RATE_LIMIT_SMART_ENABLED=true` readiness **sprawdza Redis** przez `checks.redis`, nie `checks.cache`.
 
 ## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
 

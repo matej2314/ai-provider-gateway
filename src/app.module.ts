@@ -14,7 +14,7 @@ import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { CacheModule } from './cache/cache.module';
-import { shouldIncludeRedisStack } from './cache/should-include-redis-stack';
+import { isRedisRequiredFromEnv } from './cache/should-include-redis-stack';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { LoggingModule } from './logging/logging.module';
@@ -35,7 +35,7 @@ import { IntegrationsModule } from './integrations/integrations.module';
     LoggingModule,
     ProviderRegistryModule,
     CacheModule.register({
-      includeRedisStack: shouldIncludeRedisStack(),
+      includeRedisStack: isRedisRequiredFromEnv(),
     }),
     ChatModule,
     ProvidersModule.register(),

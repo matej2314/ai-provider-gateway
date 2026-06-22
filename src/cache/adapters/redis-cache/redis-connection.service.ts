@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggingService } from '../../../logging/logging.service';
-import { shouldIncludeRedisStack } from '../../should-include-redis-stack';
+import { isRedisRequiredFromConfig } from '../../should-include-redis-stack';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -24,7 +24,7 @@ export class RedisConnectionService
   }
 
   async onModuleInit(): Promise<void> {
-    if (!shouldIncludeRedisStack()) {
+    if (!isRedisRequiredFromConfig(this.config)) {
       return;
     }
 
@@ -121,5 +121,18 @@ export class RedisConnectionService
 
   isReady(): boolean {
     return this.client !== null && this.client.status === 'ready';
+  }
+
+  async ping(): Promise<boolean> {
+    if (!this.isReady() || !this.client) {
+      return false;
+    }
+
+    try {
+      const result = await this.client.ping();
+      return result === 'PONG';
+    } catch {
+      return false;
+    }
   }
 }
