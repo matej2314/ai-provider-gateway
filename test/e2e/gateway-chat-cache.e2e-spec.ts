@@ -196,4 +196,47 @@ describe('Gateway Chat Cache (E2E)', () => {
       expect(providerRegistry.provider.complete).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('Warnings persistence in cache', () => {
+    let app: INestApplication;
+    let providerRegistry: E2eProviderRegistryMock;
+
+    beforeAll(async () => {
+      providerRegistry = createE2eProviderRegistry();
+      app = await createE2eAppWithCache(providerRegistry);
+    });
+
+    afterAll(async () => {
+      await closeE2eApp(app);
+    });
+
+    it('should return cached warnings on cache hit', async () => {
+      const body = {
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user' as const, content: 'Cached warnings' }],
+        params: { frequencyPenalty: 0.5 },
+      };
+
+      const first = await request(app.getHttpServer())
+        .post(E2E_ROUTES.chat)
+        .set('x-gateway-key', E2E_GATEWAY_KEY)
+        .send(body)
+        .expect(E2E_POST_SUCCESS_STATUS);
+
+      expect(first.body.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'params.frequencyPenalty' }),
+        ]),
+      );
+
+      const second = await request(app.getHttpServer())
+        .post(E2E_ROUTES.chat)
+        .set('x-gateway-key', E2E_GATEWAY_KEY)
+        .send(body)
+        .expect(E2E_POST_SUCCESS_STATUS);
+
+      expect(second.body.cached).toBe(true);
+      expect(second.body.warnings).toEqual(first.body.warnings);
+    });
+  });
 });

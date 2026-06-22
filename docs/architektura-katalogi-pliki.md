@@ -33,7 +33,7 @@ ai-provider-gateway/
 ├── .gitignore
 ├── Dockerfile
 ├── docker-compose.yml
-├── mcp.json                        # konfiguracja MCP (integracja z IDE; patrz docs/mcp.md)
+├── mcp.json                        # konfiguracja MCP dla IDE (Cursor) — nie wczytywany przez gateway przy starcie
 │
 ├── bin/                            # entry point CLI (osobny od HTTP app)
 │   ├── gateway-cli-wrapper.js      # npm bin — compiled dist/ lub fallback ts-node (bez build)
@@ -405,7 +405,6 @@ ai-provider-gateway/
     ├── konfiguracja.md
     ├── dictionary.md
     ├── anty-patterny.md
-    ├── mcp.md
     ├── integracje.md                       # fasady OpenAI / Anthropic (IDE)
     ├── integracja-openai-kontrakt.md
     ├── integracja-anthropic-messages.md
@@ -483,6 +482,8 @@ Pełna dokumentacja komend: **`CLI.md`**.
 ---
 
 ## 3) Stan wdrożenia vs dokumentacja
+
+**Pokrycie testami:** liczby zestawów i przypadków — **[`testy.md`](testy.md)** (single source of truth).
 
 **Wdrożone w kodzie** (porównuj z `openapi.json` i `src/`):
 

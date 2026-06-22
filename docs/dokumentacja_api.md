@@ -94,6 +94,20 @@ Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `too
 
 ---
 
+## Różnice natywny API vs fasady IDE
+
+| Aspekt | Natywny (`/api/v1/chat`) | Fasady OpenAI/Anthropic |
+|--------|--------------------------|-------------------------|
+| Max wiadomości | 150 | 15000 |
+| Max długość `content` (user/assistant) | 3000 znaków | 128000 znaków |
+| Max długość `content` (tool) | 32000 znaków | 128000 znaków |
+| Pole `warnings` w response | Tak | Nie (zgodność z vendorem) |
+| System prompt | Serwer | Serwer (ignorowane z body) |
+
+**Uzasadnienie:** Fasady IDE są zaprojektowane dla długich konwersacji i dużych kontekstów (Cursor, Claude Code), podczas gdy natywne API ma konserwatywne limity dla własnych aplikacji. Szczegóły profili walidacji: `integracje.md`, implementacja: `src/chat/validation/chat-ingress.validator.ts`.
+
+---
+
 ## Modele i wybór providera
 
 Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRegistryService.resolve()` — lookup po **`models[].providerInstance`**, nie po `type`. Runtime: fabryki `anthropic` / `google` tworzone w `ProviderInstancesBootstrap` (`ProvidersModule`).

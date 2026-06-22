@@ -21,7 +21,6 @@ import {
   type CreateTestGatewayConfigOptions,
 } from '../common/mocks/createTestGatewayConfig';
 import {
-  TEST_API_KEY_REF,
   TEST_MASTER_KEY_REF,
   TEST_PROVIDER_INSTANCE,
 } from '../common/mocks/test-constants';
@@ -55,6 +54,26 @@ const DEFAULT_RESOLVE_PROVIDERS: GatewayConfig['providers'] = {
     enabled: true,
   },
 };
+
+const EMPTY_MODEL_POLICY: NonNullable<
+  GatewayConfig['models'][string]['policy']
+> = {
+  retry: {},
+  params: {
+    defaults: {},
+    allowOverrides: [],
+    bounds: {},
+  },
+};
+
+const TIMEOUT_ONLY_MODEL_POLICY = {
+  timeoutMs: 5000,
+  params: {
+    defaults: {},
+    allowOverrides: [] as string[],
+    bounds: {},
+  },
+} as NonNullable<GatewayConfig['models'][string]['policy']>;
 
 function buildResolveGateway(
   options: CreateTestGatewayConfigOptions = {},
@@ -155,6 +174,7 @@ describe('ProviderRegistryService', () => {
             [TEST_PROVIDER_INSTANCE]: {
               type: 'anthropic',
               apiKeyRef: 'ANTHROPIC_API_KEY',
+              enabled: true,
             },
           },
         }),
@@ -217,6 +237,7 @@ describe('ProviderRegistryService', () => {
       expect(result.modelAlias).toBe(RESOLVE_MODEL_ALIAS);
       expect(result.modelId).toBe('claude-sonnet-4-5');
       expect(result.providerName).toBe(TEST_PROVIDER_INSTANCE);
+      expect(result.providerType).toBe('anthropic');
       expect(result.provider).toBe(mockProvider);
     });
 
@@ -246,6 +267,7 @@ describe('ProviderRegistryService', () => {
             [RESOLVE_MODEL_ALIAS]: {
               policy: {
                 retry: {},
+                params: EMPTY_MODEL_POLICY.params,
               },
             },
           },
@@ -274,17 +296,11 @@ describe('ProviderRegistryService', () => {
             [RESOLVE_MODEL_ALIAS]: {
               modelId: 'claude-sonnet-4-5',
               providerInstance: TEST_PROVIDER_INSTANCE,
-              policy: {
-                timeoutMs: 5000,
-              },
+              capabilities: {},
+              policy: TIMEOUT_ONLY_MODEL_POLICY,
             },
           },
-          providers: {
-            [TEST_PROVIDER_INSTANCE]: {
-              type: 'anthropic',
-              apiKeyRef: TEST_API_KEY_REF,
-            },
-          },
+          providers: DEFAULT_RESOLVE_PROVIDERS,
         },
       });
       registerAnthropicPrimary();
@@ -305,6 +321,7 @@ describe('ProviderRegistryService', () => {
               policy: {
                 timeoutMs: 15000,
                 retry: { maxAttempts: 2 },
+                params: EMPTY_MODEL_POLICY.params,
               },
             },
           },
@@ -358,7 +375,7 @@ describe('ProviderRegistryService', () => {
             [RESOLVE_MODEL_ALIAS]: {
               modelId: 'test',
               providerInstance: 'nonexistent-provider',
-              policy: {},
+              policy: EMPTY_MODEL_POLICY,
             },
           },
           providers: {},
@@ -393,13 +410,14 @@ describe('ProviderRegistryService', () => {
             [RESOLVE_MODEL_ALIAS]: {
               modelId: 'test',
               providerInstance: 'unregistered-provider',
-              policy: {},
+              policy: EMPTY_MODEL_POLICY,
             },
           },
           providers: {
             'unregistered-provider': {
               type: 'anthropic',
               apiKeyRef: 'ANTHROPIC_API_KEY',
+              enabled: true,
             },
           },
         }),
@@ -438,10 +456,14 @@ describe('ProviderRegistryService', () => {
       expect(() => service.resolve(RESOLVE_MODEL_ALIAS)).toThrow(
         InternalServerErrorException,
       );
+      expect(() => service.resolve(RESOLVE_MODEL_ALIAS)).toThrow(
+        `Provider instance "${TEST_PROVIDER_INSTANCE}" type mismatch: config=anthropic, registry=google`,
+      );
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Provider instance type mismatch:',
         expect.objectContaining({
           name: 'ProviderInstanceTypeMismatch',
+          message: expect.stringContaining('config=anthropic'),
         }),
       );
     });
@@ -452,12 +474,12 @@ describe('ProviderRegistryService', () => {
           models: {
             [RESOLVE_MODEL_ALIAS]: {
               fallback: 'fallback-model',
-              policy: {},
+              policy: EMPTY_MODEL_POLICY,
             },
             'fallback-model': {
               modelId: 'claude-haiku',
               providerInstance: TEST_PROVIDER_INSTANCE,
-              policy: {},
+              policy: EMPTY_MODEL_POLICY,
             },
           },
         }),
@@ -481,7 +503,7 @@ describe('ProviderRegistryService', () => {
           models: {
             [RESOLVE_MODEL_ALIAS]: {
               fallback: 'missing-fallback',
-              policy: {},
+              policy: EMPTY_MODEL_POLICY,
             },
           },
         }),
@@ -504,7 +526,7 @@ describe('ProviderRegistryService', () => {
             [RESOLVE_MODEL_ALIAS]: {
               modelId: 'test',
               providerInstance: TEST_PROVIDER_INSTANCE,
-              policy: {},
+              policy: EMPTY_MODEL_POLICY,
             },
           },
           providers: DEFAULT_RESOLVE_PROVIDERS,
@@ -527,12 +549,7 @@ describe('ProviderRegistryService', () => {
               providerInstance: TEST_PROVIDER_INSTANCE,
             },
           },
-          providers: {
-            [TEST_PROVIDER_INSTANCE]: {
-              type: 'anthropic',
-              apiKeyRef: 'ANTHROPIC_API_KEY',
-            },
-          },
+          providers: DEFAULT_RESOLVE_PROVIDERS,
           replace: { models: true, providers: true },
         }),
       });

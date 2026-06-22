@@ -33,6 +33,22 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 
 **Podział MVP / v1:** Rdzeń MVP realizują **Fazy 1–2** oraz **4** (routing, chat, streaming). **Faza 3** i **Fazy 5–7** traktuj jako **v1** — numeracja faz jest chronologiczna w projekcie, nie równa się kolejności „MVP najpierw”.
 
+## MVP i fazy — wyjaśnienie numeracji
+
+> **Ważne:** Numeracja faz (Faza 1, Faza 2 itd.) w dokumentacji jest **chronologiczna** (porządek implementacji), **nie** równa się kolejności MVP ani ważności funkcjonalności.
+
+| Funkcjonalność | Status w produkcie | Historyczna faza |
+|----------------|-------------------|------------------|
+| Natywne API (`/chat`, `/chat/stream`) | Wdrożone | Faza 1 |
+| Fasada OpenAI (Cursor IDE) | Wdrożone | Faza 2 |
+| Fasada Anthropic (Claude Code) | Wdrożone | Faza 2 |
+| Tool calling | Wdrożone | Faza 3 |
+| Extended thinking (reasoning models) | Wdrożone | Faza 4 |
+| Response caching (Redis) | Wdrożone | Faza 1 |
+| Smart rate limiting | Wdrożone | Faza 1 |
+
+**Podsumowanie:** Wszystkie kluczowe funkcjonalności z planu MVP są **wdrożone**. Numeracja faz pozostała w dokumentacji dla historycznego kontekstu (plany implementacyjne `tools_implementation.md`, `integrations-plan.md`).
+
 ### Stan realizacji (skrót)
 
 - **Endpoint czatu standardowego** `POST /api/v1/chat` — zaimplementowany; opcjonalnie **cache odpowiedzi** (`src/cache/`, env — `konfiguracja.md`).
@@ -51,7 +67,7 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 - Autoryzacja użytkowników końcowych (AuthN/AuthZ) — gateway jest narzędziem dla infrastruktury użytkownika.
 - Billing / rozliczenia — koszty ponosi użytkownik przez własne klucze.
 - Przechowywanie historii konwersacji (persistence).
-- Własny “tool runner” MCP (wykonywanie narzędzi) — na start tylko konfiguracja/kontrakt (patrz `mcp.md`).
+- Własny „tool runner” MCP (wykonywanie narzędzi) — poza zakresem rdzenia; gateway nie uruchamia serwerów MCP ani narzędzi po stronie serwera.
 
 ## Główne założenia
 
@@ -92,6 +108,16 @@ Zamiast zmuszać klientów do podawania vendorowego `modelId`, gateway wspiera *
 | Claude Code | Anthropic Messages | `GET/POST /api/v1/anthropic/…` |
 
 Wszystkie trzy delegują do **`ChatService`** (jeden silnik: cache, retry, fallback, limity). Szczegóły: `integracje.md`.
+
+### Powierzchnia HTTP vs silnik LLM
+
+| Powierzchnia | Format kontraktu HTTP | Backend LLM (wywołanie SDK) |
+|--------------|----------------------|----------------------------|
+| Natywny `/api/v1/chat` | Kontrakt gateway (`modelAlias`, `messages`, `params`) | Adapter wskazany przez alias w YAML (Anthropic / Google) |
+| Fasada OpenAI `/api/v1/openai/*` | Kształt OpenAI API (Cursor) | Ten sam silnik — **nie** api.openai.com; brak providera `openai` w `src/providers/` |
+| Fasada Anthropic `/api/v1/anthropic/*` | Kształt Anthropic Messages API | Ten sam silnik — klucze providerów z `.env`, nie klucz klienta IDE |
+
+Pole `model` w fasadach = `modelAlias` z `gateway.config.yaml`. Szczegóły fasady OpenAI: `integracja-openai-kontrakt.md`.
 
 ## Kierunek rozwoju (v1 i dalej)
 

@@ -301,6 +301,55 @@ describe('Anthropic Integration API (E2E)', () => {
     });
   });
 
+  describe('Ingress profile (facade-anthropic)', () => {
+    it('should accept request with 200 messages (facade profile)', async () => {
+      const messages = Array(200)
+        .fill(null)
+        .map((_, i) => ({
+          role: i % 2 === 0 ? 'user' : 'assistant',
+          content: [{ type: 'text' as const, text: 'test' }],
+        }));
+
+      const response = await request(app.getHttpServer())
+        .post(E2E_ROUTES.anthropicMessages)
+        .set('x-api-key', E2E_GATEWAY_KEY)
+        .send({
+          model: anthropicModel,
+          messages,
+          max_tokens: 1024,
+        })
+        .expect(E2E_POST_SUCCESS_STATUS);
+
+      expect(response.body.content).toBeDefined();
+    });
+  });
+
+  describe('Thinking capability enforcement', () => {
+    it('should return 400 in Anthropic format when thinking is sent without capability', async () => {
+      await withE2eApp(
+        {
+          providerRegistry: createE2eProviderRegistry({
+            modelAlias: anthropicModel,
+            capabilities: { thinking: false },
+          }),
+        },
+        async ({ app: thinkingApp }) => {
+          const response = await request(thinkingApp.getHttpServer())
+            .post(E2E_ROUTES.anthropicMessages)
+            .set('x-api-key', E2E_GATEWAY_KEY)
+            .send(
+              createAnthropicRequestBody(anthropicModel, {
+                thinking: { type: 'enabled', budget_tokens: 1024 },
+              }),
+            )
+            .expect(400);
+
+          expect(response.body.error.type).toBe('invalid_request_error');
+        },
+      );
+    });
+  });
+
   describe('Contract compliance', () => {
     it('should map gateway response to Anthropic format correctly', async () => {
       const response = await request(app.getHttpServer())

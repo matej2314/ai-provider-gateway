@@ -129,6 +129,27 @@ describe('AnthropicExceptionFilter', () => {
     });
   });
 
+  it('should map ApiErrorCode.THINKING_NOT_SUPPORTED to invalid_request_error', () => {
+    filter.catch(
+      new HttpException(
+        {
+          message: 'Extended thinking is not supported for this model alias.',
+          code: ApiErrorCode.THINKING_NOT_SUPPORTED,
+        },
+        HttpStatus.BAD_REQUEST,
+      ),
+      mockHost,
+    );
+
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      type: 'error',
+      error: {
+        type: 'invalid_request_error',
+        message: 'Extended thinking is not supported for this model alias.',
+      },
+    });
+  });
+
   it('should not include ApiErrorCode in Anthropic error response body', () => {
     filter.catch(
       new HttpException(

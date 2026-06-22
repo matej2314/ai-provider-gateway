@@ -123,13 +123,18 @@ Fasady muszą współdzielić **`SmartRateLimiterService`** z natywnym API.
 4. Mapper response / stream → format OpenAI lub Anthropic.
 5. Pola specyficzne dla gateway (`provider`, `cached`, `conversationId`) **nie** są eksponowane w fasadach MVP.
 
-## Limity wiadomości
+## Limity walidacji (ChatIngressValidator)
 
-| Powierzchnia | Limit `messages[]` | Źródło |
-|--------------|-------------------|--------|
-| Natywny czat | 1–150 | `ChatRequestDto` |
-| Fasada OpenAI | 1–15 000 | `OpenAiChatCompletionRequestDto` |
-| Fasada Anthropic | 1–15 000 | `AnthropicMessagesRequestDto` |
+Gateway stosuje **różne profile walidacji** dla natywnego API i fasad IDE:
+
+| Profil | Endpoint | Max messages | Max content (user/assistant) | Max content (tool) |
+|--------|----------|--------------|------------------------------|---------------------|
+| `native` | `/api/v1/chat`, `/api/v1/chat/stream` | 150 | 3000 | 32000 |
+| `facade-openai` | `/api/v1/openai/chat/completions` | 15000 | 128000 | 128000 |
+| `facade-anthropic` | `/api/v1/anthropic/messages` | 15000 | 128000 | 128000 |
+
+**Implementacja:** `src/chat/validation/chat-ingress.validator.ts` — walidacja przed wejściem do `ChatService`.  
+**Testy:** `src/chat/validation/chat-ingress.validator.spec.ts`, E2E w `test/e2e/`.
 
 ## Streaming
 
@@ -150,7 +155,7 @@ Wewnętrznie fasady korzystają z `ChatProviderCallService.streamOnce` i mapują
 
 | Temat | Decyzja |
 |-------|---------|
-| `system` w messages klienta | Ignorowane — prompt z `src/config/system-prompt/` |
+| `system` w messages klienta | **Ignorowane** — prompt z `src/config/system-prompt/` (źródło: serwer, nie body klienta) |
 | Tools / function calling | Mapowane na wewnętrzne `tooling` (`openai-tools.mapper.ts`, `anthropic-tools.mapper.ts`); wymaga `capabilities.tools: true` na aliasie |
 | Multimodal (obrazy) | Nieobsługiwane — 400 przy blokach `image` (Anthropic) |
 | Cache odpowiedzi | Działa przez `ChatService` dla wywołań non-stream; pola `cached` ukryte w odpowiedzi fasady |

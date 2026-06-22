@@ -8,6 +8,7 @@ import { HttpException } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ProviderRegistryService } from '../providers/provider-registry.service';
 import { LoggingService } from '../logging/logging.service';
+import { ApiErrorCode } from '../common/errors/api-error.code';
 import { ChatProviderCallService } from './services/chat-provider-call.service';
 import { ChatCacheGuardService } from './services/chat-cache-guard.service';
 import { ChatValidationService } from './services/chat-validation.service';
@@ -122,6 +123,8 @@ describe('ChatService', () => {
           requestId: string,
           conversationId: string,
           effectiveModelAlias?: string,
+          _options?: unknown,
+          _providerType?: string,
         ) => ({
           id: 'gw_test-uuid',
           provider: providerName,
@@ -312,12 +315,70 @@ describe('ChatService', () => {
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
     });
 
+    it('should reject native ingress with more than 150 messages before executor', async () => {
+      const oversizedRequest = {
+        ...baseRequest,
+        messages: Array(151).fill({ role: 'user' as const, content: 'x' }),
+      };
+
+      await expect(
+        service.executeChat(oversizedRequest, 'req-123', 'gw_key_123', 'native'),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({
+          code: ApiErrorCode.VALIDATION_FAILED,
+        }),
+      });
+      expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
+    });
+
+    it('should allow facade-openai ingress with 151 messages', async () => {
+      mockExecutorChatSuccess();
+      const largeRequest = {
+        ...baseRequest,
+        messages: Array(151).fill({ role: 'user' as const, content: 'x' }),
+      };
+
+      await service.executeChat(
+        largeRequest,
+        'req-123',
+        'gw_key_123',
+        'facade-openai',
+      );
+
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
+    });
+
+    it('should reject native ingress when user content exceeds 3000 characters', async () => {
+      const longContentRequest = {
+        ...baseRequest,
+        messages: [{ role: 'user' as const, content: 'a'.repeat(3001) }],
+      };
+
+      await expect(
+        service.executeChat(
+          longContentRequest,
+          'req-123',
+          'gw_key_123',
+          'native',
+        ),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({
+          code: ApiErrorCode.VALIDATION_FAILED,
+        }),
+      });
+      expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
+    });
+
     it('should pass conversationId to response builder', async () => {
       mockExecutorChatSuccess();
       const request = {
         ...baseRequest,
         conversationId: VALID_CONVERSATION_ID,
       };
+      const expectedOptions = resolveProviderCallOptions(
+        resolvedConfig.params,
+        request.params,
+      );
 
       await service.executeChat(request, 'req-123', 'gw_key_123', 'native');
 
@@ -328,6 +389,8 @@ describe('ChatService', () => {
         'req-123',
         VALID_CONVERSATION_ID,
         undefined,
+        expectedOptions,
+        resolvedConfig.providerType,
       );
     });
 
@@ -373,6 +436,11 @@ describe('ChatService', () => {
         },
       );
 
+      const expectedOptions = resolveProviderCallOptions(
+        resolvedConfig.params,
+        baseRequest.params,
+      );
+
       await service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native');
 
       expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
@@ -382,6 +450,8 @@ describe('ChatService', () => {
         'req-123',
         expect.any(String),
         'fallback-model',
+        expectedOptions,
+        resolvedConfig.providerType,
       );
     });
 
@@ -492,6 +562,22 @@ describe('ChatService', () => {
       });
     });
 
+    it('should reject native ingress with more than 150 messages before stream executor', async () => {
+      const oversizedRequest = {
+        ...baseRequest,
+        messages: Array(151).fill({ role: 'user' as const, content: 'x' }),
+      };
+
+      await expect(
+        service.executeStream(oversizedRequest, 'req-123', jest.fn(), 'native'),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({
+          code: ApiErrorCode.VALIDATION_FAILED,
+        }),
+      });
+      expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
+    });
+
     it('should pass stream result fields to buildStreamDoneEvent', async () => {
       mockStreamExecutorSuccess({
         usageMetadata: { inputTokens: 15, outputTokens: 25 },
@@ -501,6 +587,11 @@ describe('ChatService', () => {
         thinkingContent: 'Stream thinking',
       });
 
+      const expectedOptions = resolveProviderCallOptions(
+        resolvedConfig.params,
+        baseRequest.params,
+      );
+
       await service.executeStream(baseRequest, 'req-123', jest.fn(), 'native');
 
       expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalledWith(
@@ -509,6 +600,8 @@ describe('ChatService', () => {
         'tool_use',
         'fp_stream_123',
         'Stream thinking',
+        expectedOptions,
+        resolvedConfig.providerType,
       );
     });
 

@@ -190,6 +190,43 @@ describe('Gateway Chat API (E2E)', () => {
       expect(response.body.code).toBe(ApiErrorCode.VALIDATION_FAILED);
       expect(response.body.message).toMatch(/150|Too many messages/i);
     });
+
+    it('should reject request when user content exceeds 3000 characters', async () => {
+      const response = await request(app.getHttpServer())
+        .post(E2E_ROUTES.chat)
+        .set('x-gateway-key', E2E_GATEWAY_KEY)
+        .send({
+          modelAlias: TEST_MODEL_ALIAS,
+          messages: [{ role: 'user', content: 'a'.repeat(3001) }],
+        })
+        .expect(400);
+
+      expect(response.body.code).toBe(ApiErrorCode.VALIDATION_FAILED);
+      expect(response.body.message).toMatch(/content too long/i);
+    });
+
+    it('should return THINKING_NOT_SUPPORTED when thinkingEnabled is true without capability', async () => {
+      await withE2eApp(
+        {
+          providerRegistry: createE2eProviderRegistry({
+            capabilities: { thinking: false },
+          }),
+        },
+        async ({ app: thinkingApp }) => {
+          const response = await request(thinkingApp.getHttpServer())
+            .post(E2E_ROUTES.chat)
+            .set('x-gateway-key', E2E_GATEWAY_KEY)
+            .send({
+              modelAlias: TEST_MODEL_ALIAS,
+              messages: [{ role: 'user', content: 'Think hard' }],
+              params: { thinkingEnabled: true },
+            })
+            .expect(400);
+
+          expect(response.body.code).toBe(ApiErrorCode.THINKING_NOT_SUPPORTED);
+        },
+      );
+    });
   });
 
   describe('Rate limiting', () => {
@@ -229,18 +266,16 @@ describe('Gateway Chat API (E2E)', () => {
 
     beforeAll(async () => {
       const registry = createE2eProviderRegistry();
-      registry.provider.complete = jest
-        .fn()
-        .mockRejectedValue(
-          new HttpException(
-            {
-              code: ApiErrorCode.VALIDATION_FAILED,
-              message: 'Invalid model',
-              details: [],
-            },
-            HttpStatus.BAD_REQUEST,
-          ),
-        );
+      registry.provider.complete = jest.fn().mockRejectedValue(
+        new HttpException(
+          {
+            code: ApiErrorCode.VALIDATION_FAILED,
+            message: 'Invalid model',
+            details: [],
+          },
+          HttpStatus.BAD_REQUEST,
+        ),
+      );
 
       const context = await createE2eApp({ providerRegistry: registry });
       errorApp = context.app;
@@ -262,6 +297,57 @@ describe('Gateway Chat API (E2E)', () => {
         code: expect.any(String),
         message: expect.any(String),
         requestId: expect.any(String),
+      });
+    });
+  });
+
+  describe('Generation warnings (D5)', () => {
+    it('should return warnings when frequencyPenalty is used with Anthropic provider', async () => {
+      await withE2eApp({ providerRegistry: createE2eProviderRegistry() }, async ({ app }) => {
+        const response = await request(app.getHttpServer())
+          .post(E2E_ROUTES.chat)
+          .set('x-gateway-key', E2E_GATEWAY_KEY)
+          .send({
+            modelAlias: TEST_MODEL_ALIAS,
+            messages: [{ role: 'user', content: 'test' }],
+            params: {
+              frequencyPenalty: 0.5,
+            },
+          })
+          .expect(E2E_POST_SUCCESS_STATUS);
+
+        expect(response.body.warnings).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              code: 'PARAM_IGNORED_BY_PROVIDER',
+              field: 'params.frequencyPenalty',
+            }),
+          ]),
+        );
+      });
+    });
+
+    it('should return warnings for presencePenalty and seed with Anthropic provider', async () => {
+      await withE2eApp({ providerRegistry: createE2eProviderRegistry() }, async ({ app }) => {
+        const response = await request(app.getHttpServer())
+          .post(E2E_ROUTES.chat)
+          .set('x-gateway-key', E2E_GATEWAY_KEY)
+          .send({
+            modelAlias: TEST_MODEL_ALIAS,
+            messages: [{ role: 'user', content: 'test' }],
+            params: {
+              presencePenalty: 0.3,
+              seed: 42,
+            },
+          })
+          .expect(E2E_POST_SUCCESS_STATUS);
+
+        expect(response.body.warnings).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ field: 'params.presencePenalty' }),
+            expect.objectContaining({ field: 'params.seed' }),
+          ]),
+        );
       });
     });
   });

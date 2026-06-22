@@ -1,4 +1,5 @@
 import type { GatewayToolCall } from '../../providers/types/tooling-types';
+import type { ChatWarningDto } from '../dto/chat-warning.dto';
 
 export type SseMetaEvent = {
   id: string;
@@ -32,6 +33,7 @@ export type SseDoneEvent = {
     | 'content_filter';
   systemFingerprint?: string;
   thinkingContent?: string;
+  warnings?: ChatWarningDto[];
 };
 
 export type SseEvent =

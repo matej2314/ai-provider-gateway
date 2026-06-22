@@ -40,6 +40,12 @@ Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 | **OpenAI API** | `/api/v1/openai/models`, `/api/v1/openai/chat/completions` | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md) | Cursor IDE |
 | **Anthropic Messages API** | `/api/v1/anthropic/messages`, `/api/v1/anthropic/models` | [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md) | Claude Code |
 
+> **Ważne — OpenAI: kształt API vs backend LLM:**  
+> Endpointy `/api/v1/openai/*` implementują **kształt** OpenAI API (kompatybilność z Cursor IDE), **nie** bezpośrednie połączenie z api.openai.com.  
+> Pole `model` w żądaniu to `modelAlias` z YAML; wywołanie LLM idzie do adaptera wskazanego przez alias (Anthropic / Google).  
+> **Brak providera `openai`** w `src/providers/` — OpenAI API istnieje tylko jako **fasada** (format klienta).  
+> Patrz: [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md).
+
 **Autoryzacja:** ta sama allowlista (`GATEWAY_KEY_*` z `.env`), różne nagłówki:
 
 - Natywny: `X-Gateway-Key`
@@ -179,6 +185,18 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 
 Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md).
 
+## Testy
+
+Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
+
+Uruchomienie:
+
+```bash
+npm test                 # jednostkowe
+npm run test:e2e         # end-to-end
+npm run test:all         # wszystkie
+```
+
 ## Gateway CLI
 
 Osobny entry point od serwera HTTP — działa **bez build** (ts-node), bin: `gateway`.
@@ -220,7 +238,7 @@ npm run start:prod      # po build
 npm run openapi:export  # openapi.json z dekoratorów @nestjs/swagger
 npm run cli             # Gateway CLI (alias: npx gateway)
 npm run config:validate # walidacja offline (scripts/validate-config.ts)
-npm test                # testy jednostkowe (58 zestawów, src/**/*.spec.ts)
-npm run test:e2e        # testy E2E HTTP (7 zestawów, test/e2e/)
+npm test                # testy jednostkowe (src/**/*.spec.ts)
+npm run test:e2e        # testy E2E HTTP (test/e2e/)
 npm run test:all        # jednostkowe + E2E
 ```

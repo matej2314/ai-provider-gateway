@@ -2,11 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { ChatRequestDto } from '../chat/dto/chat-request.dto';
-import type { CacheBackend } from './interfaces/cache-backend-interface';
-import type { ResolvedSystemPrompts } from '../config/configuration.types';
 import { CACHE_BACKEND } from './cache.tokens';
 import { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
 import { LoggingService } from '../logging/logging.service';
+import type { CacheBackend } from './interfaces/cache-backend-interface';
+import type { ResolvedSystemPrompts } from '../config/configuration.types';
+import type { ChatWarningDto } from '../chat/dto/chat-warning.dto';
 
 export interface CachedChatResponse {
   id: string;
@@ -23,6 +24,7 @@ export interface CachedChatResponse {
   requestId: string;
   cached: true;
   cachedAt: string;
+  warnings?: ChatWarningDto[];
 }
 
 @Injectable()

@@ -1207,12 +1207,12 @@
         "type": "object",
         "properties": {
           "role": {
-            "type": "string",
             "enum": [
               "user",
               "assistant",
               "tool"
             ],
+            "type": "string",
             "description": "Role of the message. Must be either \"user\", \"assistant\" or \"tool\".",
             "example": "user"
           },
@@ -1244,11 +1244,11 @@
         "type": "object",
         "properties": {
           "type": {
-            "type": "string",
             "enum": [
               "text",
               "json_object"
             ],
+            "type": "string",
             "description": "Response format type. \"json_object\" enables JSON mode (model outputs valid JSON).",
             "example": "json_object"
           },
@@ -1521,6 +1521,30 @@
           }
         }
       },
+      "ChatWarningDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Warning code",
+            "example": "PARAM_IGNORED_BY_PROVIDER"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable warning message",
+            "example": "Parameter frequencyPenalty is not supported by this provider and was ignored."
+          },
+          "field": {
+            "type": "string",
+            "description": "Optional field name that triggered the warning",
+            "example": "params.frequencyPenalty"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
       "ChatResponseDto": {
         "type": "object",
         "properties": {
@@ -1555,7 +1579,6 @@
             }
           },
           "finishReason": {
-            "type": "string",
             "enum": [
               "end_turn",
               "tool_use",
@@ -1567,7 +1590,8 @@
               "stop",
               "length",
               "content_filter"
-            ]
+            ],
+            "type": "string"
           },
           "output": {
             "$ref": "#/components/schemas/ChatOutputTextDto"
@@ -1612,6 +1636,13 @@
             "type": "string",
             "description": "Extended thinking/reasoning content from model. Not streamed in real-time.",
             "example": "Let me think about this step by step..."
+          },
+          "warnings": {
+            "description": "Optional warnings about parameters that were accepted but ignored or modified by the provider.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatWarningDto"
+            }
           }
         },
         "required": [
@@ -1683,12 +1714,12 @@
         "type": "object",
         "properties": {
           "status": {
-            "type": "string",
             "enum": [
               "healthy",
               "degraded",
               "unhealthy"
-            ]
+            ],
+            "type": "string"
           },
           "message": {
             "type": "string",
@@ -1724,11 +1755,11 @@
         "type": "object",
         "properties": {
           "status": {
-            "type": "string",
             "enum": [
               "ready",
               "not_ready"
-            ]
+            ],
+            "type": "string"
           },
           "timestamp": {
             "type": "string",
@@ -1851,13 +1882,13 @@
         "type": "object",
         "properties": {
           "role": {
-            "type": "string",
             "enum": [
               "system",
               "user",
               "assistant",
               "tool"
-            ]
+            ],
+            "type": "string"
           },
           "content": {
             "type": "string",
@@ -2011,7 +2042,6 @@
             "minimum": 1
           },
           "reasoning_effort": {
-            "type": "string",
             "enum": [
               "none",
               "minimal",
@@ -2020,6 +2050,7 @@
               "high",
               "xhigh"
             ],
+            "type": "string",
             "description": "Reasoning effor for OpenAI reasoning models.Gateway not support this parameter yet.",
             "example": "medium",
             "deprecated": true
@@ -2109,7 +2140,6 @@
             "$ref": "#/components/schemas/OpenAiChatCompletionMessageDto"
           },
           "finish_reason": {
-            "type": "string",
             "nullable": true,
             "enum": [
               "stop",
@@ -2117,6 +2147,7 @@
               "length",
               "content_filter"
             ],
+            "type": "string",
             "example": "stop"
           }
         },
@@ -2295,13 +2326,13 @@
         "type": "object",
         "properties": {
           "type": {
-            "type": "string",
             "enum": [
               "text",
               "image",
               "tool_use",
               "tool_result"
-            ]
+            ],
+            "type": "string"
           },
           "text": {
             "type": "string",
@@ -2329,11 +2360,11 @@
         "type": "object",
         "properties": {
           "role": {
-            "type": "string",
             "enum": [
               "user",
               "assistant"
-            ]
+            ],
+            "type": "string"
           },
           "content": {
             "minItems": 1,
@@ -2352,12 +2383,12 @@
         "type": "object",
         "properties": {
           "type": {
-            "type": "string",
             "enum": [
               "enabled",
               "disabled",
               "adaptive"
             ],
+            "type": "string",
             "description": "Thinking mode type."
           },
           "budget_tokens": {
@@ -2366,11 +2397,11 @@
             "description": "Token budget for thinking (minimum 1024)."
           },
           "display": {
-            "type": "string",
             "enum": [
               "summarized",
               "omitted"
             ],
+            "type": "string",
             "description": "How to display thinking content."
           }
         }
@@ -2554,7 +2585,6 @@
             "example": "chat-default"
           },
           "stop_reason": {
-            "type": "string",
             "nullable": true,
             "enum": [
               "end_turn",
@@ -2564,6 +2594,7 @@
               "pause_turn",
               "refusal"
             ],
+            "type": "string",
             "example": "end_turn"
           },
           "stop_sequence": {
@@ -2662,13 +2693,20 @@
             }
           },
           "finishReason": {
-            "type": "string",
             "enum": [
               "stop",
               "tool_calls",
               "length",
               "content_filter"
-            ]
+            ],
+            "type": "string"
+          },
+          "warnings": {
+            "description": "Optional warnings about ignored parameters.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatWarningDto"
+            }
           }
         }
       },

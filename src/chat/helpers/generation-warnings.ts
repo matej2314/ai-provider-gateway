@@ -1,6 +1,6 @@
 import type { ChatWarningDto } from '../dto/chat-warning.dto';
 import type { ProviderCallOptions } from 'src/providers/interfaces/ai-provider.interface';
-import { GatewayProviderType, PROVIDER_TYPES } from 'src/config/provider-types';
+import type { GatewayProviderType } from 'src/config/provider-types';
 
 export function buildGenerationWarnings(
   options: ProviderCallOptions,

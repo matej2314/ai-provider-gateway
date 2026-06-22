@@ -313,6 +313,48 @@ describe('OpenAI Integration API (E2E)', () => {
     });
   });
 
+  describe('Thinking capability enforcement', () => {
+    it('should return 400 in OpenAI format when reasoning_effort is sent without capability', async () => {
+      await withE2eApp(
+        {
+          providerRegistry: createE2eProviderRegistry({
+            modelAlias: openAiModel,
+            capabilities: { thinking: false },
+          }),
+        },
+        async ({ app: thinkingApp }) => {
+          const response = await request(thinkingApp.getHttpServer())
+            .post(E2E_ROUTES.openAiCompletions)
+            .set('Authorization', `Bearer ${E2E_GATEWAY_KEY}`)
+            .send({
+              model: openAiModel,
+              messages: [{ role: 'user', content: 'Think' }],
+              reasoning_effort: 'medium',
+            })
+            .expect(400);
+
+          expect(response.body.error.type).toBe('invalid_request_error');
+        },
+      );
+    });
+  });
+
+  describe('Warnings not exposed on facade', () => {
+    it('should not include warnings in OpenAI completion response', async () => {
+      const response = await request(app.getHttpServer())
+        .post(E2E_ROUTES.openAiCompletions)
+        .set('Authorization', `Bearer ${E2E_GATEWAY_KEY}`)
+        .send({
+          model: openAiModel,
+          messages: [{ role: 'user', content: 'test' }],
+          frequency_penalty: 0.5,
+        })
+        .expect(E2E_POST_SUCCESS_STATUS);
+
+      expect(response.body.warnings).toBeUndefined();
+    });
+  });
+
   describe('Contract compliance', () => {
     it('should map gateway response to OpenAI format correctly', async () => {
       const response = await request(app.getHttpServer())

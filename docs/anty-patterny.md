@@ -55,6 +55,10 @@ Ten plik zbiera typowe pułapki w projektach “LLM gateway”.
 - własny kontrakt gateway (stabilny),
 - opcjonalne pole debug `raw` tylko w trybie dev (i bez sekretów).
 
+**Wyjątek (zamierzony):** osobne prefiksy `/api/v1/openai` i `/api/v1/anthropic` z formatem vendora — patrz §13 (Fasady integracji). Nie dotyczy natywnego `/api/v1/chat`.
+
+Uzasadnienie: Fasady IDE wymagają zgodności z OpenAI API i Anthropic Messages API; osobne ścieżki są **zamierzone** i nie naruszają zasad tego anty-wzorca (dotyczy wyłącznie natywnego kontraktu gateway).
+
 ## 6) Streaming “jak leci”
 
 **Nie rób**:

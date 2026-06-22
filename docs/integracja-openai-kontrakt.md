@@ -1,5 +1,10 @@
 # Integracja OpenAI API (Cursor IDE)
 
+> **Ważne — fasada vs provider:**  
+> Ten dokument opisuje **fasadę OpenAI** — warstwę HTTP mapującą kontrakt OpenAI API (`/chat/completions`) na wewnętrzny `ChatService`.  
+> Gateway **nie** wysyła requestów do api.openai.com; pole `model` w żądaniu = `modelAlias` z YAML; backend to Anthropic / Google.  
+> **Brak adaptera `create-openai-provider.ts`** w `src/providers/` — provider OpenAI jest planowany, ale niezaimplementowany.
+
 Fasada **`/api/v1/openai`** pozwala podłączyć **Cursor** (i inne klienty ze sztywnym klientem OpenAI) do gatewaya, używając własnej allowlisty kluców zamiast klucza OpenAI.com.
 
 > **Stan:** moduł `src/integrations/openai/` jest **wdrożony** — `GET /models`, `POST /chat/completions` (JSON + stream SSE w formacie OpenAI). Architektura wspólna: [`integracje.md`](integracje.md).
@@ -35,6 +40,13 @@ Gateway weryfikuje token w **`gatewayKey.allowList`** (ta sama lista co `X-Gatew
 Kolejność guardów na trasach OpenAI: **`OpenAiBearerAuthGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i równoległe streamy, gdy `RATE_LIMIT_SMART_ENABLED=true`). **Cooldown** po 429 od upstream — w **`ChatService.executeChat`** (`checkCooldown` / `setCooldown`), nie w guardzie. Klucz klienta jest odczytywany przez **`readClientGatewayKey`** (`req.gatewayKey` lub `X-Gateway-Key`).
 
 **Równoległe streamy** (`stream: true`): limit i zwolnienie slotu w **`OpenAiChatCompletionsController`** (`checkConcurrentStreams` / `releaseStream`), nie w guardzie — ścieżka nie kończy się na `/stream` jak w natywnym API.
+
+## System prompt (polityka gateway)
+
+> **Ważne dla integratorów Cursor:**  
+> Gateway **ignoruje** rolę `system` w tablicy `messages[]`. System prompt jest **zarządzany po stronie serwera** (pliki w `src/config/system-prompt/`).  
+> IDE nie może nadpisać ani modyfikować system promptu. Jeśli Twoja aplikacja wymaga własnego system promptu, musisz zmodyfikować konfigurację gateway i zrestartować serwer.  
+> Patrz: [`konfiguracja.md`](konfiguracja.md), sekcja „System prompt".
 
 ## Wybór modelu
 

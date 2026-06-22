@@ -37,6 +37,13 @@ Kolejność guardów na trasach Anthropic: **`AnthropicApiKeyGuard`** (ustawia `
 
 **Równoległe streamy** (`stream: true`): limit i zwolnienie slotu w **`AnthropicMessagesController`** (`checkConcurrentStreams` / `releaseStream`), nie w guardzie — ścieżka nie kończy się na `/stream` jak w natywnym API.
 
+## System prompt (polityka gateway)
+
+> **Ważne dla integratorów Claude Code:**  
+> Mimo że Anthropic Messages API wspiera pole `system` w request body, gateway **nadpisuje** je własnymi promptami z `src/config/system-prompt/`.  
+> Klient nie może kontrolować system promptu przez API. Jeśli potrzebujesz własnego promptu, edytuj pliki w `src/config/system-prompt/` i zrestartuj gateway.  
+> Patrz: [`konfiguracja.md`](konfiguracja.md), sekcja „System prompt".
+
 ## Wybór modelu
 
 W polu **`model`** żądania podaj **`modelAlias`** z YAML (np. `chat-default`, `claude-sonnet`), nie vendorowy `modelId`.

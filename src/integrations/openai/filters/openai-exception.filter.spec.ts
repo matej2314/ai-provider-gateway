@@ -87,6 +87,50 @@ describe('OpenAiExceptionFilter', () => {
     );
   });
 
+  it('should map ApiErrorCode.TOOLS_NOT_SUPPORTED to invalid_request_error', () => {
+    filter.catch(
+      new HttpException(
+        {
+          message: 'Tools not supported',
+          code: ApiErrorCode.TOOLS_NOT_SUPPORTED,
+        },
+        HttpStatus.BAD_REQUEST,
+      ),
+      mockHost,
+    );
+
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      error: {
+        message: 'Tools not supported',
+        type: 'invalid_request_error',
+        param: null,
+        code: ApiErrorCode.TOOLS_NOT_SUPPORTED,
+      },
+    });
+  });
+
+  it('should map ApiErrorCode.THINKING_NOT_SUPPORTED to invalid_request_error', () => {
+    filter.catch(
+      new HttpException(
+        {
+          message: 'Extended thinking is not supported for this model alias.',
+          code: ApiErrorCode.THINKING_NOT_SUPPORTED,
+        },
+        HttpStatus.BAD_REQUEST,
+      ),
+      mockHost,
+    );
+
+    expect(mockResponse.json).toHaveBeenCalledWith({
+      error: {
+        message: 'Extended thinking is not supported for this model alias.',
+        type: 'invalid_request_error',
+        param: null,
+        code: ApiErrorCode.THINKING_NOT_SUPPORTED,
+      },
+    });
+  });
+
   it('should map bare 429 status to invalid_request_error (no explicit 429 branch)', () => {
     filter.catch(
       new HttpException('Too many requests', HttpStatus.TOO_MANY_REQUESTS),

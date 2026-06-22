@@ -9,6 +9,7 @@ import {
   TEST_MODEL_ALIAS,
   TEST_PROVIDER_INSTANCE,
 } from '../../../src/common/mocks/test-constants';
+import type { GatewayProviderType } from '../../../src/config/provider-types';
 
 const E2E_DEFAULT_ALLOW_OVERRIDES = [
   'temperature',
@@ -42,6 +43,7 @@ export type E2eProviderRegistryOptions = {
   modelAlias?: string;
   fallbackAlias?: string;
   providerName?: string;
+  providerType?: GatewayProviderType;
   modelId?: string;
   completeResponse?: Partial<ProviderChatResponse>;
   streamChunks?: string[];
@@ -118,6 +120,7 @@ export function createE2eProviderRegistry(
   const resolveMock = jest.fn((alias: string) => ({
     provider,
     providerName: options.providerName ?? TEST_PROVIDER_INSTANCE,
+    providerType: options.providerType ?? 'anthropic',
     modelId: options.modelId ?? 'claude-sonnet-4-5',
     modelAlias: alias,
     fallbackAlias: alias === primaryAlias ? options.fallbackAlias : undefined,
@@ -172,6 +175,7 @@ export function createE2eFallbackProviderRegistry(options: {
     return {
       provider: isFallback ? fallbackProvider : primaryProvider,
       providerName: TEST_PROVIDER_INSTANCE,
+      providerType: 'anthropic' as const,
       modelId: isFallback ? 'claude-sonnet-4-5' : 'claude-opus-4',
       modelAlias: alias,
       fallbackAlias:

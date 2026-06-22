@@ -91,5 +91,5 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 ## Poza zakresem (względem rdzenia MVP)
 
 - Pamięć rozmowy i persistence po stronie gateway (klient nadal dostarcza `messages[]`).
-- Narzędzia (MCP tool runner) wykonywane przez gateway.
+- Narzędzia wykonywane po stronie gateway (tool runner) — poza zakresem rdzenia MVP; function calling przez adaptery providerów jest wdrożony.
 

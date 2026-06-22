@@ -7,7 +7,6 @@ import {
   ChatResponseBuilderService,
   type ProviderResponse,
 } from './chat-response-builder.service';
-import { buildGenerationWarnings } from '../helpers/generation-warnings';
 import { VALID_CONVERSATION_ID } from '../../common/mocks/test-constants';
 import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
 import type { GatewayToolCall } from '../../providers/types/tooling-types';
@@ -225,6 +224,62 @@ describe('ChatResponseBuilderService', () => {
 
         expect(result.id).toMatch(/^gw_/);
       });
+    });
+
+    it('should include warnings when options and providerType are passed', () => {
+      const result = service.buildChatResponse(
+        baseProviderResponse,
+        'anthropic',
+        'test-model',
+        'req-123',
+        VALID_CONVERSATION_ID,
+        undefined,
+        { frequencyPenalty: 0.5 },
+        'anthropic',
+      );
+
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'PARAM_IGNORED_BY_PROVIDER',
+            field: 'params.frequencyPenalty',
+          }),
+        ]),
+      );
+    });
+
+    it('should omit warnings when providerType is missing', () => {
+      const result = service.buildChatResponse(
+        baseProviderResponse,
+        'anthropic',
+        'test-model',
+        'req-123',
+        VALID_CONVERSATION_ID,
+        undefined,
+        { frequencyPenalty: 0.5 },
+        undefined,
+      );
+
+      expect(result.warnings).toBeUndefined();
+    });
+
+    it('should include warnings in stream done event', () => {
+      const event = service.buildStreamDoneEvent(
+        { inputTokens: 1, outputTokens: 2 },
+        undefined,
+        'end_turn',
+        undefined,
+        undefined,
+        { presencePenalty: 0.3 },
+        'google',
+      );
+
+      if (event.name !== 'done') throw new Error('Expected done event');
+      expect(event.data.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'params.presencePenalty' }),
+        ]),
+      );
     });
   });
 

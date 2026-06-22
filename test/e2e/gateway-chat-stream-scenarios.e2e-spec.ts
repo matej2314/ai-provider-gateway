@@ -69,6 +69,31 @@ describe('Gateway Chat Stream Scenarios (E2E)', () => {
         },
       );
     });
+
+    it('should include warnings in done event when ignored params are sent', async () => {
+      await withE2eApp(
+        {
+          providerRegistry: createE2eProviderRegistry({
+            streamChunks: ['Hi'],
+          }),
+        },
+        async ({ app }) => {
+          const response = await request(app.getHttpServer())
+            .post(E2E_ROUTES.chatStream)
+            .set('x-gateway-key', E2E_GATEWAY_KEY)
+            .send({
+              modelAlias: TEST_MODEL_ALIAS,
+              messages: [{ role: 'user', content: 'Stream' }],
+              params: { frequencyPenalty: 0.5 },
+            })
+            .expect(200);
+
+          expect(response.text).toContain('event: done');
+          expect(response.text).toMatch(/"warnings"/);
+          expect(response.text).toMatch(/params\.frequencyPenalty/);
+        },
+      );
+    });
   });
 
   describe('meta with effectiveModelAlias after fallback', () => {

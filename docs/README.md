@@ -8,7 +8,7 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 1. Zacznij od `dokumentacja_koncepcyjna.md` (WHAT/WHY).
 2. Następnie `architektura.md` (moduły i granice) oraz `architektura_api.md` (konwencje API).
 3. Dla szczegółów HTTP: **kontrakt** w `openapi.json` (katalog główny repo; generowany z kodu — `npm run openapi:export`), interaktywnie **Swagger UI** (`/api/v1/api-docs`), oraz opis ludzki: `lista_endpointów.md` i `dokumentacja_api.md`.
-4. Dla konfiguracji “plug&play”: `konfiguracja.md` + `mcp.md`.
+4. Dla konfiguracji „plug&play”: `konfiguracja.md`.
 5. Dla przepływów: `data_flow.md`.
 6. Dla ryzyk: `anty-patterny.md`.
 7. Dla pracy spec‑first: katalog `spec/`.
@@ -26,9 +26,9 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 15. **Odporność (retry, timeout, fallback)** — `ResilientExecutor` + `models[].fallback` w YAML; opcjonalne `effectiveModelAlias` w odpowiedzi; szczegóły: `konfiguracja.md`, `dokumentacja_api.md`, `dictionary.md`.
 16. **Moduł czatu** — `ChatService` (cache, limity, odpowiedź gateway) + `ChatProviderCallService` (adaptery, metryki, SSE); helpery w `src/chat/helpers/` — `architektura-katalogi-pliki.md`, `data_flow.md`.
 17. **OpenAPI / Swagger** — `@nestjs/swagger` w kontrolerach i DTO (`src/swagger/`); jeden dokument obejmuje **natywny czat**, **health** oraz **fasady** OpenAI/Anthropic (osobne `securitySchemes`: `GatewayKeyAuth`, `BearerAuth`, `ApiKeyAuth`); dekoratory błędów: `ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport: `npm run openapi:export` → `openapi.json`; env `SWAGGER_ENABLED` — `konfiguracja.md`, `dokumentacja_api.md`.
-18. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`); **OpenAI** — `integracja-openai-kontrakt.md` (Cursor); **Anthropic** — `integracja-anthropic-messages.md` (Claude Code / klient Messages API); przegląd: `integracje.md`.
+18. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`). **OpenAI fasada ≠ provider OpenAI** — `/api/v1/openai/*` to kształt API dla Cursor, backend LLM to Anthropic/Google (`integracja-openai-kontrakt.md`). **Anthropic** — `integracja-anthropic-messages.md` (Claude Code); przegląd: `integracje.md`.
 19. **CLI** — osobny entry point `bin/`, moduł `src/cli/` bez `ConfigModule`; wizard **`gateway config:init`**, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli i klientów, `provider:test`, `key:generate`. Backup mutacji YAML → katalog `backup/`. Uruchomienie: `npm run cli`, `npx gateway`, opcjonalnie `npm link` → `gateway`. Szczegóły: **`CLI.md`**, `architektura-katalogi-pliki.md` (sekcja 2a), `architektura.md`.
-20. **Testy** — jednostkowe (`src/**/*.spec.ts`, **58** zestawów / **1009** przypadków, `npm test`) i E2E HTTP (`test/e2e/`, **7** zestawów / **60** przypadków, `npm run test:e2e`, `npm run test:all`); mocki providerów/Redis bez realnych kluczy API — **`testy.md`**.
+20. **Testy** — jednostkowe (`src/**/*.spec.ts`, `npm test`) i E2E HTTP (`test/e2e/`, `npm run test:e2e`, `npm run test:all`); mocki providerów/Redis bez realnych kluczy API — **`testy.md`** (liczniki zestawów i przypadków — single source of truth).
 
 ## Spis plików
 
@@ -40,7 +40,6 @@ Ten katalog zawiera dokumentację projektu **AI Provider Gateway** (NestJS): kon
 - `dokumentacja_api.md` — szczegółowy kontrakt endpointów, przykłady payloadów.
 - `conversation-tracking.md` — `conversationId`, tryby Sentry (pojedyncza wiadomość vs konwersacja), przepływ tura 1→2, obowiązki klienta.
 - `konfiguracja.md` — env + `gateway.config.yaml` (wizard `config:init`, wczytywanie przy starcie, walidacja Zod w `gateway-config.schema.ts` i spójność `providers` ↔ `models`); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — walidacja offline (YAML + reguły env) bez uruchamiania serwera.
-- `mcp.md` — integracja MCP (konfiguracja i granice odpowiedzialności).
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.
 - `dictionary.md` — słownik pojęć, kody błędów, **macierz parametrów generacji ↔ provider** (Anthropic / Google / OpenAI planowany).
 - `anty-patterny.md` — na co uważać, czego nie robić.

@@ -6,6 +6,7 @@ export function createMockDefaultResolvedConfig(): ResolvedProviderConfig {
   return {
     provider: createMockAIProvider() as ResolvedProviderConfig['provider'],
     providerName: 'anthropic',
+    providerType: 'anthropic',
     modelId: 'claude-sonnet-4-5',
     modelAlias: TEST_MODEL_ALIAS,
     capabilities: { tools: true, streaming: true },
