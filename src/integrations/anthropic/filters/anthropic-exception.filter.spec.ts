@@ -39,7 +39,10 @@ describe('AnthropicExceptionFilter', () => {
 
   it('should join array messages with semicolon', () => {
     filter.catch(
-      new HttpException({ message: ['Error 1', 'Error 2'] }, HttpStatus.BAD_REQUEST),
+      new HttpException(
+        { message: ['Error 1', 'Error 2'] },
+        HttpStatus.BAD_REQUEST,
+      ),
       mockHost,
     );
 
@@ -102,7 +105,10 @@ describe('AnthropicExceptionFilter', () => {
   it('should map ApiErrorCode.PROVIDER_RATE_LIMITED to rate_limit_error', () => {
     filter.catch(
       new HttpException(
-        { message: 'Provider rate limited', code: ApiErrorCode.PROVIDER_RATE_LIMITED },
+        {
+          message: 'Provider rate limited',
+          code: ApiErrorCode.PROVIDER_RATE_LIMITED,
+        },
         HttpStatus.BAD_REQUEST,
       ),
       mockHost,
@@ -117,7 +123,10 @@ describe('AnthropicExceptionFilter', () => {
   it('should map ApiErrorCode.TOOLS_NOT_SUPPORTED to invalid_request_error', () => {
     filter.catch(
       new HttpException(
-        { message: 'Tools not supported', code: ApiErrorCode.TOOLS_NOT_SUPPORTED },
+        {
+          message: 'Tools not supported',
+          code: ApiErrorCode.TOOLS_NOT_SUPPORTED,
+        },
         HttpStatus.BAD_REQUEST,
       ),
       mockHost,

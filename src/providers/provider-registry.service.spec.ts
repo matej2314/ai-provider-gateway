@@ -75,9 +75,7 @@ const TIMEOUT_ONLY_MODEL_POLICY = {
   },
 } as NonNullable<GatewayConfig['models'][string]['policy']>;
 
-function buildResolveGateway(
-  options: CreateTestGatewayConfigOptions = {},
-) {
+function buildResolveGateway(options: CreateTestGatewayConfigOptions = {}) {
   const {
     models: modelOverrides,
     providers: providerOverrides,
@@ -115,9 +113,7 @@ describe('ProviderRegistryService', () => {
   let mockLogger: Partial<LoggingService>;
   let mockProvider: Partial<AIProvider>;
 
-  async function initService(
-    configOptions: MockConfigServiceOptions = {},
-  ) {
+  async function initService(configOptions: MockConfigServiceOptions = {}) {
     mockConfig = createMockConfigService(configOptions);
     mockLogger = createMockLoggingService();
     mockProvider = createMockAIProvider();
@@ -133,12 +129,10 @@ describe('ProviderRegistryService', () => {
     service = module.get(ProviderRegistryService);
   }
 
-  function registerAnthropicPrimary(provider: AIProvider = mockProvider as AIProvider) {
-    service.registerInstance(
-      TEST_PROVIDER_INSTANCE,
-      'anthropic',
-      provider,
-    );
+  function registerAnthropicPrimary(
+    provider: AIProvider = mockProvider as AIProvider,
+  ) {
+    service.registerInstance(TEST_PROVIDER_INSTANCE, 'anthropic', provider);
   }
 
   beforeEach(async () => {
@@ -191,7 +185,9 @@ describe('ProviderRegistryService', () => {
         secondProvider,
       );
 
-      expect(service.resolve(RESOLVE_MODEL_ALIAS).provider).toBe(secondProvider);
+      expect(service.resolve(RESOLVE_MODEL_ALIAS).provider).toBe(
+        secondProvider,
+      );
     });
 
     it('should register multiple instances', () => {

@@ -47,9 +47,7 @@ export function loadGatewayConfigFromFile(): GatewayConfig {
   return gatewayConfig;
 }
 
-export function buildEffectiveGatewayConfig(
-  raw: GatewayConfig,
-): GatewayConfig {
+export function buildEffectiveGatewayConfig(raw: GatewayConfig): GatewayConfig {
   return raw;
 }
 

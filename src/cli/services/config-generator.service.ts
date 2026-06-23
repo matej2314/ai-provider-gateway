@@ -174,5 +174,4 @@ export class ConfigGeneratorService {
     );
     return promptPath;
   }
-
 }

@@ -303,52 +303,58 @@ describe('Gateway Chat API (E2E)', () => {
 
   describe('Generation warnings (D5)', () => {
     it('should return warnings when frequencyPenalty is used with Anthropic provider', async () => {
-      await withE2eApp({ providerRegistry: createE2eProviderRegistry() }, async ({ app }) => {
-        const response = await request(app.getHttpServer())
-          .post(E2E_ROUTES.chat)
-          .set('x-gateway-key', E2E_GATEWAY_KEY)
-          .send({
-            modelAlias: TEST_MODEL_ALIAS,
-            messages: [{ role: 'user', content: 'test' }],
-            params: {
-              frequencyPenalty: 0.5,
-            },
-          })
-          .expect(E2E_POST_SUCCESS_STATUS);
+      await withE2eApp(
+        { providerRegistry: createE2eProviderRegistry() },
+        async ({ app }) => {
+          const response = await request(app.getHttpServer())
+            .post(E2E_ROUTES.chat)
+            .set('x-gateway-key', E2E_GATEWAY_KEY)
+            .send({
+              modelAlias: TEST_MODEL_ALIAS,
+              messages: [{ role: 'user', content: 'test' }],
+              params: {
+                frequencyPenalty: 0.5,
+              },
+            })
+            .expect(E2E_POST_SUCCESS_STATUS);
 
-        expect(response.body.warnings).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              code: 'PARAM_IGNORED_BY_PROVIDER',
-              field: 'params.frequencyPenalty',
-            }),
-          ]),
-        );
-      });
+          expect(response.body.warnings).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                code: 'PARAM_IGNORED_BY_PROVIDER',
+                field: 'params.frequencyPenalty',
+              }),
+            ]),
+          );
+        },
+      );
     });
 
     it('should return warnings for presencePenalty and seed with Anthropic provider', async () => {
-      await withE2eApp({ providerRegistry: createE2eProviderRegistry() }, async ({ app }) => {
-        const response = await request(app.getHttpServer())
-          .post(E2E_ROUTES.chat)
-          .set('x-gateway-key', E2E_GATEWAY_KEY)
-          .send({
-            modelAlias: TEST_MODEL_ALIAS,
-            messages: [{ role: 'user', content: 'test' }],
-            params: {
-              presencePenalty: 0.3,
-              seed: 42,
-            },
-          })
-          .expect(E2E_POST_SUCCESS_STATUS);
+      await withE2eApp(
+        { providerRegistry: createE2eProviderRegistry() },
+        async ({ app }) => {
+          const response = await request(app.getHttpServer())
+            .post(E2E_ROUTES.chat)
+            .set('x-gateway-key', E2E_GATEWAY_KEY)
+            .send({
+              modelAlias: TEST_MODEL_ALIAS,
+              messages: [{ role: 'user', content: 'test' }],
+              params: {
+                presencePenalty: 0.3,
+                seed: 42,
+              },
+            })
+            .expect(E2E_POST_SUCCESS_STATUS);
 
-        expect(response.body.warnings).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({ field: 'params.presencePenalty' }),
-            expect.objectContaining({ field: 'params.seed' }),
-          ]),
-        );
-      });
+          expect(response.body.warnings).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({ field: 'params.presencePenalty' }),
+              expect.objectContaining({ field: 'params.seed' }),
+            ]),
+          );
+        },
+      );
     });
   });
 

@@ -166,7 +166,7 @@ describe('OpenAiChatCompletionsController', () => {
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
       chatService.executeStream.mockImplementation(
         async (_req, _id, onEvent) => {
-          onEvent({ name: 'delta', data: { text: 'Hi' } } as SseEvent);
+          onEvent({ name: 'delta', data: { text: 'Hi' } });
         },
       );
 

@@ -14,10 +14,7 @@ export type CreateTestGatewayConfigOptions = {
   schemaVersion?: number;
   masterKeyRef?: string;
   clients?: GatewayConfig['clients'];
-  providers?: Record<
-    string,
-    Partial<GatewayConfig['providers'][string]>
-  >;
+  providers?: Record<string, Partial<GatewayConfig['providers'][string]>>;
   models?: GatewayModelOverrides;
   /** Replace entire sections instead of merging with defaults. */
   replace?: Partial<Record<'clients' | 'providers' | 'models', boolean>>;
@@ -64,7 +61,7 @@ export function createTestGatewayConfig(
     : { ...base.clients, ...(options.clients ?? {}) };
 
   const providers = replace.providers
-    ? (options.providers as GatewayConfig['providers']) ?? {}
+    ? ((options.providers as GatewayConfig['providers']) ?? {})
     : mergeProviders(base.providers, options.providers);
 
   const models = replace.models

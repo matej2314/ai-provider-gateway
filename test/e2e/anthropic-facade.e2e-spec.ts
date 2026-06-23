@@ -25,7 +25,9 @@ describe('Anthropic Facade API (E2E)', () => {
   const validBody = createAnthropicRequestBody(anthropicModel);
 
   beforeAll(async () => {
-    providerRegistry = createE2eProviderRegistry({ modelAlias: anthropicModel });
+    providerRegistry = createE2eProviderRegistry({
+      modelAlias: anthropicModel,
+    });
     const context = await createE2eApp({ providerRegistry });
     app = context.app;
   });
@@ -241,18 +243,16 @@ describe('Anthropic Facade API (E2E)', () => {
 
     beforeAll(async () => {
       errorRegistry = createE2eProviderRegistry({ modelAlias: anthropicModel });
-      errorRegistry.provider.complete = jest
-        .fn()
-        .mockRejectedValue(
-          new HttpException(
-            {
-              code: ApiErrorCode.VALIDATION_FAILED,
-              message: 'Invalid parameter',
-              details: [],
-            },
-            HttpStatus.BAD_REQUEST,
-          ),
-        );
+      errorRegistry.provider.complete = jest.fn().mockRejectedValue(
+        new HttpException(
+          {
+            code: ApiErrorCode.VALIDATION_FAILED,
+            message: 'Invalid parameter',
+            details: [],
+          },
+          HttpStatus.BAD_REQUEST,
+        ),
+      );
 
       const context = await createE2eApp({ providerRegistry: errorRegistry });
       errorApp = context.app;

@@ -48,7 +48,7 @@ describe('openai-stream.mapper', () => {
     state.roleSent = true;
 
     const lines = mapSseEventToOpenAi(
-      { name: 'delta', data: { text: 'Hello' } } as SseEvent,
+      { name: 'delta', data: { text: 'Hello' } },
       state,
     );
     const parsed = JSON.parse(lines[0].replace('data: ', '').trim());
@@ -63,7 +63,7 @@ describe('openai-stream.mapper', () => {
     state.roleSent = true;
 
     const lines = mapSseEventToOpenAi(
-      { name: 'delta', data: { text: '' } } as SseEvent,
+      { name: 'delta', data: { text: '' } },
       state,
     );
     const parsed = JSON.parse(lines[0].replace('data: ', '').trim());
@@ -84,7 +84,7 @@ describe('openai-stream.mapper', () => {
           finishReason: 'stop',
           usage: { inputTokens: 10, outputTokens: 20 },
         },
-      } as SseEvent,
+      },
       state,
     );
 
@@ -107,7 +107,7 @@ describe('openai-stream.mapper', () => {
           finishReason: 'stop',
           usage: { inputTokens: 10, outputTokens: 20 },
         },
-      } as SseEvent,
+      },
       withUsage,
     );
     expect(JSON.parse(included[0].replace('data: ', '').trim()).usage).toEqual({
@@ -120,7 +120,7 @@ describe('openai-stream.mapper', () => {
     missingUsageData.completionId = 'chatcmpl_1';
     missingUsageData.roleSent = true;
     const noUsage = mapSseEventToOpenAi(
-      { name: 'done', data: { finishReason: 'stop' } } as SseEvent,
+      { name: 'done', data: { finishReason: 'stop' } },
       missingUsageData,
     );
     expect(
@@ -140,7 +140,7 @@ describe('openai-stream.mapper', () => {
           finishReason: 'stop',
           usage: { inputTokens: 10, outputTokens: 20, totalTokens: 99 },
         },
-      } as SseEvent,
+      },
       state,
     );
     const parsed = JSON.parse(lines[0].replace('data: ', '').trim());
@@ -157,10 +157,7 @@ describe('openai-stream.mapper', () => {
     state.completionId = 'chatcmpl_1';
     state.roleSent = true;
 
-    const lines = mapSseEventToOpenAi(
-      { name: 'done', data: {} } as SseEvent,
-      state,
-    );
+    const lines = mapSseEventToOpenAi({ name: 'done', data: {} }, state);
     const parsed = JSON.parse(lines[0].replace('data: ', '').trim());
 
     expect(lines).toHaveLength(2);
@@ -173,7 +170,7 @@ describe('openai-stream.mapper', () => {
     state.roleSent = true;
 
     const lengthLines = mapSseEventToOpenAi(
-      { name: 'done', data: { finishReason: 'length' } } as SseEvent,
+      { name: 'done', data: { finishReason: 'length' } },
       state,
     );
     expect(
@@ -182,7 +179,7 @@ describe('openai-stream.mapper', () => {
     ).toBe('length');
 
     const filterLines = mapSseEventToOpenAi(
-      { name: 'done', data: { finishReason: 'content_filter' } } as SseEvent,
+      { name: 'done', data: { finishReason: 'content_filter' } },
       state,
     );
     expect(
@@ -197,7 +194,7 @@ describe('openai-stream.mapper', () => {
     state.roleSent = true;
 
     const lines = mapSseEventToOpenAi(
-      { name: 'done', data: { finishReason: 'end_turn' } } as SseEvent,
+      { name: 'done', data: { finishReason: 'end_turn' } },
       state,
     );
     const parsed = JSON.parse(lines[0].replace('data: ', '').trim());
@@ -214,7 +211,7 @@ describe('openai-stream.mapper', () => {
       {
         name: 'done',
         data: { finishReason: 'stop', systemFingerprint: 'fp_xyz' },
-      } as SseEvent,
+      },
       state,
     );
     const parsed = JSON.parse(lines[0].replace('data: ', '').trim());
@@ -231,7 +228,7 @@ describe('openai-stream.mapper', () => {
       {
         name: 'done',
         data: { finishReason: 'stop', toolCalls: [] },
-      } as SseEvent,
+      },
       state,
     );
     const parsed = JSON.parse(lines[0].replace('data: ', '').trim());
@@ -257,7 +254,7 @@ describe('openai-stream.mapper', () => {
           ],
           usage: { inputTokens: 1, outputTokens: 2 },
         },
-      } as SseEvent,
+      },
       state,
     );
 
@@ -295,7 +292,7 @@ describe('openai-stream.mapper', () => {
             { id: 'call_1', name: 'get_weather', arguments: '{"city":"NYC"}' },
           ],
         },
-      } as SseEvent,
+      },
       state,
     );
 

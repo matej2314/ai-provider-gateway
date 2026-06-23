@@ -72,7 +72,7 @@ export class ResilientExecutor {
     });
 
     const fallback = await this.tryAlias<T>({
-      alias: options.fallbackAlias as string,
+      alias: options.fallbackAlias,
       maxAttempts,
       retry: options.retry,
       runOnce: options.runOnce,
@@ -218,7 +218,7 @@ export class ResilientExecutor {
       ) {
         return new HttpException(
           {
-            ...(response as Object),
+            ...(response as object),
             message,
             details: [
               {

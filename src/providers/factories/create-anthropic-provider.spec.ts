@@ -540,7 +540,9 @@ describe('createAnthropicProvider', () => {
     it('should return undefined from getUsageMetadata when finalMessage fails', async () => {
       const mockStream = {
         [Symbol.asyncIterator]: async function* () {},
-        finalMessage: jest.fn().mockRejectedValue(new Error('finalMessage failed')),
+        finalMessage: jest
+          .fn()
+          .mockRejectedValue(new Error('finalMessage failed')),
       };
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);

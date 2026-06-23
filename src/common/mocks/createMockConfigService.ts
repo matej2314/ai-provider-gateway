@@ -132,9 +132,11 @@ export function createTestResolvedSystemPrompts(
   };
 }
 
-function buildDefaultConfigSnapshot(
-  options: MockConfigServiceOptions,
-): { root: ConfigRoot; flat: ConfigFlat; extra: Record<string, unknown> } {
+function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
+  root: ConfigRoot;
+  flat: ConfigFlat;
+  extra: Record<string, unknown>;
+} {
   const rateLimit = {
     rps: 10,
     burst: 20,

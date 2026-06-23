@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PROVIDER_TYPES } from './provider-types';
+import { GATEWAY_CLIENT_TYPES } from './configuration.types';
 
 export const EXPECTED_SCHEMA_VERSION = 1;
 
@@ -35,14 +36,7 @@ export const GatewayConfigSchema = z
         z.string(),
         z.object({
           name: z.string().min(1),
-          type: z.enum([
-            'webapp',
-            'ide',
-            'cli',
-            'service',
-            'backend',
-            'automation',
-          ]),
+          type: z.enum(GATEWAY_CLIENT_TYPES),
           gatewayKeyRef: z.string().min(1),
           rateLimit: z
             .object({

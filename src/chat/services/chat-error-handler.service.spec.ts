@@ -153,10 +153,13 @@ describe('ChatErrorHandlerService', () => {
           'google',
         );
 
-        expect(mockLogger.warn).toHaveBeenCalledWith('Chat provider call failed', {
-          provider: 'google',
-          message: 'Network timeout',
-        });
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'Chat provider call failed',
+          {
+            provider: 'google',
+            message: 'Network timeout',
+          },
+        );
         expect(mockRateLimiter.setCooldown).not.toHaveBeenCalled();
       });
     });

@@ -14,7 +14,7 @@ describe('getResolvedSystemPrompts', () => {
     };
     const getConfig = (key: string) => mockPrompts;
 
-    const result = getResolvedSystemPrompts(getConfig as any);
+    const result = getResolvedSystemPrompts(getConfig);
 
     expect(result).toEqual(mockPrompts);
   });
@@ -80,9 +80,7 @@ describe('composeSystemPrompt', () => {
 
     const result = composeSystemPrompt(resolved, 'test');
 
-    expect(result).toBe(
-      `Master${SYSTEM_PROMPT_SECTION_JOINER}Test specific`,
-    );
+    expect(result).toBe(`Master${SYSTEM_PROMPT_SECTION_JOINER}Test specific`);
   });
 
   it('should skip perModel when not defined for alias', () => {

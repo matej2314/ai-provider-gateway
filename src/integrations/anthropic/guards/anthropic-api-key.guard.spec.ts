@@ -81,7 +81,7 @@ describe('readAnthropicApiKey', () => {
     const mockRequest = createMockExpressRequest({
       header: jest.fn().mockReturnValue(undefined),
       headers: {},
-    } as unknown as Partial<Request>) as Request;
+    }) as Request;
 
     const result = readAnthropicApiKey(mockRequest);
 
@@ -92,9 +92,7 @@ describe('readAnthropicApiKey', () => {
 describe('AnthropicApiKeyGuard', () => {
   let guard: AnthropicApiKeyGuard;
 
-  async function initGuard(
-    configOptions: MockConfigServiceOptions = {},
-  ) {
+  async function initGuard(configOptions: MockConfigServiceOptions = {}) {
     const mockConfig = createMockConfigService(configOptions);
 
     const module = await Test.createTestingModule({

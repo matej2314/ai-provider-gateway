@@ -26,8 +26,7 @@ export function readErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-
 export function nameLooksLikeTimeout(error: unknown): boolean {
-    const name = error instanceof Error ? error.name : '';
-    return name === 'AbortError' || name === 'TimeoutError';
-  }
+  const name = error instanceof Error ? error.name : '';
+  return name === 'AbortError' || name === 'TimeoutError';
+}

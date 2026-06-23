@@ -8,6 +8,7 @@ import { LoggingService } from '../logging/logging.service';
 import { CACHE_BACKEND } from './cache.tokens';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
 import type { ChatRequestDto } from '../chat/dto/chat-request.dto';
+import type { ChatResponseData } from '../chat/services/chat-response-builder.service';
 import type { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
 import { createMockCacheBackend } from '../common/mocks/createMockCacheBackend';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
@@ -163,13 +164,14 @@ describe('ResponseCacheService', () => {
       messages: [{ role: 'user', content: 'Hello' }],
     };
 
-    const response = {
+    const response: ChatResponseData = {
       id: 'msg-123',
       provider: 'anthropic',
       model: 'claude-sonnet-4',
       output: { type: 'text', text: 'Hello!' },
       usage: { inputTokens: 10, outputTokens: 5 },
       requestId: 'req-123',
+      conversationId: 'conv-123',
     };
 
     it('should not cache when cache not available', async () => {
@@ -217,6 +219,39 @@ describe('ResponseCacheService', () => {
       expect(new Date(parsed.cachedAt).getTime()).toBeLessThanOrEqual(
         Date.now(),
       );
+    });
+
+    it('should cache only CacheableChatResponse fields', async () => {
+      (mockCacheBackend.set as jest.Mock).mockResolvedValue(true);
+
+      const fullResponse: ChatResponseData = {
+        ...response,
+        conversationId: 'conv-456',
+        toolCalls: [{ id: 'tc-1', name: 'search', arguments: '{}' }],
+        finishReason: 'stop',
+        effectiveModelAlias: 'fallback-alias',
+      };
+
+      await service.setCachedResponse(request, fullResponse);
+
+      const parsed = JSON.parse(
+        (mockCacheBackend.set as jest.Mock).mock.calls[0][1],
+      );
+
+      expect(parsed).toEqual({
+        id: fullResponse.id,
+        provider: fullResponse.provider,
+        model: fullResponse.model,
+        output: fullResponse.output,
+        usage: fullResponse.usage,
+        requestId: fullResponse.requestId,
+        cached: true,
+        cachedAt: expect.any(String),
+      });
+      expect(parsed.conversationId).toBeUndefined();
+      expect(parsed.toolCalls).toBeUndefined();
+      expect(parsed.finishReason).toBeUndefined();
+      expect(parsed.effectiveModelAlias).toBeUndefined();
     });
 
     it('should log debug on successful cache set', async () => {

@@ -198,7 +198,9 @@ describe('HealthService', () => {
       const result = await service.getReadiness();
 
       expect(result.checks.redis.status).toBe('degraded');
-      expect(result.checks.redis.message).toBe('Redis required but unavailable');
+      expect(result.checks.redis.message).toBe(
+        'Redis required but unavailable',
+      );
       expect(result.status).toBe('ready');
     });
 
@@ -213,7 +215,9 @@ describe('HealthService', () => {
       const result = await service.getReadiness();
 
       expect(result.checks.redis.status).toBe('degraded');
-      expect(result.checks.redis.message).toBe('Redis connected but ping failed');
+      expect(result.checks.redis.message).toBe(
+        'Redis connected but ping failed',
+      );
     });
   });
 
@@ -239,7 +243,9 @@ describe('HealthService', () => {
       const result = await service.getReadiness();
 
       expect(result.checks.cache.status).toBe('healthy');
-      expect(result.checks.cache.message).toBe('Cache enabled (redis backend).');
+      expect(result.checks.cache.message).toBe(
+        'Cache enabled (redis backend).',
+      );
       expect(mockCacheRegistry.resolve).not.toHaveBeenCalled();
     });
 

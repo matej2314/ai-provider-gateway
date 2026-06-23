@@ -322,7 +322,12 @@ describe('ChatService', () => {
       };
 
       await expect(
-        service.executeChat(oversizedRequest, 'req-123', 'gw_key_123', 'native'),
+        service.executeChat(
+          oversizedRequest,
+          'req-123',
+          'gw_key_123',
+          'native',
+        ),
       ).rejects.toMatchObject({
         response: expect.objectContaining({
           code: ApiErrorCode.VALIDATION_FAILED,

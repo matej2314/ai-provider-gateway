@@ -42,11 +42,11 @@ export interface ChatResponseData {
   };
   requestId: string;
   conversationId: string;
-  toolCalls?: any[];
+  toolCalls?: GatewayToolCall[];
   finishReason?: string;
-  usageDetails?: any;
-  systemFingerprint?: string;
-  thinkingContent?: string;
+  usageDetails?: ProviderUsageDetails;
+  systemFingerprint?: ProviderChatResponse['systemFingerprint'];
+  thinkingContent?: ProviderChatResponse['thinkingContent'];
   warnings?: ChatWarningDto[];
 }
 

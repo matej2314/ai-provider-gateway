@@ -73,7 +73,9 @@ describe('isToolingRequest', () => {
           {
             role: 'assistant',
             content: '',
-            toolCalls: [{ id: 'call_123', name: 'get_weather', arguments: '{}' }],
+            toolCalls: [
+              { id: 'call_123', name: 'get_weather', arguments: '{}' },
+            ],
           },
         ],
       };

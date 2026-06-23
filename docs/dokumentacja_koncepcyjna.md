@@ -58,7 +58,7 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 | Response caching (Redis) | Wdrożone | Faza 1 |
 | Smart rate limiting | Wdrożone | Faza 1 |
 
-**Podsumowanie:** Wszystkie kluczowe funkcjonalności z planu MVP są **wdrożone**. Numeracja faz pozostała w dokumentacji dla historycznego kontekstu (plany implementacyjne `tools_implementation.md`, `integrations-plan.md`).
+**Podsumowanie:** Wszystkie kluczowe funkcjonalności z planu MVP są **wdrożone**. Numeracja faz pozostała w dokumentacji dla historycznego kontekstu; aktualny stan architektury i wdrożenia — `architektura.md`, `integracje.md`, `testy.md`, `spec/SPEC-README.md`.
 
 ### Stan realizacji (skrót)
 

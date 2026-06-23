@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { parseLogLevel } from '../helpers/parseLogLevel';
 import pino, { type Logger as PinoLogger } from 'pino';
 import type {
   LoggerBackend,
@@ -67,7 +68,7 @@ export class PinoLoggerAdapter implements LoggerBackend {
   }
 
   private shouldLog(level: LogLevel): boolean {
-    const configured = (this.logger.level ?? 'info').toLowerCase();
+    const configured = parseLogLevel(this.logger.level);
     return LEVEL_RANK[level] >= LEVEL_RANK[configured];
   }
 

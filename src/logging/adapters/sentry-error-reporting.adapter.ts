@@ -5,7 +5,6 @@ import type {
   LogContext,
 } from '../interfaces/logger.interface';
 
-
 @Injectable()
 export class SentryErrorReportingAdapter implements ErrorReportingBackend {
   isEnabled(): boolean {

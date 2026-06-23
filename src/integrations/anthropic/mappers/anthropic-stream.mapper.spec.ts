@@ -55,7 +55,7 @@ describe('anthropic-stream.mapper', () => {
       state.messageSent = true;
 
       const lines = mapSseEventToAnthropic(
-        { name: 'delta', data: { text: 'Hello' } } as SseEvent,
+        { name: 'delta', data: { text: 'Hello' } },
         state,
       );
 
@@ -81,7 +81,7 @@ describe('anthropic-stream.mapper', () => {
             finishReason: 'stop',
             usage: { inputTokens: 10, outputTokens: 20 },
           },
-        } as SseEvent,
+        },
         state,
       );
 

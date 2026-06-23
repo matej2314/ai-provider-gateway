@@ -12,7 +12,7 @@ describe('should-include-redis-stack', () => {
           CACHE_ENABLED: 'false',
           CACHE_BACKEND: 'redis',
           RATE_LIMIT_SMART_ENABLED: 'false',
-        } as NodeJS.ProcessEnv),
+        }),
       ).toBe(false);
     });
     it('should be true when only rate limit enabled', () => {
@@ -21,7 +21,7 @@ describe('should-include-redis-stack', () => {
           CACHE_ENABLED: 'false',
           CACHE_BACKEND: 'noop',
           RATE_LIMIT_SMART_ENABLED: 'true',
-        } as NodeJS.ProcessEnv),
+        }),
       ).toBe(true);
     });
     it('should be true when only cache redis enabled', () => {
@@ -30,7 +30,7 @@ describe('should-include-redis-stack', () => {
           CACHE_ENABLED: 'true',
           CACHE_BACKEND: 'redis',
           RATE_LIMIT_SMART_ENABLED: 'false',
-        } as NodeJS.ProcessEnv),
+        }),
       ).toBe(true);
     });
     it('should ignore CACHE_BACKEND=redis when CACHE_ENABLED=false', () => {
@@ -39,7 +39,7 @@ describe('should-include-redis-stack', () => {
           CACHE_ENABLED: 'false',
           CACHE_BACKEND: 'redis',
           RATE_LIMIT_SMART_ENABLED: 'false',
-        } as NodeJS.ProcessEnv),
+        }),
       ).toBe(false);
     });
   });

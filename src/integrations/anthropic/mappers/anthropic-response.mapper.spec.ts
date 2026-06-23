@@ -44,7 +44,9 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
       'claude',
     );
 
-    expect(result.content).toEqual([{ type: 'thinking', thinking: 'Reasoning' }]);
+    expect(result.content).toEqual([
+      { type: 'thinking', thinking: 'Reasoning' },
+    ]);
   });
 
   it('should map tool calls and parse JSON arguments', () => {
@@ -52,7 +54,9 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
       {
         id: 'gw_1',
         output: { text: '' },
-        toolCalls: [{ id: 'call_1', name: 'get_weather', arguments: '{"city":"NYC"}' }],
+        toolCalls: [
+          { id: 'call_1', name: 'get_weather', arguments: '{"city":"NYC"}' },
+        ],
         finishReason: 'tool_calls',
         usage: { inputTokens: 1, outputTokens: 2 },
       } as ChatResponseDto,
@@ -92,15 +96,22 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
     } as ChatResponseDto;
 
     expect(
-      mapGatewayResponseToAnthropicFormat({ ...base, finishReason: 'length' }, 'm')
-        .stop_reason,
+      mapGatewayResponseToAnthropicFormat(
+        { ...base, finishReason: 'length' },
+        'm',
+      ).stop_reason,
     ).toBe('max_tokens');
     expect(
-      mapGatewayResponseToAnthropicFormat({ ...base, finishReason: 'content_filter' }, 'm')
-        .stop_reason,
+      mapGatewayResponseToAnthropicFormat(
+        { ...base, finishReason: 'content_filter' },
+        'm',
+      ).stop_reason,
     ).toBe('refusal');
     expect(
-      mapGatewayResponseToAnthropicFormat({ ...base, finishReason: 'stop' }, 'm').stop_reason,
+      mapGatewayResponseToAnthropicFormat(
+        { ...base, finishReason: 'stop' },
+        'm',
+      ).stop_reason,
     ).toBe('end_turn');
   });
 

@@ -29,8 +29,12 @@ export class WizardStateManager {
     try {
       const content = await fs.readFile(statePath, 'utf-8');
       return JSON.parse(content);
-    } catch (error: any) {
-      if (error.code === 'ENOENT') return null;
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        (error as NodeJS.ErrnoException).code === 'ENOENT'
+      )
+        return null;
       throw error;
     }
   }

@@ -3,21 +3,7 @@ import { ApiErrorCode } from '../../common/errors/api-error.code';
 import type { GatewayParamsConfig } from '../../config/configuration';
 import type { ProviderCallOptions } from 'src/providers/interfaces/ai-provider.interface';
 import type { ChatParamsDto } from '../dto/chat-params.dto';
-
-const OVERRIDE_KEYS = [
-  'temperature',
-  'maxOutputTokens',
-  'topP',
-  'stop',
-  'frequencyPenalty',
-  'presencePenalty',
-  'seed',
-  'topK',
-  'responseFormat',
-  'thinkingEnabled',
-  'thinkingBudget',
-] as const;
-type OverrideKey = (typeof OVERRIDE_KEYS)[number];
+import { OVERRIDE_KEYS, type OverrideKey } from '../types/override-keys.type';
 
 function isOverrideKey(key: string): key is OverrideKey {
   return (OVERRIDE_KEYS as readonly string[]).includes(key);
@@ -57,13 +43,13 @@ export function resolveProviderCallOptions(
   let maxOutputTokens = defaults.maxOutputTokens;
   let topP = defaults.topP;
   let topK = bodyParams?.topK;
-  let stop = bodyParams?.stop;
+  const stop = bodyParams?.stop;
   let frequencyPenalty = defaults.frequencyPenalty;
   let presencePenalty = defaults.presencePenalty;
   let seed = defaults.seed;
-  let responseFormat = bodyParams?.responseFormat;
+  const responseFormat = bodyParams?.responseFormat;
   let thinkingEnabled = defaults.thinkingEnabled;
-  let thinkingBudget = bodyParams?.thinkingBudget;
+  const thinkingBudget = bodyParams?.thinkingBudget;
 
   if (bodyParams?.temperature !== undefined) {
     temperature = bodyParams.temperature;

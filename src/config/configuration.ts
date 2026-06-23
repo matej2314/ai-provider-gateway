@@ -2,11 +2,6 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { z } from 'zod';
-import type {
-  ResolvedSystemPrompts,
-  ResolvedGatewayClient,
-  GatewayKeyRuntimeConfig,
-} from './configuration.types';
 import {
   readRequiredPrompt,
   tryReadOptionalPrompts,
@@ -17,6 +12,14 @@ import {
   GatewayConfig,
   GatewayModelConfig,
 } from './gateway-config.schema';
+
+import type {
+  ResolvedSystemPrompts,
+  ResolvedGatewayClient,
+  GatewayKeyRuntimeConfig,
+} from './configuration.types';
+
+import type { CACHE_BACKEND_TYPE } from '../cache/interfaces/cache-backend-interface';
 
 export type {
   GatewayConfig,
@@ -221,7 +224,9 @@ export default () => {
   }
 
   const cacheEnabled = process.env.CACHE_ENABLED === 'true';
-  const cacheBackendRaw = (process.env.CACHE_BACKEND || 'noop').toLowerCase();
+  const cacheBackendRaw = (
+    process.env.CACHE_BACKEND || 'noop'
+  ).toLowerCase() as CACHE_BACKEND_TYPE;
   const cacheConfig = {
     enabled: cacheEnabled,
     backend: cacheEnabled ? cacheBackendRaw : 'noop',

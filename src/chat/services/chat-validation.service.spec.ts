@@ -277,9 +277,9 @@ describe('ChatValidationService', () => {
           capabilities: { tools: true },
         });
 
-        expect(() =>
-          service.validateForStreaming(TEST_MODEL_ALIAS),
-        ).toThrow(HttpException);
+        expect(() => service.validateForStreaming(TEST_MODEL_ALIAS)).toThrow(
+          HttpException,
+        );
       });
 
       it('should throw when provider.stream adapter is missing', () => {
@@ -321,9 +321,9 @@ describe('ChatValidationService', () => {
           throw new HttpException('Unknown model', HttpStatus.BAD_REQUEST);
         });
 
-        expect(() =>
-          service.validateForStreaming('unknown-alias'),
-        ).toThrow(HttpException);
+        expect(() => service.validateForStreaming('unknown-alias')).toThrow(
+          HttpException,
+        );
       });
     });
   });

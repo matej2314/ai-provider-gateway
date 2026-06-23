@@ -455,7 +455,7 @@ describe('mapAnthropicContentBlockToGateway', () => {
     });
 
     it('should return assistant with empty content when blocks array is empty', () => {
-      const result = mapAnthropicContentBlockToGateway('assistant', [] as any);
+      const result = mapAnthropicContentBlockToGateway('assistant', []);
 
       expect(result).toEqual([{ role: 'assistant', content: '' }]);
     });

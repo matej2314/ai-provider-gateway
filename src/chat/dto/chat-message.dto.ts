@@ -34,7 +34,8 @@ export class ChatMessageDto {
 
   @ApiPropertyOptional({
     type: [GatewayToolCallDto],
-    description: 'Optional when role is "assistant". Tool calls requested by the model.',
+    description:
+      'Optional when role is "assistant". Tool calls requested by the model.',
   })
   @ValidateIf((message) => message.role === 'assistant')
   @IsOptional()
@@ -43,12 +44,15 @@ export class ChatMessageDto {
   toolCalls?: GatewayToolCallDto[];
 
   @ApiProperty({
-    description: 'Content of the message. Max 3000 characters for "user" and "assistant", 32000 characters for "tool".',
+    description:
+      'Content of the message. Max 3000 characters for "user" and "assistant", 32000 characters for "tool".',
     required: true,
-    example: 'Hello, how are you?'
+    example: 'Hello, how are you?',
   })
   @IsString()
-  @ValidateIf((message) => message.role === 'user' || message.role === 'assistant')
+  @ValidateIf(
+    (message) => message.role === 'user' || message.role === 'assistant',
+  )
   @MaxLength(CONTENT_MAX_LENGTH)
   @ValidateIf((message) => message.role === 'tool')
   @MaxLength(TOOL_CONTENT_MAX_LENGTH)

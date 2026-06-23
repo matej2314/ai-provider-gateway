@@ -68,9 +68,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         exception instanceof Error
           ? exception
           : new Error(
-              typeof exception === 'string'
-                ? exception
-                : 'Unhandled exception',
+              typeof exception === 'string' ? exception : 'Unhandled exception',
             );
       this.loggingService.error(normalizedMessage, err, {
         requestId,
@@ -92,7 +90,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private normalizeMessage(message: unknown): string | string[] {
     if (Array.isArray(message)) {
       return message.every((m) => typeof m === 'string')
-        ? (message as string[])
+        ? message
         : 'An unexpected error occurred';
     }
     if (typeof message === 'string') return message;

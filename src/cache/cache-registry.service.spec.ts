@@ -18,9 +18,7 @@ describe('CacheRegistryService', () => {
   let mockBackend: Partial<CacheBackend>;
   let mockNoopBackend: Partial<CacheBackend>;
 
-  async function initService(
-    configOptions: MockConfigServiceOptions = {},
-  ) {
+  async function initService(configOptions: MockConfigServiceOptions = {}) {
     mockConfig = createMockConfigService(configOptions);
 
     mockLogger = createMockLoggingService();

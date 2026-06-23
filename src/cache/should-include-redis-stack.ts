@@ -2,17 +2,19 @@ import type { ConfigService } from '@nestjs/config';
 
 export type RedisConsumer = 'cache' | 'rate-limit';
 
+import type { CACHE_BACKEND_TYPE } from './interfaces/cache-backend-interface';
+
 export type RedisRequirementSnapshot = {
   cache?: {
     enabled?: boolean;
-    backend?: string;
+    backend?: CACHE_BACKEND_TYPE;
   };
   rateLimitSmartEnabled?: boolean;
 };
 
 function resolveCacheForRequirement(input: RedisRequirementSnapshot): {
   enabled: boolean;
-  backend: string;
+  backend: CACHE_BACKEND_TYPE;
 } {
   const cache = input.cache ?? {};
   const enabled = cache.enabled === true;
@@ -20,7 +22,7 @@ function resolveCacheForRequirement(input: RedisRequirementSnapshot): {
 
   return {
     enabled,
-    backend: enabled ? backendRaw : 'noop',
+    backend: enabled ? (backendRaw as CACHE_BACKEND_TYPE) : 'noop',
   };
 }
 
@@ -53,7 +55,7 @@ export function isRedisRequiredFromEnv(
   return isRedisRequired({
     cache: {
       enabled: cacheEnabled,
-      backend: cacheEnabled ? cacheBackendRaw : 'noop',
+      backend: cacheEnabled ? (cacheBackendRaw as CACHE_BACKEND_TYPE) : 'noop',
     },
     rateLimitSmartEnabled: env.RATE_LIMIT_SMART_ENABLED === 'true',
   });
@@ -64,7 +66,7 @@ export function isRedisRequiredFromConfig(
 ): boolean {
   const cache = configService.get<{
     enabled?: boolean;
-    backend?: string;
+    backend?: CACHE_BACKEND_TYPE;
   }>('cache');
 
   const rateLimitSmartEnabled =
@@ -81,7 +83,7 @@ export function getRedisConsumersFromConfig(
 ): RedisConsumer[] {
   const cache = configService.get<{
     enabled?: boolean;
-    backend?: string;
+    backend?: CACHE_BACKEND_TYPE;
   }>('cache');
 
   const rateLimitSmartEnabled =

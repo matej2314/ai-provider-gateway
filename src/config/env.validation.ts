@@ -11,10 +11,11 @@ import {
   Max,
   IsNumber,
   ValidateIf,
+  Matches,
 } from 'class-validator';
 
 const isProduction = (config: Record<string, unknown>): boolean => {
-  const nodeEnv = config.NODE_ENV as string;
+  const nodeEnv = config.NODE_ENV;
   return nodeEnv === 'production';
 };
 
@@ -35,11 +36,19 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Matches(/^sk-ant-/, {
+    message: 'ANTHROPIC_API_KEY must start with "sk-ant-"',
+  })
   ANTHROPIC_API_KEY?: string;
 
   @IsOptional()
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Matches(/^(AIza|AQ\.)/, {
+    message: 'GOOGLE_API_KEY must start with "AIza" or "AQ" strings',
+  })
   GOOGLE_API_KEY?: string;
 
   @Transform(({ value }) => value === 'true' || value === true)

@@ -111,7 +111,10 @@ describe('mapAnthropicRequestToGateway', () => {
         output_config: {
           format: {
             type: 'json_schema',
-            schema: { type: 'object', properties: { name: { type: 'string' } } },
+            schema: {
+              type: 'object',
+              properties: { name: { type: 'string' } },
+            },
           },
         },
       };

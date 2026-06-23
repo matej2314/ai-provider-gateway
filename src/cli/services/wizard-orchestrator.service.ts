@@ -95,7 +95,7 @@ export class WizardOrchestratorService {
     step: WizardStep,
   ): Promise<void> {
     state.currentStep = step;
-    
+
     switch (step) {
       case WizardStep.MasterKey:
         state.data.masterKey = await this.keyPrompt.promptMasterKey(

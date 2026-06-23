@@ -25,7 +25,7 @@ describe('readBearerToken', () => {
       requestId: 'req-123',
       header: jest.fn().mockReturnValue('Bearer gw_token_123'),
       headers: { authorization: 'Bearer gw_token_123' },
-    } as unknown as Partial<Request>) as Request;
+    }) as Request;
 
     const result = readBearerToken(mockRequest);
 
@@ -36,7 +36,7 @@ describe('readBearerToken', () => {
     const mockRequest = createMockExpressRequest({
       header: jest.fn().mockReturnValue('Bearer   gw_token_123   '),
       headers: { authorization: 'Bearer   gw_token_123   ' },
-    } as unknown as Partial<Request>) as Request;
+    }) as Request;
 
     const result = readBearerToken(mockRequest);
 
@@ -47,7 +47,7 @@ describe('readBearerToken', () => {
     const mockRequest = createMockExpressRequest({
       header: jest.fn().mockReturnValue('bearer gw_token_123'),
       headers: { authorization: 'bearer gw_token_123' },
-    } as unknown as Partial<Request>) as Request;
+    }) as Request;
 
     const result = readBearerToken(mockRequest);
 
@@ -58,7 +58,7 @@ describe('readBearerToken', () => {
     const mockRequest = createMockExpressRequest({
       header: jest.fn().mockReturnValue('gw_token_123'),
       headers: { authorization: 'gw_token_123' },
-    } as unknown as Partial<Request>) as Request;
+    }) as Request;
 
     const result = readBearerToken(mockRequest);
 
@@ -69,7 +69,7 @@ describe('readBearerToken', () => {
     const mockRequest = createMockExpressRequest({
       header: jest.fn().mockReturnValue(undefined),
       headers: {},
-    } as unknown as Partial<Request>) as Request;
+    }) as Request;
 
     const result = readBearerToken(mockRequest);
 
@@ -91,9 +91,7 @@ describe('readBearerToken', () => {
 describe('OpenAiBearerAuthGuard', () => {
   let guard: OpenAiBearerAuthGuard;
 
-  async function initGuard(
-    configOptions: MockConfigServiceOptions = {},
-  ) {
+  async function initGuard(configOptions: MockConfigServiceOptions = {}) {
     const mockConfig = createMockConfigService(configOptions);
 
     const module = await Test.createTestingModule({
@@ -135,7 +133,7 @@ describe('OpenAiBearerAuthGuard', () => {
         requestId: 'req-123',
         header: jest.fn().mockReturnValue('Bearer gw_token_123'),
         headers: { authorization: 'Bearer gw_token_123' },
-      } as unknown as Partial<Request>);
+      });
 
       const context = {
         switchToHttp: () => ({

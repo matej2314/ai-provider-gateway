@@ -31,7 +31,7 @@ export class FileManagerService {
     return backupPath;
   }
 
-  async writeYaml(path: string, data: any): Promise<void> {
+  async writeYaml(path: string, data: unknown): Promise<void> {
     const yamlContent = yaml.dump(data, {
       indent: 2,
       lineWidth: -1,
@@ -40,7 +40,7 @@ export class FileManagerService {
     await fs.writeFile(path, yamlContent, 'utf-8');
   }
 
-  async readYaml<T = any>(path: string): Promise<T> {
+  async readYaml<T = unknown>(path: string): Promise<T> {
     const content = await fs.readFile(path, 'utf-8');
     return yaml.load(content) as T;
   }

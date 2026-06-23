@@ -8,10 +8,7 @@ import {
   createE2eProviderRegistry,
 } from './helpers/e2e-provider-registry';
 import { createE2eSaturatedConcurrentStreamLimiter } from './helpers/e2e-rate-limiter';
-import {
-  E2E_GATEWAY_KEY,
-  E2E_ROUTES,
-} from './helpers/e2e-constants';
+import { E2E_GATEWAY_KEY, E2E_ROUTES } from './helpers/e2e-constants';
 
 describe('Gateway Chat Stream Scenarios (E2E)', () => {
   const validBody = {
@@ -125,16 +122,18 @@ describe('Gateway Chat Stream Scenarios (E2E)', () => {
           // is consumed. mockRejectedValue returns a Promise, so meta for the primary
           // alias is sent first and blocks fallback from re-emitting meta with
           // effectiveModelAlias. A synchronous throw fails before meta emission.
-          providerRegistry.provider.stream = jest.fn().mockImplementation(() => {
-            throw new HttpException(
-              {
-                code: 'PROVIDER_ERROR',
-                message: 'Server error',
-                details: [],
-              },
-              HttpStatus.INTERNAL_SERVER_ERROR,
-            );
-          });
+          providerRegistry.provider.stream = jest
+            .fn()
+            .mockImplementation(() => {
+              throw new HttpException(
+                {
+                  code: 'PROVIDER_ERROR',
+                  message: 'Server error',
+                  details: [],
+                },
+                HttpStatus.INTERNAL_SERVER_ERROR,
+              );
+            });
 
           const response = await request(app.getHttpServer())
             .post(E2E_ROUTES.chatStream)

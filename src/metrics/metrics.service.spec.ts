@@ -54,9 +54,13 @@ describe('MetricsService', () => {
         requestId: 'req-123',
       };
       const fn = jest.fn().mockResolvedValue({ data: 'ok' });
-      const mapResult = jest.fn().mockReturnValue({ usage: { outputTokens: 100 } });
+      const mapResult = jest
+        .fn()
+        .mockReturnValue({ usage: { outputTokens: 100 } });
 
-      (mockBackend.observeLlmCall as jest.Mock).mockResolvedValue({ data: 'ok' });
+      (mockBackend.observeLlmCall as jest.Mock).mockResolvedValue({
+        data: 'ok',
+      });
 
       await service.observeLlmCall(context, fn, mapResult);
 

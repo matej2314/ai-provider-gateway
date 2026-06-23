@@ -31,12 +31,12 @@ export class EnvPatchService {
     });
     if (!found) next.push(`${key}=${value}`);
     await fs.writeFile(this.envPath(cwd), next.join('\n') + '\n', 'utf-8');
-    }
-    
-    async removeVar(cwd: string, key: string): Promise<void> {
-        const prefix = `${key}=`;
-        const lines = await this.readLines(cwd);
-        const next = lines.filter((line) => !line.startsWith(prefix));
-        await fs.writeFile(this.envPath(cwd), next.join('\n') + '\n', 'utf-8');
-    }
+  }
+
+  async removeVar(cwd: string, key: string): Promise<void> {
+    const prefix = `${key}=`;
+    const lines = await this.readLines(cwd);
+    const next = lines.filter((line) => !line.startsWith(prefix));
+    await fs.writeFile(this.envPath(cwd), next.join('\n') + '\n', 'utf-8');
+  }
 }

@@ -112,8 +112,8 @@ Mapowanie `system` na pierwszą wiadomość `user` jest dopuszczalne **tylko** j
 - [x] Dwa typy providerów (Anthropic i Google Gemini) działają zgodnie z portem `AIProvider` (fabryki + bootstrap).
 - [x] Rejestr providerów jest indeksowany po **`providerInstance`**, nie po `type`.
 - [x] W YAML dozwolone są **wiele wpisów** z tym samym `type` (unikalne `apiKeyRef` per instancja).
-- [ ] Błędy 429/timeout są mapowane na te same `code`.
-- [ ] Dodanie trzeciego **typu** (np. OpenAI) wymaga tylko fabryki + wpisu w `FACTORIES`, bez zmian w kontrolerach.
+- [x] Błędy 429/timeout/5xx/auth są mapowane na wspólne kody `PROVIDER_*` (F-4) — `mapAnthropicSdkError` / `mapGoogleGenAiError` w `provider-error.mapper.ts`; testy: `provider-error.mapper.spec.ts`.
+- [ ] Dodanie trzeciego **typu** (np. OpenAI) wymaga fabryki + wpisu w `FACTORIES` oraz rozszerzenia `PROVIDER_TYPES` / schematu YAML — bez zmian w kontrolerach HTTP. *(OpenAI — planowany; patrz [`provider-openai-runtime.md`](../provider-openai-runtime.md).)*
 
 ## Poza zakresem (względem rdzenia MVP)
 

@@ -11,8 +11,7 @@ export class SseMetaPayloadDto {
   model: string;
 
   @ApiPropertyOptional({
-    description:
-      'Model alias actually used for provider call (after fallback)',
+    description: 'Model alias actually used for provider call (after fallback)',
   })
   effectiveModelAlias?: string;
 

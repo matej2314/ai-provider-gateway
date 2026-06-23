@@ -20,9 +20,7 @@ import type { Request } from 'express';
 describe('GatewayKeyGuard', () => {
   let guard: GatewayKeyGuard;
 
-  async function initGuard(
-    configOptions: MockConfigServiceOptions = {},
-  ) {
+  async function initGuard(configOptions: MockConfigServiceOptions = {}) {
     const mockConfig = createMockConfigService(configOptions);
 
     const module = await Test.createTestingModule({

@@ -198,13 +198,7 @@ export class ChatProviderCallService {
       providerName: resolved.providerName,
       modelId: resolved.modelId,
       assembledText: assembledText || '',
-      usageMetadata: usageMetadata as
-        | {
-            inputTokens: number;
-            outputTokens: number;
-            model?: string;
-          }
-        | undefined,
+      usageMetadata: usageMetadata,
       ...(toolCalls?.length && { toolCalls }),
       ...(stopReason && { stopReason }),
       ...(systemFingerprint && { systemFingerprint }),

@@ -4,13 +4,14 @@ import chalk from 'chalk';
 import { CliLogger } from '../../utils/cli-logger.util';
 import { DEFAULT_MODELS } from 'src/cli/constants/default-models';
 import type { CliAiModel } from '../cli.services.types';
+import type { GatewayProviderType } from 'src/config/provider-types';
 
 type ModelPromptResult = CliAiModel;
 
 @Injectable()
 export class ModelPromptService {
   async promptModels(
-    providers: Array<{ id: string; type: string }>,
+    providers: Array<{ id: string; type: GatewayProviderType }>,
   ): Promise<ModelPromptResult[]> {
     CliLogger.section('Step 3/5: Models');
     console.log(

@@ -299,7 +299,9 @@ describe('parseGeminiResponseWithTools', () => {
   it('should parse response with function calls', () => {
     const response = {
       text: '',
-      functionCalls: [{ id: 'call_1', name: 'weather', args: { location: 'SF' } }],
+      functionCalls: [
+        { id: 'call_1', name: 'weather', args: { location: 'SF' } },
+      ],
       modelVersion: 'gemini-2.5-flash',
       usageMetadata: {
         promptTokenCount: 10,

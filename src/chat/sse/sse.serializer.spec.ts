@@ -50,9 +50,7 @@ describe('SseSerializer', () => {
 
       const result = serializer.serialize(event);
 
-      expect(result).toBe(
-        'event: user\ndata: {"id":123,"name":"Alice"}\n\n',
-      );
+      expect(result).toBe('event: user\ndata: {"id":123,"name":"Alice"}\n\n');
     });
 
     it('should serialize nested object', () => {
@@ -279,7 +277,10 @@ describe('SseSerializer', () => {
         { name: 'chat.chunk', data: { delta: 'world', index: 2 } },
         {
           name: 'chat.done',
-          data: { finishReason: 'stop', usage: { inputTokens: 5, outputTokens: 3 } },
+          data: {
+            finishReason: 'stop',
+            usage: { inputTokens: 5, outputTokens: 3 },
+          },
         },
       ];
 

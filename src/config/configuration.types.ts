@@ -4,14 +4,6 @@ export type ResolvedSystemPrompts = {
   perModelByAlias: Record<string, string>;
 };
 
-export type GatewayClientType =
-  | 'webapp'
-  | 'ide'
-  | 'cli'
-  | 'service'
-  | 'backend'
-  | 'automation';
-
 export const GATEWAY_CLIENT_TYPES = [
   'webapp',
   'ide',
@@ -20,6 +12,8 @@ export const GATEWAY_CLIENT_TYPES = [
   'backend',
   'automation',
 ] as const;
+
+export type GatewayClientType = (typeof GATEWAY_CLIENT_TYPES)[number];
 
 export type ResolvedGatewayClient = {
   instanceId: string;

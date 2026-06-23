@@ -8,6 +8,7 @@ import { LoggingService } from '../logging/logging.service';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
 import type { ResolvedSystemPrompts } from '../config/configuration.types';
 import type { ChatWarningDto } from '../chat/dto/chat-warning.dto';
+import type { ChatResponseData } from '../chat/services/chat-response-builder.service';
 
 export interface CachedChatResponse {
   id: string;
@@ -102,7 +103,7 @@ export class ResponseCacheService {
     }
 
     try {
-      const parsed = JSON.parse(cached) as CachedChatResponse;
+      const parsed = JSON.parse(cached);
       this.logger.info(`Cache HIT for key: ${key}`);
       return parsed;
     } catch (error: unknown) {
@@ -118,7 +119,7 @@ export class ResponseCacheService {
 
   async setCachedResponse(
     request: ChatRequestDto,
-    response: unknown,
+    response: ChatResponseData,
     effectiveCallParams?: ProviderCallOptions,
     ttlSeconds?: number,
   ): Promise<void> {
@@ -126,7 +127,18 @@ export class ResponseCacheService {
 
     const key = this.generateCacheKey(request, effectiveCallParams);
     const cachedResponse: CachedChatResponse = {
-      ...(response as CachedChatResponse),
+      id: response.id,
+      provider: response.provider,
+      model: response.model,
+      output: response.output,
+      requestId: response.requestId,
+      ...(response.usage && {
+        usage: {
+          inputTokens: response.usage.inputTokens ?? 0,
+          outputTokens: response.usage.outputTokens ?? 0,
+        },
+      }),
+      ...(response.warnings?.length && { warnings: response.warnings }),
       cached: true,
       cachedAt: new Date().toISOString(),
     };

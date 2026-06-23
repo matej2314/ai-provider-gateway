@@ -82,7 +82,9 @@ describe('AnthropicModelsCatalogService', () => {
       providers: {},
     });
 
-    expect(service.getModel('myCustomModel')!.display_name).toBe('MyCustomModel');
+    expect(service.getModel('myCustomModel')!.display_name).toBe(
+      'MyCustomModel',
+    );
     expect(service.getModel('claude--3')!.display_name).toBe('Claude 3');
   });
 });

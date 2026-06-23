@@ -166,7 +166,7 @@ Fasady muszą współdzielić **`SmartRateLimiterService`** z natywnym API.
 4. Mapper response / stream → format OpenAI lub Anthropic.
 5. Pola specyficzne dla gateway (`provider`, `cached`, `conversationId`) **nie** są eksponowane w fasadach MVP.
 
-## Limity walidacji (ChatIngressValidator)
+## Limity walidacji ingress (`validateChatIngress`)
 
 Gateway stosuje **różne profile walidacji** dla natywnego API i fasad IDE:
 
@@ -176,8 +176,8 @@ Gateway stosuje **różne profile walidacji** dla natywnego API i fasad IDE:
 | `facade-openai` | `/api/v1/openai/chat/completions` | 15000 | 128000 | 128000 |
 | `facade-anthropic` | `/api/v1/anthropic/messages` | 15000 | 128000 | 128000 |
 
-**Implementacja:** `src/chat/validation/chat-ingress.validator.ts` — walidacja przed wejściem do `ChatService`.  
-**Testy:** `src/chat/validation/chat-ingress.validator.spec.ts`, E2E w `test/e2e/`.
+**Implementacja:** funkcja `validateChatIngress()` w `src/chat/validation/chat-ingress.validator.ts` — wywoływana w `ChatService.executeChat` / `executeStream` przed orkiestracją (profile: `ChatIngressProfile` w `chat-ingress.types.ts`; limity: `INGRESS_LIMITS` w `chat-ingress.constants.ts`).  
+**Testy:** `src/chat/validation/chat-ingress.validator.spec.ts`, E2E w `test/e2e/` (m.in. `gateway-chat.e2e-spec.ts`, `openai-facade.e2e-spec.ts`).
 
 ## Streaming
 

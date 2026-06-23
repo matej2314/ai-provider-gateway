@@ -4,6 +4,7 @@ import {
   type Content,
   type FunctionDeclaration,
   type Part,
+  type GenerateContentResponse,
 } from '@google/genai';
 import type {
   ProviderChatResponse,
@@ -26,6 +27,48 @@ interface GeminiResponseWithTools {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
   };
+}
+
+interface GeminiLegacyThoughtFields {
+  thoughts?: string | string[];
+  thinkingContent?: string | string[];
+}
+
+type GeminiThoughtContentSource = GeminiLegacyThoughtFields & {
+  candidates?: GenerateContentResponse['candidates'];
+};
+
+function normalizeThoughtValue(raw: string | string[]): string {
+  return Array.isArray(raw) ? raw.join('\n') : String(raw);
+}
+
+function extractFromLegacyFields(
+  response: GeminiLegacyThoughtFields,
+): string | undefined {
+  const raw = response.thoughts ?? response.thinkingContent;
+  if (!raw) return undefined;
+  return normalizeThoughtValue(raw);
+}
+
+function extractFromThoughtParts(
+  parts: Part[] | undefined,
+): string | undefined {
+  const texts = (parts ?? [])
+    .filter(
+      (p): p is Part & { text: string } =>
+        p.thought === true && typeof p.text === 'string',
+    )
+    .map((p) => p.text);
+  return texts.length > 0 ? texts.join('\n') : undefined;
+}
+
+export function extractGeminiThinkingContent(
+  response: GeminiThoughtContentSource,
+): string | undefined {
+  const fromLegacy = extractFromLegacyFields(response);
+  if (fromLegacy) return fromLegacy;
+
+  return extractFromThoughtParts(response.candidates?.[0]?.content?.parts);
 }
 
 function toParametersSchema(

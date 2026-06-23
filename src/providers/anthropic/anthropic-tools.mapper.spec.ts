@@ -193,7 +193,12 @@ describe('mapTurnsToAnthropicMessages', () => {
       content: [
         { type: 'text', text: 'Let me check' },
         { type: 'tool_use', id: 'call_1', name: 'weather', input: {} },
-        { type: 'tool_use', id: 'call_2', name: 'search', input: { query: 'rain' } },
+        {
+          type: 'tool_use',
+          id: 'call_2',
+          name: 'search',
+          input: { query: 'rain' },
+        },
       ],
     });
   });
@@ -330,7 +335,12 @@ describe('parseAnthropicResponseWithTools', () => {
       role: 'assistant',
       content: [
         { type: 'text', text: 'Let me check' },
-        { type: 'tool_use', id: 'call_1', name: 'weather', input: { location: 'SF' } },
+        {
+          type: 'tool_use',
+          id: 'call_1',
+          name: 'weather',
+          input: { location: 'SF' },
+        },
       ],
       usage: { input_tokens: 10, output_tokens: 5 },
       stop_reason: 'tool_use',
@@ -352,7 +362,12 @@ describe('parseAnthropicResponseWithTools', () => {
       model: 'claude-sonnet-4',
       role: 'assistant',
       content: [
-        { type: 'tool_use', id: 'call_1', name: 'weather', input: '{"raw":"json"}' },
+        {
+          type: 'tool_use',
+          id: 'call_1',
+          name: 'weather',
+          input: '{"raw":"json"}',
+        },
       ],
       usage: { input_tokens: 10, output_tokens: 5 },
       type: 'message',

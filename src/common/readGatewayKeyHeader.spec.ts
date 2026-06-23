@@ -118,8 +118,7 @@ describe('readGatewayKeyHeader', () => {
   describe('Edge case - empty/whitespace values', () => {
     it('should return empty string when header is empty', () => {
       const req = {
-        header: (name: string) =>
-          name === 'x-gateway-key' ? '' : undefined,
+        header: (name: string) => (name === 'x-gateway-key' ? '' : undefined),
         headers: { 'x-gateway-key': '' },
       } as unknown as Request;
 

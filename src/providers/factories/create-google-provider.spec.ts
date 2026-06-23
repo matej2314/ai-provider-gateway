@@ -62,10 +62,7 @@ describe('createGoogleProvider', () => {
     let input: ProviderChatInput;
 
     beforeEach(() => {
-      provider = createGoogleProvider(
-        'test-key',
-        mockLogger as LoggingService,
-      );
+      provider = createGoogleProvider('test-key', mockLogger as LoggingService);
       input = {
         messages: [{ role: 'user', content: 'Hello' }],
         system: 'You are helpful',
@@ -367,7 +364,8 @@ describe('createGoogleProvider', () => {
 
       const options: ProviderCallOptions = {
         thinkingEnabled: true,
-        thinkingBudget: 'unknown-level' as ProviderCallOptions['thinkingBudget'],
+        thinkingBudget:
+          'unknown-level' as ProviderCallOptions['thinkingBudget'],
       };
       await provider.complete(input, 'gemini-3.5-flash', options);
 
@@ -413,7 +411,10 @@ describe('createGoogleProvider', () => {
         tools: [{ name: 'weather', parameters: {} }],
       };
 
-      const result = await provider.complete(inputWithTools, 'gemini-2.5-flash');
+      const result = await provider.complete(
+        inputWithTools,
+        'gemini-2.5-flash',
+      );
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -538,7 +539,9 @@ describe('createGoogleProvider', () => {
       const error = new Error('API error');
       mockGoogleClient.models.generateContent.mockRejectedValue(error);
 
-      await expect(provider.complete(input, 'gemini-2.5-flash')).rejects.toThrow();
+      await expect(
+        provider.complete(input, 'gemini-2.5-flash'),
+      ).rejects.toThrow();
       expect(mockLogger.warn).toHaveBeenCalled();
     });
   });
@@ -548,10 +551,7 @@ describe('createGoogleProvider', () => {
     let input: ProviderChatInput;
 
     beforeEach(() => {
-      provider = createGoogleProvider(
-        'test-key',
-        mockLogger as LoggingService,
-      );
+      provider = createGoogleProvider('test-key', mockLogger as LoggingService);
       input = {
         messages: [{ role: 'user', content: 'Hello' }],
       };
@@ -769,7 +769,9 @@ describe('createGoogleProvider', () => {
         // consume stream
       }
 
-      expect(mockGoogleClient.models.generateContentStream).toHaveBeenCalledWith(
+      expect(
+        mockGoogleClient.models.generateContentStream,
+      ).toHaveBeenCalledWith(
         expect.objectContaining({
           config: expect.objectContaining({
             tools: expect.any(Array),
@@ -877,7 +879,9 @@ describe('createGoogleProvider', () => {
         // consume stream
       }
 
-      expect(mockGoogleClient.models.generateContentStream).toHaveBeenCalledWith(
+      expect(
+        mockGoogleClient.models.generateContentStream,
+      ).toHaveBeenCalledWith(
         expect.objectContaining({
           config: expect.objectContaining({
             temperature: 0.5,

@@ -199,7 +199,9 @@ describe('OpenAI Facade API (E2E)', () => {
     it('should return 429 in OpenAI format when concurrent stream limit is exceeded', async () => {
       await withE2eApp(
         {
-          providerRegistry: createE2eProviderRegistry({ modelAlias: openAiModel }),
+          providerRegistry: createE2eProviderRegistry({
+            modelAlias: openAiModel,
+          }),
           rateLimiter: createE2eSaturatedConcurrentStreamLimiter(),
         },
         async ({ app }) => {
@@ -232,18 +234,16 @@ describe('OpenAI Facade API (E2E)', () => {
 
     beforeAll(async () => {
       errorRegistry = createE2eProviderRegistry({ modelAlias: openAiModel });
-      errorRegistry.provider.complete = jest
-        .fn()
-        .mockRejectedValue(
-          new HttpException(
-            {
-              code: ApiErrorCode.VALIDATION_FAILED,
-              message: 'Invalid parameter',
-              details: [],
-            },
-            HttpStatus.BAD_REQUEST,
-          ),
-        );
+      errorRegistry.provider.complete = jest.fn().mockRejectedValue(
+        new HttpException(
+          {
+            code: ApiErrorCode.VALIDATION_FAILED,
+            message: 'Invalid parameter',
+            details: [],
+          },
+          HttpStatus.BAD_REQUEST,
+        ),
+      );
 
       const context = await createE2eApp({ providerRegistry: errorRegistry });
       errorApp = context.app;

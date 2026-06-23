@@ -123,7 +123,9 @@ export class ClientPromptService {
         };
       }
 
-      const gatewayKey = keyGenerator.generateGatewayClientKey(clientAnswers.id.trim());
+      const gatewayKey = keyGenerator.generateGatewayClientKey(
+        clientAnswers.id.trim(),
+      );
       console.log(chalk.green(`\n✓ Generated gateway key\n`));
 
       clients.push({

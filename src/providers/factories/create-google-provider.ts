@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { LoggingService } from 'src/logging/logging.service';
 import {
   mapGoogleGenAiError,
@@ -16,6 +16,7 @@ import {
   mapToolChoiceToGemini,
   mapTurnsToGeminiContents,
   parseGeminiResponseWithTools,
+  extractGeminiThinkingContent,
 } from '../google/google-tools.mapper';
 
 function mapStopSequences(
@@ -49,35 +50,33 @@ function buildGenerationConfig(
           ...(typeof options.thinkingBudget === 'number'
             ? {
                 thinkingBudget: options.thinkingBudget,
-                thinkingLevel: 'HIGH' as any,
+                thinkingLevel: ThinkingLevel.HIGH,
               }
             : typeof options.thinkingBudget === 'string'
               ? {
                   thinkingLevel: mapThinkingBudgetToGeminiLevel(
                     options.thinkingBudget,
-                  ) as any,
+                  ),
                 }
               : {
-                  thinkingLevel: 'HIGH' as any,
+                  thinkingLevel: ThinkingLevel.HIGH,
                 }),
         },
       }),
   };
 }
 
-function mapThinkingBudgetToGeminiLevel(
-  budget: string,
-): 'THINKING_LEVEL_UNSPECIFIED' | 'MINIMAL' | 'LOW' | 'MEDIUM' | 'HIGH' {
-  const map: Record<string, 'MINIMAL' | 'LOW' | 'MEDIUM' | 'HIGH'> = {
-    none: 'MINIMAL',
-    minimal: 'MINIMAL',
-    low: 'LOW',
-    medium: 'MEDIUM',
-    high: 'HIGH',
-    xhigh: 'HIGH',
-    max: 'HIGH',
+function mapThinkingBudgetToGeminiLevel(budget: string): ThinkingLevel {
+  const map: Record<string, ThinkingLevel> = {
+    none: ThinkingLevel.MINIMAL,
+    minimal: ThinkingLevel.MINIMAL,
+    low: ThinkingLevel.LOW,
+    medium: ThinkingLevel.MEDIUM,
+    high: ThinkingLevel.HIGH,
+    xhigh: ThinkingLevel.HIGH,
+    max: ThinkingLevel.HIGH,
   };
-  return map[budget] ?? 'HIGH';
+  return map[budget] ?? ThinkingLevel.HIGH;
 }
 
 export function createGoogleProvider(
@@ -128,18 +127,15 @@ export function createGoogleProvider(
               }),
             },
           });
-          const parsedResponse = parseGeminiResponseWithTools(response, modelId);
+          const parsedResponse = parseGeminiResponseWithTools(
+            response,
+            modelId,
+          );
 
           // Extract thinking content from response (if includeThoughts=true)
           let thinkingContent: string | undefined = undefined;
           if (options?.thinkingEnabled && modelId.startsWith('gemini-3')) {
-            const thoughts =
-              (response as any).thoughts || (response as any).thinkingContent;
-            if (thoughts) {
-              thinkingContent = Array.isArray(thoughts)
-                ? thoughts.join('\n')
-                : String(thoughts);
-            }
+            thinkingContent = extractGeminiThinkingContent(response);
           }
 
           return {
@@ -162,13 +158,7 @@ export function createGoogleProvider(
         // Extract thinking content from response (non-tool path)
         let thinkingContent: string | undefined = undefined;
         if (options?.thinkingEnabled && modelId.startsWith('gemini-3')) {
-          const thoughts =
-            (response as any).thoughts || (response as any).thinkingContent;
-          if (thoughts) {
-            thinkingContent = Array.isArray(thoughts)
-              ? thoughts.join('\n')
-              : String(thoughts);
-          }
+          thinkingContent = extractGeminiThinkingContent(response);
         }
 
         return {
@@ -203,7 +193,7 @@ export function createGoogleProvider(
         : never;
 
       // Accumulate thinking content during streaming
-      let accumulatedThinkingContent: string[] = [];
+      const accumulatedThinkingContent: string[] = [];
 
       async function* textStream(): AsyncIterable<string> {
         try {
@@ -248,17 +238,10 @@ export function createGoogleProvider(
           for await (const event of stream) {
             lastChunk = event;
 
-            // Collect thinking content during streaming
             if (options?.thinkingEnabled && modelId.startsWith('gemini-3')) {
-              const thoughts =
-                (event as any).thoughts || (event as any).thinkingContent;
-              if (thoughts) {
-                const thoughtText = Array.isArray(thoughts)
-                  ? thoughts.join('\n')
-                  : String(thoughts);
-                if (thoughtText) {
-                  accumulatedThinkingContent.push(thoughtText);
-                }
+              const thoughtText = extractGeminiThinkingContent(event);
+              if (thoughtText) {
+                accumulatedThinkingContent.push(thoughtText);
               }
             }
 
