@@ -3,7 +3,7 @@ jest.mock('uuid', () => ({
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
 import { OpenAiChatCompletionsController } from './openai-chat-completions.controller';
 import { ChatService } from '../../../chat/chat.service';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
@@ -14,7 +14,6 @@ import { OpenAiBearerAuthGuard } from '../guards/openai-bearer-auth.guard';
 import { SmartRateLimitGuard } from '../../../guards/smart-rate-limit-guard';
 import { createOpenAiStreamState } from '../mappers/openai-stream.mapper';
 import type { Request, Response } from 'express';
-import type { SseEvent } from '../../../chat/sse/sse-event.type';
 import type { OpenAiChatCompletionRequestDto } from '../dtos/openai-chat-completion-request.dto';
 
 jest.mock('../mappers/openai-request.mapper', () => ({
@@ -45,23 +44,41 @@ jest.mock('../mappers/openai-stream.mapper', () => ({
 
 describe('OpenAiChatCompletionsController', () => {
   let controller: OpenAiChatCompletionsController;
-  let chatService: jest.Mocked<ChatService>;
   let rateLimiter: jest.Mocked<SmartRateLimiterService>;
+  let executeChatMock: jest.Mock;
+  let executeStreamMock: jest.Mock;
+  let validateForStreamingMock: jest.Mock;
+  let releaseStreamMock: jest.Mock;
 
-  const mockResponse = (): Response =>
-    ({
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
-      setHeader: jest.fn().mockReturnThis(),
-      write: jest.fn().mockReturnThis(),
-      end: jest.fn().mockReturnThis(),
-      flushHeaders: jest.fn(),
-    }) as unknown as Response;
+  const mockResponse = () => {
+    const status = jest.fn().mockReturnThis();
+    const json = jest.fn().mockReturnThis();
+    const setHeader = jest.fn().mockReturnThis();
+    const write = jest.fn().mockReturnThis();
+    const end = jest.fn().mockReturnThis();
+    const flushHeaders = jest.fn();
+
+    const res = {
+      status,
+      json,
+      setHeader,
+      write,
+      end,
+      flushHeaders,
+    } as unknown as Response;
+
+    return { res, status, json, setHeader, write, end, flushHeaders };
+  };
 
   const baseMessages = [{ role: 'user' as const, content: 'Hello' }];
 
   beforeEach(async () => {
     jest.clearAllMocks();
+
+    executeChatMock = jest.fn();
+    executeStreamMock = jest.fn();
+    validateForStreamingMock = jest.fn();
+    releaseStreamMock = jest.fn();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [OpenAiChatCompletionsController],
@@ -69,14 +86,17 @@ describe('OpenAiChatCompletionsController', () => {
         {
           provide: ChatService,
           useValue: {
-            executeChat: jest.fn(),
-            executeStream: jest.fn(),
-            validateForStreaming: jest.fn(),
+            executeChat: executeChatMock,
+            executeStream: executeStreamMock,
+            validateForStreaming: validateForStreamingMock,
           },
         },
         {
           provide: SmartRateLimiterService,
-          useValue: createMockSmartRateLimiter(),
+          useValue: {
+            ...createMockSmartRateLimiter(),
+            releaseStream: releaseStreamMock,
+          },
         },
       ],
     })
@@ -87,17 +107,16 @@ describe('OpenAiChatCompletionsController', () => {
       .compile();
 
     controller = module.get(OpenAiChatCompletionsController);
-    chatService = module.get(ChatService);
     rateLimiter = module.get(SmartRateLimiterService);
   });
 
   it('should execute non-streaming chat and return mapped response', async () => {
     const req = { requestId: 'req_1', gatewayKey: 'gw_app_key' } as Request;
-    const res = mockResponse();
-    chatService.executeChat.mockResolvedValue({
+    const { res, json } = mockResponse();
+    executeChatMock.mockResolvedValue({
       id: 'gw_abc',
       output: { text: 'Hi there!' },
-    } as never);
+    });
 
     await controller.completions(
       req,
@@ -109,15 +128,15 @@ describe('OpenAiChatCompletionsController', () => {
       res,
     );
 
-    expect(chatService.validateForStreaming).not.toHaveBeenCalled();
-    expect(chatService.executeChat).toHaveBeenCalledWith(
+    expect(validateForStreamingMock).not.toHaveBeenCalled();
+    expect(executeChatMock).toHaveBeenCalledWith(
       expect.objectContaining({ modelAlias: 'claude-sonnet-4-5' }),
       'req_1',
       'gw_app_key',
       'facade-openai',
     );
-    expect(chatService.executeStream).not.toHaveBeenCalled();
-    expect(res.json).toHaveBeenCalledWith(
+    expect(executeStreamMock).not.toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'chatcmpl_gw_abc',
         choices: [{ message: { content: 'Hi there!' }, finish_reason: 'stop' }],
@@ -127,11 +146,11 @@ describe('OpenAiChatCompletionsController', () => {
 
   it('should use empty gatewayKey when missing on non-streaming request', async () => {
     const req = { requestId: 'req_1' } as Request;
-    const res = mockResponse();
-    chatService.executeChat.mockResolvedValue({
+    const { res } = mockResponse();
+    executeChatMock.mockResolvedValue({
       id: 'gw_1',
       output: { text: 'ok' },
-    } as never);
+    });
 
     await controller.completions(
       req,
@@ -139,7 +158,7 @@ describe('OpenAiChatCompletionsController', () => {
       res,
     );
 
-    expect(chatService.executeChat).toHaveBeenCalledWith(
+    expect(executeChatMock).toHaveBeenCalledWith(
       expect.anything(),
       'req_1',
       '',
@@ -162,41 +181,40 @@ describe('OpenAiChatCompletionsController', () => {
 
     it('should set OpenAI SSE headers and forward mapped lines', async () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res, status, setHeader, write, end, flushHeaders } =
+        mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      chatService.executeStream.mockImplementation(
-        async (_req, _id, onEvent) => {
-          onEvent({ name: 'delta', data: { text: 'Hi' } });
-        },
-      );
+      executeStreamMock.mockImplementation((_req, _id, onEvent) => {
+        onEvent({ name: 'delta', data: { text: 'Hi' } });
+      });
 
       await controller.completions(req, streamBody, res);
 
-      expect(chatService.validateForStreaming).toHaveBeenCalledWith('gpt-4');
-      expect(chatService.executeChat).not.toHaveBeenCalled();
+      expect(validateForStreamingMock).toHaveBeenCalledWith('gpt-4');
+      expect(executeChatMock).not.toHaveBeenCalled();
       expect(createOpenAiStreamState).toHaveBeenCalledWith('gpt-4', false);
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.setHeader).toHaveBeenCalledWith(
+      expect(status).toHaveBeenCalledWith(200);
+      expect(setHeader).toHaveBeenCalledWith(
         'Content-Type',
         'text/event-stream; charset=utf-8',
       );
-      expect(res.setHeader).toHaveBeenCalledWith(
+      expect(setHeader).toHaveBeenCalledWith(
         'Cache-Control',
         'no-cache, no-transform',
       );
-      expect(res.setHeader).toHaveBeenCalledWith('Connection', 'keep-alive');
-      expect(res.setHeader).toHaveBeenCalledWith('x-request-id', 'req_1');
-      expect(res.flushHeaders).toHaveBeenCalled();
-      expect(res.write).toHaveBeenCalled();
-      expect(rateLimiter.releaseStream).toHaveBeenCalledWith('gw_key');
-      expect(res.end).toHaveBeenCalled();
+      expect(setHeader).toHaveBeenCalledWith('Connection', 'keep-alive');
+      expect(setHeader).toHaveBeenCalledWith('x-request-id', 'req_1');
+      expect(flushHeaders).toHaveBeenCalled();
+      expect(write).toHaveBeenCalled();
+      expect(releaseStreamMock).toHaveBeenCalledWith('gw_key');
+      expect(end).toHaveBeenCalled();
     });
 
     it('should pass includeUsage true when stream_options.include_usage is set', async () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      chatService.executeStream.mockResolvedValue(undefined);
+      executeStreamMock.mockResolvedValue(undefined);
 
       await controller.completions(
         req,
@@ -209,9 +227,9 @@ describe('OpenAiChatCompletionsController', () => {
 
     it('should pass includeUsage true when legacy include_usage is set', async () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      chatService.executeStream.mockResolvedValue(undefined);
+      executeStreamMock.mockResolvedValue(undefined);
 
       await controller.completions(
         req,
@@ -224,13 +242,13 @@ describe('OpenAiChatCompletionsController', () => {
 
     it('should omit x-request-id header when requestId is missing', async () => {
       const req = { gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res, setHeader } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      chatService.executeStream.mockResolvedValue(undefined);
+      executeStreamMock.mockResolvedValue(undefined);
 
       await controller.completions(req, streamBody, res);
 
-      expect(res.setHeader).not.toHaveBeenCalledWith(
+      expect(setHeader).not.toHaveBeenCalledWith(
         'x-request-id',
         expect.anything(),
       );
@@ -238,7 +256,7 @@ describe('OpenAiChatCompletionsController', () => {
 
     it('should throw 429 when concurrent stream limit exceeded', async () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue({
         allowed: false,
         remaining: 0,
@@ -257,12 +275,12 @@ describe('OpenAiChatCompletionsController', () => {
         },
         status: HttpStatus.TOO_MANY_REQUESTS,
       });
-      expect(chatService.executeStream).not.toHaveBeenCalled();
+      expect(executeStreamMock).not.toHaveBeenCalled();
     });
 
     it('should use fallback rate-limit message when reason is missing', async () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue({
         allowed: false,
         remaining: 0,
@@ -278,15 +296,15 @@ describe('OpenAiChatCompletionsController', () => {
 
     it('should release stream and end response when executeStream throws', async () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res, end } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      chatService.executeStream.mockRejectedValue(new Error('stream failed'));
+      executeStreamMock.mockRejectedValue(new Error('stream failed'));
 
       await expect(
         controller.completions(req, streamBody, res),
       ).rejects.toThrow('stream failed');
-      expect(rateLimiter.releaseStream).toHaveBeenCalledWith('gw_key');
-      expect(res.end).toHaveBeenCalled();
+      expect(releaseStreamMock).toHaveBeenCalledWith('gw_key');
+      expect(end).toHaveBeenCalled();
     });
   });
 });

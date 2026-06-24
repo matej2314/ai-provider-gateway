@@ -23,7 +23,7 @@ export class StreamCleanupInterceptor implements NestInterceptor {
     return next.handle().pipe(
       finalize(() => {
         if (isStreaming && gatewayKey) {
-          this.rateLimiter.releaseStream(gatewayKey);
+          void this.rateLimiter.releaseStream(gatewayKey);
         }
       }),
     );

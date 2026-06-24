@@ -14,7 +14,7 @@ export class KeyPromptService {
       ),
     );
 
-    const { masterKey } = await inquirer.prompt([
+    const { masterKey } = await inquirer.prompt<{ masterKey: string }>([
       {
         type: 'password',
         name: 'masterKey',
@@ -26,7 +26,7 @@ export class KeyPromptService {
     if (!masterKey || masterKey.trim() === '') {
       const generated = keyGenerator.generateMasterKey();
 
-      const { showKey } = await inquirer.prompt([
+      const { showKey } = await inquirer.prompt<{ showKey: boolean }>([
         {
           type: 'confirm',
           name: 'showKey',

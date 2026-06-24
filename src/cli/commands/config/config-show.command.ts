@@ -12,7 +12,7 @@ export class ConfigShowCommand extends CommandRunner {
     super();
   }
 
-  async run(): Promise<void> {
+  run(): Promise<void> {
     try {
       CliLogger.section('Gateway configuration.');
       const config = this.cliLoader.loadRawConfig();
@@ -63,6 +63,7 @@ export class ConfigShowCommand extends CommandRunner {
       }
 
       CliLogger.blank();
+      return Promise.resolve();
     } catch (error) {
       CliLogger.error(
         error instanceof Error ? error.message : 'Unknown error occurred.',

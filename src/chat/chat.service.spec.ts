@@ -123,8 +123,6 @@ describe('ChatService', () => {
           requestId: string,
           conversationId: string,
           effectiveModelAlias?: string,
-          _options?: unknown,
-          _providerType?: string,
         ) => ({
           id: 'gw_test-uuid',
           provider: providerName,

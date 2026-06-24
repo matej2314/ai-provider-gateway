@@ -43,7 +43,7 @@ describe('Gateway Chat Stream Scenarios (E2E)', () => {
         },
         async ({ app, providerRegistry }) => {
           providerRegistry.provider.stream = jest.fn().mockReturnValue({
-            textStream: (async function* () {
+            textStream: (function* () {
               yield 'Done';
             })(),
             getUsageMetadata: jest

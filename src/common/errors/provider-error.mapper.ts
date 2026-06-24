@@ -42,7 +42,8 @@ export function mapAnthropicSdkError(error: unknown): MappedProviderError {
   }
 
   if (error instanceof Anthropic.APIError) {
-    const status = error.status ?? HttpStatus.BAD_GATEWAY;
+    const status =
+      typeof error.status === 'number' ? error.status : HttpStatus.BAD_GATEWAY;
     if (status === 429) {
       return {
         httpStatus: HttpStatus.TOO_MANY_REQUESTS,

@@ -140,7 +140,7 @@ export class ProviderTestCommand extends CommandRunner {
           success = await this.tester.testGoogle(apiKey);
           break;
         default:
-          spinner.fail(`Unknown provider type: ${provider.type}`);
+          spinner.fail(`Unknown provider type: ${String(provider.type)}`);
           results.push({ name, success: false });
           continue;
       }

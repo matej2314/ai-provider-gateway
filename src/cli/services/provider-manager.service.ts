@@ -3,7 +3,10 @@ import * as inquirer from 'inquirer';
 import chalk from 'chalk';
 import boxen from 'boxen';
 import { GatewayConfig } from 'src/config/gateway-config.schema';
-import { PROVIDER_TYPES } from 'src/config/provider-types';
+import {
+  PROVIDER_TYPES,
+  type GatewayProviderType,
+} from 'src/config/provider-types';
 import { EnvPatchService } from './env-patch.service';
 import { ConfigPersistenceService } from './config-persistence.service';
 import { ModelManagerService } from './model-manager.service';
@@ -34,14 +37,14 @@ export class ProviderManagerService {
   async addProvider(config: GatewayConfig, cwd: string): Promise<void> {
     CliLogger.section('Add provider instance');
 
-    const { instanceId } = await inquirer.prompt([
+    const { instanceId } = await inquirer.prompt<{ instanceId: string }>([
       {
         type: 'input',
         name: 'instanceId',
         message:
           'Provider instance ID (e.g. google-office, anthropic-streaming):',
-        validate: (input) => {
-          const id = input?.trim();
+        validate: (input: string) => {
+          const id = String(input).trim();
           if (!id) return 'Instance ID is required.';
           if (config.providers[id])
             return `Instance ${id} already exists - use provider:edit command.`;
@@ -52,7 +55,7 @@ export class ProviderManagerService {
 
     const id = instanceId.trim();
 
-    const { type } = await inquirer.prompt([
+    const { type } = await inquirer.prompt<{ type: GatewayProviderType }>([
       {
         type: 'list',
         name: 'type',
@@ -63,7 +66,7 @@ export class ProviderManagerService {
 
     const apiKeyRef = this.deriveApiKeyRef(id);
 
-    const { apiKey } = await inquirer.prompt([
+    const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
       {
         type: 'password',
         name: 'apiKey',
@@ -74,7 +77,7 @@ export class ProviderManagerService {
       },
     ]);
 
-    const { enabled } = await inquirer.prompt([
+    const { enabled } = await inquirer.prompt<{ enabled: boolean }>([
       {
         type: 'confirm',
         name: 'enabled',
@@ -117,11 +120,11 @@ export class ProviderManagerService {
     if (!row) throw new Error(`Provider instance ${instanceId} not found.`);
 
     const linkedAliases = Object.entries(config.models)
-      .filter(([_, model]) => model.providerInstance === instanceId)
+      .filter(([, model]) => model.providerInstance === instanceId)
       .map(([alias]) => alias);
 
     const activeInstances = Object.entries(config.providers).filter(
-      ([_, provider]) => provider.enabled !== false,
+      ([, provider]) => provider.enabled !== false,
     );
 
     const isOnlyActive =
@@ -138,7 +141,7 @@ export class ProviderManagerService {
       );
       console.log(warning);
 
-      const { confirm } = await inquirer.prompt([
+      const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
         {
           type: 'confirm',
           name: 'confirm',
@@ -151,7 +154,7 @@ export class ProviderManagerService {
         return;
       }
     } else {
-      const { confirm } = await inquirer.prompt([
+      const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
         {
           type: 'confirm',
           name: 'confirm',
@@ -204,7 +207,9 @@ export class ProviderManagerService {
       `Type: ${row.type} | apiKeyRef: ${row.apiKeyRef} | enabled: ${row.enabled !== false ? 'Yes' : 'No'}`,
     );
 
-    const { action } = await inquirer.prompt([
+    const { action } = await inquirer.prompt<{
+      action: 'enabled' | 'apiKey' | 'cancel';
+    }>([
       {
         type: 'list',
         name: 'action',
@@ -220,8 +225,8 @@ export class ProviderManagerService {
     switch (action) {
       case 'cancel':
         return;
-      case 'enabled':
-        const { enabled } = await inquirer.prompt([
+      case 'enabled': {
+        const { enabled } = await inquirer.prompt<{ enabled: boolean }>([
           {
             type: 'confirm',
             name: 'enabled',
@@ -238,8 +243,9 @@ export class ProviderManagerService {
         await this.persistence.persistConfig(config, cwd);
         CliLogger.success(`Provider ${instanceId} enabled=${enabled}`);
         return;
-      case 'apiKey':
-        const { apiKey } = await inquirer.prompt([
+      }
+      case 'apiKey': {
+        const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
           {
             type: 'password',
             name: 'apiKey',
@@ -251,6 +257,8 @@ export class ProviderManagerService {
         ]);
         await this.envPatch.setVar(cwd, row.apiKeyRef, apiKey.trim());
         CliLogger.success(`API key updated for ${instanceId}.`);
+        return;
+      }
     }
   }
 }

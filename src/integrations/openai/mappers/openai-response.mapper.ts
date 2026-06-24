@@ -20,7 +20,9 @@ function mapGatewayToolCallsToOpenAi(
 
 export function mapSystemFingerprintToOpenAi(
   systemFingerprint?: string,
-): Pick<OpenAiChatCompletionResponseDto, 'system_fingerprint'> | {} {
+):
+  | Pick<OpenAiChatCompletionResponseDto, 'system_fingerprint'>
+  | Record<string, never> {
   return systemFingerprint ? { system_fingerprint: systemFingerprint } : {};
 }
 

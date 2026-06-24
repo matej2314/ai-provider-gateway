@@ -77,4 +77,4 @@ backup/*
 tests-plans/*
 
 rozjazdy_likwidacja_plan.md
-type-safety-plan.md
+# type-safety-plan.md

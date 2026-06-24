@@ -7,7 +7,7 @@ export interface RateLimitModuleOptions {
 
 @Module({})
 export class RateLimitModule {
-  static register(options: RateLimitModuleOptions): DynamicModule {
+  static register(_options: RateLimitModuleOptions): DynamicModule {
     return {
       module: RateLimitModule,
       global: true,

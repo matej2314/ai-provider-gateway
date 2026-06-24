@@ -14,19 +14,15 @@ export class NoOpCacheBackend implements CacheBackend, OnModuleInit {
     return false;
   }
 
-  async get(_key: string): Promise<string | null> {
-    return null;
+  get(_key: string): Promise<string | null> {
+    return Promise.resolve(null);
   }
 
-  async set(
-    _key: string,
-    _value: string,
-    _ttlSeconds?: number,
-  ): Promise<boolean> {
-    return false;
+  set(_key: string, _value: string, _ttlSeconds?: number): Promise<boolean> {
+    return Promise.resolve(false);
   }
 
-  async delete(_key: string): Promise<boolean> {
-    return false;
+  delete(_key: string): Promise<boolean> {
+    return Promise.resolve(false);
   }
 }

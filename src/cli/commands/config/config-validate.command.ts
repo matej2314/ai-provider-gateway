@@ -12,7 +12,7 @@ export class ConfigValidateCommand extends CommandRunner {
     super();
   }
 
-  async run(): Promise<void> {
+  run(): Promise<void> {
     try {
       CliLogger.section('Validating configuration...');
 
@@ -59,6 +59,7 @@ export class ConfigValidateCommand extends CommandRunner {
       CliLogger.dim(`  - Models: ${Object.keys(config.models).length}`);
       CliLogger.dim(`  - Clients: ${Object.keys(config.clients).length}`);
       CliLogger.blank();
+      return Promise.resolve();
     } catch (error) {
       CliLogger.error(
         error instanceof Error ? error.message : 'Unknown error occurred.',

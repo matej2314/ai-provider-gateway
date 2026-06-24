@@ -119,18 +119,19 @@ describe('MetricsService', () => {
         modelId: 'gpt-4',
         requestId: 'req-123',
       };
+      const endMock = jest.fn();
       const mockController = {
-        end: jest.fn(),
+        end: endMock,
       };
 
       (mockBackend.observeLlmStream as jest.Mock).mockReturnValue(
         mockController,
       );
 
-      const controller = service.observeLlmStream(context);
+      service.observeLlmStream(context);
 
-      expect(controller.end).toBeDefined();
-      expect(typeof controller.end).toBe('function');
+      expect(endMock).toBeDefined();
+      expect(typeof endMock).toBe('function');
     });
   });
 });

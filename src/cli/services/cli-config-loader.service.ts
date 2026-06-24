@@ -67,7 +67,7 @@ export class CliConfigLoaderService {
       ) {
         throw error;
       }
-      throw new Error(`Failed to parse configuration file: ${error}`);
+      throw new Error(`Failed to parse configuration file: ${String(error)}`);
     }
   }
 
@@ -87,7 +87,7 @@ export class CliConfigLoaderService {
       missing.push(config.masterKeyRef);
     }
 
-    for (const [id, provider] of Object.entries(config.providers)) {
+    for (const [_id, provider] of Object.entries(config.providers)) {
       if (
         provider.enabled !== false &&
         !process.env[provider.apiKeyRef]?.trim()
@@ -95,7 +95,7 @@ export class CliConfigLoaderService {
         missing.push(provider.apiKeyRef);
       }
     }
-    for (const [id, client] of Object.entries(config.clients)) {
+    for (const [_id, client] of Object.entries(config.clients)) {
       if (!process.env[client.gatewayKeyRef]?.trim()) {
         missing.push(client.gatewayKeyRef);
       }

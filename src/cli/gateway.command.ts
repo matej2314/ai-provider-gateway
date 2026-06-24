@@ -8,7 +8,7 @@ import boxen from 'boxen';
   options: { isDefault: true },
 })
 export class GatewayCommand extends CommandRunner {
-  async run(): Promise<void> {
+  run(): Promise<void> {
     const welcomeMessage = boxen(
       chalk.bold.cyan('AI Provider Gateway CLI') +
         '\n\n' +
@@ -70,5 +70,6 @@ export class GatewayCommand extends CommandRunner {
     console.log(
       chalk.dim('\nRun any command with --help for more information.\n'),
     );
+    return Promise.resolve();
   }
 }

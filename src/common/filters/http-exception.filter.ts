@@ -6,11 +6,14 @@ import {
   HttpStatus,
   Injectable,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import {
   ApiErrorCode,
   DEFAULT_HTTP_STATUS_TO_CODE,
 } from '../errors/api-error.code';
 import { LoggingService } from '../../logging/logging.service';
+
+type RequestWithId = Request & { requestId?: string };
 
 @Catch()
 @Injectable()
@@ -19,10 +22,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse();
-    const request = ctx.getRequest();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<RequestWithId>();
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let status: number = HttpStatus.INTERNAL_SERVER_ERROR;
     let code: string = ApiErrorCode.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'An unexpected error occurred';
     let details: unknown[] = [];

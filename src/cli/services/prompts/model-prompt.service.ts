@@ -23,7 +23,7 @@ export class ModelPromptService {
     const models: ModelPromptResult[] = [];
 
     for (const provider of providers) {
-      const { addModel } = await inquirer.prompt([
+      const { addModel } = await inquirer.prompt<{ addModel: boolean }>([
         {
           type: 'confirm',
           name: 'addModel',
@@ -44,16 +44,20 @@ export class ModelPromptService {
       }
       console.log();
 
-      const { alias, modelId } = await inquirer.prompt([
+      const { alias, modelId } = await inquirer.prompt<{
+        alias: string;
+        modelId: string;
+      }>([
         {
           type: 'input',
           name: 'alias',
           message: 'Model alias (e.g. "chat-default")',
-          validate: (input) => {
-            if (!input || input.trim() === '') {
+          validate: (input: string) => {
+            const trimmed = String(input).trim();
+            if (!trimmed) {
               return 'Alias is required.';
             }
-            if (models.some((model) => model.alias === input)) {
+            if (models.some((model) => model.alias === trimmed)) {
               return 'Alias must be unique.';
             }
             return true;
@@ -64,8 +68,8 @@ export class ModelPromptService {
           name: 'modelId',
           message: 'Model ID:',
           default: DEFAULT_MODELS[provider.type] || '',
-          validate: (input) => {
-            if (!input || input.trim() === '') {
+          validate: (input: string) => {
+            if (!input || String(input).trim() === '') {
               return 'Model ID is required.';
             }
             return true;

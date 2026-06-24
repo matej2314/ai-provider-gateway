@@ -47,23 +47,19 @@ describe('LoggingService', () => {
   });
 
   it('should have debug method', () => {
-    expect(service.debug).toBeDefined();
-    expect(typeof service.debug).toBe('function');
+    expect(typeof Reflect.get(service, 'debug')).toBe('function');
   });
 
   it('should have info method', () => {
-    expect(service.info).toBeDefined();
-    expect(typeof service.info).toBe('function');
+    expect(typeof Reflect.get(service, 'info')).toBe('function');
   });
 
   it('should have warn method', () => {
-    expect(service.warn).toBeDefined();
-    expect(typeof service.warn).toBe('function');
+    expect(typeof Reflect.get(service, 'warn')).toBe('function');
   });
 
   it('should have error method', () => {
-    expect(service.error).toBeDefined();
-    expect(typeof service.error).toBe('function');
+    expect(typeof Reflect.get(service, 'error')).toBe('function');
   });
 
   it('should not throw when logging', () => {

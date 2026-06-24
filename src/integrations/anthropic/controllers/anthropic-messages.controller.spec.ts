@@ -10,7 +10,6 @@ import { SmartRateLimiterService } from '../../../rate-limit/smart-rate-limiter.
 import type { RateLimitResult } from '../../../rate-limit/smart-rate-limiter.service';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import type { Request, Response } from 'express';
-import type { SseEvent } from '../../../chat/sse/sse-event.type';
 import type { AnthropicMessagesRequestDto } from '../dtos/anthropic-messages-request.dto';
 import { AnthropicApiKeyGuard } from '../guards/anthropic-api-key.guard';
 import { SmartRateLimitGuard } from '../../../guards/smart-rate-limit-guard';
@@ -39,36 +38,54 @@ jest.mock('../mappers/anthropic-stream.mapper', () => ({
 
 describe('AnthropicMessagesController', () => {
   let controller: AnthropicMessagesController;
-  let chatService: jest.Mocked<ChatService>;
   let rateLimiter: jest.Mocked<SmartRateLimiterService>;
+  let executeChatMock: jest.Mock;
+  let executeStreamMock: jest.Mock;
+  let validateForStreamingMock: jest.Mock;
+  let releaseStreamMock: jest.Mock;
 
-  const mockResponse = (): Response =>
-    ({
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
-      setHeader: jest.fn().mockReturnThis(),
-      write: jest.fn().mockReturnThis(),
-      end: jest.fn().mockReturnThis(),
-      flushHeaders: jest.fn(),
-    }) as unknown as Response;
+  const mockResponse = () => {
+    const status = jest.fn().mockReturnThis();
+    const json = jest.fn().mockReturnThis();
+    const setHeader = jest.fn().mockReturnThis();
+    const write = jest.fn().mockReturnThis();
+    const end = jest.fn().mockReturnThis();
+    const flushHeaders = jest.fn();
+
+    const res = {
+      status,
+      json,
+      setHeader,
+      write,
+      end,
+      flushHeaders,
+    } as unknown as Response;
+
+    return { res, status, json, setHeader, write, end, flushHeaders };
+  };
 
   beforeEach(async () => {
+    executeChatMock = jest.fn();
+    executeStreamMock = jest.fn();
+    validateForStreamingMock = jest.fn();
+    releaseStreamMock = jest.fn();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnthropicMessagesController],
       providers: [
         {
           provide: ChatService,
           useValue: {
-            executeChat: jest.fn(),
-            executeStream: jest.fn(),
-            validateForStreaming: jest.fn(),
+            executeChat: executeChatMock,
+            executeStream: executeStreamMock,
+            validateForStreaming: validateForStreamingMock,
           },
         },
         {
           provide: SmartRateLimiterService,
           useValue: {
             checkConcurrentStreams: jest.fn(),
-            releaseStream: jest.fn(),
+            releaseStream: releaseStreamMock,
           },
         },
       ],
@@ -80,17 +97,16 @@ describe('AnthropicMessagesController', () => {
       .compile();
 
     controller = module.get(AnthropicMessagesController);
-    chatService = module.get(ChatService);
     rateLimiter = module.get(SmartRateLimiterService);
   });
 
   it('should execute non-streaming chat and return mapped Anthropic response', async () => {
     const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-    const res = mockResponse();
-    chatService.executeChat.mockResolvedValue({
+    const { res, json } = mockResponse();
+    executeChatMock.mockResolvedValue({
       id: 'gw_abc',
       output: { text: 'Hi' },
-    } as never);
+    });
 
     await controller.createMessage(req, res, {
       model: 'claude-3',
@@ -99,13 +115,13 @@ describe('AnthropicMessagesController', () => {
       stream: false,
     });
 
-    expect(chatService.executeChat).toHaveBeenCalledWith(
+    expect(executeChatMock).toHaveBeenCalledWith(
       expect.objectContaining({ modelAlias: 'claude-3' }),
       'req_1',
       'gw_key',
       'facade-anthropic',
     );
-    expect(res.json).toHaveBeenCalledWith(
+    expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'msg_abc',
         content: [{ type: 'text', text: 'Hi' }],
@@ -115,11 +131,11 @@ describe('AnthropicMessagesController', () => {
 
   it('should use empty gatewayKey when missing', async () => {
     const req = { requestId: 'req_1' } as Request;
-    const res = mockResponse();
-    chatService.executeChat.mockResolvedValue({
+    const { res } = mockResponse();
+    executeChatMock.mockResolvedValue({
       id: 'gw_1',
       output: { text: 'ok' },
-    } as never);
+    });
 
     await controller.createMessage(req, res, {
       model: 'claude-3',
@@ -127,7 +143,7 @@ describe('AnthropicMessagesController', () => {
       messages: [{ role: 'user', content: [{ type: 'text', text: 'x' }] }],
     });
 
-    expect(chatService.executeChat).toHaveBeenCalledWith(
+    expect(executeChatMock).toHaveBeenCalledWith(
       expect.anything(),
       'req_1',
       '',
@@ -151,36 +167,31 @@ describe('AnthropicMessagesController', () => {
 
     it('should set Anthropic SSE headers and forward mapped lines', async () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res, status, setHeader, write, end } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      chatService.executeStream.mockImplementation(
-        async (_req, _id, onEvent) => {
-          onEvent({ name: 'delta', data: { text: 'Hi' } });
-        },
-      );
+      executeStreamMock.mockImplementation((_req, _id, onEvent) => {
+        onEvent({ name: 'delta', data: { text: 'Hi' } });
+      });
 
       await controller.createMessage(req, res, streamBody);
 
-      expect(chatService.validateForStreaming).toHaveBeenCalledWith('claude-3');
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.setHeader).toHaveBeenCalledWith(
+      expect(validateForStreamingMock).toHaveBeenCalledWith('claude-3');
+      expect(status).toHaveBeenCalledWith(200);
+      expect(setHeader).toHaveBeenCalledWith(
         'Content-Type',
         'text/event-stream; charset=utf-8',
       );
-      expect(res.setHeader).toHaveBeenCalledWith(
-        'anthropic-version',
-        '2023-06-01',
-      );
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache');
-      expect(res.setHeader).toHaveBeenCalledWith('x-request-id', 'req_1');
-      expect(res.write).toHaveBeenCalled();
-      expect(rateLimiter.releaseStream).toHaveBeenCalledWith('gw_key');
-      expect(res.end).toHaveBeenCalled();
+      expect(setHeader).toHaveBeenCalledWith('anthropic-version', '2023-06-01');
+      expect(setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache');
+      expect(setHeader).toHaveBeenCalledWith('x-request-id', 'req_1');
+      expect(write).toHaveBeenCalled();
+      expect(releaseStreamMock).toHaveBeenCalledWith('gw_key');
+      expect(end).toHaveBeenCalled();
     });
 
     it('should throw 429 when concurrent stream limit exceeded', async () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue({
         allowed: false,
         remaining: 0,
@@ -203,7 +214,7 @@ describe('AnthropicMessagesController', () => {
 
     it('should use fallback rate-limit message when reason is missing', async () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue({
         allowed: false,
         remaining: 0,
@@ -219,15 +230,15 @@ describe('AnthropicMessagesController', () => {
 
     it('should release stream and end response when executeStream throws', async () => {
       const req = { requestId: 'req_1', gatewayKey: 'gw_key' } as Request;
-      const res = mockResponse();
+      const { res, end } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      chatService.executeStream.mockRejectedValue(new Error('stream failed'));
+      executeStreamMock.mockRejectedValue(new Error('stream failed'));
 
       await expect(
         controller.createMessage(req, res, streamBody),
       ).rejects.toThrow('stream failed');
-      expect(rateLimiter.releaseStream).toHaveBeenCalledWith('gw_key');
-      expect(res.end).toHaveBeenCalled();
+      expect(releaseStreamMock).toHaveBeenCalledWith('gw_key');
+      expect(end).toHaveBeenCalled();
     });
   });
 });

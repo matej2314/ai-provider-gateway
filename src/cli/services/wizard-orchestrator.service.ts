@@ -34,7 +34,7 @@ export class WizardOrchestratorService {
     const existingState = await this.stateManager.loadState();
 
     if (existingState) {
-      const { resume } = await inquirer.prompt([
+      const { resume } = await inquirer.prompt<{ resume: boolean }>([
         {
           type: 'confirm',
           name: 'resume',

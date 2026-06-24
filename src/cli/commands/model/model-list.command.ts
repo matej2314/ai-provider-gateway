@@ -12,14 +12,14 @@ export class ModelListCommand extends CommandRunner {
     super();
   }
 
-  async run(): Promise<void> {
+  run(): Promise<void> {
     try {
       if (this.cliLoader.isBoilerplateConfig()) {
         CliLogger.warning(
           'Boilerplate configuration detected. Run gateway config:init to create a full configuration.',
         );
         CliLogger.blank();
-        return;
+        return Promise.resolve();
       }
 
       const config = this.cliLoader.loadRawConfig();
@@ -29,7 +29,7 @@ export class ModelListCommand extends CommandRunner {
 
       if (models.length === 0) {
         CliLogger.warning('No models configured.');
-        return;
+        return Promise.resolve();
       }
 
       models.forEach(([alias, model]) => {
@@ -46,6 +46,7 @@ export class ModelListCommand extends CommandRunner {
         }
         console.log('');
       });
+      return Promise.resolve();
     } catch (error) {
       CliLogger.error(
         error instanceof Error ? error.message : 'Unknown error occurred.',

@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getAppConfig } from '../../../config/typed-config';
 import type { CacheBackend } from '../../interfaces/cache-backend-interface';

@@ -29,7 +29,7 @@ export class ChatMessageDto {
     description: 'Required when role is "tool".',
     example: 'call_abc123',
   })
-  @ValidateIf((message) => message.role === 'tool')
+  @ValidateIf((message: ChatMessageDto) => message.role === 'tool')
   @IsNotEmpty()
   @IsString()
   toolCallId?: string;
@@ -39,7 +39,7 @@ export class ChatMessageDto {
     description:
       'Optional when role is "assistant". Tool calls requested by the model.',
   })
-  @ValidateIf((message) => message.role === 'assistant')
+  @ValidateIf((message: ChatMessageDto) => message.role === 'assistant')
   @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => GatewayToolCallDto)
@@ -53,10 +53,11 @@ export class ChatMessageDto {
   })
   @IsString()
   @ValidateIf(
-    (message) => message.role === 'user' || message.role === 'assistant',
+    (message: ChatMessageDto) =>
+      message.role === 'user' || message.role === 'assistant',
   )
   @MaxLength(CONTENT_MAX_LENGTH)
-  @ValidateIf((message) => message.role === 'tool')
+  @ValidateIf((message: ChatMessageDto) => message.role === 'tool')
   @MaxLength(TOOL_CONTENT_MAX_LENGTH)
   content: string;
 }

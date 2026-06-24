@@ -1,4 +1,3 @@
-import { HttpException } from '@nestjs/common';
 import { validateChatIngress } from './chat-ingress.validator';
 import { ApiErrorCode } from '../../common/errors/api-error.code';
 import type { ChatRequestDto } from '../dto/chat-request.dto';

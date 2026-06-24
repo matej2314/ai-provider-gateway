@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
-import { basename, join, parse } from 'path';
+import { basename, join } from 'path';
 import { CliLogger } from '../utils/cli-logger.util';
 import { parseWizardState } from '../schemas/wizard-state.schema';
 import type { WizardState } from './cli.services.types';
@@ -51,7 +51,9 @@ export class WizardStateManager {
     const statePath = join(process.cwd(), this.STATE_FILE);
     try {
       await fs.unlink(statePath);
-    } catch {}
+    } catch {
+      /* intentionally ignored */
+    }
   }
 
   private resolveOriginalPathFromBackup(backupPath: string): string {
@@ -67,7 +69,9 @@ export class WizardStateManager {
       try {
         await fs.unlink(file);
         CliLogger.dim(` Removed: ${file}`);
-      } catch {}
+      } catch {
+        /* intentionally ignored */
+      }
     }
     for (const backupPath of state.files.backedUp) {
       const originalPath = this.resolveOriginalPathFromBackup(backupPath);
@@ -75,7 +79,9 @@ export class WizardStateManager {
         await fs.copyFile(backupPath, originalPath);
         await fs.unlink(backupPath);
         CliLogger.dim(` Restored: ${originalPath}`);
-      } catch {}
+      } catch {
+        /* intentionally ignored */
+      }
     }
 
     await this.clearState();

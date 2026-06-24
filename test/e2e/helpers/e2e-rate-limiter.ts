@@ -50,7 +50,7 @@ export function createE2eBurstRateLimiter(
   let requestCount = 0;
 
   return {
-    checkRateLimit: jest.fn().mockImplementation(async () => {
+    checkRateLimit: jest.fn().mockImplementation(() => {
       requestCount += 1;
       if (requestCount > allowedRequests) {
         return {

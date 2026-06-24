@@ -8,7 +8,6 @@ import {
   IsIn,
   IsInt,
   Min,
-  Max,
   IsNumber,
   ValidateIf,
   Matches,
@@ -19,6 +18,26 @@ const isProduction = (config: Record<string, unknown>): boolean => {
   const nodeEnv = config.NODE_ENV;
   return nodeEnv === 'production';
 };
+
+function trimStringValue(value: unknown): unknown {
+  return typeof value === 'string' ? value.trim() : value;
+}
+
+function toBoolean(value: unknown): boolean {
+  return value === 'true' || value === true;
+}
+
+function toInt(value: unknown): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return parseInt(value, 10);
+  return NaN;
+}
+
+function toNumber(value: unknown): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return Number(value);
+  return NaN;
+}
 
 function isRedisCacheBackend(obj: EnvironmentVariables): boolean {
   return (
@@ -37,7 +56,7 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) => trimStringValue(value))
   @Matches(/^sk-ant-/, {
     message: 'ANTHROPIC_API_KEY must start with "sk-ant-"',
   })
@@ -46,13 +65,13 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) => trimStringValue(value))
   @Matches(/^(AIza|AQ\.)/, {
     message: 'GOOGLE_API_KEY must start with "AIza" or "AQ" strings',
   })
   GOOGLE_API_KEY?: string;
 
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }: { value: unknown }) => toBoolean(value))
   @IsBoolean()
   @IsOptional()
   CACHE_ENABLED?: boolean = false;
@@ -61,7 +80,7 @@ class EnvironmentVariables {
   @IsOptional()
   CACHE_BACKEND?: 'noop' | 'redis' | 'memory' | 'other' = 'noop';
 
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()
   @Min(1)
   @IsOptional()
@@ -71,25 +90,25 @@ class EnvironmentVariables {
   @IsOptional()
   CACHE_KEY_PREFIX?: string = 'aigw:';
 
-  @ValidateIf((obj) => isRedisCacheBackend(obj))
+  @ValidateIf((obj: EnvironmentVariables) => isRedisCacheBackend(obj))
   @IsString()
   @IsOptional()
   REDIS_HOST?: string = 'localhost';
 
-  @ValidateIf((obj) => isRedisCacheBackend(obj))
-  @Transform(({ value }) => parseInt(value, 10))
+  @ValidateIf((obj: EnvironmentVariables) => isRedisCacheBackend(obj))
+  @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()
   @Min(1)
   @IsOptional()
   REDIS_PORT?: number = 6379;
 
-  @ValidateIf((obj) => isRedisCacheBackend(obj))
+  @ValidateIf((obj: EnvironmentVariables) => isRedisCacheBackend(obj))
   @IsString()
   @IsOptional()
   REDIS_PASSWORD?: string = '';
 
-  @ValidateIf((obj) => isRedisCacheBackend(obj))
-  @Transform(({ value }) => parseInt(value, 10))
+  @ValidateIf((obj: EnvironmentVariables) => isRedisCacheBackend(obj))
+  @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()
   @Min(0)
   @IsOptional()
@@ -99,29 +118,29 @@ class EnvironmentVariables {
   @IsOptional()
   REDIS_KEY_PREFIX?: string = 'aigw:';
 
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }: { value: unknown }) => toBoolean(value))
   @IsBoolean()
   @IsOptional()
   RATE_LIMIT_SMART_ENABLED?: boolean = false;
 
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()
   @Min(1)
   @IsOptional()
   RATE_LIMIT_RPS_PER_KEY?: number = 10;
 
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()
   @Min(1)
   @IsOptional()
   RATE_LIMIT_BURST_PER_KEY?: number = 20;
 
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()
   @IsOptional()
   RATE_LIMIT_STREAMS_CONCURRENT?: number = 3;
 
-  @Transform(({ value }) => parseInt(value, 10))
+  @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()
   @Min(0)
   @IsOptional()
@@ -131,7 +150,7 @@ class EnvironmentVariables {
   @IsOptional()
   SENTRY_DSN?: string = '';
 
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }: { value: unknown }) => toBoolean(value))
   @IsBoolean()
   @IsOptional()
   SENTRY_ENABLED?: boolean = false;
@@ -140,12 +159,12 @@ class EnvironmentVariables {
   @IsOptional()
   SENTRY_ENVIRONMENT?: string = 'development';
 
-  @Transform(({ value }) => Number(value))
+  @Transform(({ value }: { value: unknown }) => toNumber(value))
   @IsNumber()
   @IsOptional()
   SENTRY_TRACES_SAMPLE_RATE?: number = 0.1;
 
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }: { value: unknown }) => toBoolean(value))
   @IsBoolean()
   @IsOptional()
   LOG_PRETTY?: boolean = false;

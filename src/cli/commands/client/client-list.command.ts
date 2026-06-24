@@ -12,7 +12,7 @@ export class ClientListCommand extends CommandRunner {
     super();
   }
 
-  async run(): Promise<void> {
+  run(): Promise<void> {
     try {
       if (!this.cliLoader.configExists()) {
         CliLogger.error(
@@ -26,7 +26,7 @@ export class ClientListCommand extends CommandRunner {
           'Boilerplate configuration detected. Run gateway config:init to create a full configuration.',
         );
         CliLogger.blank();
-        return;
+        return Promise.resolve();
       }
 
       const config = this.cliLoader.loadRawConfig();
@@ -36,7 +36,7 @@ export class ClientListCommand extends CommandRunner {
 
       if (clients.length === 0) {
         CliLogger.warning('No clients configured.');
-        return;
+        return Promise.resolve();
       }
 
       clients.forEach(([id, client]) => {
@@ -60,6 +60,7 @@ export class ClientListCommand extends CommandRunner {
           );
         }
       });
+      return Promise.resolve();
     } catch (error) {
       CliLogger.error(
         error instanceof Error ? error.message : 'Unknown error occurred.',

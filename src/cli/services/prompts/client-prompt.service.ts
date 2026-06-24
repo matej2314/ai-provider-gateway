@@ -2,11 +2,27 @@ import { Injectable } from '@nestjs/common';
 import * as inquirer from 'inquirer';
 import chalk from 'chalk';
 import { CliLogger } from '../../utils/cli-logger.util';
-import { GATEWAY_CLIENT_TYPES } from 'src/config/configuration.types';
+import {
+  GATEWAY_CLIENT_TYPES,
+  type GatewayClientType,
+} from 'src/config/configuration.types';
 import type { GatewayClient } from '../cli.services.types';
 import { KeyGeneratorService } from '../key-generator.service';
 
 export type ClientPromptResult = GatewayClient;
+
+type ClientBasicAnswers = {
+  id: string;
+  name: string;
+  type: GatewayClientType;
+  addRateLimit: boolean;
+};
+
+type RateLimitAnswers = {
+  rps: number;
+  burst: number;
+  maxConcurrentStreams: number;
+};
 
 @Injectable()
 export class ClientPromptService {
@@ -24,16 +40,17 @@ export class ClientPromptService {
     let addMore = true;
 
     while (addMore) {
-      const clientAnswers = await inquirer.prompt([
+      const clientAnswers = await inquirer.prompt<ClientBasicAnswers>([
         {
           type: 'input',
           name: 'id',
           message: 'Client ID (e.g, "webapp")',
-          validate: (input) => {
-            if (!input || input.trim() === '') {
+          validate: (input: string) => {
+            const trimmed = String(input).trim();
+            if (!trimmed) {
               return 'Client ID is required.';
             }
-            if (clients.some((client) => client.id === input)) {
+            if (clients.some((client) => client.id === trimmed)) {
               return 'Client ID must be unique.';
             }
             return true;
@@ -43,8 +60,8 @@ export class ClientPromptService {
           type: 'input',
           name: 'name',
           message: 'Client name (e.g, "My web app")',
-          validate: (input) => {
-            if (!input || input.trim() === '') {
+          validate: (input: string) => {
+            if (!input || String(input).trim() === '') {
               return 'Client name is required.';
             }
             return true;
@@ -80,13 +97,13 @@ export class ClientPromptService {
         console.log(chalk.dim('  • Production: 100-1000 rps'));
         console.log(chalk.dim('  • Burst: typically same as rps or 2x rps\n'));
 
-        const rateLimitAnswers = await inquirer.prompt([
+        const rateLimitAnswers = await inquirer.prompt<RateLimitAnswers>([
           {
             type: 'number',
             name: 'rps',
             message: 'Requests per second (rps):',
             default: 10,
-            validate: (input) => {
+            validate: (input: number) => {
               if (input <= 0) return 'RPS must be greater than 0.';
               return true;
             },
@@ -96,7 +113,7 @@ export class ClientPromptService {
             name: 'burst',
             message: 'Burst capacity (max queued requests):',
             default: 20,
-            validate: (input) => {
+            validate: (input: number) => {
               if (input <= 0) return 'Burst must be greater than 0.';
               return true;
             },
@@ -106,7 +123,7 @@ export class ClientPromptService {
             name: 'maxConcurrentStreams',
             message: 'Max concurrent streams ( 0 to disable):',
             default: 0,
-            validate: (input) => {
+            validate: (input: number) => {
               if (input < 0)
                 return 'Max concurrent streams must be 0 or positive.';
               return true;
@@ -138,7 +155,7 @@ export class ClientPromptService {
       });
 
       if (clients.length > 0) {
-        const { addAnother } = await inquirer.prompt([
+        const { addAnother } = await inquirer.prompt<{ addAnother: boolean }>([
           {
             type: 'confirm',
             name: 'addAnother',

@@ -1,5 +1,6 @@
 import { Command, CommandRunner } from 'nest-commander';
 import { join } from 'path';
+import { config as dotenvConfig } from 'dotenv';
 import * as inquirer from 'inquirer';
 import { WizardOrchestratorService } from 'src/cli/services/wizard-orchestrator.service';
 import { ConfigGeneratorService } from 'src/cli/services/config-generator.service';
@@ -38,7 +39,7 @@ export class ConfigInitCommand extends CommandRunner {
         );
         CliLogger.blank();
 
-        const { overwrite } = await inquirer.prompt([
+        const { overwrite } = await inquirer.prompt<{ overwrite: boolean }>([
           {
             type: 'confirm',
             name: 'overwrite',
@@ -97,8 +98,10 @@ export class ConfigInitCommand extends CommandRunner {
 
   private loadEnvForValidation(): void {
     try {
-      require('dotenv').config({ path: join(process.cwd(), '.env') });
-    } catch {}
+      dotenvConfig({ path: join(process.cwd(), '.env') });
+    } catch {
+      /* intentionally ignored */
+    }
   }
 
   private async validateAndFixConfig(): Promise<void> {
@@ -143,7 +146,9 @@ export class ConfigInitCommand extends CommandRunner {
       );
 
       CliLogger.blank();
-      const { action } = await inquirer.prompt([
+      const { action } = await inquirer.prompt<{
+        action: 'manual' | 'abort';
+      }>([
         {
           type: 'list',
           name: 'action',
@@ -169,7 +174,7 @@ export class ConfigInitCommand extends CommandRunner {
         'Please fix the errors in gateway.config.yaml and .env files.',
       );
       CliLogger.info('Then press Enter to retry validation.');
-      await inquirer.prompt([
+      await inquirer.prompt<{ continue: string }>([
         {
           type: 'input',
           name: 'continue',

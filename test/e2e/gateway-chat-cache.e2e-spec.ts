@@ -32,12 +32,13 @@ function createInMemoryCacheBackend(): CacheBackend {
   const store = new Map<string, string>();
   return {
     isAvailable: () => true,
-    get: async (key: string) => store.get(key) ?? null,
-    set: async (key: string, value: string, _ttl: number) => {
+    get: (key: string) => Promise.resolve(store.get(key) ?? null),
+    set: (key: string, value: string, ttl: number) => {
+      void ttl;
       store.set(key, value);
-      return true;
+      return Promise.resolve(true);
     },
-    delete: async (key: string) => store.delete(key),
+    delete: (key: string) => Promise.resolve(store.delete(key)),
   };
 }
 
@@ -80,9 +81,11 @@ describe('Gateway Chat Cache (E2E)', () => {
   describe('Cache miss and hit', () => {
     let app: INestApplication;
     let providerRegistry: E2eProviderRegistryMock;
+    let completeMock: jest.SpyInstance;
 
     beforeAll(async () => {
       providerRegistry = createE2eProviderRegistry();
+      completeMock = jest.spyOn(providerRegistry.provider, 'complete');
       app = await createE2eAppWithCache(providerRegistry);
     });
 
@@ -98,7 +101,7 @@ describe('Gateway Chat Cache (E2E)', () => {
         .expect(E2E_POST_SUCCESS_STATUS);
 
       expect(response.body.cached).toBeUndefined();
-      expect(providerRegistry.provider.complete).toHaveBeenCalledTimes(1);
+      expect(completeMock).toHaveBeenCalledTimes(1);
     });
 
     it('should return cached response on identical second request', async () => {
@@ -119,16 +122,18 @@ describe('Gateway Chat Cache (E2E)', () => {
         cachedAt: expect.any(String),
         output: first.body.output,
       });
-      expect(providerRegistry.provider.complete).toHaveBeenCalledTimes(1);
+      expect(completeMock).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('Cache key sensitivity', () => {
     let app: INestApplication;
     let providerRegistry: E2eProviderRegistryMock;
+    let completeMock: jest.SpyInstance;
 
     beforeAll(async () => {
       providerRegistry = createE2eProviderRegistry();
+      completeMock = jest.spyOn(providerRegistry.provider, 'complete');
       app = await createE2eAppWithCache(providerRegistry);
     });
 
@@ -149,16 +154,18 @@ describe('Gateway Chat Cache (E2E)', () => {
         .send({ ...validBody, params: { temperature: 0.9 } })
         .expect(E2E_POST_SUCCESS_STATUS);
 
-      expect(providerRegistry.provider.complete).toHaveBeenCalledTimes(2);
+      expect(completeMock).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('Tooling bypasses cache', () => {
     let app: INestApplication;
     let providerRegistry: E2eProviderRegistryMock;
+    let completeMock: jest.SpyInstance;
 
     beforeAll(async () => {
       providerRegistry = createE2eProviderRegistry();
+      completeMock = jest.spyOn(providerRegistry.provider, 'complete');
       app = await createE2eAppWithCache(providerRegistry);
     });
 
@@ -193,7 +200,7 @@ describe('Gateway Chat Cache (E2E)', () => {
         .expect(E2E_POST_SUCCESS_STATUS);
 
       expect(response.body.cached).toBeUndefined();
-      expect(providerRegistry.provider.complete).toHaveBeenCalledTimes(2);
+      expect(completeMock).toHaveBeenCalledTimes(2);
     });
   });
 

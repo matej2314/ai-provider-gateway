@@ -189,7 +189,7 @@ describe('ChatProviderCallService', () => {
     };
 
     function createMockStreamResult(overrides: Record<string, unknown> = {}) {
-      async function* textStream() {
+      function* textStream() {
         yield 'Hello';
         yield ' world';
       }
@@ -353,7 +353,7 @@ describe('ChatProviderCallService', () => {
 
     describe('Edge cases', () => {
       it('should return empty assembledText when stream has no chunks', async () => {
-        async function* emptyStream() {}
+        function* emptyStream() {}
         (mockProvider.stream as jest.Mock).mockReturnValue({
           textStream: emptyStream(),
           getUsageMetadata: jest.fn().mockResolvedValue(undefined),
@@ -393,7 +393,7 @@ describe('ChatProviderCallService', () => {
       });
 
       it('should work when optional stream getters are missing', async () => {
-        async function* textStream() {
+        function* textStream() {
           yield 'Only text';
         }
         (mockProvider.stream as jest.Mock).mockReturnValue({
@@ -417,7 +417,7 @@ describe('ChatProviderCallService', () => {
       });
 
       it('should call spanController.end with undefined outputText when no text', async () => {
-        async function* emptyStream() {}
+        function* emptyStream() {}
         const spanEnd = jest.fn();
         (mockMetrics.observeLlmStream as jest.Mock).mockReturnValue({
           end: spanEnd,
@@ -445,7 +445,7 @@ describe('ChatProviderCallService', () => {
 
     describe('Errors', () => {
       it('should propagate error when textStream iteration fails', async () => {
-        async function* failingStream() {
+        function* failingStream() {
           yield 'partial';
           throw new Error('Stream interrupted');
         }

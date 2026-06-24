@@ -21,6 +21,27 @@ export interface ServerConfigPromptResult {
   sentryDsn?: string;
 }
 
+type BasicServerAnswers = Pick<
+  ServerConfigPromptResult,
+  'port' | 'nodeEnv' | 'swaggerEnabled'
+>;
+
+type CacheAnswers = Pick<
+  ServerConfigPromptResult,
+  'cacheEnabled' | 'cacheBackend'
+>;
+
+type RateLimitAnswers = Pick<ServerConfigPromptResult, 'rateLimitSmartEnabled'>;
+
+type RedisAnswers = Pick<
+  ServerConfigPromptResult,
+  'redisHost' | 'redisPort' | 'redisPassword'
+>;
+
+type MetricsAnswers = Pick<ServerConfigPromptResult, 'metricsBackend'>;
+
+type SentryAnswers = Pick<ServerConfigPromptResult, 'sentryDsn'>;
+
 @Injectable()
 export class ServerPromptService {
   async promptServerConfig(): Promise<ServerConfigPromptResult> {
@@ -31,13 +52,13 @@ export class ServerPromptService {
       ),
     );
 
-    const basicAnswers = await inquirer.prompt([
+    const basicAnswers = await inquirer.prompt<BasicServerAnswers>([
       {
         type: 'number',
         name: 'port',
         message: 'Server port:',
         default: 3000,
-        validate: (input) => {
+        validate: (input: number) => {
           if (input < 1 || input > 65535) {
             return 'Port must be between 1 and 65535.0;';
           }
@@ -67,7 +88,7 @@ export class ServerPromptService {
       ),
     );
 
-    const cacheAnswers = await inquirer.prompt([
+    const cacheAnswers = await inquirer.prompt<CacheAnswers>([
       {
         type: 'confirm',
         name: 'cacheEnabled',
@@ -84,7 +105,7 @@ export class ServerPromptService {
           { name: 'Disabled', value: 'noop' },
         ],
         default: 'redis',
-        when: (answers) => answers.cacheEnabled,
+        when: (answers: Partial<CacheAnswers>) => answers.cacheEnabled === true,
       },
     ]);
 
@@ -100,7 +121,7 @@ export class ServerPromptService {
       ),
     );
 
-    const rateLimitAnswers = await inquirer.prompt([
+    const rateLimitAnswers = await inquirer.prompt<RateLimitAnswers>([
       {
         type: 'confirm',
         name: 'rateLimitSmartEnabled',
@@ -119,10 +140,7 @@ export class ServerPromptService {
       rateLimitSmartEnabled: rateLimitAnswers.rateLimitSmartEnabled === true,
     });
 
-    let redisAnswers: Pick<
-      ServerConfigPromptResult,
-      'redisHost' | 'redisPort' | 'redisPassword'
-    > = {};
+    let redisAnswers: RedisAnswers = {};
 
     if (redisRequired) {
       CliLogger.blank();
@@ -133,14 +151,14 @@ export class ServerPromptService {
         ),
       );
 
-      redisAnswers = await inquirer.prompt([
+      redisAnswers = await inquirer.prompt<RedisAnswers>([
         {
           type: 'input',
           name: 'redisHost',
           message: 'Redis host:',
           default: 'localhost',
-          validate: (input) => {
-            if (!input || !input.trim()) {
+          validate: (input: string) => {
+            if (!input || !String(input).trim()) {
               return 'Redis host is required.';
             }
             return true;
@@ -151,7 +169,7 @@ export class ServerPromptService {
           name: 'redisPort',
           message: 'Redis port:',
           default: 6379,
-          validate: (input) => {
+          validate: (input: number) => {
             if (input < 1 || input > 65535) {
               return 'Port must be between 1 and 65535.';
             }
@@ -176,7 +194,7 @@ export class ServerPromptService {
       ),
     );
 
-    const metricsAnswers = await inquirer.prompt([
+    const metricsAnswers = await inquirer.prompt<MetricsAnswers>([
       {
         type: 'list',
         name: 'metricsBackend',
@@ -189,18 +207,19 @@ export class ServerPromptService {
       },
     ]);
 
-    let sentryAnswers: Pick<ServerConfigPromptResult, 'sentryDsn'> = {};
+    let sentryAnswers: SentryAnswers = {};
     if (metricsAnswers.metricsBackend === 'sentry') {
-      sentryAnswers = await inquirer.prompt([
+      sentryAnswers = await inquirer.prompt<SentryAnswers>([
         {
           type: 'input',
           name: 'sentryDsn',
           message: 'Sentry DSN:',
-          validate: (input) => {
-            if (!input || !input.trim()) {
+          validate: (input: string) => {
+            const trimmed = String(input).trim();
+            if (!trimmed) {
               return 'Sentry DSN is required when Sentry is enabled.';
             }
-            if (!input.startsWith('https://')) {
+            if (!trimmed.startsWith('https://')) {
               return 'Sentry DSN should start with https://';
             }
             return true;

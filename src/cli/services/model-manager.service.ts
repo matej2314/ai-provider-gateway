@@ -85,13 +85,16 @@ export class ModelManagerService {
     const type = config.providers[providerInstance].type;
     let addMore = true;
     while (addMore) {
-      const { alias, modelId } = await inquirer.prompt([
+      const { alias, modelId } = await inquirer.prompt<{
+        alias: string;
+        modelId: string;
+      }>([
         {
           type: 'input',
           name: 'alias',
           message: `Model alias for ${providerInstance}:`,
-          validate: (input) => {
-            const alias = input?.trim();
+          validate: (input: string) => {
+            const alias = String(input).trim();
             if (!alias) return 'Alias is required.';
             if (config.models[alias]) return 'Alias already exists.';
             return true;
@@ -129,7 +132,7 @@ export class ModelManagerService {
         policy: defaultModelPolicy(trimmedModelId, type),
       };
       await this.configGenerator.generateModelPrompt(modelAlias, cwd);
-      const { another } = await inquirer.prompt([
+      const { another } = await inquirer.prompt<{ another: boolean }>([
         {
           type: 'confirm',
           name: 'another',
@@ -185,7 +188,7 @@ export class ModelManagerService {
     for (const field of fields) {
       switch (field) {
         case 'modelId': {
-          const { modelId } = await inquirer.prompt([
+          const { modelId } = await inquirer.prompt<{ modelId: string }>([
             {
               type: 'input',
               name: 'modelId',
@@ -221,7 +224,9 @@ export class ModelManagerService {
         }
         case 'providerInstance': {
           const instances = Object.keys(config.providers);
-          const { providerInstance } = await inquirer.prompt([
+          const { providerInstance } = await inquirer.prompt<{
+            providerInstance: string;
+          }>([
             {
               type: 'list',
               name: 'providerInstance',
@@ -240,7 +245,7 @@ export class ModelManagerService {
           break;
         }
         case 'fallback': {
-          const { fallback } = await inquirer.prompt([
+          const { fallback } = await inquirer.prompt<{ fallback: string }>([
             {
               type: 'input',
               name: 'fallback',
@@ -268,7 +273,7 @@ export class ModelManagerService {
           break;
         }
         case 'streaming': {
-          const { streaming } = await inquirer.prompt([
+          const { streaming } = await inquirer.prompt<{ streaming: boolean }>([
             {
               type: 'confirm',
               name: 'streaming',
@@ -291,7 +296,12 @@ export class ModelManagerService {
             min: 1,
             max: 8192,
           };
-          const policyAnswers = await inquirer.prompt([
+          const policyAnswers = await inquirer.prompt<{
+            timeoutMs: number;
+            maxAttempts: number;
+            temperature: number;
+            maxOutputTokens: number;
+          }>([
             {
               type: 'number',
               name: 'timeoutMs',

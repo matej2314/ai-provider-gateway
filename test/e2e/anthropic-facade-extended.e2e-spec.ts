@@ -36,6 +36,11 @@ describe('Anthropic Facade Extended (E2E)', () => {
           }),
         },
         async ({ app, providerRegistry }) => {
+          const completeMock = jest.spyOn(
+            providerRegistry.provider,
+            'complete',
+          );
+
           const response = await request(app.getHttpServer())
             .post(E2E_ROUTES.anthropicMessages)
             .set('x-api-key', E2E_GATEWAY_KEY)
@@ -54,7 +59,7 @@ describe('Anthropic Facade Extended (E2E)', () => {
             ]),
           );
 
-          expect(providerRegistry.provider.complete).toHaveBeenCalledWith(
+          expect(completeMock).toHaveBeenCalledWith(
             expect.anything(),
             expect.anything(),
             expect.objectContaining({
@@ -75,6 +80,11 @@ describe('Anthropic Facade Extended (E2E)', () => {
           }),
         },
         async ({ app, providerRegistry }) => {
+          const completeMock = jest.spyOn(
+            providerRegistry.provider,
+            'complete',
+          );
+
           await request(app.getHttpServer())
             .post(E2E_ROUTES.anthropicMessages)
             .set('x-api-key', E2E_GATEWAY_KEY)
@@ -85,7 +95,7 @@ describe('Anthropic Facade Extended (E2E)', () => {
             )
             .expect(E2E_POST_SUCCESS_STATUS);
 
-          expect(providerRegistry.provider.complete).toHaveBeenCalledWith(
+          expect(completeMock).toHaveBeenCalledWith(
             expect.anything(),
             expect.anything(),
             expect.objectContaining({

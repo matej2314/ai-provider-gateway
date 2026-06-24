@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream';
 import { LoggingService } from 'src/logging/logging.service';
 import {
   mapAnthropicSdkError,
@@ -23,6 +24,8 @@ import {
   resolveAnthropicOutputConfig,
 } from '../anthropic/anthropic-thinking.mapper';
 
+type AnthropicMessage = Anthropic.Message;
+
 function mapStopSequences(
   stop: ProviderCallOptions['stop'],
 ): string[] | undefined {
@@ -46,6 +49,13 @@ function resolveAnthropicSamplingParams(options?: ProviderCallOptions): {
   }
 
   return {};
+}
+
+async function resolveStreamFinalMessage(
+  stream: MessageStream | undefined,
+): Promise<AnthropicMessage | undefined> {
+  if (!stream) return undefined;
+  return stream.finalMessage();
 }
 
 export function createAnthropicProvider(
@@ -137,7 +147,7 @@ export function createAnthropicProvider(
       modelId: string,
       options?: ProviderCallOptions,
     ): StreamResult {
-      let streamObject: ReturnType<typeof client.messages.stream> | undefined;
+      let streamObject: MessageStream | undefined;
 
       async function* textStream(): AsyncIterable<string> {
         try {
@@ -188,10 +198,9 @@ export function createAnthropicProvider(
       }
 
       async function getUsageMetadata() {
-        if (!streamObject) return undefined;
-
         try {
-          const finalMessage = await streamObject.finalMessage();
+          const finalMessage = await resolveStreamFinalMessage(streamObject);
+          if (!finalMessage) return undefined;
           return {
             inputTokens: finalMessage.usage.input_tokens,
             outputTokens: finalMessage.usage.output_tokens,
@@ -205,9 +214,9 @@ export function createAnthropicProvider(
         }
       }
       async function getUsageDetails() {
-        if (!streamObject) return undefined;
         try {
-          const finalMessage = await streamObject.finalMessage();
+          const finalMessage = await resolveStreamFinalMessage(streamObject);
+          if (!finalMessage) return undefined;
           return parseAnthropicResponseWithTools(finalMessage).usageDetails;
         } catch (error) {
           logger.warn('Error getting stream usage details', {
@@ -218,21 +227,21 @@ export function createAnthropicProvider(
       }
 
       async function getFinalToolCalls() {
-        if (!streamObject) return undefined;
-        const finalMessage = await streamObject.finalMessage();
+        const finalMessage = await resolveStreamFinalMessage(streamObject);
+        if (!finalMessage) return undefined;
         return parseAnthropicResponseWithTools(finalMessage).toolCalls;
       }
 
       async function getStopReason() {
-        if (!streamObject) return undefined;
-        const finalMessage = await streamObject.finalMessage();
+        const finalMessage = await resolveStreamFinalMessage(streamObject);
+        if (!finalMessage) return undefined;
         const mapped = parseAnthropicResponseWithTools(finalMessage);
         return mapped.stopReason;
       }
 
       async function getThinkingContent() {
-        if (!streamObject) return undefined;
-        const finalMessage = await streamObject.finalMessage();
+        const finalMessage = await resolveStreamFinalMessage(streamObject);
+        if (!finalMessage) return undefined;
         return extractAnthropicThinkingContent(finalMessage.content);
       }
 

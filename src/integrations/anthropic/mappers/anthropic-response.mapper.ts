@@ -15,7 +15,7 @@ function mapGatewayToolCallsToAnthropic(
     let input: Record<string, unknown>;
     try {
       input = parseJsonObject(toolCall.arguments || '{}');
-    } catch (error) {
+    } catch {
       input = {};
     }
     return {

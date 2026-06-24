@@ -42,9 +42,9 @@ describe('createAnthropicProvider', () => {
       );
 
       expect(provider).toBeDefined();
-      expect(provider.complete).toBeDefined();
-      expect(provider.stream).toBeDefined();
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(typeof provider.complete).toBe('function');
+      expect(typeof provider.stream).toBe('function');
+      expect(jest.mocked(mockLogger).info).toHaveBeenCalledWith(
         'Anthropic provider instance created.',
       );
     });
@@ -432,7 +432,7 @@ describe('createAnthropicProvider', () => {
 
     it('should return StreamResult with textStream', () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield {
             type: 'content_block_delta',
             delta: { type: 'text_delta', text: 'Hello' },
@@ -459,7 +459,7 @@ describe('createAnthropicProvider', () => {
 
     it('should stream text deltas', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield {
             type: 'content_block_delta',
             delta: { type: 'text_delta', text: 'Hello' },
@@ -490,7 +490,7 @@ describe('createAnthropicProvider', () => {
 
     it('should return usage metadata after stream', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {},
+        [Symbol.asyncIterator]: function* () {},
         finalMessage: jest.fn().mockResolvedValue({
           model: 'claude-sonnet-4',
           content: [],
@@ -502,8 +502,8 @@ describe('createAnthropicProvider', () => {
 
       const result = provider.stream!(input, 'claude-sonnet-4');
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       const metadata = await result.getUsageMetadata();
@@ -517,7 +517,7 @@ describe('createAnthropicProvider', () => {
 
     it('should return usage details after stream when cache tokens present', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {},
+        [Symbol.asyncIterator]: function* () {},
         finalMessage: jest.fn().mockResolvedValue({
           model: 'claude-sonnet-4',
           content: [],
@@ -534,8 +534,8 @@ describe('createAnthropicProvider', () => {
 
       const result = provider.stream!(input, 'claude-sonnet-4');
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       const usageDetails = await result.getUsageDetails!();
@@ -548,7 +548,7 @@ describe('createAnthropicProvider', () => {
 
     it('should return undefined from getUsageMetadata before stream starts', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield {
             type: 'content_block_delta',
             delta: { type: 'text_delta', text: 'Hello' },
@@ -571,7 +571,7 @@ describe('createAnthropicProvider', () => {
 
     it('should return undefined from getUsageMetadata when finalMessage fails', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {},
+        [Symbol.asyncIterator]: function* () {},
         finalMessage: jest
           .fn()
           .mockRejectedValue(new Error('finalMessage failed')),
@@ -581,8 +581,8 @@ describe('createAnthropicProvider', () => {
 
       const result = provider.stream!(input, 'claude-sonnet-4');
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       const metadata = await result.getUsageMetadata();
@@ -598,7 +598,7 @@ describe('createAnthropicProvider', () => {
 
     it('should ignore non-text_delta stream events', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { type: 'message_start', message: {} };
           yield {
             type: 'content_block_delta',
@@ -636,8 +636,8 @@ describe('createAnthropicProvider', () => {
       const result = provider.stream!(input, 'claude-sonnet-4');
 
       await expect(async () => {
-        for await (const _ of result.textStream) {
-          // consume stream
+        for await (const chunk of result.textStream) {
+          void chunk;
         }
       }).rejects.toThrow();
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -651,7 +651,7 @@ describe('createAnthropicProvider', () => {
 
     it('should include tools in stream params when tools present', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {},
+        [Symbol.asyncIterator]: function* () {},
         finalMessage: jest.fn().mockResolvedValue({
           model: 'claude-sonnet-4',
           content: [
@@ -672,8 +672,8 @@ describe('createAnthropicProvider', () => {
 
       const result = provider.stream!(inputWithTools, 'claude-sonnet-4');
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       expect(mockAnthropicClient.messages.stream).toHaveBeenCalledWith(
@@ -691,7 +691,7 @@ describe('createAnthropicProvider', () => {
 
     it('should return stop reason after stream', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {},
+        [Symbol.asyncIterator]: function* () {},
         finalMessage: jest.fn().mockResolvedValue({
           model: 'claude-sonnet-4',
           content: [{ type: 'text', text: 'Done' }],
@@ -704,8 +704,8 @@ describe('createAnthropicProvider', () => {
 
       const result = provider.stream!(input, 'claude-sonnet-4');
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       const stopReason = await result.getStopReason!();
@@ -715,7 +715,7 @@ describe('createAnthropicProvider', () => {
 
     it('should return thinking content after stream', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {},
+        [Symbol.asyncIterator]: function* () {},
         finalMessage: jest.fn().mockResolvedValue({
           model: 'claude-sonnet-4',
           content: [
@@ -730,8 +730,8 @@ describe('createAnthropicProvider', () => {
 
       const result = provider.stream!(input, 'claude-sonnet-4');
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       const thinkingContent = await result.getThinkingContent!();
@@ -741,7 +741,7 @@ describe('createAnthropicProvider', () => {
 
     it('should return undefined from stream helpers before stream starts', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {},
+        [Symbol.asyncIterator]: function* () {},
         finalMessage: jest.fn().mockResolvedValue({
           model: 'claude-sonnet-4',
           content: [],
@@ -760,7 +760,7 @@ describe('createAnthropicProvider', () => {
 
     it('should map stream options including thinking and metadata', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {},
+        [Symbol.asyncIterator]: function* () {},
         finalMessage: jest.fn().mockResolvedValue({
           model: 'claude-sonnet-4',
           content: [],
@@ -786,8 +786,8 @@ describe('createAnthropicProvider', () => {
         options,
       );
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       expect(mockAnthropicClient.messages.stream).toHaveBeenCalledWith(

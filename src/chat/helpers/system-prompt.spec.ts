@@ -12,7 +12,7 @@ describe('getResolvedSystemPrompts', () => {
       main: 'Main prompt',
       perModelByAlias: {},
     };
-    const getConfig = (key: string) => mockPrompts;
+    const getConfig = () => mockPrompts;
 
     const result = getResolvedSystemPrompts(getConfig);
 

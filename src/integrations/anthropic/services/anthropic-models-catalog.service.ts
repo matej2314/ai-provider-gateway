@@ -36,7 +36,7 @@ export class AnthropicModelsCatalogService {
     const gateway = this.getGatewayConfig();
     const data: AnthropicModelDto[] = [];
 
-    for (const [alias, model] of Object.entries(gateway.models)) {
+    for (const [alias] of Object.entries(gateway.models)) {
       data.push(this.toModelDto(alias));
     }
 
@@ -51,8 +51,6 @@ export class AnthropicModelsCatalogService {
   getModel(id: string): AnthropicModelDto | null {
     const gateway = this.getGatewayConfig();
     if (!gateway.models[id]) return null;
-
-    const model = gateway.models[id];
 
     return this.toModelDto(id);
   }

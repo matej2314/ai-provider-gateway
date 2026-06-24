@@ -34,10 +34,9 @@ function formatZodIssues(error: z.ZodError): string[] {
 
 function collectInactiveProviderWarnings(
   raw: z.infer<typeof GatewayConfigSchema>,
-  effective: GatewayConfig,
+  _effective: GatewayConfig,
 ): string[] {
   const warnings: string[] = [];
-  const activeInstances = new Set(Object.keys(effective.providers));
 
   for (const [instanceId, row] of Object.entries(raw.providers)) {
     if (row.enabled === false) {

@@ -257,38 +257,40 @@ export function createGoogleProvider(
           throw toHttpException(mapGoogleGenAiError(error));
         }
       }
-      async function getUsageMetadata() {
-        if (!lastChunk) return undefined;
+      function getUsageMetadata() {
+        if (!lastChunk) return Promise.resolve(undefined);
 
         const metadata = lastChunk.usageMetadata;
-        if (!metadata) return undefined;
+        if (!metadata) return Promise.resolve(undefined);
 
-        return {
+        return Promise.resolve({
           inputTokens: metadata.promptTokenCount ?? 0,
           outputTokens: metadata.candidatesTokenCount ?? 0,
           model: lastChunk.modelVersion ?? modelId,
-        };
+        });
       }
 
-      async function getFinalToolCalls() {
-        if (!lastChunk) return undefined;
+      function getFinalToolCalls() {
+        if (!lastChunk) return Promise.resolve(undefined);
         const parsed = parseGeminiResponseWithTools(lastChunk, modelId);
-        return parsed.toolCalls;
+        return Promise.resolve(parsed.toolCalls);
       }
 
-      async function getStopReason() {
-        if (!lastChunk) return undefined;
+      function getStopReason() {
+        if (!lastChunk) return Promise.resolve(undefined);
         const parsed = parseGeminiResponseWithTools(lastChunk, modelId);
-        return parsed.stopReason;
+        return Promise.resolve(parsed.stopReason);
       }
 
-      async function getThinkingContent() {
+      function getThinkingContent() {
         if (!options?.thinkingEnabled || !modelId.startsWith('gemini-3')) {
-          return undefined;
+          return Promise.resolve(undefined);
         }
-        return accumulatedThinkingContent.length > 0
-          ? accumulatedThinkingContent.join('\n')
-          : undefined;
+        return Promise.resolve(
+          accumulatedThinkingContent.length > 0
+            ? accumulatedThinkingContent.join('\n')
+            : undefined,
+        );
       }
 
       return {

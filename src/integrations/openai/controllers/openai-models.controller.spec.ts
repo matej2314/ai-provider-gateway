@@ -12,14 +12,19 @@ import { SmartRateLimitGuard } from '../../../guards/smart-rate-limit-guard';
 describe('OpenAiModelsController', () => {
   let controller: OpenAiModelsController;
   let catalog: jest.Mocked<OpenAiModelsCatalogService>;
+  let listModelsMock: jest.Mock;
+  let getModelMock: jest.Mock;
 
   beforeEach(async () => {
+    listModelsMock = jest.fn();
+    getModelMock = jest.fn();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [OpenAiModelsController],
       providers: [
         {
           provide: OpenAiModelsCatalogService,
-          useValue: { listModels: jest.fn(), getModel: jest.fn() },
+          useValue: { listModels: listModelsMock, getModel: getModelMock },
         },
       ],
     })
@@ -60,7 +65,7 @@ describe('OpenAiModelsController', () => {
     catalog.getModel.mockReturnValue(model);
 
     expect(controller.getOne('gpt-4')).toBe(model);
-    expect(catalog.getModel).toHaveBeenCalledWith('gpt-4');
+    expect(getModelMock).toHaveBeenCalledWith('gpt-4');
   });
 
   it('getOne should throw NotFoundException with OpenAI message format', () => {

@@ -75,7 +75,7 @@ export function mapTurnsToAnthropicMessages(
       case 'assistant':
         messages.push(mapAssistantTurn(turn));
         continue;
-      case 'tool':
+      case 'tool': {
         const toolResults: ToolResultBlockParam[] = [
           {
             type: 'tool_result',
@@ -96,6 +96,7 @@ export function mapTurnsToAnthropicMessages(
 
         messages.push({ role: 'user', content: toolResults });
         break;
+      }
     }
   }
   return messages;

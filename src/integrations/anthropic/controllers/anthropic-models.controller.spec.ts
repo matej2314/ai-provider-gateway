@@ -12,14 +12,19 @@ import { SmartRateLimitGuard } from '../../../guards/smart-rate-limit-guard';
 describe('AnthropicModelsController', () => {
   let controller: AnthropicModelsController;
   let catalog: jest.Mocked<AnthropicModelsCatalogService>;
+  let listModelsMock: jest.Mock;
+  let getModelMock: jest.Mock;
 
   beforeEach(async () => {
+    listModelsMock = jest.fn();
+    getModelMock = jest.fn();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnthropicModelsController],
       providers: [
         {
           provide: AnthropicModelsCatalogService,
-          useValue: { listModels: jest.fn(), getModel: jest.fn() },
+          useValue: { listModels: listModelsMock, getModel: getModelMock },
         },
       ],
     })
@@ -50,7 +55,7 @@ describe('AnthropicModelsController', () => {
     catalog.listModels.mockReturnValue(list);
 
     expect(controller.list()).toBe(list);
-    expect(catalog.listModels).toHaveBeenCalled();
+    expect(listModelsMock).toHaveBeenCalled();
   });
 
   it('getOne should return model when found', () => {

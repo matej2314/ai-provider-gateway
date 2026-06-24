@@ -8,9 +8,32 @@ jest.mock('../../../src/config/configuration', () =>
 
 const originalConsoleError = console.error;
 
+function formatConsoleArg(arg: unknown): string {
+  if (typeof arg === 'string') {
+    return arg;
+  }
+  if (arg == null) {
+    return '';
+  }
+  if (typeof arg === 'object') {
+    return JSON.stringify(arg);
+  }
+  if (
+    typeof arg === 'number' ||
+    typeof arg === 'boolean' ||
+    typeof arg === 'bigint'
+  ) {
+    return String(arg);
+  }
+  if (typeof arg === 'symbol') {
+    return arg.description ?? arg.toString();
+  }
+  return '';
+}
+
 beforeAll(() => {
   jest.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-    const first = String(args[0] ?? '');
+    const first = formatConsoleArg(args[0]);
     if (first.includes('Registered clients')) {
       return;
     }

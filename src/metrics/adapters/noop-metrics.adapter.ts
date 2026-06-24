@@ -11,7 +11,7 @@ export class NoopAiMetricsAdapter implements MetricsBackend {
   async observeLlmCall<T>(
     context: LlmCallContext,
     fn: () => Promise<T>,
-    mapResult?: (result: T) => LlmCallObservation,
+    _mapResult?: (result: T) => LlmCallObservation,
   ): Promise<T> {
     return fn();
   }

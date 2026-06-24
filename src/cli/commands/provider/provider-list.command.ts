@@ -12,7 +12,7 @@ export class ProviderListCommand extends CommandRunner {
     super();
   }
 
-  async run(): Promise<void> {
+  run(): Promise<void> {
     try {
       if (this.cliLoader.isBoilerplateConfig()) {
         CliLogger.warning(
@@ -28,7 +28,7 @@ export class ProviderListCommand extends CommandRunner {
 
       if (providers.length === 0) {
         CliLogger.warning('No providers configured.');
-        return;
+        return Promise.resolve();
       }
 
       providers.forEach(([id, provider]) => {
@@ -49,6 +49,7 @@ export class ProviderListCommand extends CommandRunner {
         );
         console.log('');
       });
+      return Promise.resolve();
     } catch (err) {
       CliLogger.error(
         err instanceof Error ? err.message : 'Unknown error occurred.',

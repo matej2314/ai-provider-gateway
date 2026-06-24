@@ -11,9 +11,24 @@ import { getAppConfig } from '../../../config/typed-config';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import type { Request } from 'express';
 
+function readAuthorizationHeader(req: Request): string | undefined {
+  const fromHeader = req.header('authorization');
+  if (typeof fromHeader === 'string' && fromHeader) return fromHeader.trim();
+
+  const fromHeaders = req.headers['authorization'];
+  if (Array.isArray(fromHeaders)) {
+    for (const entry of fromHeaders) {
+      if (typeof entry === 'string' && entry) return entry.trim();
+    }
+    return undefined;
+  }
+  if (typeof fromHeaders === 'string') return fromHeaders.trim();
+
+  return undefined;
+}
+
 export function readBearerToken(req: Request): string | undefined {
-  const raw = req.header('authorization') ?? req.headers['authorization'];
-  const value = Array.isArray(raw) ? raw[0]?.trim() : raw?.trim();
+  const value = readAuthorizationHeader(req);
 
   if (!value) return undefined;
 

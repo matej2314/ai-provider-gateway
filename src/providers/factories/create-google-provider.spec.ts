@@ -43,9 +43,9 @@ describe('createGoogleProvider', () => {
       );
 
       expect(provider).toBeDefined();
-      expect(provider.complete).toBeDefined();
-      expect(provider.stream).toBeDefined();
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(typeof provider.complete).toBe('function');
+      expect(typeof provider.stream).toBe('function');
+      expect(jest.mocked(mockLogger).info).toHaveBeenCalledWith(
         'Google provider instance created.',
       );
     });
@@ -559,7 +559,7 @@ describe('createGoogleProvider', () => {
 
     it('should return StreamResult with textStream', () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { text: 'Hello', usageMetadata: {} };
         },
       };
@@ -579,7 +579,7 @@ describe('createGoogleProvider', () => {
 
     it('should stream text chunks', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { text: 'Hello', usageMetadata: {} };
           yield { text: ' world', usageMetadata: {} };
         },
@@ -601,7 +601,7 @@ describe('createGoogleProvider', () => {
 
     it('should return usage metadata from last chunk', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { text: 'Hello', usageMetadata: { promptTokenCount: 10 } };
           yield {
             text: ' world',
@@ -620,8 +620,8 @@ describe('createGoogleProvider', () => {
 
       const result = provider.stream!(input, 'gemini-2.5-flash');
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       const metadata = await result.getUsageMetadata();
@@ -635,7 +635,7 @@ describe('createGoogleProvider', () => {
 
     it('should return undefined from getUsageMetadata before stream starts', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { text: 'Hello', usageMetadata: {} };
         },
       };
@@ -652,7 +652,7 @@ describe('createGoogleProvider', () => {
 
     it('should return undefined from getUsageMetadata when last chunk has no metadata', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { text: 'Hello' };
         },
       };
@@ -663,8 +663,8 @@ describe('createGoogleProvider', () => {
 
       const result = provider.stream!(input, 'gemini-2.5-flash');
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       const metadata = await result.getUsageMetadata();
@@ -674,7 +674,7 @@ describe('createGoogleProvider', () => {
 
     it('should ignore chunks without text', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { thoughts: 'thinking', usageMetadata: {} };
           yield { text: 'Hello', usageMetadata: {} };
         },
@@ -702,8 +702,8 @@ describe('createGoogleProvider', () => {
       const result = provider.stream!(input, 'gemini-2.5-flash');
 
       await expect(async () => {
-        for await (const _ of result.textStream) {
-          // consume stream
+        for await (const chunk of result.textStream) {
+          void chunk;
         }
       }).rejects.toThrow();
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -717,7 +717,7 @@ describe('createGoogleProvider', () => {
 
     it('should warn when thinking requested for non-gemini-3 model during stream', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { text: 'Hello', usageMetadata: {} };
         },
       };
@@ -730,8 +730,8 @@ describe('createGoogleProvider', () => {
         thinkingEnabled: true,
       });
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -744,7 +744,7 @@ describe('createGoogleProvider', () => {
 
     it('should include tools in stream params when tools present', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield {
             text: '',
             functionCalls: [{ id: 'call_1', name: 'weather', args: {} }],
@@ -765,8 +765,8 @@ describe('createGoogleProvider', () => {
 
       const result = provider.stream!(inputWithTools, 'gemini-2.5-flash');
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       expect(
@@ -789,7 +789,7 @@ describe('createGoogleProvider', () => {
 
     it('should return stop reason after stream', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield {
             text: 'Done',
             usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 },
@@ -803,8 +803,8 @@ describe('createGoogleProvider', () => {
 
       const result = provider.stream!(input, 'gemini-2.5-flash');
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       const stopReason = await result.getStopReason!();
@@ -814,7 +814,7 @@ describe('createGoogleProvider', () => {
 
     it('should return thinking content after stream', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { text: 'Answer', thoughts: 'Reasoning part 1' };
           yield { thoughts: 'Reasoning part 2' };
         },
@@ -828,8 +828,8 @@ describe('createGoogleProvider', () => {
         thinkingEnabled: true,
       });
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       const thinkingContent = await result.getThinkingContent!();
@@ -839,7 +839,7 @@ describe('createGoogleProvider', () => {
 
     it('should return undefined from stream helpers before stream starts', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { text: 'Hello', usageMetadata: {} };
         },
       };
@@ -857,7 +857,7 @@ describe('createGoogleProvider', () => {
 
     it('should map stream options including thinking config', async () => {
       const mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        [Symbol.asyncIterator]: function* () {
           yield { text: 'Hello', usageMetadata: {} };
         },
       };
@@ -875,8 +875,8 @@ describe('createGoogleProvider', () => {
 
       const result = provider.stream!(input, 'gemini-3.5-flash', options);
 
-      for await (const _ of result.textStream) {
-        // consume stream
+      for await (const chunk of result.textStream) {
+        void chunk;
       }
 
       expect(

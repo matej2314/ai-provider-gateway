@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { ApiErrorCode } from '../../common/errors/api-error.code';
 import type { GatewayParamsConfig } from '../../config/configuration';
 import type { ProviderCallOptions } from 'src/providers/interfaces/ai-provider.interface';

@@ -1,5 +1,4 @@
 import type { ProviderRegistryService } from '../../providers/provider-registry.service';
-import { createMockDefaultResolvedConfig } from './createMockResolvedProviderConfig';
 
 export function createMockProviderRegistryService(options?: {
   providerName?: string;

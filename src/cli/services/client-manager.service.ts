@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { GatewayConfig } from 'src/config/gateway-config.schema';
 import { CliLogger } from '../utils/cli-logger.util';
 import { EnvPatchService } from './env-patch.service';
-import { GATEWAY_CLIENT_TYPES } from 'src/config/configuration.types';
+import {
+  GATEWAY_CLIENT_TYPES,
+  type GatewayClientType,
+} from 'src/config/configuration.types';
 import { ConfigPersistenceService } from './config-persistence.service';
 import chalk from 'chalk';
 import * as inquirer from 'inquirer';
@@ -24,13 +27,18 @@ export class ClientManagerService {
   async addClient(config: GatewayConfig, cwd: string): Promise<void> {
     CliLogger.section('Add client');
 
-    const clientAnswers = await inquirer.prompt([
+    const clientAnswers = await inquirer.prompt<{
+      id: string;
+      name: string;
+      type: GatewayClientType;
+      addRateLimit: boolean;
+    }>([
       {
         type: 'input',
         name: 'id',
         message: 'Client ID (e.g. webapp)',
-        validate: (input) => {
-          const id = input?.trim();
+        validate: (input: string) => {
+          const id = String(input).trim();
           if (!id) return 'Client ID is required.';
           if (config.clients[id]) {
             return `Client ${id} already exists - use gateway client:edit command.`;
@@ -42,8 +50,8 @@ export class ClientManagerService {
         type: 'input',
         name: 'name',
         message: 'Client name(e.g. "My web app")',
-        validate: (input) => {
-          if (!input?.trim()) return 'Client name is required.';
+        validate: (input: string) => {
+          if (!String(input).trim()) return 'Client name is required.';
           return true;
         },
       },
@@ -74,7 +82,11 @@ export class ClientManagerService {
       console.log(chalk.dim('  • Production: 100-1000 rps'));
       console.log(chalk.dim('  • Burst: typically same as rps or 2x rps\n'));
 
-      const rateLimitAnswers = await inquirer.prompt([
+      const rateLimitAnswers = await inquirer.prompt<{
+        rps: number;
+        burst: number;
+        maxConcurrentStreams: number;
+      }>([
         {
           type: 'number',
           name: 'rps',
@@ -163,7 +175,9 @@ export class ClientManagerService {
       `Name: ${row.name} | type: ${row.type} | gatewayKeyRef: ${row.gatewayKeyRef}`,
     );
 
-    const { action } = await inquirer.prompt([
+    const { action } = await inquirer.prompt<{
+      action: 'name' | 'type' | 'rateLimit' | 'rotateKey' | 'cancel';
+    }>([
       {
         type: 'list',
         name: 'action',
@@ -185,7 +199,7 @@ export class ClientManagerService {
       case 'cancel':
         return;
       case 'name': {
-        const { name } = await inquirer.prompt([
+        const { name } = await inquirer.prompt<{ name: string }>([
           {
             type: 'input',
             name: 'name',
@@ -202,7 +216,7 @@ export class ClientManagerService {
         return;
       }
       case 'type': {
-        const { type } = await inquirer.prompt([
+        const { type } = await inquirer.prompt<{ type: GatewayClientType }>([
           {
             type: 'list',
             name: 'type',
@@ -230,7 +244,9 @@ export class ClientManagerService {
             : []),
           { value: 'cancel', name: 'Cancel' },
         ];
-        const { rateLimitAction } = await inquirer.prompt([
+        const { rateLimitAction } = await inquirer.prompt<{
+          rateLimitAction: 'set' | 'remove' | 'cancel';
+        }>([
           {
             type: 'list',
             name: 'rateLimitAction',
@@ -245,7 +261,11 @@ export class ClientManagerService {
           CliLogger.success(`Rate limit removed for client ${clientId}`);
           return;
         }
-        const rateLimitAnswers = await inquirer.prompt([
+        const rateLimitAnswers = await inquirer.prompt<{
+          rps: number;
+          burst: number;
+          maxConcurrentStreams: number;
+        }>([
           {
             type: 'number',
             name: 'rps',
@@ -294,7 +314,7 @@ export class ClientManagerService {
       }
 
       case 'rotateKey': {
-        const { confirm } = await inquirer.prompt([
+        const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
           {
             type: 'confirm',
             name: 'confirm',
@@ -319,7 +339,7 @@ export class ClientManagerService {
     const row = config.clients[clientId];
     if (!row) throw new Error(`Client ${clientId} not found.`);
 
-    const { confirm } = await inquirer.prompt([
+    const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
       {
         type: 'confirm',
         name: 'confirm',

@@ -25,10 +25,7 @@ export class KeyGenerateCommand extends CommandRunner {
     super();
   }
 
-  async run(
-    passedParams: string[],
-    options?: KeyGenerateOptions,
-  ): Promise<void> {
+  run(passedParams: string[], options?: KeyGenerateOptions): Promise<void> {
     try {
       const type = options?.type ?? (passedParams[0] as KeyType | undefined);
       const clientId = options?.clientId ?? passedParams[1];
@@ -88,6 +85,7 @@ export class KeyGenerateCommand extends CommandRunner {
         'Key is visible in the terminal - avoid shared screens or logs.',
       );
       CliLogger.blank();
+      return Promise.resolve();
     } catch (error) {
       CliLogger.error(
         error instanceof Error ? error.message : 'Unknown error occurred.',

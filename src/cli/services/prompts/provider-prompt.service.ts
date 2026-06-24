@@ -3,6 +3,7 @@ import * as inquirer from 'inquirer';
 import chalk from 'chalk';
 import { CliLogger } from '../../utils/cli-logger.util';
 import { PROVIDER_TYPES } from 'src/config/provider-types';
+import type { GatewayProviderType } from 'src/config/provider-types';
 import type { CliAiProvider } from '../cli.services.types';
 
 type ProviderPromptResult = CliAiProvider;
@@ -17,7 +18,9 @@ export class ProviderPromptService {
       ),
     );
 
-    const { selectedProviders } = await inquirer.prompt([
+    const { selectedProviders } = await inquirer.prompt<{
+      selectedProviders: GatewayProviderType[];
+    }>([
       {
         type: 'checkbox',
         name: 'selectedProviders',
@@ -27,7 +30,7 @@ export class ProviderPromptService {
           name: type,
           checked: false,
         })),
-        validate: (input) => {
+        validate: (input: GatewayProviderType[]) => {
           if (input.length === 0) {
             return 'Please select at least one provider';
           }
@@ -39,14 +42,14 @@ export class ProviderPromptService {
     const providers: ProviderPromptResult[] = [];
 
     for (const providerType of selectedProviders) {
-      const { apiKey } = await inquirer.prompt([
+      const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
         {
           type: 'password',
           name: 'apiKey',
           message: `Enter API Key for ${providerType}:`,
           mask: '*',
-          validate: (input) => {
-            if (!input || input.trim() === '') {
+          validate: (input: string) => {
+            if (!input || String(input).trim() === '') {
               return 'API Key is required';
             }
             return true;
@@ -58,7 +61,7 @@ export class ProviderPromptService {
         id: providerType,
         type: providerType,
         apiKeyRef: `${providerType.toUpperCase()}_API_KEY`,
-        apiKey: apiKey.trim(),
+        apiKey: String(apiKey).trim(),
       });
     }
 

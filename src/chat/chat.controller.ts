@@ -2,7 +2,6 @@ import { Controller, Post, Body, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import {
   ApiOperation,
-  ApiOkResponse,
   ApiBody,
   ApiSecurity,
   ApiTags,
