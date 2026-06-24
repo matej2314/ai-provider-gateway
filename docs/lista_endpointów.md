@@ -1,6 +1,6 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **1.5**.  
+Wersja dokumentu: **1.6**.  
 **OpenAPI:** `openapi.json` (v0.13.0) — zsynchronizowany z `src/` (health, czat natywny, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`, dekoratory `@nestjs/swagger`). **Błędy:** natywny czat — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
 
 ## Konwencje globalne
@@ -44,7 +44,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 
 | | |
 |--|--|
-| **201** | odpowiedź gateway (JSON); opcjonalnie `toolCalls`, `finishReason` (`stop` \| `tool_calls` \| `length`), `usageDetails`, `systemFingerprint` (tylko gdy upstream OpenAI — patrz `dictionary.md`), `effectiveModelAlias`, `cached` |
+| **201** | odpowiedź gateway (JSON); opcjonalnie `toolCalls`, `finishReason` (`stop` \| `tool_calls` \| `length` \| `content_filter` — `GatewayFinishReason`), `usageDetails`, `systemFingerprint` (tylko gdy upstream OpenAI — patrz `dictionary.md`), `effectiveModelAlias`, `cached` |
 | **400** | walidacja DTO; `MODEL_ALIAS_NOT_FOUND`; `MODEL_NOT_ALLOWED`; `TOOLS_NOT_SUPPORTED`; inne jawne `code` |
 | **401** | brak `X-Gateway-Key` — `GATEWAY_KEY_MISSING` |
 | **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |

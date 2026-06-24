@@ -162,8 +162,8 @@ Fasady muszą współdzielić **`SmartRateLimiterService`** z natywnym API.
 
 1. HTTP → kontroler fasady + walidacja DTO vendora.
 2. Mapper request → `ChatRequestDto` (`modelAlias`, `messages`, opcjonalnie `params`, `metadata`, `tooling` — tools/tool_calls z kontraktu vendora).
-3. `ChatService.executeChat` / `executeStream` z `req.gatewayKey` i `req.requestId`.
-4. Mapper response / stream → format OpenAI lub Anthropic.
+3. `ChatService.executeChat` / `executeStream` z profilem ingress (`facade-openai` / `facade-anthropic`), `validateChatIngress`, `req.gatewayKey` i `req.requestId`.
+4. Mapper response / stream → format OpenAI lub Anthropic (Anthropic: `finishReason` → `stop_reason` przez `anthropic-stop-reason.mapper.ts`).
 5. Pola specyficzne dla gateway (`provider`, `cached`, `conversationId`) **nie** są eksponowane w fasadach MVP.
 
 ## Limity walidacji ingress (`validateChatIngress`)
@@ -223,7 +223,7 @@ src/integrations/
 └── anthropic/
     ├── controllers/     # models, messages
     ├── services/
-    ├── mappers/         # request, response, stream, tools
+    ├── mappers/         # request, response, stream, tools, anthropic-stop-reason
     ├── helpers/         # anthropic-stream-api-description
     ├── guards/          # x-api-key auth
     ├── filters/

@@ -146,7 +146,12 @@ describe('RedisCacheAdapter', () => {
 
     it('should set value with default TTL from config', async () => {
       mockRedisClient.setex.mockResolvedValue('OK');
-      (mockConfig.get as jest.Mock).mockReturnValue(7200);
+      (mockConfig.get as jest.Mock).mockImplementation((key: string) => {
+        if (key === 'cache') {
+          return { ttl: 7200 };
+        }
+        return undefined;
+      });
 
       const result = await adapter.set('test-key', 'value');
 

@@ -63,7 +63,7 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 - `requestId` — korelacja z logami.
 - `conversationId` — ID rozmowy (echo lub `conv_<uuid>` z gateway) — tylko czat; szczegóły: `conversation-tracking.md`.
 - `effectiveModelAlias` — opcjonalnie, gdy `ResilientExecutor` obsłużył żądanie na aliasie `fallback` z YAML (pole `model` = żądany alias).
-- `toolCalls`, `finishReason` — opcjonalnie przy function calling (`capabilities.tools` w YAML); `finishReason` w runtime: `stop` | `tool_calls` | `length` (`mapStopReasonToFinishReason`).
+- `toolCalls`, `finishReason` — opcjonalnie przy function calling (`capabilities.tools` w YAML); `finishReason` w runtime: `stop` | `tool_calls` | `length` | `content_filter` — typ `GatewayFinishReason`, mapowanie `mapStopReasonToFinishReason` (`src/chat/helpers/map-provider-finish-reason.ts`).
 - `usageDetails` — opcjonalnie tokeny cache Anthropic (`promptCacheHitTokens`, `promptCacheCreationTokens`).
 - `thinkingContent` — opcjonalnie treść extended thinking (Anthropic / Gemini 3.0+), gdy `params.thinkingEnabled: true` i alias ma `capabilities.thinking`.
 - `systemFingerprint` — opcjonalne, **provider-specific**: pass-through z adaptera; w praktyce dotyczy OpenAI `system_fingerprint`. Anthropic i Gemini **nie** zwracają odpowiednika — pole pomijane w odpowiedzi. Fasada OpenAI mapuje na `system_fingerprint` gdy ustawione (`dictionary.md`).

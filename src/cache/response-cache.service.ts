@@ -5,28 +5,13 @@ import { ChatRequestDto } from '../chat/dto/chat-request.dto';
 import { CACHE_BACKEND } from './cache.tokens';
 import { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
 import { LoggingService } from '../logging/logging.service';
+import { parseCachedChatResponse } from './schemas/cached-chat-response.schema';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
-import type { ResolvedSystemPrompts } from '../config/configuration.types';
-import type { ChatWarningDto } from '../chat/dto/chat-warning.dto';
+import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
 import type { ChatResponseData } from '../chat/services/chat-response-builder.service';
+import type { CachedChatResponse } from './types/cached-chat-response.type';
 
-export interface CachedChatResponse {
-  id: string;
-  provider: string;
-  model: string;
-  output: {
-    type: string;
-    text: string;
-  };
-  usage?: {
-    inputTokens: number;
-    outputTokens: number;
-  };
-  requestId: string;
-  cached: true;
-  cachedAt: string;
-  warnings?: ChatWarningDto[];
-}
+export type { CachedChatResponse } from './types/cached-chat-response.type';
 
 @Injectable()
 export class ResponseCacheService {
@@ -47,15 +32,13 @@ export class ResponseCacheService {
     request: ChatRequestDto,
     effectiveCallParams?: ProviderCallOptions,
   ): string {
-    const prompts = this.config.get<ResolvedSystemPrompts>(
-      'resolvedSystemPrompts',
-    );
+    const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
     const systemSignature = createHash('sha256')
-      .update(prompts?.master ?? '')
+      .update(prompts.master)
       .update('|')
-      .update(prompts?.main ?? '')
+      .update(prompts.main ?? '')
       .update('|')
-      .update(prompts?.perModelByAlias[request.modelAlias] ?? '')
+      .update(prompts.perModelByAlias[request.modelAlias] ?? '')
       .digest('hex');
 
     const payload = JSON.stringify({
@@ -66,8 +49,8 @@ export class ResponseCacheService {
     });
     const hash = createHash('sha256').update(payload).digest('hex');
     const prefix =
-      this.config.get<string>('cache.keyPrefix') ||
-      this.config.get<string>('redis.keyPrefix') ||
+      getAppConfig(this.config, 'cache')?.keyPrefix ||
+      getAppConfig(this.config, 'redis')?.keyPrefix ||
       'aigw:';
     return `${prefix}cache:chat:${hash}`;
   }
@@ -103,7 +86,13 @@ export class ResponseCacheService {
     }
 
     try {
-      const parsed = JSON.parse(cached);
+      const raw: unknown = JSON.parse(cached);
+      const parsed = parseCachedChatResponse(raw);
+      if (!parsed) {
+        this.logger.warn(`Invalid cached response shape for key: ${key}`);
+        await this.cache.delete(key);
+        return null;
+      }
       this.logger.info(`Cache HIT for key: ${key}`);
       return parsed;
     } catch (error: unknown) {
@@ -144,7 +133,7 @@ export class ResponseCacheService {
     };
 
     const serialized = JSON.stringify(cachedResponse);
-    const defaultTtl = this.config.get<number>('cache.ttl', 3600);
+    const defaultTtl = getAppConfig(this.config, 'cache')?.ttl ?? 3600;
     const success = await this.cache.set(
       key,
       serialized,

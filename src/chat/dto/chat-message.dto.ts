@@ -5,6 +5,7 @@ import {
   ValidateNested,
   IsOptional,
   ValidateIf,
+  IsNotEmpty,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -29,6 +30,7 @@ export class ChatMessageDto {
     example: 'call_abc123',
   })
   @ValidateIf((message) => message.role === 'tool')
+  @IsNotEmpty()
   @IsString()
   toolCallId?: string;
 

@@ -191,7 +191,7 @@ Fasada MVP celuje w prosty czat tekstowy i klienty IDE — **nie** jest drop-in 
 |-------|------------|---------------|
 | `model` w odpowiedzi | ID modelu Anthropic | **Echo aliasu** z żądania (`chat-default`, …) |
 | `usage` | m.in. cache, `service_tier` | Tylko `input_tokens`, `output_tokens` |
-| `stop_reason` | m.in. `tool_use`, `max_tokens` | Mapowane z gateway (`tool_calls` → `tool_use`) |
+| `stop_reason` | m.in. `tool_use`, `max_tokens`, `refusal` | Mapowane z `GatewayFinishReason` przez `anthropic-stop-reason.mapper.ts` (`tool_calls` → `tool_use`, `length` → `max_tokens`, `content_filter` → `refusal`, `stop` → `end_turn`) |
 | `system`, obrazy | Obsługiwane oficjalnie | `system` ignorowany; `image` → 400 |
 | `tools` | Obsługiwane oficjalnie | Mapowane przez fasadę gdy alias ma `capabilities.tools` |
 | `messages[].content` | string lub tablica | Tylko tablica bloków `text` |

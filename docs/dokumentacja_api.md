@@ -8,7 +8,7 @@ Wersja dokumentu: **1.3**. Dokument jest wersjonowany razem z kodem. **`openapi.
 2. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) **generowany z kodu** (`npm run openapi:export` → `src/swagger/export-openapi.ts`). W runtime ten sam dokument serwowany jako `/api/v1/swagger.json` (gdy Swagger włączony).
 3. **Swagger UI** — interaktywna dokumentacja pod `/api/v1/api-docs` (`setupSwagger` w `src/main.ts`; wyłączanie: `SWAGGER_ENABLED` — `konfiguracja.md`).
 4. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1. **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` — `konfiguracja.md`.
-5. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
+5. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis`, odczyt walidowany `CachedChatResponseSchema` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
 6. **System prompt po stronie serwera** — wczytanie plików w `configuration.ts`, składanie w `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`).
 7. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
 
@@ -80,7 +80,16 @@ Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; *
 
 **Pole `tooling` (opcjonalne):** obiekt z `definitions[]` (`name`, `description?`, `parameters` — JSON Schema) oraz opcjonalnym `toolChoice`. Włącza function calling — alias musi mieć **`capabilities.tools: true`** w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
 
-**Odpowiedź:** opcjonalne **`toolCalls`** (`id`, `name`, `arguments` jako JSON string) oraz **`finishReason`**. W runtime gateway mapuje `stopReason` providera funkcją **`mapStopReasonToFinishReason`** (`src/chat/helpers/map-provider-finish-reason.ts`) na: **`stop`** (domyślnie, m.in. `end_turn`, `stop_sequence`), **`tool_calls`** (gdy są `toolCalls` lub `stopReason === tool_use`), **`length`** (gdy `stopReason === max_tokens`). Enum w OpenAPI/DTO może zawierać dodatkowe wartości vendora — **emitowane w odpowiedzi są wyłącznie powyższe trzy**.
+**Odpowiedź:** opcjonalne **`toolCalls`** (`id`, `name`, `arguments` jako JSON string) oraz **`finishReason`**. W runtime gateway mapuje `stopReason` providera funkcją **`mapStopReasonToFinishReason`** (`src/chat/helpers/map-provider-finish-reason.ts`) na znormalizowany typ **`GatewayFinishReason`** (`src/chat/types/gateway-finish-reason.type.ts`):
+
+| Wartość gateway | Typowe źródła `stopReason` providera |
+|-----------------|--------------------------------------|
+| **`stop`** | `end_turn`, `stop_sequence`, `pause_turn`, `stop`, `insufficient_system_resource`, brak / nieznane |
+| **`tool_calls`** | `tool_use`, `tool_calls` lub obecność `toolCalls[]` |
+| **`length`** | `max_tokens`, `length` |
+| **`content_filter`** | `refusal`, `content_filter` |
+
+Enum w OpenAPI/DTO może zawierać dodatkowe wartości vendora — **emitowane w natywnym API są wyłącznie powyższe cztery**. Fasada Anthropic mapuje `content_filter` → `stop_reason: refusal` (`anthropic-stop-reason.mapper.ts`).
 
 Opcjonalnie w odpowiedzi JSON: **`usageDetails`** (`promptCacheHitTokens`, `promptCacheCreationTokens` — gdy adapter Anthropic zwraca statystyki cache, obecnie w ścieżce `parseAnthropicResponseWithTools`) oraz **`systemFingerprint`** — opcjonalne, **provider-specific**: w praktyce wypełniane tylko gdy upstream zwraca odpowiednik OpenAI `system_fingerprint` (planowany adapter `type: openai`). **Anthropic i Google Gemini nie mają tego pola** — przy aliasach na te providery pole **nie występuje** w odpowiedzi (gateway pomija klucz). Nie mylić z `model` / `modelVersion` z Gemini. Szczegóły: **`dictionary.md`** (sekcja „`systemFingerprint` — semantyka i providerzy”).
 
@@ -131,7 +140,7 @@ Udana odpowiedź JSON: **201 Created** — domyślne zachowanie NestJS dla `POST
 
 `ChatService.executeChat`: `id`, **`provider`** (identyfikator **`providerInstance`** z YAML), `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`**, opcjonalnie **`toolCalls`**, **`finishReason`**, **`usageDetails`**, opcjonalnie **`systemFingerprint`** (tylko gdy adapter upstream je dostarczy — patrz `dictionary.md`), `output`, `usage`, `requestId`, **`conversationId`**.
 
-**Cache (opcjonalny):** lookup przed wywołaniem providera; **pomijany** dla żądań z toolingiem. Przy trafieniu — gdy alias i provider są **włączone** w YAML — zwracany JSON z **`cached: true`**, **`cachedAt`**. Streaming nie jest cache’owany.
+**Cache (opcjonalny):** lookup przed wywołaniem providera; **pomijany** dla żądań z toolingiem. Przy trafieniu — gdy alias i provider są **włączone** w YAML — zwracany JSON z **`cached: true`**, **`cachedAt`**. Odczyt z backendu parsowany przez **`parseCachedChatResponse`** (`CachedChatResponseSchema`); niepoprawny wpis usuwany. Streaming nie jest cache’owany.
 
 **Cooldown po 429 od providera** (`SmartRateLimiterService.setCooldown`) jest ustawiany w `ChatService.executeChat` po błędzie upstream — **nie** dotyczy `executeStream` (brak przekazania klucza do `handleProviderError` w streamingu).
 

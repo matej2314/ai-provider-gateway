@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfig } from '../config/typed-config';
 import { CacheRegistryService } from '../cache/cache-registry.service';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
 import {
@@ -58,8 +59,11 @@ export class HealthService {
   }
 
   private checkConfig(): HealthCheckResult {
-    const hasGatewayConfig = !!this.config.get('gateway');
-    const hasResolvedPrompts = !!this.config.get('resolvedSystemPrompts');
+    const hasGatewayConfig = !!getAppConfig(this.config, 'gateway');
+    const hasResolvedPrompts = !!getAppConfig(
+      this.config,
+      'resolvedSystemPrompts',
+    );
 
     if (hasGatewayConfig && hasResolvedPrompts) {
       return {
@@ -75,10 +79,7 @@ export class HealthService {
   }
 
   private checkCache(redisCheck: HealthRedisCheckResult): HealthCheckResult {
-    const cacheConfig = this.config.get<{
-      enabled?: boolean;
-      backend?: string;
-    }>('cache');
+    const cacheConfig = getAppConfig(this.config, 'cache');
 
     const backendId = (cacheConfig?.backend ?? 'noop').toLowerCase();
 

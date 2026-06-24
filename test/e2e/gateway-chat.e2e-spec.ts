@@ -205,6 +205,42 @@ describe('Gateway Chat API (E2E)', () => {
       expect(response.body.message).toMatch(/content too long/i);
     });
 
+    it('should return 400 when tool message is missing toolCallId', async () => {
+      const response = await request(app.getHttpServer())
+        .post(E2E_ROUTES.chat)
+        .set('x-gateway-key', E2E_GATEWAY_KEY)
+        .send({
+          modelAlias: TEST_MODEL_ALIAS,
+          messages: [{ role: 'tool', content: 'result' }],
+        })
+        .expect(400);
+
+      expect(response.body).toMatchObject({
+        statusCode: 400,
+        code: ApiErrorCode.VALIDATION_FAILED,
+        requestId: expect.any(String),
+      });
+      expect(response.body.message).toMatch(/toolCallId/i);
+    });
+
+    it('should return 400 when tool message has empty toolCallId', async () => {
+      const response = await request(app.getHttpServer())
+        .post(E2E_ROUTES.chat)
+        .set('x-gateway-key', E2E_GATEWAY_KEY)
+        .send({
+          modelAlias: TEST_MODEL_ALIAS,
+          messages: [{ role: 'tool', toolCallId: '', content: 'result' }],
+        })
+        .expect(400);
+
+      expect(response.body).toMatchObject({
+        statusCode: 400,
+        code: ApiErrorCode.VALIDATION_FAILED,
+        requestId: expect.any(String),
+      });
+      expect(response.body.message).toMatch(/toolCallId/i);
+    });
+
     it('should return THINKING_NOT_SUPPORTED when thinkingEnabled is true without capability', async () => {
       await withE2eApp(
         {

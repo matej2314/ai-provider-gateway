@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfig } from '../config/typed-config';
 import { Request } from 'express';
 import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.service';
 import { readClientGatewayKey } from '../common/readClientGatewayKey';
@@ -42,10 +43,7 @@ export class SmartRateLimitGuard implements CanActivate {
       return true;
     }
 
-    const smartEnabled = this.config.get<boolean>(
-      'RATE_LIMIT_SMART_ENABLED',
-      false,
-    );
+    const smartEnabled = getAppConfig(this.config, 'RATE_LIMIT_SMART_ENABLED');
     if (!smartEnabled) {
       return true;
     }

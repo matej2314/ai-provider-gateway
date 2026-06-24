@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfig } from '../../../config/typed-config';
 import type { CacheBackend } from '../../interfaces/cache-backend-interface';
 import { RedisConnectionService } from './redis-connection.service';
 import { CacheRegistryService } from '../../cache-registry.service';
@@ -45,7 +46,7 @@ export class RedisCacheAdapter implements CacheBackend, OnModuleInit {
   async set(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
     const client = this.connection.getClient();
     if (!client) return false;
-    const ttl = ttlSeconds ?? this.config.get<number>('cache.ttl', 3600);
+    const ttl = ttlSeconds ?? getAppConfig(this.config, 'cache')?.ttl ?? 3600;
 
     try {
       if (ttl > 0) {

@@ -1,3 +1,11 @@
+import { BadRequestException } from '@nestjs/common';
+import { ApiErrorCode } from '../../common/errors/api-error.code';
+import {
+  isChatToolMessage,
+  isChatUserMessage,
+  isChatAssistantMessage,
+} from '../types/chat-message.types';
+import { composeSystemPrompt } from './system-prompt';
 import type { ResolvedSystemPrompts } from '../../config/configuration.types';
 import type {
   ProviderChatInput,
@@ -5,7 +13,6 @@ import type {
 } from '../../providers/interfaces/ai-provider.interface';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { ChatMessageDto } from '../dto/chat-message.dto';
-import { composeSystemPrompt } from './system-prompt';
 
 export function toProviderTurns(
   messages: ChatMessageDto[],
@@ -13,19 +20,25 @@ export function toProviderTurns(
   const turns: ProviderChatTurn[] = [];
 
   for (const message of messages) {
-    if (message.role === 'user') {
+    if (isChatUserMessage(message)) {
       turns.push({ role: 'user', content: message.content });
-    } else if (message.role === 'assistant') {
+    } else if (isChatAssistantMessage(message)) {
       turns.push({
         role: 'assistant',
         content: message.content,
         ...(message.toolCalls?.length ? { toolCalls: message.toolCalls } : {}),
       });
-    } else if (message.role === 'tool' && message.toolCallId) {
+    } else if (isChatToolMessage(message)) {
       turns.push({
         role: 'tool',
         toolCallId: message.toolCallId,
         content: message.content,
+      });
+    } else if (message.role === 'tool' && !message.toolCallId) {
+      throw new BadRequestException({
+        code: ApiErrorCode.VALIDATION_FAILED,
+        message: 'Tool messages must include toolCallId',
+        details: [{ field: 'messages[].toolCallId' }],
       });
     }
   }

@@ -7,8 +7,8 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfig } from '../config/typed-config';
 import { Request } from 'express';
-import type { GatewayKeyRuntimeConfig } from '../config/configuration.types';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { readGatewayKeyHeader } from '../common/readGatewayKeyHeader';
 
@@ -21,9 +21,7 @@ export class GatewayKeyGuard implements CanActivate {
 
     const headerValue = readGatewayKeyHeader(req);
 
-    const gatewayKey = this.configService.get<
-      GatewayKeyRuntimeConfig | undefined
-    >('gatewayKey');
+    const gatewayKey = getAppConfig(this.configService, 'gatewayKey');
     const allowList = gatewayKey?.allowList ?? [];
 
     if (allowList.length === 0) {

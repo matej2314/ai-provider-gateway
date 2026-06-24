@@ -1,3 +1,4 @@
+import { mapGatewayFinishReasonToAnthropicStopReason } from './anthropic-stop-reason.mapper';
 import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
 import type {
   AnthropicMessagesResponseDto,
@@ -22,29 +23,6 @@ function mapGatewayToolCallsToAnthropic(
       input,
     };
   });
-}
-
-function mapStopReason(
-  finishReason?: ChatResponseDto['finishReason'],
-): AnthropicMessagesResponseDto['stop_reason'] {
-  if (!finishReason) return 'end_turn';
-
-  switch (finishReason) {
-    case 'tool_calls':
-      return 'tool_use';
-
-    case 'length':
-      return 'max_tokens';
-
-    case 'stop':
-      return 'end_turn';
-
-    case 'content_filter':
-      return 'refusal';
-
-    default:
-      return 'end_turn';
-  }
 }
 
 export function mapGatewayResponseToAnthropicFormat(
@@ -74,7 +52,9 @@ export function mapGatewayResponseToAnthropicFormat(
     role: 'assistant',
     content,
     model: requestedModel,
-    stop_reason: mapStopReason(result.finishReason),
+    stop_reason: mapGatewayFinishReasonToAnthropicStopReason(
+      result.finishReason,
+    ),
     stop_sequence: null,
     usage: {
       input_tokens: result.usage?.inputTokens ?? 0,

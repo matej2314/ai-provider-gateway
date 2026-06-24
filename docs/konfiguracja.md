@@ -65,7 +65,7 @@ Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/con
 - **Implementacja:** `CacheModule.register({ includeRedisStack: isRedisRequiredFromEnv() })` w `src/app.module.ts`. Nazwa opcji `includeRedisStack` jest historyczna — dotyczy całej infrastruktury Redis, nie tylko cache.
 - **Gdy Redis wymagany, ale niedostępny:** smart rate limit → fail-open (żądania przepuszczane); readiness → `checks.redis: degraded` (szczegóły poniżej).
 
-**Zachowanie:** `ChatService.executeChat` przed wywołaniem providera sprawdza cache (`ResponseCacheService`); przy trafieniu — tylko gdy alias i powiązany provider są **włączone** w YAML (`isCachedChatAllowedForModelAlias` w `src/chat/helpers/cache-policy.ts`) — zwracana jest zapisana odpowiedź z polami **`cached: true`** i **`cachedAt`** (ISO 8601). Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z tej warstwy.
+**Zachowanie:** `ChatService.executeChat` przed wywołaniem providera sprawdza cache (`ResponseCacheService`); przy trafieniu — tylko gdy alias i powiązany provider są **włączone** w YAML (`isCachedChatAllowedForModelAlias` w `src/chat/helpers/cache-policy.ts`) — zwracana jest zapisana odpowiedź z polami **`cached: true`** i **`cachedAt`** (ISO 8601). Odczyt z Redis parsowany jest przez **`parseCachedChatResponse`** (`CachedChatResponseSchema` w `src/cache/schemas/cached-chat-response.schema.ts`); niepoprawny kształt → usunięcie klucza i traktowanie jako MISS. Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z tej warstwy.
 
 Szablon zmiennych: `.env.example`.
 
@@ -124,7 +124,7 @@ Przy `CACHE_ENABLED=false` i `RATE_LIMIT_SMART_ENABLED=true` readiness **sprawdz
 
 ## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
 
-**Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji i rozwiązywanie env — `src/config/configuration.ts`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
+**Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji i rozwiązywanie env — `src/config/configuration.ts` → obiekt **`AppConfiguration`** (`app-configuration.types.ts`). Serwisy runtime odczytują klucze przez **`getAppConfig` / `getAppConfigOrThrow`** (`typed-config.ts`) zamiast surowych stringów `config.get('...')`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
 
 **W repozytorium** może być przykładowy `gateway.config.yaml`. Wizard **`config:init`** generuje pełną konfigurację operacyjną. Poniższy przykład ilustruje typowy wynik wizarda.
 

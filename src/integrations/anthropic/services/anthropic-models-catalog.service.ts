@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { GatewayConfig } from 'src/config/configuration';
+import { getAppConfigOrThrow } from '../../../config/typed-config';
+import type { GatewayConfig } from '../../../config/configuration';
 import type {
   AnthropicModelDto,
   AnthropicModelsListResponseDto,
@@ -10,8 +11,8 @@ import type {
 export class AnthropicModelsCatalogService {
   constructor(private readonly config: ConfigService) {}
 
-  private getGatewayConfig(): GatewayConfig | undefined {
-    return this.config.get<GatewayConfig>('gateway');
+  private getGatewayConfig(): GatewayConfig {
+    return getAppConfigOrThrow(this.config, 'gateway');
   }
 
   private toDisplayName(alias: string): string {
@@ -33,15 +34,6 @@ export class AnthropicModelsCatalogService {
 
   listModels(): AnthropicModelsListResponseDto {
     const gateway = this.getGatewayConfig();
-    if (!gateway) {
-      return {
-        data: [],
-        first_id: '',
-        last_id: '',
-        has_more: false,
-      };
-    }
-
     const data: AnthropicModelDto[] = [];
 
     for (const [alias, model] of Object.entries(gateway.models)) {
@@ -58,7 +50,7 @@ export class AnthropicModelsCatalogService {
 
   getModel(id: string): AnthropicModelDto | null {
     const gateway = this.getGatewayConfig();
-    if (!gateway?.models[id]) return null;
+    if (!gateway.models[id]) return null;
 
     const model = gateway.models[id];
 

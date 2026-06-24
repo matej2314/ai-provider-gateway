@@ -5,6 +5,7 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfigOrThrow } from '../../../config/typed-config';
 import { LoggingService } from '../../../logging/logging.service';
 import { isRedisRequiredFromConfig } from '../../should-include-redis-stack';
 import Redis from 'ioredis';
@@ -28,19 +29,7 @@ export class RedisConnectionService
       return;
     }
 
-    const redis = this.config.get<{
-      host: string;
-      port: number;
-      password: string;
-      db: number;
-    }>('redis');
-
-    if (!redis) {
-      this.logger.warn(
-        'Redis config missing. Redis client will not be created.',
-      );
-      return;
-    }
+    const redis = getAppConfigOrThrow(this.config, 'redis');
 
     const password =
       redis.password && redis.password.trim().length > 0

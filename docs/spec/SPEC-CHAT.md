@@ -52,7 +52,7 @@ F-2. `messages[]` wspiera role: `user`, `assistant`, `tool` (rola `system` w API
 
 F-2a. Gateway buduje `system` dla adaptera **wyłącznie z plików** w `src/config/system-prompt/`. Do adaptera trafia `messages[]` z turami użytkownika, asystenta i wyników narzędzi. Opcjonalne **`tooling`** w body (`definitions`, `toolChoice`) wymaga `capabilities.tools: true` w YAML — inaczej `TOOLS_NOT_SUPPORTED`.
 
-F-2b. Odpowiedź może zawierać `toolCalls`, `finishReason` (`stop` | `tool_calls` | `length` — `mapStopReasonToFinishReason`), opcjonalnie `usageDetails`, opcjonalnie `systemFingerprint` (provider-specific — praktycznie OpenAI upstream; Anthropic/Gemini nie mają odpowiednika). Żądania z toolingiem pomijają cache i fallback YAML w czacie standardowym.
+F-2b. Odpowiedź może zawierać `toolCalls`, `finishReason` (`stop` | `tool_calls` | `length` | `content_filter` — `GatewayFinishReason` / `mapStopReasonToFinishReason`), opcjonalnie `usageDetails`, opcjonalnie `systemFingerprint` (provider-specific — praktycznie OpenAI upstream; Anthropic/Gemini nie mają odpowiednika). Żądania z toolingiem pomijają cache i fallback YAML w czacie standardowym.
 
 F-3. Gateway musi zwrócić odpowiedź w spójnym formacie niezależnym od providera.
 
@@ -64,7 +64,7 @@ F-6. Nieznany `modelAlias` → `400` z `code=MODEL_ALIAS_NOT_FOUND` (`ProviderRe
 
 F-7. Limity DTO: `messages` — **1..150** elementów; `content` — max **3000** znaków na wiadomość (`chat-request.dto.ts`, `chat-message.dto.ts`). Nadwyżkowe pola w body → `400` (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`).
 
-F-8. *(Opcjonalnie — cache odpowiedzi)* Gateway może zwracać zapisaną odpowiedź dla **`POST /api/v1/chat`** z polami **`cached: true`** i **`cachedAt`**, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Streaming nie podlega cache.
+F-8. *(Opcjonalnie — cache odpowiedzi)* Gateway może zwracać zapisaną odpowiedź dla **`POST /api/v1/chat`** z polami **`cached: true`** i **`cachedAt`**, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Odczyt walidowany **`CachedChatResponseSchema`** — uszkodzony wpis usuwany. Streaming nie podlega cache.
 
 F-9. *(Conversation tracking)* `conversationId` opcjonalne w żądaniu w formacie `conv_<uuid>`. Do Sentry trafia **tylko** ID z body klienta. Gateway **zawsze** zwraca `conversationId` w odpowiedzi (echo lub `conv_<uuid>`). Klient od tury 2+ z ID musi wysyłać pełną historię w `messages[]` — patrz `conversation-tracking.md`.
 

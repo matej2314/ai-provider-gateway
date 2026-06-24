@@ -18,8 +18,7 @@ import type {
   ResolvedGatewayClient,
   GatewayKeyRuntimeConfig,
 } from './configuration.types';
-
-import type { CACHE_BACKEND_TYPE } from '../cache/interfaces/cache-backend-interface';
+import type { AppConfiguration } from './app-configuration.types';
 
 export type {
   GatewayConfig,
@@ -33,6 +32,11 @@ export type {
   GatewayParamsBoundConfig,
 } from './gateway-config.schema';
 import { GatewayProviderType } from './provider-types';
+import {
+  parseCacheBackend,
+  validate,
+  type ValidatedEnvironment,
+} from './env.validation';
 
 export { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
 
@@ -187,9 +191,12 @@ export function loadGatewayConfigFromFile(): GatewayConfig {
   }
 }
 
-export default () => {
+export function buildAppConfiguration(
+  rawEnv: NodeJS.ProcessEnv = process.env,
+): AppConfiguration {
+  const env: ValidatedEnvironment = validate(rawEnv);
   const gatewayConfig = loadGatewayConfigFromFile();
-  const gatewayKey = buildGatewayKeyRuntime(gatewayConfig);
+  const gatewayKey = buildGatewayKeyRuntime(gatewayConfig, rawEnv);
 
   const cwd = process.cwd();
   const master = readRequiredPrompt(
@@ -219,40 +226,46 @@ export default () => {
     providersByInstance[instanceId] = {
       type: row.type,
       apiKeyRef: row.apiKeyRef,
-      apiKey: (process.env[row.apiKeyRef] ?? '').trim(),
+      apiKey: (rawEnv[row.apiKeyRef] ?? '').trim(),
     };
   }
 
-  const cacheEnabled = process.env.CACHE_ENABLED === 'true';
-  const cacheBackendRaw = (
-    process.env.CACHE_BACKEND || 'noop'
-  ).toLowerCase() as CACHE_BACKEND_TYPE;
+  const cacheEnabled = env.CACHE_ENABLED ?? false;
+
   const cacheConfig = {
     enabled: cacheEnabled,
-    backend: cacheEnabled ? cacheBackendRaw : 'noop',
-    ttl: parseInt(process.env.CACHE_TTL || '3600', 10),
-    keyPrefix: process.env.CACHE_KEY_PREFIX || 'aigw:',
+    backend: parseCacheBackend(env.CACHE_BACKEND, cacheEnabled),
+    ttl: env.CACHE_TTL ?? 3600,
+    keyPrefix: env.CACHE_KEY_PREFIX ?? 'aigw:',
   };
 
   const redisConfig = {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    password: process.env.REDIS_PASSWORD || '',
-    db: parseInt(process.env.REDIS_DB || '0', 10),
-    keyPrefix: process.env.REDIS_KEY_PREFIX || 'aigw:',
+    host: env.REDIS_HOST ?? 'localhost',
+    port: env.REDIS_PORT ?? 6379,
+    password: env.REDIS_PASSWORD ?? '',
+    db: env.REDIS_DB ?? 0,
+    keyPrefix: env.REDIS_KEY_PREFIX ?? 'aigw:',
   };
 
-  const rateLimitSmartEnabled = process.env.RATE_LIMIT_SMART_ENABLED === 'true';
+  const rateLimitSmartEnabled = env.RATE_LIMIT_SMART_ENABLED ?? false;
 
   return {
     gateway: gatewayConfig,
     gatewayKey,
-    port: parseInt(process.env.PORT || '3000', 10),
-    nodeEnv: process.env.NODE_ENV || 'development',
+    port: parseInt(rawEnv.PORT || '3000', 10),
+    nodeEnv: rawEnv.NODE_ENV || 'development',
     providers: providersByInstance,
     resolvedSystemPrompts: systemPromptsResolved,
     cache: cacheConfig,
     redis: redisConfig,
     RATE_LIMIT_SMART_ENABLED: rateLimitSmartEnabled,
+    rateLimit: {
+      rps: env.RATE_LIMIT_RPS_PER_KEY ?? 10,
+      burst: env.RATE_LIMIT_BURST_PER_KEY ?? 20,
+      maxConcurrentStreams: env.RATE_LIMIT_STREAMS_CONCURRENT ?? 3,
+      cooldownAfter429: env.RATE_LIMIT_COOLDOWN_AFTER_429 ?? 60,
+    },
   };
-};
+}
+
+export default () => buildAppConfiguration();

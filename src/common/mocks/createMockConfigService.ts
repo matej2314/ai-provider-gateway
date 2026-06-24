@@ -1,10 +1,4 @@
 import { ConfigService } from '@nestjs/config';
-import type { ProviderInstanceRuntime } from '../../config/configuration';
-import type { GatewayConfig } from '../../config/configuration';
-import type {
-  GatewayKeyRuntimeConfig,
-  ResolvedSystemPrompts,
-} from '../../config/configuration.types';
 import {
   createTestGatewayConfig,
   type CreateTestGatewayConfigOptions,
@@ -14,6 +8,15 @@ import {
   TEST_GATEWAY_KEY,
   TEST_PROVIDER_INSTANCE,
 } from './test-constants';
+import type { AppConfiguration } from '../../config/app-configuration.types';
+import type { ProviderInstanceRuntime } from '../../config/configuration';
+import type { GatewayConfig } from '../../config/configuration';
+import type { CACHE_BACKEND_TYPE } from '../../cache/interfaces/cache-backend-interface';
+import type {
+  GatewayKeyRuntimeConfig,
+  ResolvedSystemPrompts,
+} from '../../config/configuration.types';
+import type { CacheRuntimeConfig } from '../../config/app-configuration.types';
 
 type Nullable<T> = T | null | undefined;
 
@@ -23,7 +26,7 @@ export type TestResolvedSystemPromptsOptions = Partial<ResolvedSystemPrompts>;
 
 export type TestCacheConfigOptions = {
   enabled?: boolean;
-  backend?: string;
+  backend?: CACHE_BACKEND_TYPE;
   ttl?: number;
   keyPrefix?: string;
 };
@@ -54,22 +57,14 @@ export type MockConfigServiceOptions = {
   cache?: Nullable<TestCacheConfigOptions>;
   redis?: Nullable<TestRedisConfigOptions>;
   rateLimit?: TestRateLimitConfigOptions;
+  rateLimitSmartEnabled?: boolean;
   port?: number;
   nodeEnv?: string;
   /** Extra top-level config keys returned by ConfigService.get. */
   extra?: Record<string, unknown>;
 };
 
-type ConfigRoot = {
-  gateway: GatewayConfig;
-  gatewayKey: GatewayKeyRuntimeConfig;
-  resolvedSystemPrompts: ResolvedSystemPrompts;
-  providers: Record<string, ProviderInstanceRuntime>;
-  cache: Required<TestCacheConfigOptions>;
-  redis: Required<TestRedisConfigOptions>;
-  port: number;
-  nodeEnv: string;
-};
+type ConfigRoot = Partial<AppConfiguration>;
 
 type ConfigFlat = {
   RATE_LIMIT_RPS_PER_KEY: number;
@@ -169,7 +164,7 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
           ...options.providers,
         };
 
-  const cache =
+  const cache: CacheRuntimeConfig | undefined =
     options.cache === null
       ? undefined
       : {
@@ -201,7 +196,14 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
     redis,
     port: options.port ?? 3000,
     nodeEnv: options.nodeEnv ?? 'test',
-  } as ConfigRoot;
+    RATE_LIMIT_SMART_ENABLED: options.rateLimitSmartEnabled ?? false,
+    rateLimit: {
+      rps: rateLimit.rps,
+      burst: rateLimit.burst,
+      maxConcurrentStreams: rateLimit.maxConcurrentStreams,
+      cooldownAfter429: rateLimit.cooldownAfter429,
+    },
+  } satisfies Partial<AppConfiguration>;
 
   return {
     root,

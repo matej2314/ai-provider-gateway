@@ -127,7 +127,7 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 **Nie rób**: oczekiwania, że **`requestId`** w odpowiedzi z cache zawsze odpowiada bieżącemu żądaniu — w implementacji zwracany jest identyfikator zapisany wraz z pierwszą odpowiedzią.
 
-**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); streaming jest ścieżką bez cache (`docs/spec/SPEC-CHAT-STREAMING.md`).
+**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony wpis usuwany); streaming jest ścieżką bez cache (`docs/spec/SPEC-CHAT-STREAMING.md`).
 
 ## 13) Mylenie trzech kontraktów API (natywny vs fasady IDE)
 

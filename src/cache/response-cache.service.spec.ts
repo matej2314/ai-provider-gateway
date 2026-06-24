@@ -156,6 +156,53 @@ describe('ResponseCacheService', () => {
       const key = (mockCacheBackend.get as jest.Mock).mock.calls[0][0];
       expect(key).toMatch(/^aigw:cache:chat:/);
     });
+
+    it('should delete cache entry when payload fails schema validation', async () => {
+      const invalidShape = {
+        id: 'msg-123',
+        provider: 'anthropic',
+        model: 'claude-sonnet-4',
+        output: { type: 'text', text: 'Hello!' },
+        requestId: 'req-123',
+        // ZMIANA: brak cached: true — parseCachedChatResponse zwróci null
+        cachedAt: new Date().toISOString(),
+      };
+
+      (mockCacheBackend.get as jest.Mock).mockResolvedValue(
+        JSON.stringify(invalidShape),
+      );
+      (mockCacheBackend.delete as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.getCachedResponse(request);
+
+      expect(result).toBeNull();
+      expect(mockCacheBackend.delete).toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid cached response shape'),
+      );
+    });
+
+    it('should delete cache entry when output.type is not text', async () => {
+      const invalidOutput = {
+        id: 'msg-123',
+        provider: 'anthropic',
+        model: 'claude-sonnet-4',
+        output: { type: 'json', text: '{}' }, // ZMIANA: type !== 'text'
+        requestId: 'req-123',
+        cached: true,
+        cachedAt: new Date().toISOString(),
+      };
+
+      (mockCacheBackend.get as jest.Mock).mockResolvedValue(
+        JSON.stringify(invalidOutput),
+      );
+      (mockCacheBackend.delete as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.getCachedResponse(request);
+
+      expect(result).toBeNull();
+      expect(mockCacheBackend.delete).toHaveBeenCalled();
+    });
   });
 
   describe('setCachedResponse', () => {

@@ -7,9 +7,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfig } from '../../../config/typed-config';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import type { Request } from 'express';
-import type { GatewayKeyRuntimeConfig } from '../../../config/configuration.types';
 
 export function readBearerToken(req: Request): string | undefined {
   const raw = req.header('authorization') ?? req.headers['authorization'];
@@ -29,9 +29,7 @@ export class OpenAiBearerAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const token = readBearerToken(req);
 
-    const gatewayKey = this.config.get<GatewayKeyRuntimeConfig | undefined>(
-      'gatewayKey',
-    );
+    const gatewayKey = getAppConfig(this.config, 'gatewayKey');
 
     const allowList = gatewayKey?.allowList ?? [];
 

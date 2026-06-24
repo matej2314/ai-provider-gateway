@@ -1,10 +1,16 @@
+import {
+  isChatToolMessage,
+  isChatUserMessage,
+  isChatAssistantMessage,
+} from '../types/chat-message.types';
+
+import { getClientConversationId } from './conversation-id';
 import type { ChatMessageDto } from '../dto/chat-message.dto';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type {
   LlmCallMessage,
   LlmCallContext,
 } from '../../metrics/interfaces/metrics-backend.interface';
-import { getClientConversationId } from './conversation-id';
 
 const TOOL_CONTENT_METRICS_MAX = 200;
 
@@ -14,15 +20,15 @@ export function toMetricsMessages(
   const metricsMessages: LlmCallMessage[] = [];
 
   messages.forEach((message) => {
-    if (message.role === 'user') {
+    if (isChatUserMessage(message)) {
       metricsMessages.push({ role: 'user', content: message.content });
-    } else if (message.role === 'tool') {
+    } else if (isChatToolMessage(message)) {
       metricsMessages.push({
         role: 'tool',
         content: message.content.slice(0, TOOL_CONTENT_METRICS_MAX),
-        ...(message.toolCallId && { toolCallId: message.toolCallId }),
+        ...(isChatToolMessage(message) && { toolCallId: message.toolCallId }),
       });
-    } else if (message.role === 'assistant') {
+    } else if (isChatAssistantMessage(message)) {
       metricsMessages.push({
         role: 'assistant',
         content: message.content,

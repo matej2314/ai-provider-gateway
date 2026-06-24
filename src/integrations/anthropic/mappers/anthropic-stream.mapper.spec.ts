@@ -153,11 +153,16 @@ describe('anthropic-stream.mapper', () => {
       expect(toolDelta).toContain('"stop_reason":"tool_use"');
     });
 
-    it('should map length and content_filter to end_turn in stream (unlike non-stream mapper)', () => {
+    it('should map finish reasons to Anthropic stop_reason (1:1 with non-stream)', () => {
       const state = createAnthropicStreamState('claude-sonnet-4-5');
       state.messageSent = true;
-
-      for (const finishReason of ['length', 'content_filter'] as const) {
+      const cases = [
+        ['length', 'max_tokens'],
+        ['content_filter', 'refusal'],
+        ['stop', 'end_turn'],
+        ['tool_calls', 'tool_use'],
+      ] as const;
+      for (const [finishReason, expectedStopReason] of cases) {
         const lines = mapSseEventToAnthropic(
           {
             name: 'done',
@@ -166,8 +171,19 @@ describe('anthropic-stream.mapper', () => {
           state,
         );
         const deltaLine = lines.find((l) => l.includes('message_delta'))!;
-        expect(deltaLine).toContain('"stop_reason":"end_turn"');
+        expect(deltaLine).toContain(`"stop_reason":"${expectedStopReason}"`);
       }
+    });
+
+    it('should default stop_reason to end_turn when finishReason is absent', () => {
+      const state = createAnthropicStreamState('claude-sonnet-4-5');
+      state.messageSent = true;
+      const lines = mapSseEventToAnthropic(
+        { name: 'done', data: { usage: { outputTokens: 1 } } } as SseEvent,
+        state,
+      );
+      const deltaLine = lines.find((l) => l.includes('message_delta'))!;
+      expect(deltaLine).toContain('"stop_reason":"end_turn"');
     });
 
     it('should skip text content_block_stop when no text deltas were sent', () => {

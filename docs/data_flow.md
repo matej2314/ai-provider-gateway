@@ -16,7 +16,7 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na **`providerInstance`** → `AIProvider` + `modelId`. |
 | **Provider** | Instancja `AIProvider` (fabryka + klucz API per wpis w YAML). |
 | **LLM API** | Zewnętrzny serwis providera. |
-| **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha: `modelAlias`, `messages`, sygnatura system promptu, efektywne parametry wywołania); brak wpływu na streaming. |
+| **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha: `modelAlias`, `messages`, sygnatura system promptu, efektywne parametry wywołania); odczyt walidowany `CachedChatResponseSchema`; brak wpływu na streaming. |
 | **Metrics** | `MetricsService` + Sentry/noop — span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId`; `messages[]` → atrybuty input/output przy `SENTRY_INCLUDE_PROMPTS` (`conversation-tracking.md`). |
 | **Fasada integracji** | Kontroler `src/integrations/openai` lub `anthropic` + mappery — tłumaczenie kontraktu vendora na `ChatRequestDto`, potem ten sam `ChatService` co natywny czat (`integracje.md`). |
 
@@ -72,7 +72,7 @@ sequenceDiagram
   R-->>-S: AIProvider + policy.params
   S->>S: resolveProviderCallOptions(policy, body.params)
   S->>C: getCachedResponse (z efektywnymi params)
-  alt trafienie w cache (provider włączony w YAML)
+  alt trafienie w cache (provider włączony w YAML; wpis przeszedł CachedChatResponseSchema)
     C-->>S: JSON (z cached/cachedAt)
     S-->>H: odpowiedź
   else brak wpisu

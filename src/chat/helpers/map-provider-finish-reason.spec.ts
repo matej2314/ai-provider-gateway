@@ -52,6 +52,20 @@ describe('mapStopReasonToFinishReason', () => {
     });
   });
 
+  describe('Happy path - content filtering', () => {
+    it('should map refusal (Anthropic) to content_filter', () => {
+      const result = mapStopReasonToFinishReason('refusal');
+
+      expect(result).toBe('content_filter');
+    });
+
+    it('should map content_filter (OpenAI) to content_filter', () => {
+      const result = mapStopReasonToFinishReason('content_filter');
+
+      expect(result).toBe('content_filter');
+    });
+  });
+
   describe('Happy path - stop reasons', () => {
     it('should map end_turn to stop', () => {
       const result = mapStopReasonToFinishReason('end_turn');
@@ -75,6 +89,61 @@ describe('mapStopReasonToFinishReason', () => {
       const result = mapStopReasonToFinishReason('unknown_reason' as any);
 
       expect(result).toBe('stop');
+    });
+  });
+
+  describe('Happy path - OpenAI-shaped pass-through (future adapters)', () => {
+    it('should map stop (OpenAI native) to stop', () => {
+      expect(mapStopReasonToFinishReason('stop')).toBe('stop');
+    });
+
+    it('should map length (OpenAI native) to length', () => {
+      expect(mapStopReasonToFinishReason('length')).toBe('length');
+    });
+
+    it('should map tool_calls (OpenAI native) to tool_calls without toolCalls array', () => {
+      expect(mapStopReasonToFinishReason('tool_calls')).toBe('tool_calls');
+    });
+
+    it('should map insufficient_system_resource (DeepSeek) to stop', () => {
+      expect(mapStopReasonToFinishReason('insufficient_system_resource')).toBe(
+        'stop',
+      );
+    });
+  });
+
+  describe('Regression - Anthropic/Google paths unchanged after 4.8', () => {
+    it('should still map end_turn to stop', () => {
+      expect(mapStopReasonToFinishReason('end_turn')).toBe('stop');
+    });
+
+    it('should still prioritize max_tokens over toolCalls', () => {
+      const toolCalls = [{ id: 'call_1', name: 'test', arguments: '{}' }];
+      expect(mapStopReasonToFinishReason('max_tokens', toolCalls)).toBe(
+        'length',
+      );
+    });
+  });
+
+  describe('Edge case - provider-specific stopReasons', () => {
+    it('should map pause_turn (Anthropic extended thinking) to stop', () => {
+      const result = mapStopReasonToFinishReason('pause_turn');
+
+      expect(result).toBe('stop');
+    });
+
+    it('should prioritize toolCalls over content_filter', () => {
+      const toolCalls = [{ id: 'call_1', name: 'test', arguments: '{}' }];
+
+      const result = mapStopReasonToFinishReason('refusal', toolCalls);
+
+      expect(result).toBe('tool_calls');
+    });
+
+    it('should prioritize max_tokens over content_filter', () => {
+      const result = mapStopReasonToFinishReason('max_tokens');
+
+      expect(result).toBe('length');
     });
   });
 

@@ -102,22 +102,35 @@ ai-provider-gateway/
 │   │   │   ├── chat-message.dto.ts
 │   │   │   ├── chat-tooling.dto.ts
 │   │   │   ├── chat-response.dto.ts
+│   │   │   ├── chat-warning.dto.ts
 │   │   │   ├── chat-output-text.dto.ts
 │   │   │   ├── chat-usage.dto.ts
 │   │   │   ├── sse-meta-payload.dto.ts
 │   │   │   ├── sse-delta-payload.dto.ts
 │   │   │   ├── sse-done-payload.dto.ts
 │   │   │   └── sse-stream-description.ts
+│   │   ├── types/
+│   │   │   ├── chat-message.types.ts          # role user | assistant | tool
+│   │   │   ├── gateway-finish-reason.type.ts  # stop | tool_calls | length | content_filter
+│   │   │   └── chat.types.ts
+│   │   ├── validation/
+│   │   │   ├── chat-ingress.types.ts          # ChatIngressProfile
+│   │   │   ├── chat-ingress.constants.ts      # INGRESS_LIMITS per profile
+│   │   │   ├── chat-ingress.validator.ts      # validateChatIngress()
+│   │   │   └── chat-ingress.validator.spec.ts
 │   │   ├── helpers/
 │   │   │   ├── cache-policy.ts
 │   │   │   ├── conversation-id.ts
+│   │   │   ├── generation-warnings.ts
 │   │   │   ├── metrics.ts
 │   │   │   ├── provider-input.ts
+│   │   │   ├── provider-input.spec.ts
 │   │   │   ├── resolve-provider-call-options.ts
 │   │   │   ├── resolve-provider-call-options.spec.ts
 │   │   │   ├── retry-policy.ts
 │   │   │   ├── tooling-request.ts
 │   │   │   ├── map-provider-finish-reason.ts
+│   │   │   ├── map-provider-finish-reason.spec.ts
 │   │   │   └── system-prompt.ts
 │   │   └── sse/
 │   │       ├── sse-event.type.ts
@@ -205,6 +218,8 @@ ai-provider-gateway/
 │   │       │   ├── anthropic-response.mapper.spec.ts
 │   │       │   ├── anthropic-stream.mapper.ts
 │   │       │   ├── anthropic-stream.mapper.spec.ts
+│   │       │   ├── anthropic-stop-reason.mapper.ts   # GatewayFinishReason → stop_reason
+│   │       │   ├── anthropic-stop-reason.spec.ts
 │   │       │   ├── anthropic-tools.mapper.ts
 │   │       │   └── anthropic-tools.mapper.spec.ts
 │   │       ├── helpers/
@@ -283,7 +298,9 @@ ai-provider-gateway/
 │   │       └── validation-formatter.util.ts
 │   │
 │   ├── config/
-│   │   ├── configuration.ts                # load YAML, buildEffectiveGatewayConfig, system prompt
+│   │   ├── configuration.ts                # load YAML, buildEffectiveGatewayConfig, buildAppConfiguration
+│   │   ├── app-configuration.types.ts      # AppConfiguration, CacheRuntimeConfig, RateLimitRuntimeConfig, …
+│   │   ├── typed-config.ts                 # getAppConfig, getAppConfigOrThrow
 │   │   ├── configuration.types.ts
 │   │   ├── configuration.helpers.ts
 │   │   ├── gateway-config.schema.ts        # GatewayConfigSchema (Zod), EXPECTED_SCHEMA_VERSION
@@ -346,6 +363,11 @@ ai-provider-gateway/
 │   │   ├── cache.tokens.ts
 │   │   ├── cache-registry.service.ts
 │   │   ├── response-cache.service.ts
+│   │   ├── response-cache.service.spec.ts
+│   │   ├── schemas/
+│   │   │   └── cached-chat-response.schema.ts  # CachedChatResponseSchema (Zod), parseCachedChatResponse
+│   │   ├── types/
+│   │   │   └── cached-chat-response.type.ts
 │   │   ├── interfaces/
 │   │   │   └── cache-backend-interface.ts
 │   │   └── adapters/
@@ -435,13 +457,13 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 
 | Katalog | Odpowiedzialność |
 |---------|------------------|
-| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: orkiestracja (cache, cooldown po 429, `ResilientExecutor`). Serwisy pomocnicze: **`ChatProviderCallService`** (adaptery, metryki, SSE), **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCacheGuardService`**, **`ChatErrorHandlerService`**. Helpery: system prompt, provider input (`metadata`), params, tooling, retry/cache policy, `conversationId`, `mapStopReasonToFinishReason`. |
+| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: walidacja ingress (`validateChatIngress`), orkiestracja (cache, cooldown po 429, `ResilientExecutor`). Serwisy pomocnicze: **`ChatProviderCallService`** (adaptery, metryki, SSE), **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCacheGuardService`**, **`ChatErrorHandlerService`**. Helpery: system prompt, provider input (`metadata`), params, tooling, retry/cache policy, `conversationId`, `mapStopReasonToFinishReason` → `GatewayFinishReason`. |
 | **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Mapery: `anthropic-tools.mapper.ts`, `anthropic-thinking.mapper.ts`, `google-tools.mapper.ts`. Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API. |
-| **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Szczegóły: `integracje.md`. |
-| **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
+| **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Fasada Anthropic: reverse map `finishReason` przez `anthropic-stop-reason.mapper.ts`. Szczegóły: `integracje.md`. |
+| **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `buildAppConfiguration` → **`AppConfiguration`**, `getAppConfig` / `getAppConfigOrThrow` (`typed-config.ts`), `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
 | **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), typy Express, walidatory (`validators/` — np. `stop` jako string \| string[]). |
-| **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). **`RedisConnectionService`** — współdzielona infrastruktura Redis (cache + rate limit); predykat `isRedisRequired()` w `should-include-redis-stack.ts`. |
+| **`src/cache/`** | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). Odczyt walidowany **`CachedChatResponseSchema`**. **`RedisConnectionService`** — współdzielona infrastruktura Redis (cache + rate limit); predykat `isRedisRequired()` w `should-include-redis-stack.ts`. |
 | **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez wspólny `RedisConnectionService` (ładowany gdy `isRedisRequiredFromEnv()`). |
 | **`src/logging/`**, **`src/metrics/`** | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`. |
 | **`src/health/`** | Liveness i readiness (`checks.config`, `checks.redis`, `checks.cache`); DTO z dekoratorami `@Api*` dla OpenAPI. |
@@ -496,7 +518,8 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - Error envelope (`GlobalExceptionFilter`), kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
-- System prompt z plików, cache (`noop`/`redis`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.redis`, `checks.cache`), graceful shutdown.
+- System prompt z plików, cache (`noop`/`redis`, walidacja odczytu `CachedChatResponseSchema`), typed config (`AppConfiguration`, `typed-config.ts`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.redis`, `checks.cache`), graceful shutdown.
+- `GatewayFinishReason` (`stop` | `tool_calls` | `length` | `content_filter`) w natywnym API; reverse map na fasadzie Anthropic (`anthropic-stop-reason.mapper.ts`).
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad IDE; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
 - **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — plan OpenAI: `provider-openai-runtime.md`.
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.

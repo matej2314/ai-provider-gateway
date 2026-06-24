@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfigOrThrow } from '../config/typed-config';
 import { AIProvider } from './interfaces/ai-provider.interface';
 import {
   GatewayConfig,
@@ -69,17 +70,15 @@ export class ProviderRegistryService {
   }
 
   private getGatewayConfig(): GatewayConfig {
-    const config = this.configService.get<GatewayConfig>('gateway');
-
-    if (!config) {
+    try {
+      return getAppConfigOrThrow(this.configService, 'gateway');
+    } catch {
       this.logger.error(
         'Gateway config not found.',
         new Error('Gateway config not found'),
       );
       throw new InternalServerErrorException('Gateway config not found');
     }
-
-    return config;
   }
 
   private resolveModelAlias(

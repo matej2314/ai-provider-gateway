@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfigOrThrow } from '../config/typed-config';
 import { LoggingService } from '../logging/logging.service';
 import { ProviderRegistryService } from '../providers/provider-registry.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -52,8 +53,8 @@ export class ChatService {
       modelAlias: requestBody.modelAlias,
     });
 
-    const resolvedPrompts = getResolvedSystemPrompts((key) =>
-      this.config.get(key),
+    const resolvedPrompts = getResolvedSystemPrompts(() =>
+      getAppConfigOrThrow(this.config, 'resolvedSystemPrompts'),
     );
 
     const responseConversationId =
@@ -189,8 +190,8 @@ export class ChatService {
       modelAlias: requestBody.modelAlias,
     });
 
-    const resolvedPrompts = getResolvedSystemPrompts((key) =>
-      this.config.get(key),
+    const resolvedPrompts = getResolvedSystemPrompts(() =>
+      getAppConfigOrThrow(this.config, 'resolvedSystemPrompts'),
     );
 
     const responseConversationId =

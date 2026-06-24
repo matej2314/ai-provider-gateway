@@ -7,10 +7,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfig } from '../../../config/typed-config';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { readBearerToken } from '../../../integrations/openai/guards/openai-bearer-auth.guard';
 import type { Request } from 'express';
-import type { GatewayKeyRuntimeConfig } from '../../../config/configuration.types';
 
 export function readAnthropicApiKey(req: Request): string | undefined {
   const xApiKey = req.header('x-api-key');
@@ -28,9 +28,7 @@ export class AnthropicApiKeyGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const key = readAnthropicApiKey(req);
 
-    const gatewayKey = this.config.get<GatewayKeyRuntimeConfig | undefined>(
-      'gatewayKey',
-    );
+    const gatewayKey = getAppConfig(this.config, 'gatewayKey');
     const allowList = gatewayKey?.allowList ?? [];
 
     if (allowList.length === 0) {

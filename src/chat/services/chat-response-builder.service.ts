@@ -11,6 +11,7 @@ import type { GatewayToolCall } from '../../providers/types/tooling-types';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import { ChatWarningDto } from '../dto/chat-warning.dto';
 import { GatewayProviderType } from '../../config/provider-types';
+import type { GatewayFinishReason } from '../types/gateway-finish-reason.type';
 
 export interface ProviderResponse {
   text: string;
@@ -43,7 +44,7 @@ export interface ChatResponseData {
   requestId: string;
   conversationId: string;
   toolCalls?: GatewayToolCall[];
-  finishReason?: string;
+  finishReason?: GatewayFinishReason;
   usageDetails?: ProviderUsageDetails;
   systemFingerprint?: ProviderChatResponse['systemFingerprint'];
   thinkingContent?: ProviderChatResponse['thinkingContent'];

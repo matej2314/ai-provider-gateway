@@ -39,7 +39,7 @@ F-2. Plik konfiguracyjny modeli musi wspierać:
 - capabilities (co najmniej `streaming`; opcjonalnie `tools` dla function calling),
 - opcjonalny **`fallback`** (alias zapasowy — walidacja bez pętli przy starcie).
 
-F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast). Plik `gateway.config.yaml` jest wczytywany i walidowany schematem Zod w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji — `src/config/configuration.ts`. Walidacja offline: `validateGatewayConfig()` w `src/config/config-validator.ts` (używana przez `npm run config:validate` i wizard `config:init`).
+F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast). Plik `gateway.config.yaml` jest wczytywany i walidowany schematem Zod w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji — `src/config/configuration.ts` → obiekt **`AppConfiguration`** (`app-configuration.types.ts`); odczyt w serwisach przez `getAppConfig` / `getAppConfigOrThrow` (`typed-config.ts`). Walidacja offline: `validateGatewayConfig()` w `src/config/config-validator.ts` (używana przez `npm run config:validate` i wizard `config:init`).
 
 F-3a. W sekcji `providers` w `gateway.config.yaml` **dozwolone** jest wiele wpisów o tym samym `type` (np. `google` i `google-office`), pod warunkiem **unikalnego** `apiKeyRef` na instancję. Duplikat `apiKeyRef` jest odrzucany przez walidację schematu (`GatewayConfigSchema.providers.superRefine`). Runtime rozwiązuje wywołania LLM po **`model.providerInstance`**, nie po `type`.
 

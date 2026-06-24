@@ -1,4 +1,6 @@
 import type { ConfigService } from '@nestjs/config';
+import { getAppConfig } from '../config/typed-config';
+import { parseCacheBackend } from '../config/env.validation';
 
 export type RedisConsumer = 'cache' | 'rate-limit';
 
@@ -22,7 +24,7 @@ function resolveCacheForRequirement(input: RedisRequirementSnapshot): {
 
   return {
     enabled,
-    backend: enabled ? (backendRaw as CACHE_BACKEND_TYPE) : 'noop',
+    backend: enabled ? parseCacheBackend(backendRaw, true) : 'noop',
   };
 }
 
@@ -50,27 +52,22 @@ export function isRedisRequiredFromEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
   const cacheEnabled = env.CACHE_ENABLED === 'true';
-  const cacheBackendRaw = (env.CACHE_BACKEND || 'noop').toLowerCase();
 
   return isRedisRequired({
     cache: {
       enabled: cacheEnabled,
-      backend: cacheEnabled ? (cacheBackendRaw as CACHE_BACKEND_TYPE) : 'noop',
+      backend: parseCacheBackend(env.CACHE_BACKEND, cacheEnabled),
     },
     rateLimitSmartEnabled: env.RATE_LIMIT_SMART_ENABLED === 'true',
   });
 }
 
 export function isRedisRequiredFromConfig(
-  configService: Pick<ConfigService, 'get'>,
+  configService: ConfigService,
 ): boolean {
-  const cache = configService.get<{
-    enabled?: boolean;
-    backend?: CACHE_BACKEND_TYPE;
-  }>('cache');
-
+  const cache = getAppConfig(configService, 'cache');
   const rateLimitSmartEnabled =
-    configService.get<boolean>('RATE_LIMIT_SMART_ENABLED') === true;
+    getAppConfig(configService, 'RATE_LIMIT_SMART_ENABLED') === true;
 
   return isRedisRequired({
     cache,
@@ -79,15 +76,11 @@ export function isRedisRequiredFromConfig(
 }
 
 export function getRedisConsumersFromConfig(
-  configService: Pick<ConfigService, 'get'>,
+  configService: ConfigService,
 ): RedisConsumer[] {
-  const cache = configService.get<{
-    enabled?: boolean;
-    backend?: CACHE_BACKEND_TYPE;
-  }>('cache');
-
+  const cache = getAppConfig(configService, 'cache');
   const rateLimitSmartEnabled =
-    configService.get<boolean>('RATE_LIMIT_SMART_ENABLED') === true;
+    getAppConfig(configService, 'RATE_LIMIT_SMART_ENABLED') === true;
 
   return getRedisConsumers({
     cache,

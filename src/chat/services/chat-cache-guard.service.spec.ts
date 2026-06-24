@@ -222,19 +222,16 @@ describe('ChatCacheGuardService', () => {
     });
 
     describe('Policy rejection', () => {
-      it('should return null when gateway config is undefined', async () => {
+      it('should throw when gateway config is missing', async () => {
         await initService({ gateway: null });
 
         (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(
           cachedResponse,
         );
 
-        const result = await service.getCachedIfAllowed(
-          baseRequest,
-          providerOptions,
-        );
-
-        expect(result).toBeNull();
+        await expect(
+          service.getCachedIfAllowed(baseRequest, providerOptions),
+        ).rejects.toThrow('Missing config key: gateway');
       });
 
       it('should return null when model alias not in gateway config', async () => {

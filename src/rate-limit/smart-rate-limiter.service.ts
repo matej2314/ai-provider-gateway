@@ -1,10 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
-import {
-  GatewayKeyRuntimeConfig,
-  ResolvedGatewayClient,
-} from '../config/configuration.types';
+import { ResolvedGatewayClient } from '../config/configuration.types';
 import { LoggingService } from '../logging/logging.service';
 
 export interface RateLimitResult {
@@ -29,12 +27,11 @@ export class SmartRateLimiterService {
     });
     this.logger = logger;
 
-    const gatewayKeyConfig =
-      this.config.get<GatewayKeyRuntimeConfig>('gatewayKey');
+    const gatewayKeyConfig = getAppConfigOrThrow(this.config, 'gatewayKey');
     this.clientsMap = new Map(
-      gatewayKeyConfig?.clients
+      gatewayKeyConfig.clients
         .filter((client) => client.gatewayKey)
-        .map((client) => [client.gatewayKey, client]) ?? [],
+        .map((client) => [client.gatewayKey, client]),
     );
   }
 
@@ -49,13 +46,11 @@ export class SmartRateLimiterService {
       };
     }
 
+    const rateLimit = getAppConfig(this.config, 'rateLimit');
     return {
-      rps: this.config.get<number>('RATE_LIMIT_RPS_PER_KEY', 10),
-      burst: this.config.get<number>('RATE_LIMIT_BURST_PER_KEY', 20),
-      maxConcurrentStreams: this.config.get<number>(
-        'RATE_LIMIT_STREAMS_CONCURRENT',
-        3,
-      ),
+      rps: rateLimit?.rps ?? 10,
+      burst: rateLimit?.burst ?? 20,
+      maxConcurrentStreams: rateLimit?.maxConcurrentStreams ?? 3,
     };
   }
 
@@ -248,10 +243,8 @@ export class SmartRateLimiterService {
   async setCooldown(gatewayKey: string, provider: string): Promise<void> {
     if (!this.redisConnection.isReady()) return;
 
-    const cooldownSeconds = this.config.get<number>(
-      'RATE_LIMIT_COOLDOWN_AFTER_429',
-      60,
-    );
+    const cooldownSeconds =
+      getAppConfig(this.config, 'rateLimit')?.cooldownAfter429 ?? 60;
 
     const key = `rateLimit:cooldown:${gatewayKey}:${provider}`;
 

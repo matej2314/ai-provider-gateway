@@ -13,6 +13,7 @@ import {
   ValidateIf,
   Matches,
 } from 'class-validator';
+import type { CACHE_BACKEND_TYPE } from '../cache/interfaces/cache-backend-interface';
 
 const isProduction = (config: Record<string, unknown>): boolean => {
   const nodeEnv = config.NODE_ENV;
@@ -58,7 +59,7 @@ class EnvironmentVariables {
 
   @IsIn(['noop', 'redis', 'memory', 'other'])
   @IsOptional()
-  CACHE_BACKEND?: string = 'noop';
+  CACHE_BACKEND?: 'noop' | 'redis' | 'memory' | 'other' = 'noop';
 
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
@@ -158,6 +159,21 @@ class EnvironmentVariables {
   METRICS_BACKEND?: string = 'noop';
 }
 
+const CACHE_BACKEND_VALUES = ['noop', 'redis', 'memory', 'other'] as const;
+
+export function parseCacheBackend(
+  raw: string | undefined,
+  enabled: boolean,
+): CACHE_BACKEND_TYPE {
+  if (!enabled) return 'noop';
+  const normalized = (raw ?? 'noop').toLowerCase();
+
+  if ((CACHE_BACKEND_VALUES as readonly string[]).includes(normalized)) {
+    return normalized as CACHE_BACKEND_TYPE;
+  }
+  return 'noop';
+}
+
 export function validate(config: Record<string, unknown>) {
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
@@ -174,3 +190,5 @@ export function validate(config: Record<string, unknown>) {
   }
   return validatedConfig;
 }
+
+export type ValidatedEnvironment = EnvironmentVariables;

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { GatewayConfig } from 'src/config/configuration';
+import { getAppConfigOrThrow } from '../../../config/typed-config';
+import type { GatewayConfig } from '../../../config/configuration';
 import type { OpenAiModelDto } from '../dtos/openai-models-list-response.dto';
 
 interface ListModelsResult {
@@ -12,8 +13,8 @@ interface ListModelsResult {
 export class OpenAiModelsCatalogService {
   constructor(private readonly config: ConfigService) {}
 
-  private getGatewayConfig(): GatewayConfig | undefined {
-    return this.config.get<GatewayConfig>('gateway');
+  private getGatewayConfig(): GatewayConfig {
+    return getAppConfigOrThrow(this.config, 'gateway');
   }
 
   private resolveOwnedBy(
@@ -26,8 +27,6 @@ export class OpenAiModelsCatalogService {
 
   listModels(): ListModelsResult {
     const gateway = this.getGatewayConfig();
-    if (!gateway) return { object: 'list', data: [] };
-
     const data: OpenAiModelDto[] = [];
 
     for (const [alias, model] of Object.entries(gateway.models)) {
@@ -43,7 +42,7 @@ export class OpenAiModelsCatalogService {
 
   getModel(modelId: string): OpenAiModelDto | null {
     const gateway = this.getGatewayConfig();
-    if (!gateway?.models[modelId]) return null;
+    if (!gateway.models[modelId]) return null;
     const model = gateway.models[modelId];
 
     return {

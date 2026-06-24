@@ -1,4 +1,5 @@
 import type { SseEvent } from 'src/chat/sse/sse-event.type';
+import { mapGatewayFinishReasonToAnthropicStopReason } from './anthropic-stop-reason.mapper';
 
 export type AnthropicStreamState = {
   messageId: string;
@@ -84,8 +85,9 @@ export function mapSseEventToAnthropic(
     case 'done': {
       const lines: string[] = [];
       const hasToolCalls = (event.data.toolCalls?.length ?? 0) > 0;
-      const stopReason =
-        event.data.finishReason === 'tool_calls' ? 'tool_use' : 'end_turn';
+      const stopReason = mapGatewayFinishReasonToAnthropicStopReason(
+        event.data.finishReason,
+      );
 
       if (state.textBlockStarted) {
         lines.push(

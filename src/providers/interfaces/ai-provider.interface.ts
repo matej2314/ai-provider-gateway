@@ -54,7 +54,8 @@ export interface ProviderChatResponse {
     | 'tool_calls'
     | 'stop'
     | 'length'
-    | 'content_filter';
+    | 'content_filter'
+    | 'insufficient_system_resource';
   model?: string;
   usage?: {
     inputTokens: number;

@@ -53,10 +53,10 @@ describe('OpenAiModelsCatalogService', () => {
     expect(result.data[0].created).toBeGreaterThan(0);
   });
 
-  it('listModels should return empty list when config is missing', () => {
+  it('listModels should throw when gateway config is missing', () => {
     configService.get.mockReturnValue(undefined);
 
-    expect(service.listModels()).toEqual({ object: 'list', data: [] });
+    expect(() => service.listModels()).toThrow('Missing config key: gateway');
   });
 
   it('getModel should return null for unknown id (case-sensitive)', () => {

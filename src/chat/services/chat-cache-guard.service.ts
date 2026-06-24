@@ -7,7 +7,7 @@ import { ApiErrorCode } from '../../common/errors/api-error.code';
 import { isCachedChatAllowedForModelAlias } from '../helpers/cache-policy';
 import { isToolingRequest } from '../helpers/tooling-request';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
-import type { GatewayConfig } from '../../config/gateway-config.schema';
+import { getAppConfigOrThrow } from '../../config/typed-config';
 import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import type { CachedChatResponse } from '../../cache/response-cache.service';
@@ -71,7 +71,7 @@ export class ChatCacheGuardService {
       options,
     );
 
-    const gateway = this.config.get<GatewayConfig>('gateway');
+    const gateway = getAppConfigOrThrow(this.config, 'gateway');
     const modelAlias = requestBody.modelAlias;
 
     if (
