@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { IsPrimitiveMetadataRecord } from '../validation/is-primitive-metadata-record.validator';
 
 import { ChatMessageDto } from './chat-message.dto';
 import { ChatParamsDto } from './chat-params.dto';
@@ -84,5 +85,6 @@ export class ChatRequestDto {
   })
   @IsOptional()
   @IsObject()
+  @IsPrimitiveMetadataRecord()
   metadata?: Record<string, string | number | boolean>;
 }
