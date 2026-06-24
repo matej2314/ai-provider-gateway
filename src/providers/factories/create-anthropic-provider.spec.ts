@@ -451,6 +451,7 @@ describe('createAnthropicProvider', () => {
 
       expect(result.textStream).toBeDefined();
       expect(result.getUsageMetadata).toBeDefined();
+      expect(result.getUsageDetails).toBeDefined();
       expect(result.getFinalToolCalls).toBeDefined();
       expect(result.getStopReason).toBeDefined();
       expect(result.getThinkingContent).toBeDefined();
@@ -511,6 +512,37 @@ describe('createAnthropicProvider', () => {
         inputTokens: 10,
         outputTokens: 15,
         model: 'claude-sonnet-4',
+      });
+    });
+
+    it('should return usage details after stream when cache tokens present', async () => {
+      const mockStream = {
+        [Symbol.asyncIterator]: async function* () {},
+        finalMessage: jest.fn().mockResolvedValue({
+          model: 'claude-sonnet-4',
+          content: [],
+          usage: {
+            input_tokens: 10,
+            output_tokens: 15,
+            cache_read_input_tokens: 100,
+            cache_creation_input_tokens: 50,
+          },
+        }),
+      };
+
+      mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
+
+      const result = provider.stream!(input, 'claude-sonnet-4');
+
+      for await (const _ of result.textStream) {
+        // consume stream
+      }
+
+      const usageDetails = await result.getUsageDetails!();
+
+      expect(usageDetails).toEqual({
+        promptCacheHitTokens: 100,
+        promptCacheCreationTokens: 50,
       });
     });
 

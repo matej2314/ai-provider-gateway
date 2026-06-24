@@ -339,6 +339,40 @@ describe('ChatResponseBuilderService', () => {
           },
         });
       });
+
+      it('should include usageDetails and effectiveModelAlias when provided', () => {
+        const event = service.buildStreamDoneEvent(
+          { inputTokens: 10, outputTokens: 20 },
+          undefined,
+          'end_turn',
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          {
+            promptCacheHitTokens: 100,
+            promptCacheCreationTokens: 50,
+          },
+          'fallback-model',
+        );
+
+        expect(event).toEqual({
+          name: 'done',
+          data: {
+            usage: {
+              inputTokens: 10,
+              outputTokens: 20,
+              totalTokens: 30,
+            },
+            finishReason: 'stop',
+            usageDetails: {
+              promptCacheHitTokens: 100,
+              promptCacheCreationTokens: 50,
+            },
+            effectiveModelAlias: 'fallback-model',
+          },
+        });
+      });
     });
 
     describe('Edge cases', () => {
@@ -426,6 +460,23 @@ describe('ChatResponseBuilderService', () => {
         }
 
         expect(event.data.finishReason).toBe('tool_calls');
+      });
+
+      it('should omit effectiveModelAlias and usageDetails when not provided', () => {
+        const event = service.buildStreamDoneEvent(
+          { inputTokens: 1, outputTokens: 2 },
+          undefined,
+          'end_turn',
+          undefined,
+          undefined,
+        );
+
+        if (event.name !== 'done') {
+          throw new Error('Expected done event');
+        }
+
+        expect(event.data.effectiveModelAlias).toBeUndefined();
+        expect(event.data.usageDetails).toBeUndefined();
       });
     });
   });

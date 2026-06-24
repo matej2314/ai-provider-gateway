@@ -1,0 +1,10 @@
+import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
+import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
+import type { ResolvedSystemPrompts } from '../../config/configuration.types';
+
+export interface ChatExecutionPrep {
+  primaryResolved: ResolvedProviderConfig;
+  options: ProviderCallOptions;
+  responseConversationId: string;
+  resolvedPrompts: ResolvedSystemPrompts;
+}

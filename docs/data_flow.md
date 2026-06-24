@@ -10,7 +10,7 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 |-------|-----------|
 | **Klient** | Dowolny klient HTTP (aplikacja, serwis, BFF). |
 | **HTTP** | Kontroler + walidacja DTO + odpowiedź. |
-| **ChatService** | Cache, cooldown po 429 (`executeChat`), `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
+| **ChatService** | Wspólne `prepareRequestForExecution` (ingress, tooling/thinking, cooldown check). Cache tylko w `executeChat`. `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
 | **ChatProviderCallService** | Pojedyncze wywołanie adaptera: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `MetricsService.observeLlmCall` / `observeLlmStream`, emisja SSE `meta`/`delta`. |
 | **ResilientExecutor** | Retry na aliasie żądanym (`policy.retry`, `policy.timeoutMs`), potem opcjonalnie alias `fallback` z YAML. |
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na **`providerInstance`** → `AIProvider` + `modelId`. |
@@ -122,7 +122,7 @@ sequenceDiagram
 
 ## 3. Streaming `POST /api/v1/chat/stream` — sukces (SSE)
 
-Zgodnie z `openapi.json` i kodem (`ChatStreamController`, `ChatService.executeStream`): nagłówki SSE, potem `meta`, `delta`, `done` (`done` może zawierać `usage`, `toolCalls`, `finishReason`, opcjonalnie `systemFingerprint` — tylko gdy adapter upstream je dostarczy; przy Anthropic/Google zwykle brak).
+Zgodnie z `openapi.json` i kodem (`ChatStreamController`, `ChatService.executeStream`): nagłówki SSE, potem `meta`, `delta`, `done`. Payload `done` może zawierać: `usage` (z `totalTokens`), `toolCalls`, `finishReason`, opcjonalnie `usageDetails`, `thinkingContent`, `systemFingerprint`, `warnings`, `effectiveModelAlias`.
 
 ```mermaid
 sequenceDiagram
@@ -140,9 +140,7 @@ sequenceDiagram
   H->>H: walidacja DTO + validateForStreaming
   H->>H: nagłówki SSE + flushHeaders
   H->>+S: executeStream
-  S->>S: conversationId response
-  S->>+R: resolve
-  R-->>-S: AIProvider + capabilities
+  S->>S: prepareRequestForExecution (ingress, cooldown check, …)
   S->>S: ResilientExecutor (retry / fallback / timeout)
   S->>+PC: streamOnce (emit przez callback)
   PC->>PC: buildProviderInputForAlias
@@ -157,7 +155,7 @@ sequenceDiagram
     PC-->>H: delta
     H-->>K: SSE: event delta
   end
-  S-->>H: emit done (usage?, toolCalls?, finishReason?, systemFingerprint?)
+  S-->>H: emit done (usage?, toolCalls?, finishReason?, usageDetails?, thinkingContent?, systemFingerprint?, warnings?, effectiveModelAlias?)
   H-->>-K: SSE: event done
 ```
 
@@ -217,7 +215,7 @@ sequenceDiagram
   F-->>-K: 201 JSON (kształt Message)
 ```
 
-**Streaming (`stream: true`):** kontroler → `executeStream` → `anthropic-stream.mapper` (SSE Anthropic: `message_start`, `content_block_delta`, …). Slot równoległego streamu — w `AnthropicMessagesController`, analogicznie do OpenAI.
+**Streaming (`stream: true`):** kontroler → `executeStream` → `anthropic-stream.mapper` (SSE Anthropic). Finalne `message_delta.usage` — przez `anthropic-usage.mapper.ts` (parity z JSON). Bloki `thinking` — w fazie `done`, gdy gateway zwrócił `thinkingContent`. Slot równoległego streamu — w `AnthropicMessagesController`, analogicznie do OpenAI.
 
 ---
 

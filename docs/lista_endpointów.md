@@ -48,7 +48,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 | **400** | walidacja DTO; `MODEL_ALIAS_NOT_FOUND`; `MODEL_NOT_ALLOWED`; `TOOLS_NOT_SUPPORTED`; inne jawne `code` |
 | **401** | brak `X-Gateway-Key` — `GATEWAY_KEY_MISSING` |
 | **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |
-| **429** | `RATE_LIMITED` (smart limit / cooldown po 429 upstream — cooldown tylko w tej ścieżce) lub `PROVIDER_RATE_LIMITED` (upstream) |
+| **429** | `RATE_LIMITED` (smart limit / cooldown po 429 upstream — `checkCooldown` w `prepareRequestForExecution` przed wywołaniem LLM) lub `PROVIDER_RATE_LIMITED` (upstream) |
 | **502** | m.in. `PROVIDER_UNSUPPORTED`, `PROVIDER_UNAVAILABLE` (w tym wyczerpanie retry+fallback) |
 | **504** | `PROVIDER_TIMEOUT` (`policy.timeoutMs`) |
 | **500** | nieobsłużony wyjątek; rzadko `GATEWAY_KEY_NOT_CONFIGURED` |
@@ -60,10 +60,10 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 
 | | |
 |--|--|
-| **200** | `text/event-stream`; w `meta` m.in. **`conversationId`**, opcjonalnie **`effectiveModelAlias`** |
+| **200** | `text/event-stream`; w `meta` m.in. **`conversationId`**, opcjonalnie **`effectiveModelAlias`**; w `done` m.in. `usage`, `toolCalls`, `finishReason`, opcjonalnie `usageDetails`, `thinkingContent`, `warnings` |
 | **400** | JSON `ErrorEnvelope` **przed** SSE: walidacja DTO, `validateForStreaming` (`MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`) |
-| **401** / **403** / **429** | guardy klucza i smart rate limit — przed `flushHeaders` |
-| *(po SSE)* | m.in. `MODEL_NOT_ALLOWED` (`params`), `PROVIDER_*`, `PROVIDER_TIMEOUT` — częściowy strumień zamiast JSON; bez cooldownu jak w czacie standardowym — `dokumentacja_api.md` |
+| **401** / **403** / **429** | guardy klucza i smart rate limit — przed `flushHeaders`; cooldown (429) także z `prepareRequestForExecution` przed startem SSE |
+| *(po SSE)* | błędy providera — częściowy strumień / zamknięcie połączenia zamiast JSON `ErrorEnvelope`; `setCooldown` po 429 upstream nadal możliwy (`ChatErrorHandlerService`) |
 
 ---
 
@@ -110,7 +110,7 @@ Base URL w IDE: `http://<host>:<port>/api/v1/anthropic`
 | GET | `/api/v1/anthropic/models/:model` | pojedynczy alias |
 | POST | `/api/v1/anthropic/messages` | messages; `stream: true` → SSE Anthropic |
 
-Kody sukcesu `POST .../messages`: **201** (JSON), **200** (`stream: true`, SSE). Błędy — format Anthropic (`AnthropicErrorResponseDto`).
+Kody sukcesu `POST .../messages`: **201** (JSON), **200** (`stream: true`, SSE). Stream: finalne `message_delta.usage` z `input_tokens` / cache; opcjonalne bloki `thinking` w fazie `done`. Błędy — format Anthropic (`AnthropicErrorResponseDto`).
 
 Auth: `x-api-key` (priorytet) lub `Authorization: Bearer` — ta sama allowlista co natywny czat. Szczegóły: [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md).
 

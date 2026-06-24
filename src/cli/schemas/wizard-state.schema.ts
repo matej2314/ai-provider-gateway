@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { WizardStep } from './services/wizard-state-manager.service';
-import { PROVIDER_TYPES } from '../config/provider-types';
-import { GATEWAY_CLIENT_TYPES } from '../config/configuration.types';
-import type { WizardState } from './services/cli.services.types';
+import { WizardStep } from '../services/wizard-state-manager.service';
+import { PROVIDER_TYPES } from '../../config/provider-types';
+import { GATEWAY_CLIENT_TYPES } from '../../config/configuration.types';
+import type { WizardState } from '../services/cli.services.types';
 
 const CliRateLimitSchema = z.object({
   rps: z.number(),

@@ -1009,7 +1009,7 @@
         },
         "responses": {
           "200": {
-            "description": "When `stream: true`, returns Anthropic SSE events.\n\nFormat: `event: <name>\\ndata: <json>\\n\\n` (message_start, content_block_*, message_delta, message_stop).\n\nResponse header `anthropic-version: 2023-06-01` is set on stream.",
+            "description": "When `stream: true`, returns Anthropic SSE events.\n\nFormat: `event: <name>\\ndata: <json>\\n\\n` (message_start, content_block_*, message_delta, message_stop).\n\nResponse header `anthropic-version: 2023-06-01` is set on stream.\n\nFinal `message_delta.usage` includes `input_tokens`, `output_tokens`, and cache token fields when available (parity with non-stream JSON).\n\nExtended thinking: emitted as `content_block` with `type: thinking` in the final `done` phase (not real-time; same as gateway native SSE).",
             "content": {
               "text/event-stream": {
                 "schema": {

@@ -1,5 +1,6 @@
 import type { SseEvent } from 'src/chat/sse/sse-event.type';
 import { mapGatewayFinishReasonToAnthropicStopReason } from './anthropic-stop-reason.mapper';
+import { mapSseDoneUsageToAnthropic } from './anthropic-usage.mapper';
 
 export type AnthropicStreamState = {
   messageId: string;
@@ -8,6 +9,7 @@ export type AnthropicStreamState = {
   textBlockStarted: boolean;
   blockIndex: number;
   activeToolBlockIndex: number | null;
+  thinkingBlockEmitted: boolean;
 };
 
 export function createAnthropicStreamState(
@@ -20,6 +22,7 @@ export function createAnthropicStreamState(
     textBlockStarted: false,
     blockIndex: 0,
     activeToolBlockIndex: null,
+    thinkingBlockEmitted: false,
   };
 }
 
@@ -29,6 +32,35 @@ function eventLine(event: string, data: Record<string, unknown>): string {
 
 function nextToolBlockIndex(state: AnthropicStreamState): number {
   return state.textBlockStarted ? ++state.blockIndex : state.blockIndex++;
+}
+
+function emitThinkingBlock(
+  state: AnthropicStreamState,
+  thinking: string,
+): string[] {
+  const thinkingIndex = state.textBlockStarted
+    ? ++state.blockIndex
+    : state.blockIndex++;
+
+  state.thinkingBlockEmitted = true;
+
+  return [
+    eventLine('content_block_start', {
+      type: 'content_block_start',
+      index: thinkingIndex,
+
+      content_block: { type: 'thinking', thinking: '' },
+    }),
+    eventLine('content_block_delta', {
+      type: 'content_block_delta',
+      index: thinkingIndex,
+      delta: { type: 'thinking_delta', thinking },
+    }),
+    eventLine('content_block_stop', {
+      type: 'content_block_stop',
+      index: thinkingIndex,
+    }),
+  ];
 }
 
 export function mapSseEventToAnthropic(
@@ -98,6 +130,10 @@ export function mapSseEventToAnthropic(
         );
       }
 
+      if (event.data.thinkingContent && !state.thinkingBlockEmitted) {
+        lines.push(...emitThinkingBlock(state, event.data.thinkingContent));
+      }
+
       if (hasToolCalls) {
         for (const toolCall of event.data.toolCalls!) {
           const toolIndex = nextToolBlockIndex(state);
@@ -135,9 +171,7 @@ export function mapSseEventToAnthropic(
         eventLine('message_delta', {
           type: 'message_delta',
           delta: { stop_reason: stopReason, stop_sequence: null },
-          usage: {
-            output_tokens: event.data.usage?.outputTokens ?? 0,
-          },
+          usage: mapSseDoneUsageToAnthropic(event.data),
         }),
         eventLine('message_stop', { type: 'message_stop' }),
       );

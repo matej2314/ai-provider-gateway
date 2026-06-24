@@ -1,5 +1,6 @@
 import type { GatewayToolCall } from '../../providers/types/tooling-types';
 import type { ChatWarningDto } from '../dto/chat-warning.dto';
+import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
 
 export type SseMetaEvent = {
   id: string;
@@ -33,6 +34,8 @@ export type SseDoneEvent = {
   };
   toolCalls?: GatewayToolCall[];
   finishReason?: SseFinishReason;
+  usageDetails?: ProviderUsageDetails;
+  effectiveModelAlias?: string;
   systemFingerprint?: string;
   thinkingContent?: string;
   warnings?: ChatWarningDto[];

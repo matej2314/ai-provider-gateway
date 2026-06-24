@@ -314,9 +314,10 @@ Gdy model używa thinking mode, response zawiera dodatkowe pole:
 ```
 
 **Provider-specific notes:**
-- **Anthropic:** Thinking blocks zwracane jako `{ type: 'thinking', thinking: string }` w content array
+- **Anthropic (natywny czat):** pole `thinkingContent` w JSON; w streamie gateway — w evencie `done` (nie w deltach).
+- **Anthropic (fasada):** JSON — blok `{ type: 'thinking', thinking: string }` w `content[]`. Stream — bloki `content_block` z `thinking_delta` w fazie `done` (`anthropic-stream.mapper.ts`); kolejność w streamie: tekst (deltami) → thinking → tool_use.
 - **Google Gemini:** Thoughts zwracane gdy `includeThoughts: true` (struktura do weryfikacji w runtime)
-- **OpenAI:** Nieobsługiwane (wymaga `/v1/responses` API)
+- **OpenAI:** Nieobsługiwane w fasadzie Chat Completions (wymaga `/v1/responses` API)
 
 ### Konfiguracja aliasu
 

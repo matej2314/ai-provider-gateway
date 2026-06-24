@@ -39,7 +39,7 @@ Authorization: Bearer <GATEWAY_KEY_*>
 
 Gateway weryfikuje token w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` w natywnym API). Token **nie** jest przekazywany do Anthropic ani Google — wywołania SDK używają kluczy z `.env` wskazanych przez **`apiKeyRef`** w YAML (per `providerInstance`).
 
-Kolejność guardów na trasach OpenAI: **`OpenAiBearerAuthGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i równoległe streamy, gdy `RATE_LIMIT_SMART_ENABLED=true`). **Cooldown** po 429 od upstream — w **`ChatService.executeChat`** (`checkCooldown` / `setCooldown`), nie w guardzie. Klucz klienta jest odczytywany przez **`readClientGatewayKey`** (`req.gatewayKey` lub `X-Gateway-Key`).
+Kolejność guardów na trasach OpenAI: **`OpenAiBearerAuthGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i równoległe streamy, gdy `RATE_LIMIT_SMART_ENABLED=true`). **Cooldown** po 429 od upstream — **`prepareRequestForExecution`** (`checkCooldown`) oraz **`ChatErrorHandlerService`** (`setCooldown`); dotyczy JSON i streamu. Klucz klienta jest odczytywany przez **`readClientGatewayKey`** (`req.gatewayKey` lub `X-Gateway-Key`).
 
 **Równoległe streamy** (`stream: true`): limit i zwolnienie slotu w **`OpenAiChatCompletionsController`** (`checkConcurrentStreams` / `releaseStream`), nie w guardzie — ścieżka nie kończy się na `/stream` jak w natywnym API.
 

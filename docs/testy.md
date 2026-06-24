@@ -33,7 +33,7 @@ Konfiguracja: sekcja `"jest"` w `package.json` (`testRegex: .*\.spec\.ts$`, `roo
 | **Cache** | `cache-registry.service.spec.ts`, `response-cache.service.spec.ts`, `should-include-redis-stack.spec.ts`, adaptery `noop` / `redis` |
 | **Rate limit** | `smart-rate-limiter.service.spec.ts` |
 | **Guardy** | `gateway-key.guard.spec.ts`, `openai-bearer-auth.guard.spec.ts`, `anthropic-api-key.guard.spec.ts` |
-| **Fasady** (`src/integrations/`) | kontrolery fasad (`openai-chat-completions.controller.spec.ts`, `anthropic-messages.controller.spec.ts`, …), filtry błędów (`openai-exception.filter.spec.ts`, `anthropic-exception.filter.spec.ts`), katalogi modeli (`*-models-catalog.service.spec.ts`), mapery (`openai-*.mapper.spec.ts`, `anthropic-*.mapper.spec.ts`, w tym `anthropic-stop-reason.spec.ts`), helpery (`normalize-openai-content.spec.ts`) |
+| **Fasady** (`src/integrations/`) | kontrolery fasad (`openai-chat-completions.controller.spec.ts`, `anthropic-messages.controller.spec.ts`, …), filtry błędów (`openai-exception.filter.spec.ts`, `anthropic-exception.filter.spec.ts`), katalogi modeli (`*-models-catalog.service.spec.ts`), mapery (`openai-*.mapper.spec.ts`, `anthropic-*.mapper.spec.ts`, w tym `anthropic-stop-reason.spec.ts`, `anthropic-usage.mapper.spec.ts`), helpery (`normalize-openai-content.spec.ts`) |
 | **Odporność** | `resilient-executor.spec.ts`, `fallback-chain.spec.ts`, `is-retryable-http-error.spec.ts` |
 | **Błędy** | `provider-error.mapper.spec.ts`, `provider-error-mapper.helpers.spec.ts` |
 | **Health / logging / metrics** | `health.*.spec.ts` (w tym `checkRedis`, mock `RedisConnectionService.ping`), `logging.service.spec.ts`, `metrics.service.spec.ts` |
@@ -115,11 +115,12 @@ Usunięty został wcześniejszy szkielet `test/app.e2e-spec.ts` — zastąpiony 
 
 - Auth `x-api-key` (401 / 403 / 201)
 - Kształt `message` (non-stream)
-- Streaming: `message_start`, `content_block_*`, `message_stop`; nagłówek `anthropic-version`
+- Streaming: `message_start`, `content_block_*`, `message_delta` (pełne usage: `input_tokens`, cache), `message_stop`; nagłówek `anthropic-version`
+- Extended stream parity (jednostkowo): bloki `thinking` (`thinking_delta`) w fazie `done` — `anthropic-stream.mapper.spec.ts`
 - Walidacja (`max_tokens`, brak `model`)
 - Concurrent streams → 429 w formacie Anthropic
 - Błędy providera → 400 / 500 w formacie Anthropic
-- Extended: thinking mode (`thinking` w request → thinking block w response), tool calling
+- Extended: thinking mode (`thinking` w request → thinking block w response JSON; w streamie — `thinking_delta` w `done`), tool calling
 
 **Gateway cache (`gateway-chat-cache.e2e-spec.ts`):**
 

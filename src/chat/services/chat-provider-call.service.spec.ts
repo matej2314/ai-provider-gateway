@@ -203,6 +203,7 @@ describe('ChatProviderCallService', () => {
         getStopReason: jest.fn().mockResolvedValue('end_turn'),
         getSystemFingerprint: jest.fn().mockResolvedValue('fp_abc'),
         getThinkingContent: jest.fn().mockResolvedValue('thinking...'),
+        getUsageDetails: jest.fn().mockResolvedValue(undefined),
         ...overrides,
       };
     }
@@ -304,6 +305,29 @@ describe('ChatProviderCallService', () => {
           outputTokens: 7,
         });
       });
+
+      it('should return usageDetails when stream provides getUsageDetails', async () => {
+        const usageDetails = {
+          promptCacheHitTokens: 100,
+          promptCacheCreationTokens: 50,
+        };
+        (mockProvider.stream as jest.Mock).mockReturnValue(
+          createMockStreamResult({
+            getUsageDetails: jest.fn().mockResolvedValue(usageDetails),
+          }),
+        );
+
+        const result = await service.streamOnce({
+          requestBody: baseRequest,
+          alias: TEST_MODEL_ALIAS,
+          requestId: 'req-stream-usage-details',
+          resolvedPrompts,
+          emit,
+          streamMeta,
+        });
+
+        expect(result.usageDetails).toEqual(usageDetails);
+      });
     });
 
     describe('Meta event control', () => {
@@ -389,6 +413,7 @@ describe('ChatProviderCallService', () => {
         expect(result.assembledText).toBe('Only text');
         expect(result.systemFingerprint).toBeUndefined();
         expect(result.thinkingContent).toBeUndefined();
+        expect(result.usageDetails).toBeUndefined();
       });
 
       it('should call spanController.end with undefined outputText when no text', async () => {

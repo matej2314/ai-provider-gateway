@@ -20,6 +20,7 @@ import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
 import { validateChatIngress } from './validation/chat-ingress.validator';
 import type { ChatIngressProfile } from './validation/chat-ingress.types';
+import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
 
 @Injectable()
 export class ChatService {
@@ -39,19 +40,13 @@ export class ChatService {
     return this.validationService.validateForStreaming(modelAlias);
   }
 
-  async executeChat(
+  async prepareRequestForExecution(
     requestBody: ChatRequestDto,
     requestId: string,
-    gatewayKey: string,
     ingressProfile: ChatIngressProfile,
-  ) {
+    gatewayKey: string,
+  ): Promise<ChatExecutionPrep> {
     validateChatIngress(requestBody, ingressProfile);
-
-    const log = this.loggingService.child({
-      module: 'ChatService',
-      requestId,
-      modelAlias: requestBody.modelAlias,
-    });
 
     const resolvedPrompts = getResolvedSystemPrompts(() =>
       getAppConfigOrThrow(this.config, 'resolvedSystemPrompts'),
@@ -81,7 +76,43 @@ export class ChatService {
         primaryResolved.providerName,
         requestId,
       );
+    }
 
+    return {
+      primaryResolved,
+      options,
+      responseConversationId,
+      resolvedPrompts,
+    };
+  }
+
+  async executeChat(
+    requestBody: ChatRequestDto,
+    requestId: string,
+    gatewayKey: string,
+    ingressProfile: ChatIngressProfile,
+  ) {
+    // validateChatIngress(requestBody, ingressProfile);
+
+    const {
+      primaryResolved,
+      options,
+      responseConversationId,
+      resolvedPrompts,
+    } = await this.prepareRequestForExecution(
+      requestBody,
+      requestId,
+      ingressProfile,
+      gatewayKey,
+    );
+
+    const log = this.loggingService.child({
+      module: 'ChatService',
+      requestId,
+      modelAlias: requestBody.modelAlias,
+    });
+
+    if (gatewayKey) {
       const cachedResponse = await this.cacheGuardService.getCachedIfAllowed(
         requestBody,
         options,
@@ -180,9 +211,21 @@ export class ChatService {
     requestId: string,
     emit: (event: SseEvent) => void,
     ingressProfile: ChatIngressProfile,
-    gatewayKey?: string,
+    gatewayKey: string,
   ): Promise<void> {
-    validateChatIngress(requestBody, ingressProfile);
+    // validateChatIngress(requestBody, ingressProfile);
+
+    const {
+      primaryResolved,
+      options,
+      responseConversationId,
+      resolvedPrompts,
+    } = await this.prepareRequestForExecution(
+      requestBody,
+      requestId,
+      ingressProfile,
+      gatewayKey,
+    );
 
     const log = this.loggingService.child({
       module: 'ChatService',
@@ -190,27 +233,27 @@ export class ChatService {
       modelAlias: requestBody.modelAlias,
     });
 
-    const resolvedPrompts = getResolvedSystemPrompts(() =>
-      getAppConfigOrThrow(this.config, 'resolvedSystemPrompts'),
-    );
+    // const resolvedPrompts = getResolvedSystemPrompts(() =>
+    //   getAppConfigOrThrow(this.config, 'resolvedSystemPrompts'),
+    // );
 
-    const responseConversationId =
-      getOrCreateConversationIdForResponse(requestBody);
+    // const responseConversationId =
+    //   getOrCreateConversationIdForResponse(requestBody);
 
-    const primaryResolved = this.registry.resolve(requestBody.modelAlias);
+    // const primaryResolved = this.registry.resolve(requestBody.modelAlias);
 
-    this.validationService.validateTooling(requestBody, primaryResolved);
+    // this.validationService.validateTooling(requestBody, primaryResolved);
 
-    const options = resolveProviderCallOptions(
-      primaryResolved.params,
-      requestBody.params,
-    );
+    // const options = resolveProviderCallOptions(
+    //   primaryResolved.params,
+    //   requestBody.params,
+    // );
 
-    this.validationService.validateThinking(
-      requestBody,
-      primaryResolved,
-      options,
-    );
+    // this.validationService.validateThinking(
+    //   requestBody,
+    //   primaryResolved,
+    //   options,
+    // );
 
     const startedAt = Date.now();
     const id = `gw_${uuidv4()}`;
@@ -241,7 +284,9 @@ export class ChatService {
     try {
       const result = await this.resilientExecutor.executeWithRetryAndFallback({
         primaryAlias: requestBody.modelAlias,
-        fallbackAlias: primaryResolved.fallbackAlias,
+        fallbackAlias: isToolingRequest(requestBody)
+          ? undefined
+          : primaryResolved.fallbackAlias,
         retry: buildRetryPolicyFromResolved(primaryResolved),
         runOnce,
         requestId,
@@ -254,6 +299,7 @@ export class ChatService {
         usageMetadata,
         systemFingerprint,
         thinkingContent,
+        usageDetails,
       } = result.value;
       const usedAlias = result.usedAlias;
       const didFallback = result.didFallback;
@@ -266,6 +312,8 @@ export class ChatService {
         thinkingContent,
         options,
         resolved.providerType,
+        usageDetails,
+        didFallback ? usedAlias : undefined,
       );
       emit(doneEvent);
 

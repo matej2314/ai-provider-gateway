@@ -80,6 +80,7 @@ export interface StreamResult {
   getStopReason?: () => Promise<ProviderChatResponse['stopReason']>;
   getSystemFingerprint?: () => Promise<string | undefined>;
   getThinkingContent?: () => Promise<string | undefined>;
+  getUsageDetails?: () => Promise<ProviderUsageDetails | undefined>;
 }
 
 export interface ProviderCallOptions {

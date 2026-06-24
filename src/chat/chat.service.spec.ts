@@ -186,6 +186,72 @@ describe('ChatService', () => {
     });
   });
 
+  describe('prepareRequestForExecution', () => {
+    const baseRequest = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [{ role: 'user' as const, content: 'Hi' }],
+      params: {},
+    };
+
+    it('should run ingress, tooling, thinking validation and cooldown check', async () => {
+      const expectedOptions = resolveProviderCallOptions(
+        resolvedConfig.params,
+        baseRequest.params,
+      );
+
+      const prep = await service.prepareRequestForExecution(
+        baseRequest,
+        'req-123',
+        'native',
+        'gw_key_123',
+      );
+
+      expect(mockValidation.validateTooling).toHaveBeenCalledWith(
+        baseRequest,
+        resolvedConfig,
+      );
+      expect(mockValidation.validateThinking).toHaveBeenCalledWith(
+        baseRequest,
+        resolvedConfig,
+        expectedOptions,
+      );
+      expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
+        'gw_key_123',
+        'anthropic',
+        'req-123',
+      );
+      expect(prep.primaryResolved).toBe(resolvedConfig);
+      expect(prep.options).toEqual(expectedOptions);
+    });
+
+    it('should propagate cooldown errors', async () => {
+      const rateLimitError = new HttpException('Rate limited', 429);
+      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+        rateLimitError,
+      );
+
+      await expect(
+        service.prepareRequestForExecution(
+          baseRequest,
+          'req-123',
+          'native',
+          'gw_key_123',
+        ),
+      ).rejects.toBe(rateLimitError);
+    });
+
+    it('should skip cooldown when gatewayKey is empty', async () => {
+      await service.prepareRequestForExecution(
+        baseRequest,
+        'req-123',
+        'native',
+        '',
+      );
+
+      expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
+    });
+  });
+
   describe('executeChat', () => {
     const baseRequest = {
       modelAlias: TEST_MODEL_ALIAS,
@@ -543,11 +609,17 @@ describe('ChatService', () => {
           emitted.push(event);
         },
         'native',
+        'gw_key_123',
       );
 
       expect(mockValidation.validateTooling).toHaveBeenCalledWith(
         baseRequest,
         resolvedConfig,
+      );
+      expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
+        'gw_key_123',
+        'anthropic',
+        'req-123',
       );
       expect(mockValidation.validateThinking).toHaveBeenCalledWith(
         baseRequest,
@@ -574,7 +646,13 @@ describe('ChatService', () => {
       };
 
       await expect(
-        service.executeStream(oversizedRequest, 'req-123', jest.fn(), 'native'),
+        service.executeStream(
+          oversizedRequest,
+          'req-123',
+          jest.fn(),
+          'native',
+          'gw_key_123',
+        ),
       ).rejects.toMatchObject({
         response: expect.objectContaining({
           code: ApiErrorCode.VALIDATION_FAILED,
@@ -590,6 +668,10 @@ describe('ChatService', () => {
         stopReason: 'tool_use',
         systemFingerprint: 'fp_stream_123',
         thinkingContent: 'Stream thinking',
+        usageDetails: {
+          promptCacheHitTokens: 100,
+          promptCacheCreationTokens: 50,
+        },
       });
 
       const expectedOptions = resolveProviderCallOptions(
@@ -597,7 +679,13 @@ describe('ChatService', () => {
         baseRequest.params,
       );
 
-      await service.executeStream(baseRequest, 'req-123', jest.fn(), 'native');
+      await service.executeStream(
+        baseRequest,
+        'req-123',
+        jest.fn(),
+        'native',
+        'gw_key_123',
+      );
 
       expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalledWith(
         { inputTokens: 15, outputTokens: 25 },
@@ -607,6 +695,110 @@ describe('ChatService', () => {
         'Stream thinking',
         expectedOptions,
         resolvedConfig.providerType,
+        {
+          promptCacheHitTokens: 100,
+          promptCacheCreationTokens: 50,
+        },
+        undefined,
+      );
+    });
+
+    it('should propagate validateThinking errors before stream executor', async () => {
+      const validationError = new HttpException('Thinking not supported', 400);
+      (mockValidation.validateThinking as jest.Mock).mockImplementation(() => {
+        throw validationError;
+      });
+
+      await expect(
+        service.executeStream(
+          baseRequest,
+          'req-123',
+          jest.fn(),
+          'native',
+          'gw_key_123',
+        ),
+      ).rejects.toBe(validationError);
+      expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
+    });
+
+    it('should propagate cooldown errors before stream executor', async () => {
+      const rateLimitError = new HttpException('Rate limited', 429);
+      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+        rateLimitError,
+      );
+
+      await expect(
+        service.executeStream(
+          baseRequest,
+          'req-123',
+          jest.fn(),
+          'native',
+          'gw_key_123',
+        ),
+      ).rejects.toBe(rateLimitError);
+      expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
+    });
+
+    it('should not set fallbackAlias for tooling requests', async () => {
+      mockStreamExecutorSuccess();
+      const toolingRequest = {
+        ...baseRequest,
+        tooling: {
+          definitions: [{ name: 'test', parameters: {} }],
+        },
+      };
+
+      await service.executeStream(
+        toolingRequest,
+        'req-123',
+        jest.fn(),
+        'native',
+        'gw_key_123',
+      );
+
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          primaryAlias: TEST_MODEL_ALIAS,
+          fallbackAlias: undefined,
+        }),
+      );
+    });
+
+    it('should pass effectiveModelAlias to buildStreamDoneEvent when fallback occurred', async () => {
+      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue({
+        value: {
+          resolved: resolvedConfig,
+          usageMetadata: { inputTokens: 5, outputTokens: 10 },
+          stopReason: 'end_turn',
+        },
+        usedAlias: 'fallback-model',
+        attempts: 2,
+        didFallback: true,
+      });
+
+      const expectedOptions = resolveProviderCallOptions(
+        resolvedConfig.params,
+        baseRequest.params,
+      );
+
+      await service.executeStream(
+        baseRequest,
+        'req-123',
+        jest.fn(),
+        'native',
+        'gw_key_123',
+      );
+
+      expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalledWith(
+        { inputTokens: 5, outputTokens: 10 },
+        undefined,
+        'end_turn',
+        undefined,
+        undefined,
+        expectedOptions,
+        resolvedConfig.providerType,
+        undefined,
+        'fallback-model',
       );
     });
 
@@ -618,7 +810,13 @@ describe('ChatService', () => {
       (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
       mockStreamExecutorSuccess();
 
-      await service.executeStream(baseRequest, 'req-123', jest.fn(), 'native');
+      await service.executeStream(
+        baseRequest,
+        'req-123',
+        jest.fn(),
+        'native',
+        'gw_key_123',
+      );
 
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({

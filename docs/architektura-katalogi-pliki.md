@@ -218,6 +218,8 @@ ai-provider-gateway/
 │   │       │   ├── anthropic-response.mapper.spec.ts
 │   │       │   ├── anthropic-stream.mapper.ts
 │   │       │   ├── anthropic-stream.mapper.spec.ts
+│   │       │   ├── anthropic-usage.mapper.ts          # wspólne mapowanie usage JSON ↔ stream
+│   │       │   ├── anthropic-usage.mapper.spec.ts
 │   │       │   ├── anthropic-stop-reason.mapper.ts   # GatewayFinishReason → stop_reason
 │   │       │   ├── anthropic-stop-reason.spec.ts
 │   │       │   ├── anthropic-tools.mapper.ts
@@ -457,9 +459,9 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 
 | Katalog | Odpowiedzialność |
 |---------|------------------|
-| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: walidacja ingress (`validateChatIngress`), orkiestracja (cache, cooldown po 429, `ResilientExecutor`). Serwisy pomocnicze: **`ChatProviderCallService`** (adaptery, metryki, SSE), **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCacheGuardService`**, **`ChatErrorHandlerService`**. Helpery: system prompt, provider input (`metadata`), params, tooling, retry/cache policy, `conversationId`, `mapStopReasonToFinishReason` → `GatewayFinishReason`. |
+| **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: wspólne `prepareRequestForExecution` (ingress, cooldown check), orkiestracja (`executeChat` z cache / `executeStream` bez cache), `ResilientExecutor`. Serwisy pomocnicze: **`ChatProviderCallService`**, **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCacheGuardService`**, **`ChatErrorHandlerService`**. |
 | **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Mapery: `anthropic-tools.mapper.ts`, `anthropic-thinking.mapper.ts`, `google-tools.mapper.ts`. Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API. |
-| **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Fasada Anthropic: reverse map `finishReason` przez `anthropic-stop-reason.mapper.ts`. Szczegóły: `integracje.md`. |
+| **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Fasada Anthropic: reverse map `finishReason` przez `anthropic-stop-reason.mapper.ts`; usage JSON/stream — `anthropic-usage.mapper.ts`. Szczegóły: `integracje.md`. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `buildAppConfiguration` → **`AppConfiguration`**, `getAppConfig` / `getAppConfigOrThrow` (`typed-config.ts`), `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
 | **`src/common/`** | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), typy Express, walidatory (`validators/` — np. `stop` jako string \| string[]). |

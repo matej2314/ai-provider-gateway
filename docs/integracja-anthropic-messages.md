@@ -39,7 +39,7 @@ Priorytet nagłówków (`AnthropicApiKeyGuard`):
 
 Gateway weryfikuje klucz w **`gatewayKey.allowList`** (ta sama lista co `X-Gateway-Key` / Bearer OpenAI). Klucz klienta **nie** trafia do wywołań SDK providera — klucze z `.env` są rozwiązywane per **`providerInstance`** (`apiKeyRef` w YAML).
 
-Kolejność guardów na trasach Anthropic: **`AnthropicApiKeyGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i równoległe streamy, gdy `RATE_LIMIT_SMART_ENABLED=true`). **Cooldown** po 429 od upstream — w **`ChatService.executeChat`**, nie w guardzie. Klucz klienta jest odczytywany przez **`readClientGatewayKey`**.
+Kolejność guardów na trasach Anthropic: **`AnthropicApiKeyGuard`** (ustawia `req.gatewayKey`) → **`SmartRateLimitGuard`** (RPS i równoległe streamy, gdy `RATE_LIMIT_SMART_ENABLED=true`). **Cooldown** po 429 od upstream — **`prepareRequestForExecution`** (`checkCooldown`) oraz **`ChatErrorHandlerService`** (`setCooldown` po błędzie providera); dotyczy zarówno JSON, jak i streamu. Klucz klienta jest odczytywany przez **`readClientGatewayKey`**.
 
 **Równoległe streamy** (`stream: true`): limit i zwolnienie slotu w **`AnthropicMessagesController`** (`checkConcurrentStreams` / `releaseStream`), nie w guardzie — ścieżka nie kończy się na `/stream` jak w natywnym API.
 
@@ -131,6 +131,7 @@ Treść tekstowa jest mapowana na `messages[]` kontraktu gateway (`role` + `cont
 | `stop_sequences` | Opcjonalnie (tablica stringów), mapowane na `params.stop` |
 | `output_config` | Opcjonalnie — structured outputs (JSON mode). Format: `{ format: { type: 'json_schema', schema: {...} } }`. Mapowane na `params.responseFormat`. Wymaga schematu JSON. Patrz sekcja „Structured outputs (JSON mode)". |
 | `tools`, `tool_choice` | Opcjonalnie — mapowane na `tooling` gateway; wymaga `capabilities.tools: true` na aliasie |
+| `thinking` | Opcjonalnie — extended thinking (Anthropic API shape). Mapowane na `params.thinkingEnabled` / `params.thinkingBudget`; wymaga `capabilities.thinking: true` na aliasie. W odpowiedzi JSON: blok `content[].type: thinking`; w streamie: bloki `content_block_*` z `thinking_delta` w fazie `done` (patrz sekcja stream). |
 | `system` | **Ignorowane** — instrukcja systemowa z `src/config/system-prompt/` |
 
 Limit **`messages`**: 1–15 000 (DTO fasady; natywny czat: 1–150).
@@ -151,7 +152,7 @@ curl -s http://localhost:3000/api/v1/anthropic/messages \
   }'
 ```
 
-Odpowiedź (uproszczony kształt `Message`): `type: message`, `role: assistant`, `content[]` z blokiem tekstowym, `model` = alias z żądania, `stop_reason`, `usage.input_tokens` / `output_tokens`.
+Odpowiedź (uproszczony kształt `Message`): `type: message`, `role: assistant`, `content[]` z blokiem tekstowym (opcjonalnie blok `thinking` przed tekstem), `model` = alias z żądania, `stop_reason`, `usage` (`input_tokens`, `output_tokens`, opcjonalnie `cache_creation_input_tokens` / `cache_read_input_tokens` z `usageDetails` gateway).
 
 ## Przykład (stream)
 
@@ -170,7 +171,19 @@ curl -N -X POST http://localhost:3000/api/v1/anthropic/messages \
   }'
 ```
 
-Odpowiedź: strumień SSE (`Content-Type: text/event-stream; charset=utf-8`, nagłówek `anthropic-version: 2023-06-01`) — zdarzenia `message_start`, `content_block_start`, `content_block_delta`, `content_block_stop`, `message_delta`, `message_stop`. Wewnętrznie: `ChatService.executeStream` + `anthropic-stream.mapper.ts` (mapowanie zdarzeń gateway `meta` / `delta` / `done`).
+Odpowiedź: strumień SSE (`Content-Type: text/event-stream; charset=utf-8`, nagłówek `anthropic-version: 2023-06-01`) — zdarzenia `message_start`, `content_block_start`, `content_block_delta`, `content_block_stop`, `message_delta`, `message_stop`. Wewnętrznie: `ChatService.executeStream` → `anthropic-stream.mapper.ts` (mapowanie zdarzeń gateway `meta` / `delta` / `done`).
+
+**Mapowanie stream → Anthropic SSE:**
+
+| Faza gateway | Zdarzenia Anthropic |
+|--------------|---------------------|
+| `meta` | `message_start` (id, model; usage zerowe) |
+| `delta` | `content_block_start` (text) + `content_block_delta` (`text_delta`) |
+| `done` | `content_block_stop` (text), opcjonalnie bloki `thinking` (`thinking_delta`), opcjonalnie `tool_use` (`input_json_delta`), `message_delta` (stop_reason + pełne usage), `message_stop` |
+
+**Usage w streamie:** finalne `message_delta.usage` zawiera `input_tokens`, `output_tokens` oraz pola cache (`cache_creation_input_tokens`, `cache_read_input_tokens`) — ta sama logika co w JSON (`anthropic-usage.mapper.ts`).
+
+**Extended thinking w streamie:** gdy gateway zwraca `thinkingContent` w evencie `done`, fasada emituje blok `content_block` z `type: thinking` i `thinking_delta`. Treść **nie** jest streamowana w czasie rzeczywistym (ograniczenie gateway SSE); w JSON blok `thinking` jest **przed** tekstem, w streamie — **po** deltach tekstu (przed `tool_use`, jeśli występują).
 
 ## Test manualny bez Claude Code
 
@@ -190,7 +203,8 @@ Fasada MVP celuje w prosty czat tekstowy i klienty IDE — **nie** jest drop-in 
 | Temat | Oficjalnie | Gateway (MVP) |
 |-------|------------|---------------|
 | `model` w odpowiedzi | ID modelu Anthropic | **Echo aliasu** z żądania (`chat-default`, …) |
-| `usage` | m.in. cache, `service_tier` | Tylko `input_tokens`, `output_tokens` |
+| `usage` | m.in. cache, `service_tier` | **`input_tokens`**, **`output_tokens`**, opcjonalnie **`cache_creation_input_tokens`** / **`cache_read_input_tokens`** — w JSON i w finalnym `message_delta` streamu (wspólny mapper `anthropic-usage.mapper.ts`). Brak `service_tier`. |
+| Extended thinking | Streamowane bloki `thinking` przed tekstem | JSON: blok `thinking` przed tekstem. Stream fasady: blok `thinking` w fazie `done` (po deltach tekstu); nie w czasie rzeczywistym. |
 | `stop_reason` | m.in. `tool_use`, `max_tokens`, `refusal` | Mapowane z `GatewayFinishReason` przez `anthropic-stop-reason.mapper.ts` (`tool_calls` → `tool_use`, `length` → `max_tokens`, `content_filter` → `refusal`, `stop` → `end_turn`) |
 | `system`, obrazy | Obsługiwane oficjalnie | `system` ignorowany; `image` → 400 |
 | `tools` | Obsługiwane oficjalnie | Mapowane przez fasadę gdy alias ma `capabilities.tools` |

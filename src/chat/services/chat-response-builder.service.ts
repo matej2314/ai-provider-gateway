@@ -109,6 +109,8 @@ export class ChatResponseBuilderService {
     thinkingContent: string | undefined,
     options?: ProviderCallOptions,
     providerType?: GatewayProviderType,
+    usageDetails?: ProviderUsageDetails,
+    effectiveModelAlias?: string,
   ): SseEvent {
     const warnings =
       options && providerType
@@ -129,6 +131,8 @@ export class ChatResponseBuilderService {
         finishReason: mapStopReasonToFinishReason(stopReason, toolCalls),
         ...(systemFingerprint && { systemFingerprint }),
         ...(thinkingContent && { thinkingContent }),
+        ...(usageDetails ? { usageDetails } : {}),
+        ...(effectiveModelAlias && { effectiveModelAlias }),
         ...(warnings.length > 0 && { warnings }),
       },
     };

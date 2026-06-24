@@ -8,6 +8,7 @@ import type { ResolvedSystemPrompts } from '../../config/configuration.types';
 import type {
   ProviderChatResponse,
   ProviderToolCall,
+  ProviderUsageDetails,
 } from '../../providers/interfaces/ai-provider.interface';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { SseEvent } from '../sse/sse-event.type';
@@ -35,6 +36,7 @@ export interface StreamOnceResult {
   stopReason?: ProviderChatResponse['stopReason'];
   systemFingerprint?: string;
   thinkingContent?: string;
+  usageDetails?: ProviderUsageDetails;
 }
 
 export interface StreamOnceParams {
@@ -194,6 +196,10 @@ export class ChatProviderCallService {
       ? await streamResult.getThinkingContent()
       : undefined;
 
+    const usageDetails = streamResult.getUsageDetails
+      ? await streamResult.getUsageDetails()
+      : undefined;
+
     return {
       providerName: resolved.providerName,
       modelId: resolved.modelId,
@@ -203,6 +209,7 @@ export class ChatProviderCallService {
       ...(stopReason && { stopReason }),
       ...(systemFingerprint && { systemFingerprint }),
       ...(thinkingContent && { thinkingContent }),
+      ...(usageDetails ? { usageDetails } : {}),
     };
   }
 }

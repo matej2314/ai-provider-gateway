@@ -17,6 +17,7 @@ describe('anthropic-stream.mapper', () => {
       textBlockStarted: false,
       blockIndex: 0,
       activeToolBlockIndex: null,
+      thinkingBlockEmitted: false,
     });
   });
 
@@ -88,6 +89,7 @@ describe('anthropic-stream.mapper', () => {
       expect(lines[0]).toContain('event: content_block_stop');
       expect(lines[1]).toContain('event: message_delta');
       expect(lines[1]).toContain('"stop_reason":"end_turn"');
+      expect(lines[1]).toContain('"input_tokens":10');
       expect(lines[1]).toContain('"output_tokens":20');
       expect(lines[2]).toContain('event: message_stop');
     });
@@ -206,6 +208,86 @@ describe('anthropic-stream.mapper', () => {
       expect(
         lines.filter((l) => l.includes('content_block_stop')),
       ).toHaveLength(1);
+    });
+  });
+
+  describe('done - parity stream with non-stream', () => {
+    it('should emit thinking content_block events when thinkingContent present', () => {
+      const state = createAnthropicStreamState('claude-sonnet-4-5');
+      state.messageSent = true;
+      state.textBlockStarted = true;
+      const lines = mapSseEventToAnthropic(
+        {
+          name: 'done',
+          data: {
+            thinkingContent: 'Reasoning step by step',
+            finishReason: 'stop',
+            usage: { inputTokens: 1, outputTokens: 2 },
+          },
+        } as SseEvent,
+        state,
+      );
+      expect(lines.some((l) => l.includes('"type":"thinking"'))).toBe(true);
+      expect(lines.some((l) => l.includes('thinking_delta'))).toBe(true);
+      expect(
+        lines.some((l) => l.includes('"thinking":"Reasoning step by step"')),
+      ).toBe(true);
+    });
+
+    it('should include full usage in message_delta (parity with JSON)', () => {
+      const state = createAnthropicStreamState('claude-sonnet-4-5');
+      state.messageSent = true;
+      const lines = mapSseEventToAnthropic(
+        {
+          name: 'done',
+          data: {
+            finishReason: 'stop',
+            usage: { inputTokens: 100, outputTokens: 50 },
+            usageDetails: {
+              promptCacheCreationTokens: 20,
+              promptCacheHitTokens: 30,
+            },
+          },
+        } as SseEvent,
+        state,
+      );
+      const deltaLine = lines.find((l) => l.includes('message_delta'))!;
+      expect(deltaLine).toContain('"input_tokens":100');
+      expect(deltaLine).toContain('"output_tokens":50');
+      expect(deltaLine).toContain('"cache_creation_input_tokens":20');
+      expect(deltaLine).toContain('"cache_read_input_tokens":30');
+    });
+
+    it('should emit thinking at index 0 when no text deltas were sent', () => {
+      const state = createAnthropicStreamState('claude-sonnet-4-5');
+      state.messageSent = true;
+      state.textBlockStarted = false;
+      const lines = mapSseEventToAnthropic(
+        {
+          name: 'done',
+          data: {
+            thinkingContent: 'Only thinking',
+            usage: { outputTokens: 5 },
+          },
+        } as SseEvent,
+        state,
+      );
+      expect(lines[0]).toContain('"index":0');
+      expect(lines[0]).toContain('"type":"thinking"');
+    });
+
+    it('should not emit thinking block when thinkingBlockEmitted is true', () => {
+      const state = createAnthropicStreamState('claude-sonnet-4-5');
+      state.messageSent = true;
+      state.thinkingBlockEmitted = true;
+      const lines = mapSseEventToAnthropic(
+        {
+          name: 'done',
+          data: { thinkingContent: 'X', usage: { outputTokens: 1 } },
+        } as SseEvent,
+        state,
+      );
+      expect(lines.filter((l) => l.includes('thinking_delta'))).toHaveLength(0);
     });
   });
 

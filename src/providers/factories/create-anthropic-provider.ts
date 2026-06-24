@@ -204,6 +204,18 @@ export function createAnthropicProvider(
           return undefined;
         }
       }
+      async function getUsageDetails() {
+        if (!streamObject) return undefined;
+        try {
+          const finalMessage = await streamObject.finalMessage();
+          return parseAnthropicResponseWithTools(finalMessage).usageDetails;
+        } catch (error) {
+          logger.warn('Error getting stream usage details', {
+            message: error instanceof Error ? error.message : String(error),
+          });
+          return undefined;
+        }
+      }
 
       async function getFinalToolCalls() {
         if (!streamObject) return undefined;
@@ -227,6 +239,7 @@ export function createAnthropicProvider(
       return {
         textStream: textStream(),
         getUsageMetadata: getUsageMetadata,
+        getUsageDetails: getUsageDetails,
         getFinalToolCalls: getFinalToolCalls,
         getStopReason: getStopReason,
         getThinkingContent: getThinkingContent,

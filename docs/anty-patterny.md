@@ -116,7 +116,7 @@ Uzasadnienie: Fasady IDE wymagają zgodności z OpenAI API i Anthropic Messages 
 
 **Rób**:
 
-- **`RATE_LIMITED`** — smart rate limit gateway (`SmartRateLimitGuard`: RPS/burst/streamy) oraz cooldown po 429 upstream (`ChatService.executeChat` + `SmartRateLimiterService`; tylko czat standardowy JSON).
+- **`RATE_LIMITED`** — smart rate limit gateway (`SmartRateLimitGuard`: RPS/burst/streamy) oraz cooldown po 429 upstream (`prepareRequestForExecution` → `checkCooldown`; `ChatErrorHandlerService` → `setCooldown` — czat JSON i stream).
 - **`PROVIDER_RATE_LIMITED`** — wyłącznie mapowanie błędu z SDK (`provider-error.mapper.ts`).
 
 Szczegóły: `dictionary.md`, `dokumentacja_api.md`.

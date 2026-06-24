@@ -149,7 +149,7 @@ Fasady muszą współdzielić **`SmartRateLimiterService`** z natywnym API.
 1. Guard auth fasady (ustawia `req.gatewayKey`)
 2. `SmartRateLimitGuard` (token bucket RPS, równoległe streamy)
 
-**Cooldown** po 429 od providera: `ChatService.executeChat` → `SmartRateLimiterService.checkCooldown` / `setCooldown` (tylko czat standardowy JSON, nie streaming).
+**Cooldown** po 429 od providera: **`prepareRequestForExecution`** (wspólne dla `executeChat` i `executeStream`) → `checkCooldown`; **ustawienie** cooldownu — `ChatErrorHandlerService.handleProviderError` → `setCooldown` (obie ścieżki). **Cache odpowiedzi** — tylko `executeChat` (non-stream).
 
 **Helper `readClientGatewayKey(req)`** (`src/common/readClientGatewayKey.ts`):
 
@@ -183,11 +183,11 @@ Gateway stosuje **różne profile walidacji** dla natywnego API i fasad IDE:
 
 | API | Format strumienia |
 |-----|-------------------|
-| Natywny | SSE gateway: `meta` → `delta` → `done` |
-| OpenAI | SSE zgodny z OpenAI Chat Completions (`data: {...}`) |
-| Anthropic | SSE zgodny z Anthropic Messages (zdarzenia `message_start`, `content_block_delta`, …) |
+| Natywny | SSE gateway: `meta` → `delta` → `done` (`done`: `usage`, `toolCalls`, `finishReason`, opcjonalnie `usageDetails`, `thinkingContent`, `systemFingerprint`, `warnings`, `effectiveModelAlias`) |
+| OpenAI | SSE zgodny z OpenAI Chat Completions (`data: {...}`); usage w finalnym chunku tylko gdy `stream_options.include_usage` lub `include_usage` |
+| Anthropic | SSE zgodny z Anthropic Messages (`message_start`, `content_block_*`, `message_delta`, `message_stop`); finalne `message_delta.usage` z `input_tokens`, `output_tokens` i polami cache; bloki `thinking` w fazie `done` gdy upstream zwrócił `thinkingContent` |
 
-Wewnętrznie fasady korzystają z `ChatProviderCallService.streamOnce` i mapują zdarzenia gateway na format vendora.
+Wewnętrznie fasady korzystają z `ChatProviderCallService.streamOnce` i mapują zdarzenia gateway na format vendora (`openai-stream.mapper.ts`, `anthropic-stream.mapper.ts`; usage Anthropic — wspólny `anthropic-usage.mapper.ts` z JSON).
 
 ## Błędy i filtry
 
@@ -223,7 +223,7 @@ src/integrations/
 └── anthropic/
     ├── controllers/     # models, messages
     ├── services/
-    ├── mappers/         # request, response, stream, tools, anthropic-stop-reason
+    ├── mappers/         # request, response, stream, tools, anthropic-stop-reason, anthropic-usage
     ├── helpers/         # anthropic-stream-api-description
     ├── guards/          # x-api-key auth
     ├── filters/

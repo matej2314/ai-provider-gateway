@@ -1,5 +1,6 @@
 import { mapGatewayFinishReasonToAnthropicStopReason } from './anthropic-stop-reason.mapper';
 import { parseJsonObject } from '../../../providers/helpers/parse-json-object';
+import { mapGatewayUsageToAnthropic } from './anthropic-usage.mapper';
 import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
 import type {
   AnthropicMessagesResponseDto,
@@ -57,13 +58,6 @@ export function mapGatewayResponseToAnthropicFormat(
       result.finishReason,
     ),
     stop_sequence: null,
-    usage: {
-      input_tokens: result.usage?.inputTokens ?? 0,
-      output_tokens: result.usage?.outputTokens ?? 0,
-      cache_creation_input_tokens:
-        result.usageDetails?.promptCacheCreationTokens ?? null,
-      cache_read_input_tokens:
-        result.usageDetails?.promptCacheHitTokens ?? null,
-    },
+    usage: mapGatewayUsageToAnthropic(result.usage, result.usageDetails),
   };
 }
