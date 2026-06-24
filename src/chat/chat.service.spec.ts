@@ -765,16 +765,18 @@ describe('ChatService', () => {
     });
 
     it('should pass effectiveModelAlias to buildStreamDoneEvent when fallback occurred', async () => {
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue({
-        value: {
-          resolved: resolvedConfig,
-          usageMetadata: { inputTokens: 5, outputTokens: 10 },
-          stopReason: 'end_turn',
+      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue(
+        {
+          value: {
+            resolved: resolvedConfig,
+            usageMetadata: { inputTokens: 5, outputTokens: 10 },
+            stopReason: 'end_turn',
+          },
+          usedAlias: 'fallback-model',
+          attempts: 2,
+          didFallback: true,
         },
-        usedAlias: 'fallback-model',
-        attempts: 2,
-        didFallback: true,
-      });
+      );
 
       const expectedOptions = resolveProviderCallOptions(
         resolvedConfig.params,

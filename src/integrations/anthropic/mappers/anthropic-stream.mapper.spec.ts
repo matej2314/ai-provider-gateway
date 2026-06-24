@@ -224,7 +224,7 @@ describe('anthropic-stream.mapper', () => {
             finishReason: 'stop',
             usage: { inputTokens: 1, outputTokens: 2 },
           },
-        } as SseEvent,
+        },
         state,
       );
       expect(lines.some((l) => l.includes('"type":"thinking"'))).toBe(true);
@@ -248,7 +248,7 @@ describe('anthropic-stream.mapper', () => {
               promptCacheHitTokens: 30,
             },
           },
-        } as SseEvent,
+        },
         state,
       );
       const deltaLine = lines.find((l) => l.includes('message_delta'))!;
