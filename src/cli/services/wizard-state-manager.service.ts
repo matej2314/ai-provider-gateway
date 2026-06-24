@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
-import { basename, join } from 'path';
+import { basename, join, parse } from 'path';
 import { CliLogger } from '../utils/cli-logger.util';
+import { parseWizardState } from '../schemas/wizard-state.schema';
 import type { WizardState } from './cli.services.types';
 
 export enum WizardStep {
@@ -28,7 +29,14 @@ export class WizardStateManager {
 
     try {
       const content = await fs.readFile(statePath, 'utf-8');
-      return JSON.parse(content);
+      const raw: unknown = JSON.parse(content);
+      const state = parseWizardState(raw);
+      if (!state) {
+        CliLogger.warning('Wizard state file is invalid or corrupted');
+        return null;
+      }
+
+      return state;
     } catch (error: unknown) {
       if (
         error instanceof Error &&
