@@ -73,6 +73,10 @@ export class SmartRateLimiterService {
     try {
       const client = this.redisConnection.getClient();
 
+      if (!client) {
+        return { allowed: true, remaining: 999, resetAt: new Date() };
+      }
+
       const script = `
         local key = KEYS[1]
         local now = tonumber(ARGV[1])
@@ -110,7 +114,7 @@ export class SmartRateLimiterService {
         end
       `;
 
-      const result = await client!.eval(
+      const result = await client.eval(
         script,
         1,
         key,
@@ -163,8 +167,12 @@ export class SmartRateLimiterService {
 
     try {
       const client = this.redisConnection.getClient();
-      const current = await client!.incr(key);
-      await client!.expire(key, 300);
+      if (!client) {
+        return { allowed: true, remaining: 999, resetAt: new Date() };
+      }
+
+      const current = await client.incr(key);
+      await client.expire(key, 300);
       if (current <= maxConcurrent) {
         return {
           allowed: true,
@@ -172,7 +180,7 @@ export class SmartRateLimiterService {
           resetAt: new Date(Date.now() + 300000),
         };
       } else {
-        await client?.decr(key);
+        await client.decr(key);
         return {
           allowed: false,
           remaining: 0,
@@ -197,7 +205,9 @@ export class SmartRateLimiterService {
 
     try {
       const client = this.redisConnection.getClient();
-      await client!.decr(key);
+      if (!client) return;
+
+      await client.decr(key);
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(
@@ -218,7 +228,12 @@ export class SmartRateLimiterService {
     const key = `rateLimit:cooldown:${gatewayKey}:${provider}`;
 
     try {
-      const ttl = await this.redisConnection.getClient()!.ttl(key);
+      const client = this.redisConnection.getClient();
+      if (!client) {
+        return { allowed: true, remaining: 999, resetAt: new Date() };
+      }
+
+      const ttl = await client.ttl(key);
 
       if (ttl > 0) {
         return {
