@@ -6,6 +6,7 @@ import {
   type Part,
   type GenerateContentResponse,
 } from '@google/genai';
+import { parseJsonObject } from '../helpers/parse-json-object';
 import type {
   ProviderChatResponse,
   ProviderChatTurn,
@@ -120,7 +121,7 @@ function mapAssistantTurnToGeminiContent(turn: ProviderAssistantTurn): Content {
       functionCall: {
         id: toolCall.id,
         name: toolCall.name,
-        args: JSON.parse(toolCall.arguments || '{}') as Record<string, unknown>,
+        args: parseJsonObject(toolCall.arguments || '{}'),
       },
     });
   }
@@ -147,7 +148,7 @@ export function mapTurnsToGeminiContents(turns: ProviderChatTurn[]): Content[] {
           createPartFromFunctionResponse(
             turn.toolCallId,
             turn.toolCallId,
-            JSON.parse(turn.content || '{}') as Record<string, unknown>,
+            parseJsonObject(turn.content || '{}'),
           ),
         ],
       });

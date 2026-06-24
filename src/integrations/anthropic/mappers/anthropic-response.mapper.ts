@@ -1,10 +1,11 @@
 import { mapGatewayFinishReasonToAnthropicStopReason } from './anthropic-stop-reason.mapper';
-import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
+import { parseJsonObject } from '../../../providers/helpers/parse-json-object';
+import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
 import type {
   AnthropicMessagesResponseDto,
   AnthropicContentBlock,
 } from '../dtos/anthropic-messages-response.dto';
-import type { GatewayToolCall } from 'src/providers/types/tooling-types';
+import type { GatewayToolCall } from '../../../providers/types/tooling-types';
 
 function mapGatewayToolCallsToAnthropic(
   toolCalls: GatewayToolCall[],
@@ -12,7 +13,7 @@ function mapGatewayToolCallsToAnthropic(
   return toolCalls.map((toolCall) => {
     let input: Record<string, unknown>;
     try {
-      input = JSON.parse(toolCall.arguments || '{}');
+      input = parseJsonObject(toolCall.arguments || '{}');
     } catch (error) {
       input = {};
     }

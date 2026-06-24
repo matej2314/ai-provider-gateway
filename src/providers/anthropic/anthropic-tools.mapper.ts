@@ -8,6 +8,7 @@ import type {
   ProviderUsageDetails,
 } from '../interfaces/ai-provider.interface';
 import { extractAnthropicThinkingContent } from './anthropic-thinking.mapper';
+import { parseJsonObject } from '../helpers/parse-json-object';
 import type { GatewayToolChoice } from '../types/tooling-types';
 import type { ProviderToolCall } from '../interfaces/ai-provider.interface';
 
@@ -180,7 +181,11 @@ function mapAssistantTurn(turn: ProviderAssistantTurn): MessageParam {
 }
 
 function toInputSchema(parameters: Record<string, unknown>): ToolInputSchema {
-  if (parameters.type === 'object') {
+  if (
+    typeof parameters === 'object' &&
+    parameters !== null &&
+    parameters.type === 'object'
+  ) {
     return parameters as ToolInputSchema;
   }
   return {
@@ -191,7 +196,7 @@ function toInputSchema(parameters: Record<string, unknown>): ToolInputSchema {
 
 function parseToolCallArguments(argumentsJson: string): unknown {
   try {
-    return JSON.parse(argumentsJson);
+    return parseJsonObject(argumentsJson);
   } catch {
     return {};
   }
