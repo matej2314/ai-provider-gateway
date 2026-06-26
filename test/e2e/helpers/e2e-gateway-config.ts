@@ -1,0 +1,72 @@
+import { createTestGatewayConfig } from '../../../src/common/mocks/createTestGatewayConfig';
+import {
+  TEST_API_KEY_REF,
+  TEST_PROVIDER_INSTANCE,
+  TEST_MODEL_ALIAS,
+  TEST_MASTER_KEY_REF,
+} from '../../../src/common/mocks/test-constants';
+import type { MockConfigServiceOptions } from 'src/common/mocks/createMockConfigService';
+
+export const E2E_SECOND_MODEL_ALIAS = 'fast-chat';
+export const E2E_SECOND_PROVIDER_INSTANCE = 'google-primary';
+export const E2E_SECOND_MODEL_ID = 'gemini-2.5-flash-lite';
+export const E2E_PRIMARY_MODEL_ID = 'claude-sonnet-4-5';
+
+const EMPTY_POLICY = {
+  timeoutMs: 30000,
+  retry: {
+    maxAttempts: 3,
+    onStatus: [429, 500, 502, 503, 504] as number[],
+  },
+  params: {
+    defaults: {},
+    allowOverrides: [] as string[],
+    bounds: {},
+  },
+} as const;
+
+export function createE2eDualModelGatewayConfig(): MockConfigServiceOptions {
+  return {
+    gateway: createTestGatewayConfig({
+      replace: { clients: true, providers: true, models: true },
+      providers: {
+        [TEST_PROVIDER_INSTANCE]: {
+          type: 'anthropic',
+          apiKeyRef: TEST_API_KEY_REF,
+          enabled: true,
+        },
+        [E2E_SECOND_PROVIDER_INSTANCE]: {
+          type: 'google',
+          apiKeyRef: 'GOOGLE_API_KEY_TEST',
+          enabled: true,
+        },
+      },
+      models: {
+        [TEST_MODEL_ALIAS]: {
+          providerInstance: TEST_PROVIDER_INSTANCE,
+          modelId: E2E_PRIMARY_MODEL_ID,
+          capabilities: { tools: true, streaming: true },
+          policy: EMPTY_POLICY,
+        },
+        [E2E_SECOND_MODEL_ALIAS]: {
+          providerInstance: E2E_SECOND_PROVIDER_INSTANCE,
+          modelId: E2E_SECOND_MODEL_ID,
+          capabilities: { tools: false, streaming: true },
+          policy: EMPTY_POLICY,
+        },
+      },
+    }),
+    providers: {
+      [TEST_PROVIDER_INSTANCE]: {
+        type: 'anthropic',
+        apiKeyRef: TEST_API_KEY_REF,
+        apiKey: 'sk-test',
+      },
+      [E2E_SECOND_PROVIDER_INSTANCE]: {
+        type: 'google',
+        apiKeyRef: 'GOOGLE_API_KEY_TEST',
+        apiKey: 'google-test',
+      },
+    },
+  };
+}

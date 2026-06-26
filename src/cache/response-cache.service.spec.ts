@@ -221,6 +221,22 @@ describe('ResponseCacheService', () => {
       conversationId: 'conv-123',
     };
 
+    it('should generate different cache key for different modelAlias', async () => {
+      (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
+
+      await service.getCachedResponse(request);
+      const keyPrimary = (mockCacheBackend.get as jest.Mock).mock.calls[0][0];
+
+      const requestOtherAlias = {
+        ...request,
+        modelAlias: 'other-model-alias',
+      };
+      await service.getCachedResponse(requestOtherAlias);
+      const keyOther = (mockCacheBackend.get as jest.Mock).mock.calls[1][0];
+
+      expect(keyPrimary).not.toBe(keyOther);
+    });
+
     it('should not cache when cache not available', async () => {
       (mockCacheBackend.isAvailable as jest.Mock).mockReturnValue(false);
 

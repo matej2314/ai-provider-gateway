@@ -1,0 +1,28 @@
+schemaVersion: 1
+masterKeyRef: MASTER_KEY_TEST
+
+providers:
+  anthropic-primary:
+    type: anthropic
+    apiKeyRef: ANTHROPIC_API_KEY_TEST
+    enabled: true
+
+clients:
+  cli-test-client:
+    name: CLI Test Client
+    type: ide
+    gatewayKeyRef: GATEWAY_KEY_CLI_TEST
+
+models:
+  test-model:
+    providerInstance: anthropic-primary
+    modelId: claude-sonnet-4-5
+    capabilities:
+      streaming: true
+      tools: true
+    policy:
+      retry: {}
+      params:
+        defaults: {}
+        allowOverrides: []
+        bounds: {}

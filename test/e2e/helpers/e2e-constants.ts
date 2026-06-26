@@ -9,7 +9,9 @@ export const E2E_ROUTES = {
   chat: `${E2E_API_PREFIX}/chat`,
   chatStream: `${E2E_API_PREFIX}/chat/stream`,
   openAiCompletions: `${E2E_API_PREFIX}/openai/chat/completions`,
+  openAiModels: `${E2E_API_PREFIX}/openai/models`,
   anthropicMessages: `${E2E_API_PREFIX}/anthropic/messages`,
+  anthropicModels: `${E2E_API_PREFIX}/anthropic/models`,
 } as const;
 
 export const E2E_ANTHROPIC_USER_MESSAGE = {

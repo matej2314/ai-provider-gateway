@@ -24,8 +24,15 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:cli": "jest --config ./test/jest-cli.json",
+    "test:cli:watch": "jest --config ./test/jest-cli.json --watch",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:all": "npm test && npm run test:e2e"
+    "test:all": "npm test && npm run test:e2e",
+    "pretest:integration": "npm run test:integration:redis:up",
+    "posttest:integration": "npm run test:integration:redis:down",
+    "test:integration": "jest --config ./test/jest-integration.json --runInBand",
+    "test:integration:redis:up": "docker compose -f test/integration/docker-compose.redis.yml up -d --wait",
+    "test:integration:redis:down": "docker compose -f test/integration/docker-compose.redis.yml down -v"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.93.0",
@@ -89,13 +96,20 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "testPathIgnorePatterns": [
+      "<rootDir>/cli/"
+    ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!cli/**"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
+    }
   }
 }

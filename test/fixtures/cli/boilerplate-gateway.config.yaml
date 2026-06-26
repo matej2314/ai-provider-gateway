@@ -1,0 +1,25 @@
+schemaVersion: 1
+masterKeyRef: MASTER_KEY_PLACEHOLDER
+
+providers:
+  placeholder-provider:
+    type: anthropic
+    apiKeyRef: ANTHROPIC_API_KEY_TEST
+    enabled: true
+
+clients:
+  placeholder-client:
+    name: Placeholder Client
+    type: ide
+    gatewayKeyRef: GATEWAY_KEY_PLACEHOLDER
+
+models:
+  test-model:
+    providerInstance: placeholder-provider
+    modelId: claude-sonnet-4-5
+    policy:
+      retry: {}
+      params:
+        defaults: {}
+        allowOverrides: []
+        bounds: {}

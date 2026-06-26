@@ -557,4 +557,100 @@ describe('ProviderRegistryService', () => {
       expect(result.params).toBeUndefined();
     });
   });
+
+  describe('resolve — multiple model aliases sequentially', () => {
+    const ALIAS_A = 'chat-default';
+    const ALIAS_B = 'fast-chat';
+    const PROVIDER_A = 'anthropic-primary';
+    const PROVIDER_B = 'google-primary';
+    const MODEL_ID_A = 'claude-sonnet-4-5';
+    const MODEL_ID_B = 'gemini-2.5-flash';
+
+    let providerA: AIProvider;
+    let providerB: AIProvider;
+
+    beforeEach(async () => {
+      providerA = createMockAIProvider() as AIProvider;
+      providerB = createMockAIProvider() as AIProvider;
+
+      await initService({
+        gateway: buildResolveGateway({
+          replace: { clients: true, providers: true, models: true },
+          providers: {
+            [PROVIDER_A]: {
+              type: 'anthropic',
+              apiKeyRef: 'ANTHROPIC_API_KEY',
+              enabled: true,
+            },
+            [PROVIDER_B]: {
+              type: 'google',
+              apiKeyRef: 'GOOGLE_API_KEY',
+              enabled: true,
+            },
+          },
+          models: {
+            [ALIAS_A]: {
+              modelId: MODEL_ID_A,
+              providerInstance: PROVIDER_A,
+              capabilities: { streaming: true, tools: true },
+              policy: EMPTY_MODEL_POLICY,
+            },
+            [ALIAS_B]: {
+              modelId: MODEL_ID_B,
+              providerInstance: PROVIDER_B,
+              capabilities: { streaming: true, tools: false },
+              policy: EMPTY_MODEL_POLICY,
+            },
+          },
+        }),
+      });
+
+      service.registerInstance(PROVIDER_A, 'anthropic', providerA);
+      service.registerInstance(PROVIDER_B, 'google', providerB);
+    });
+
+    it('should resolve alias A then alias B with distinct modelId, provider and instance', () => {
+      const first = service.resolve(ALIAS_A);
+      const second = service.resolve(ALIAS_B);
+
+      expect(first).toMatchObject({
+        modelAlias: ALIAS_A,
+        modelId: MODEL_ID_A,
+        providerName: PROVIDER_A,
+        providerType: 'anthropic',
+        provider: providerA,
+      });
+
+      expect(second).toMatchObject({
+        modelAlias: ALIAS_B,
+        modelId: MODEL_ID_B,
+        providerName: PROVIDER_B,
+        providerType: 'google',
+        provider: providerB,
+      });
+
+      expect(first.provider).not.toBe(second.provider);
+    });
+
+    it('should resolve alias B then alias A without cross-contamination', () => {
+      const secondFirst = service.resolve(ALIAS_B);
+      const firstSecond = service.resolve(ALIAS_A);
+
+      expect(secondFirst.modelId).toBe(MODEL_ID_B);
+      expect(firstSecond.modelId).toBe(MODEL_ID_A);
+      expect(secondFirst.provider).toBe(providerB);
+      expect(firstSecond.provider).toBe(providerA);
+    });
+
+    it('should keep independent capabilities per alias across sequential resolves', () => {
+      const a = service.resolve(ALIAS_A);
+      const b = service.resolve(ALIAS_B);
+      const aAgain = service.resolve(ALIAS_A);
+
+      expect(a.capabilities.tools).toBe(true);
+      expect(b.capabilities.tools).toBe(false);
+      expect(aAgain.capabilities.tools).toBe(true);
+      expect(aAgain.provider).toBe(a.provider);
+    });
+  });
 });
