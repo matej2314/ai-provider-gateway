@@ -1,139 +1,32 @@
+# Boilerplate — skopiuj do gateway.config.yaml i uruchom:
+#   gateway config:init
+#
+# Plik przechodzi walidację schematu, ale CLI traktuje go jako placeholder
+# (masterKeyRef / ID providerów / klientów zawierają "placeholder" lub "PLACEHOLDER")
+# i uruchamia wizard bez pytania o nadpisanie.
+
 schemaVersion: 1
-masterKeyRef: MASTER_KEY
+masterKeyRef: MASTER_KEY_PLACEHOLDER
 
 providers:
-  anthropic:
+  placeholder-provider:
     type: anthropic
-    apiKeyRef: ANTHROPIC_API_KEY
+    apiKeyRef: PLACEHOLDER_PROVIDER_API_KEY
     enabled: true
-  google:
-    type: google
-    apiKeyRef: GOOGLE_API_KEY
-    enabled: true
-# Configuration for gateway clients
 
 clients:
-  webapp:
-    name: My web app
-    type: webapp
-    gatewayKeyRef: GATEWAY_KEY_WEBAPP
-    rateLimit:
-      rps: 10
-      burst: 10
-      maxConcurrentStreams: 3
-  ide-plugin:
-    name: IDE INTEGRATION
+  placeholder-client:
+    name: Placeholder Client
     type: ide
-    gatewayKeyRef: GATEWAY_KEY_IDE_PLUGIN
+    gatewayKeyRef: GATEWAY_KEY_PLACEHOLDER
 
 models:
-  chat-default:
-    providerInstance: anthropic
-    modelId: claude-sonnet-4-5-20250929
-    capabilities:
-      streaming: true
-      tools: true
-      thinking: true
+  placeholder-model:
+    providerInstance: placeholder-provider
+    modelId: placeholder-model
     policy:
-      timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
+      retry: {}
       params:
-        defaults:
-          temperature: 0.4
-          maxOutputTokens: 500
-          thinkingEnabled: false
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-          - topP
-          - topK
-          - stop
-          - frequencyPenalty
-          - presencePenalty
-          - seed
-          - responseFormat
-          - thinkingEnabled
-          - thinkingBudget
-        bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-          topP: { min: 0, max: 1 }
-          frequencyPenalty: { min: -2, max: 2 }
-          presencePenalty: { min: -2, max: 2 }
-
-  claude-sonnet:
-    providerInstance: anthropic
-    modelId: claude-sonnet-4-5-20250929
-    fallback: chat-default
-    capabilities:
-      streaming: true
-      tools: true
-      thinking: true
-    policy:
-      timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
-      params:
-        defaults:
-          temperature: 0.4
-          maxOutputTokens: 1024
-          thinkingEnabled: false
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-          - topP
-          - topK
-          - stop
-          - frequencyPenalty
-          - presencePenalty
-          - seed
-          - responseFormat
-          - thinkingEnabled
-          - thinkingBudget
-        bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-          topP: { min: 0, max: 1 }
-          frequencyPenalty: { min: -2, max: 2 }
-          presencePenalty: { min: -2, max: 2 }
-
-  gemini-flash:
-    providerInstance: google
-    modelId: gemini-2.5-flash
-    fallback: chat-default
-    capabilities:
-      streaming: true
-      tools: true
-      thinking: false
-    policy:
-      timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
-      params:
-        defaults:
-          temperature: 0.4
-          maxOutputTokens: 1024
-          topP: 0.95
-          thinkingEnabled: false
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-          - topP
-          - topK
-          - stop
-          - frequencyPenalty
-          - presencePenalty
-          - seed
-          - responseFormat
-          - thinkingEnabled
-          - thinkingBudget
-        bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-          topP: { min: 0, max: 1 }
-          frequencyPenalty: { min: -2, max: 2 }
-          presencePenalty: { min: -2, max: 2 }
+        defaults: {}
+        allowOverrides: []
+        bounds: {}
