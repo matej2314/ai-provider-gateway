@@ -42,6 +42,7 @@ Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya, zarządzania
 | `model:add`, `model:list`, `model:remove`, `model:edit` | **wdrożone** |
 | `client:add`, `client:list`, `client:edit`, `client:remove` | **wdrożone** |
 | `key:generate` | **wdrożone** |
+| Testy jednostkowe CLI (`npm run test:cli`) | **wdrożone** (10 zestawów / 42 przypadki) |
 
 ## Uruchomienie
 
@@ -139,12 +140,12 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
 
 2. **Wizard (5 kroków)** — `WizardOrchestratorService`:
    - **1/5** Master key (`KeyPromptService` + `KeyGeneratorService` — format `gw_mk_<base64url>`)
-   - **2/5** Providery i klucze API (`ProviderPromptService`)
+   - **2/5** Providery i klucze API (`ProviderPromptService`) — domyślne ID instancji `{type}-primary` (`defaultProviderInstanceId`), `apiKeyRef` = `{INSTANCE_ID}_API_KEY` (`deriveApiKeyRef`), walidacja formatu klucza (`validateProviderApiKey`)
    - **3/5** Modele / aliasy (`ModelPromptService`, domyślne `modelId` z `constants/default-models.ts`: Anthropic `claude-sonnet-4-5-20250929`, Google `gemini-2.5-flash`)
    - **4/5** Klienci gateway (`ClientPromptService` — typ: `webapp` | `ide` | `cli` | `service` | `backend` | `automation`; klucze `gw_<slug>_<base64url>`; env ref `GATEWAY_KEY_<ID>`; opcjonalny `rateLimit` per klient **w YAML** — limity per klucz klienta; wymaga w runtime `RATE_LIMIT_SMART_ENABLED=true`, patrz krok 5/5)
    - **5/5** Ustawienia serwera (`ServerPromptService`) — kolejno:
      - **Podstawowe:** port, `NODE_ENV`, Swagger (`SWAGGER_ENABLED`).
-     - **Response cache:** `CACHE_ENABLED`, `CACHE_BACKEND` (`redis` | `memory` | `noop`). Wizard może zapisać `CACHE_BACKEND=memory` — runtime rejestruje tylko `noop` i `redis`; wartość `memory` traktowana jak **`noop`** (`CacheRegistryService`).
+     - **Response cache:** `CACHE_ENABLED`, `CACHE_BACKEND` (`redis` | `noop` — bez opcji `memory` w wizardzie).
      - **Smart rate limit:** `RATE_LIMIT_SMART_ENABLED` (niezależnie od backendu cache).
      - **Redis (wspólna infrastruktura):** host, port, hasło — **tylko gdy** `isRedisRequired()` z `src/cache/should-include-redis-stack.ts` zwraca `true`, tj. gdy `CACHE_ENABLED=true` **oraz** `CACHE_BACKEND=redis`, **lub** gdy `RATE_LIMIT_SMART_ENABLED=true`. Ta sama reguła co przy starcie HTTP (`isRedisRequiredFromEnv()` w `AppModule`).
      - **Monitoring:** Sentry (`METRICS_BACKEND`, `SENTRY_*`) lub `noop`.
@@ -163,7 +164,7 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
    | `REDIS_*` | Ustawiane tylko gdy Redis wymagany (`isEnvInputRedisRequired` → `isRedisRequired`); w przeciwnym razie puste stringi. Zawsze: `REDIS_DB`, `REDIS_KEY_PREFIX`. |
    | `RATE_LIMIT_SMART_ENABLED` | Zawsze z wyboru użytkownika w kroku rate limit (nie wiązane z `CACHE_BACKEND`). |
    | `RATE_LIMIT_*` (RPS, burst, streamy, cooldown) | Stałe domyślne w szablonie. |
-   | Sekrety providerów / klientów | Pełne wartości w `.env`; puste w `.env.example`. |
+   | Sekrety providerów / klientów | Pełne wartości w `.env` pod `apiKeyRef`; legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` — `applyLegacyProviderApiKeyEnv()`; puste w `.env.example`. |
 
    Przykładowe kombinacje (zgodne z runtime):
 
@@ -188,7 +189,7 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
 
 ### `gateway config:validate`
 
-Walidacja `gateway.config.yaml` (struktura Zod) oraz sprawdzenie obecności wymaganych zmiennych env (`loadWithEnvCheck()`).
+Walidacja `gateway.config.yaml` (struktura Zod + reguły runtime przez `validateGatewayConfig()`) oraz — po sukcesie YAML — formatu env (`validate()` z `env.validation.ts` przez **`CliGatewayValidatorService`**).
 
 ```bash
 gateway config:validate
@@ -196,9 +197,9 @@ gateway config:validate
 
 - Brak pliku `gateway.config.yaml` → exit `1` z podpowiedzią `gateway config:init`.
 - Wykryty boilerplate (`isBoilerplateConfig()`) → exit `1` z podpowiedzią `gateway config:init`.
-- Błąd schematu YAML → exit `1`.
-- Brakujące zmienne env (master, włączone providery, klienci) → exit `1` z listą.
-- Sukces → podsumowanie (schema version, liczba providerów/modeli/klientów).
+- Błąd schematu YAML lub brak klucza pod `apiKeyRef` włączonego providera → exit `1`.
+- Błędny format legacy klucza (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` gdy ustawione) → exit `1`.
+- Sukces → podsumowanie (schema version, liczba providerów/modeli/klientów); ostrzeżenia (np. pusty klucz klienta) nie blokują.
 
 **Uwaga:** Komenda sprawdza plik `gateway.config.yaml` w katalogu roboczym.
 
@@ -268,7 +269,7 @@ Interaktywne dodanie nowej instancji providera:
 
 - ID instancji (unikalne, np. `google-office`)
 - Typ adaptera (`PROVIDER_TYPES`: `anthropic`, `google`)
-- Klucz API (zapis do `.env` pod `deriveApiKeyRef()` → np. `GOOGLE_OFFICE_API_KEY`)
+- Klucz API (zapis do `.env` pod `deriveApiKeyRef(instanceId)` → np. `GOOGLE_OFFICE_API_KEY`; synchronizacja legacy env)
 - Flaga `enabled`
 
 Jeśli brak modeli powiązanych z nową instancją → **obowiązkowy** pod-flow dodania co najmniej jednego modelu (`ModelManagerService.addModelForProvider`) w tej samej sesji.
@@ -439,8 +440,15 @@ Kierunek zależności: **config → cli**, **cache/should-include-redis-stack �
 | `ClientManagerService` | add / remove / edit klientów |
 | `ProviderTestService` | Lekkie testy SDK Anthropic / Google |
 | `KeyGeneratorService` | Klucze master `gw_mk_*`, klient `gw_<slug>_*` |
+| `CliGatewayValidatorService` | `validateGatewayConfig()` + opcjonalnie `validateEnv()` (format legacy kluczy) |
+| `ProviderPromptService` | Krok 2/5 — ID instancji, `apiKeyRef`, walidacja formatu klucza |
+| `utils/provider-id.util.ts` | `deriveApiKeyRef`, `defaultProviderInstanceId` |
+| `utils/legacy-provider-env.util.ts` | `applyLegacyProviderApiKeyEnv`, `syncLegacyProviderApiKeysInEnv` |
+| `utils/api-key-validation.util.ts` | Walidacja prefiksów kluczy w wizardzie / CLI |
+| `constants/model-allow-overrides.ts` | Domyślna lista `allowOverrides` dla nowych modeli |
+| `utils/default-model-policy.util.ts` | Domyślne `capabilities` / `policy` per typ providera |
 | `ServerPromptService` | Prompty kroku 5/5 wizarda (cache, rate limit, Redis, Sentry) |
-| `templates/env.template.ts` | `generateEnvTemplate()`, `isEnvInputRedisRequired()` — mapowanie odpowiedzi wizarda na `.env` |
+| `templates/env.template.ts` | `generateEnvTemplate()`, `isEnvInputRedisRequired()` |
 | `src/cache/should-include-redis-stack.ts` | Współdzielona z runtime logika `isRedisRequired()` (CLI importuje **bez** `ConfigModule`) |
 
 Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import z `src/cache/should-include-redis-stack.ts`: predykat wymagania Redis (cache redis i/lub smart rate limit). Patrz `anty-patterny.md` (§14).

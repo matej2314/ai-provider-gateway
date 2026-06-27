@@ -10,7 +10,7 @@ export interface ServerConfigPromptResult {
   swaggerEnabled?: boolean;
 
   cacheEnabled?: boolean;
-  cacheBackend?: 'redis' | 'memory' | 'noop';
+  cacheBackend?: 'redis' | 'noop';
   redisHost?: string;
   redisPort?: number;
   redisPassword?: string;
@@ -93,18 +93,17 @@ export class ServerPromptService {
         type: 'confirm',
         name: 'cacheEnabled',
         message: 'Enable response caching?',
-        default: true,
+        default: false,
       },
       {
         type: 'list',
         name: 'cacheBackend',
         message: 'Cache backend:',
         choices: [
+          { name: 'Disabled (noop) — minimal setup', value: 'noop' },
           { name: 'Redis (recommended for production)', value: 'redis' },
-          { name: 'In-memory (for development)', value: 'memory' },
-          { name: 'Disabled', value: 'noop' },
         ],
-        default: 'redis',
+        default: 'noop',
         when: (answers: Partial<CacheAnswers>) => answers.cacheEnabled === true,
       },
     ]);
@@ -126,7 +125,7 @@ export class ServerPromptService {
         type: 'confirm',
         name: 'rateLimitSmartEnabled',
         message: 'Enable smart rate limiting (per X-Gateway-Key)?',
-        default: true,
+        default: false,
       },
     ]);
 

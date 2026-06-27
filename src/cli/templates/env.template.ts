@@ -1,8 +1,11 @@
 import { isRedisRequired } from '../../cache/should-include-redis-stack';
+import type { GatewayProviderType } from 'src/config/provider-types';
+import { applyLegacyProviderApiKeyEnv } from '../utils/legacy-provider-env.util';
 
 export interface ProviderCli {
   apiKeyRef: string;
   apiKey: string;
+  type?: GatewayProviderType;
 }
 
 export interface ClientCli {
@@ -20,7 +23,7 @@ export interface EnvTemplateInput {
   swaggerEnabled?: boolean;
 
   cacheEnabled?: boolean;
-  cacheBackend?: 'redis' | 'memory' | 'noop';
+  cacheBackend?: 'redis' | 'noop';
   redisHost?: string;
   redisPort?: number;
   redisPassword?: string;
@@ -52,7 +55,6 @@ export function generateEnvTemplate(
   env.APP_VERSION = '1.0.0';
   env.PORT = String(input.port || 3000);
   env.NODE_ENV = input.nodeEnv || 'development';
-  env.CONFIG_VALIDATE_STRICT = 'true';
   env.SWAGGER_ENABLED = String(input.swaggerEnabled ?? true);
 
   env[input.masterKeyRef] = input.masterKey;
@@ -60,6 +62,8 @@ export function generateEnvTemplate(
   input.providers.forEach((provider) => {
     env[provider.apiKeyRef] = provider.apiKey;
   });
+
+  applyLegacyProviderApiKeyEnv(env, input.providers);
 
   input.clients.forEach((client) => {
     env[client.gatewayKeyRef] = client.gatewayKey;
@@ -104,7 +108,7 @@ export function generateEnvTemplate(
   env.SENTRY_DSN = isSentryEnabled ? (input.sentryDsn ?? '') : '';
   env.SENTRY_INCLUDE_PROMPTS = 'true';
   env.SENTRY_ENVIRONMENT = input.nodeEnv || 'development';
-  env.SENTRY_TRACES_SAMPLE_RATE = '1.0';
+  env.SENTRY_TRACES_SAMPLE_RATE = '0.1';
 
   return env;
 }

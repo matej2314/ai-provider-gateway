@@ -37,6 +37,7 @@ import {
   validate,
   type ValidatedEnvironment,
 } from './env.validation';
+import { assertEnabledProviderApiKeysPresent } from './provider-api-key.validation';
 
 export { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
 
@@ -138,14 +139,7 @@ export function buildEffectiveGatewayConfig(
     }
   }
 
-  for (const [instanceId, row] of Object.entries(effectiveProviders)) {
-    const apiKey = (env[row.apiKeyRef] ?? '').trim();
-    if (!apiKey) {
-      throw new Error(
-        `[GatewayConfig] Missing API key for enabled provider instance "${instanceId}" (expected non-empty env ${row.apiKeyRef})`,
-      );
-    }
-  }
+  assertEnabledProviderApiKeysPresent(raw, env);
 
   return {
     ...raw,

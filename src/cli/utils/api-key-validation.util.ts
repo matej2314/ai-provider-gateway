@@ -1,0 +1,19 @@
+import type { GatewayProviderType } from 'src/config/provider-types';
+
+const ANTHROPIC_KEY = /^sk-ant-/;
+const GOOGLE_KEY = /^(AIza|AQ\.)/;
+
+export function validateProviderApiKey(
+  type: GatewayProviderType,
+  value: string,
+): true | string {
+  const trimmed = value.trim();
+  if (!trimmed) return 'API key is required.';
+  if (type === 'anthropic' && !ANTHROPIC_KEY.test(trimmed)) {
+    return 'ANTHROPIC_API_KEY must start with "sk-ant-"';
+  }
+  if (type === 'google' && !GOOGLE_KEY.test(trimmed)) {
+    return 'GOOGLE_API_KEY must start with "AIza" or "AQ."';
+  }
+  return true;
+}

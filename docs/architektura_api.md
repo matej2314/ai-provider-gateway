@@ -31,7 +31,7 @@ Błędy w spec: natywny czat — `ErrorEnvelope`; fasady — `OpenAiErrorRespons
   - **standard** (pełna odpowiedź JSON),
   - **streaming** (SSE gateway: `meta` → `delta` → `done`).
 
-**Warunek uruchomienia:** przy starcie wczytywany jest `gateway.config.yaml` (fail‑fast przy błędzie). Walidacja env: **minimum jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` obowiązuje **tylko gdy `NODE_ENV=production`** (`src/config/env.validation.ts`; szczegóły: `docs/konfiguracja.md`).
+**Warunek uruchomienia:** przy starcie wczytywany jest `gateway.config.yaml` (fail‑fast przy błędzie). Każda włączona instancja providera wymaga niepustego env pod **`apiKeyRef`** z YAML (`provider-api-key.validation.ts`; szczegóły: `docs/konfiguracja.md`).
 
 ## Identyfikacja modeli (aliasy)
 

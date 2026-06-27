@@ -125,7 +125,7 @@ Szerszy kontekst warstw promptu: `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` 
 ## Konfiguracja i sekrety
 
 - Sekrety (klucze providerów) **wyłącznie** w env (`.env` lokalnie, w infrastrukturze użytkownika: menedżer sekretów).
-- Przy starcie w **`NODE_ENV=production`** walidowane jest, że ustawiony jest **co najmniej jeden** klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`env.validation.ts`).
+- Przy starcie każda **włączona** instancja providera w YAML musi mieć niepusty klucz pod **`apiKeyRef`** (`assertEnabledProviderApiKeysPresent` w `buildEffectiveGatewayConfig`; szczegóły: `konfiguracja.md`).
 - Pliki konfiguracyjne opisują **modele, aliasy, limity i polityki** (bez wartości sekretów).
 - Gateway uruchamia się w trybie “plug&play”: jeśli konfiguracja jest błędna → proces kończy się na starcie z czytelną informacją.
 - **Multi-instance — wiele wpisów z tym samym `type`.** W `providers:` może być np. `google` i `google-office` (oba `type: google`), każdy z **unikalnym** `apiKeyRef`. Walidacja Zod odrzuca duplikat `apiKeyRef`, nie duplikat `type`. Przy starcie `ProviderInstancesBootstrap` tworzy osobny `AIProvider` (osobny klient SDK) per wpis YAML; `ProviderRegistryService.resolve()` wybiera instancję po **`models[].providerInstance`**. Szczegóły: `spec/SPEC-PROVIDERS.md`, `dictionary.md`.

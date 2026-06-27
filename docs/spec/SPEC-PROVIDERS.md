@@ -28,7 +28,7 @@ Implementacja: fabryki w `src/providers/factories/` (zwykłe funkcje, bez `@Inje
 
 ## Klucze API (env)
 
-Wartości uwierzytelniające są wczytywane z env przez **`apiKeyRef`** w YAML (per **instancja**, nie per typ). W **`NODE_ENV=production`** przy starcie obowiązuje reguła z `src/config/env.validation.ts`: **co najmniej jeden** niepusty klucz spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (szczegóły: `docs/konfiguracja.md`). Dla każdego **aktywnego** `providerInstance` `buildEffectiveGatewayConfig` wymaga niepustego env wskazanego przez `apiKeyRef`. W development reguła globalna nie blokuje startu, ale brak klucza dla używanej instancji kończy się błędem bootstrapu lub API.
+Wartości uwierzytelniające są wczytywane z env przez **`apiKeyRef`** w YAML (per **instancja**, nie per typ). W **`NODE_ENV=production`** przy starcie obowiązuje reguła z `provider-api-key.validation.ts`: **niepusty env pod `apiKeyRef`** dla każdej włączonej instancji (`buildEffectiveGatewayConfig`). Szczegóły: `docs/konfiguracja.md`.
 
 ## Użytkownicy i scenariusze
 

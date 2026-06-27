@@ -76,6 +76,10 @@ export class CliConfigLoaderService {
     return existsSync(configPath);
   }
 
+  /**
+   * Walidacja strukturalna YAML + lista brakujących env.
+   * Pełna walidacja runtime: CliGatewayValidatorService / gateway config:validate.
+   */
   loadWithEnvCheck(path?: string): {
     config: GatewayConfig;
     missingEnvVars: string[];

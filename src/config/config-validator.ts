@@ -22,7 +22,6 @@ export interface ValidationResult {
 export interface ValidationOptions {
   configPath?: string;
   env?: NodeJS.ProcessEnv;
-  strictProviderKeys?: boolean;
 }
 
 function formatZodIssues(error: z.ZodError): string[] {
@@ -46,17 +45,6 @@ function collectInactiveProviderWarnings(
     }
   }
   return warnings;
-}
-
-function assertStrictProviderKeysIfRequested(
-  env: NodeJS.ProcessEnv,
-): string | undefined {
-  const anthropic = (env.ANTHROPIC_API_KEY ?? '').trim();
-  const google = (env.GOOGLE_API_KEY ?? '').trim();
-  if (!anthropic && !google) {
-    return 'ERROR: [strictProviderKeys]: set at least one of ANTHROPIC_API_KEY or GOOGLE_API_KEY';
-  }
-  return undefined;
 }
 
 export function validateGatewayConfig(
@@ -114,6 +102,7 @@ export function validateGatewayConfig(
   try {
     effectiveConfig = buildEffectiveGatewayConfig(parsed, env);
   } catch (err) {
+    // Provider API keys: validated in buildEffectiveGatewayConfig via apiKeyRef from YAML.
     errors.push(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
     return { success: false, errors, warnings };
   }
@@ -129,11 +118,6 @@ export function validateGatewayConfig(
 
   warnings.push(...collectInactiveProviderWarnings(parsed, effectiveConfig));
 
-  const strictError = assertStrictProviderKeysIfRequested(env);
-  if (strictError) {
-    errors.push(strictError);
-    return { success: false, errors, warnings };
-  }
   return {
     success: true,
     effectiveConfig,

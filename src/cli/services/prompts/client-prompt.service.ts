@@ -121,11 +121,11 @@ export class ClientPromptService {
           {
             type: 'number',
             name: 'maxConcurrentStreams',
-            message: 'Max concurrent streams ( 0 to disable):',
-            default: 0,
+            message: 'Max concurrent streams (minimum 1):',
+            default: 3,
             validate: (input: number) => {
-              if (input < 0)
-                return 'Max concurrent streams must be 0 or positive.';
+              if (input < 1)
+                return 'Max concurrent streams must be at least 1.';
               return true;
             },
           },
@@ -134,9 +134,7 @@ export class ClientPromptService {
         rateLimit = {
           rps: rateLimitAnswers.rps,
           burst: rateLimitAnswers.burst,
-          ...(rateLimitAnswers.maxConcurrentStreams > 0 && {
-            maxConcurrentStreams: rateLimitAnswers.maxConcurrentStreams,
-          }),
+          maxConcurrentStreams: rateLimitAnswers.maxConcurrentStreams,
         };
       }
 

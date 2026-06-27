@@ -4,8 +4,13 @@ import chalk from 'chalk';
 import { CliLogger } from '../utils/cli-logger.util';
 import { ConfigTemplateInput } from '../templates/gateway-config.template';
 import { EnvTemplateInput } from '../templates/env.template';
-import { WizardStep, WizardStateManager } from './wizard-state-manager.service';
+import {
+  WizardStep,
+  WIZARD_INIT_STEPS,
+  type WizardStep as WizardStepType,
+} from '../constants/wizard-steps';
 import { WizardState } from './cli.services.types';
+import { WizardStateManager } from './wizard-state-manager.service';
 import { KeyPromptService } from './prompts/key-prompt.service';
 import { ProviderPromptService } from './prompts/provider-prompt.service';
 import { ModelPromptService } from './prompts/model-prompt.service';
@@ -13,9 +18,10 @@ import { ClientPromptService } from './prompts/client-prompt.service';
 import { ServerPromptService } from './prompts/server-prompt.service';
 import { KeyGeneratorService } from './key-generator.service';
 
-export interface WizardResult {
+export interface WizardRunResult {
   configInput: ConfigTemplateInput;
   envInput: EnvTemplateInput;
+  wizardState: WizardState;
 }
 
 @Injectable()
@@ -30,7 +36,7 @@ export class WizardOrchestratorService {
     private readonly keyGenerator: KeyGeneratorService,
   ) {}
 
-  async runInitWizard(): Promise<WizardResult> {
+  async runInitWizard(): Promise<WizardRunResult> {
     const existingState = await this.stateManager.loadState();
 
     if (existingState) {
@@ -67,16 +73,12 @@ export class WizardOrchestratorService {
     };
 
     try {
-      await this.executeStep(state, WizardStep.MasterKey);
-      await this.executeStep(state, WizardStep.Providers);
-      await this.executeStep(state, WizardStep.Models);
-      await this.executeStep(state, WizardStep.Clients);
-      await this.executeStep(state, WizardStep.ServerConfig);
+      for (const step of WIZARD_INIT_STEPS) {
+        await this.executeStep(state, step);
+      }
 
       const result = this.buildResult(state);
-
-      await this.stateManager.clearState();
-      return result;
+      return { ...result, wizardState: state };
     } catch (error) {
       await this.stateManager.saveState(state);
 
@@ -92,60 +94,61 @@ export class WizardOrchestratorService {
 
   private async executeStep(
     state: WizardState,
-    step: WizardStep,
+    step: WizardStepType,
   ): Promise<void> {
     state.currentStep = step;
 
-    switch (step) {
-      case WizardStep.MasterKey:
-        state.data.masterKey = await this.keyPrompt.promptMasterKey(
-          this.keyGenerator,
-        );
-        break;
-      case WizardStep.Providers:
-        state.data.providers = await this.providerPrompt.promptProviders();
-        break;
-      case WizardStep.Models:
-        state.data.models = await this.modelPrompt.promptModels(
-          state.data.providers!,
-        );
-        break;
-      case WizardStep.Clients:
-        state.data.clients = await this.clientPrompt.promptClients(
-          this.keyGenerator,
-        );
-        break;
-      case WizardStep.ServerConfig:
-        state.data.serverConfig = await this.serverPrompt.promptServerConfig();
-        break;
+    try {
+      switch (step) {
+        case WizardStep.MasterKey:
+          state.data.masterKey = await this.keyPrompt.promptMasterKey(
+            this.keyGenerator,
+          );
+          break;
+        case WizardStep.Providers:
+          state.data.providers = await this.providerPrompt.promptProviders();
+          break;
+        case WizardStep.Models:
+          state.data.models = await this.modelPrompt.promptModels(
+            state.data.providers!,
+          );
+          break;
+        case WizardStep.Clients:
+          state.data.clients = await this.clientPrompt.promptClients(
+            this.keyGenerator,
+          );
+          break;
+        case WizardStep.ServerConfig:
+          state.data.serverConfig = await this.serverPrompt.promptServerConfig();
+          break;
+      }
+      state.completedSteps.push(step);
+      await this.stateManager.saveState(state);
+    } catch (error) {
+      await this.stateManager.saveState(state);
+      throw error;
     }
-    state.completedSteps.push(step);
-    await this.stateManager.saveState(state);
   }
 
-  private async resumeWizard(state: WizardState): Promise<WizardResult> {
+  private async resumeWizard(state: WizardState): Promise<WizardRunResult> {
     CliLogger.section('Resuming wizard...');
-    CliLogger.info(`Last completed step: ${state.currentStep}`);
+    const pending = WIZARD_INIT_STEPS.filter(
+      (step) => !state.completedSteps.includes(step),
+    );
+    CliLogger.info(
+      `Completed: ${state.completedSteps.join(', ') || 'none'}. Pending: ${pending.join(', ') || 'none'}`,
+    );
     CliLogger.blank();
 
-    const allSteps = [
-      WizardStep.MasterKey,
-      WizardStep.Providers,
-      WizardStep.Models,
-      WizardStep.Clients,
-      WizardStep.ServerConfig,
-    ];
-
-    const nextStepIndex = allSteps.indexOf(state.currentStep) + 1;
-
-    for (let i = nextStepIndex; i < allSteps.length; i++) {
-      await this.executeStep(state, allSteps[i]);
+    for (const step of pending) {
+      await this.executeStep(state, step);
     }
 
-    return this.buildResult(state);
+    const result = this.buildResult(state);
+    return { ...result, wizardState: state };
   }
 
-  private buildResult(state: WizardState): WizardResult {
+  private buildResult(state: WizardState): Omit<WizardRunResult, 'wizardState'> {
     const serverConfig = state.data.serverConfig!;
 
     const envInput: EnvTemplateInput = {
@@ -154,6 +157,7 @@ export class WizardOrchestratorService {
       providers: state.data.providers!.map((provider) => ({
         apiKeyRef: provider.apiKeyRef,
         apiKey: provider.apiKey,
+        type: provider.type,
       })),
       clients: state.data.clients!.map((client) => ({
         gatewayKeyRef: client.gatewayKeyRef,

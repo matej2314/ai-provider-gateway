@@ -4,16 +4,12 @@ import { basename, join } from 'path';
 import { CliLogger } from '../utils/cli-logger.util';
 import { parseWizardState } from '../schemas/wizard-state.schema';
 import type { WizardState } from './cli.services.types';
-
-export enum WizardStep {
-  MasterKey = 'master-key',
-  Providers = 'providers',
-  Models = 'models',
-  Clients = 'clients',
-  ServerConfig = 'server-config',
-  WriteFiles = 'write-files',
-  Complete = 'complete',
-}
+export {
+  WizardStep,
+  WIZARD_STEPS,
+  WIZARD_INIT_STEPS,
+} from '../constants/wizard-steps';
+export type { WizardStep as WizardStepType } from '../constants/wizard-steps';
 
 @Injectable()
 export class WizardStateManager {

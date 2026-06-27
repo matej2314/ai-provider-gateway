@@ -4,6 +4,10 @@ import { tmpdir } from 'os';
 import { ConfigPersistenceService } from './config-persistence.service';
 import { FileManagerService } from './file-manager.service';
 import { createTestGatewayConfig } from '../../common/mocks/createTestGatewayConfig';
+import {
+  TEST_API_KEY_REF,
+  TEST_PROVIDER_INSTANCE,
+} from '../../common/mocks/test-constants';
 
 describe('ConfigPersistenceService', () => {
   let service: ConfigPersistenceService;
@@ -17,6 +21,11 @@ describe('ConfigPersistenceService', () => {
     cwd = mkdtempSync(join(tmpdir(), 'gateway-persist-'));
     originalCwd = process.cwd();
     process.chdir(cwd);
+    writeFileSync(
+      join(cwd, '.env'),
+      `${TEST_API_KEY_REF}=sk-ant-test-key-for-persist\n`,
+      'utf-8',
+    );
   });
 
   afterEach(() => {
@@ -54,5 +63,34 @@ describe('ConfigPersistenceService', () => {
 
     const backupDir = join(cwd, 'backup');
     expect(await fileManager.fileExists(backupDir)).toBe(true);
+  });
+
+  it('persistConfig rejects config with no models at schema validation', async () => {
+    const invalid = createTestGatewayConfig();
+    invalid.models = {};
+    await expect(service.persistConfig(invalid, cwd)).rejects.toThrow(
+      /Models section must contain at least one model alias/,
+    );
+  });
+
+  it('persistConfig rejects config with no active models when effective check enabled', async () => {
+    const invalid = createTestGatewayConfig({
+      providers: { [TEST_PROVIDER_INSTANCE]: { enabled: false } },
+    });
+    await expect(service.persistConfig(invalid, cwd)).rejects.toThrow(
+      /would fail at application startup|No active models/,
+    );
+  });
+
+  it('persistConfig allows skipEffectiveCheck for destructive ops', async () => {
+    const configPath = join(cwd, 'gateway.config.yaml');
+    writeFileSync(configPath, 'schemaVersion: 1\n', 'utf-8');
+
+    const invalid = createTestGatewayConfig({
+      providers: { [TEST_PROVIDER_INSTANCE]: { enabled: false } },
+    });
+    await expect(
+      service.persistConfig(invalid, cwd, { skipEffectiveCheck: true }),
+    ).resolves.toBeDefined();
   });
 });

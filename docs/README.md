@@ -39,7 +39,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 18. **OpenAPI / Swagger** — `@nestjs/swagger` w kontrolerach i DTO (`src/swagger/`); jeden dokument obejmuje **natywny czat**, **health** oraz **fasady** OpenAI/Anthropic (osobne `securitySchemes`: `GatewayKeyAuth`, `BearerAuth`, `ApiKeyAuth`); dekoratory błędów: `ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport: `npm run openapi:export` → `openapi.json`; env `SWAGGER_ENABLED` — `konfiguracja.md`, `dokumentacja_api.md`.
 19. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`). **Fasada ≠ provider runtime:** `/api/v1/openai/*` i `/api/v1/anthropic/*` to kształty kontraktów HTTP (standardy dla Cursor / Claude Code), **nie** gwarancja backendu OpenAI.com ani Anthropic — routing LLM wyłącznie przez `modelAlias` w YAML. Szczegóły: **`dictionary.md`** (sekcja „Fasada vs provider runtime”), `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`, planowany adapter OpenAI: **`provider-openai-runtime.md`**.
 20. **CLI** — osobny entry point `bin/`, moduł `src/cli/` bez `ConfigModule`; wizard **`gateway config:init`**, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli i klientów, `provider:test`, `key:generate`. Backup mutacji YAML → katalog `backup/`. Uruchomienie: `npm run cli`, `npx gateway`, opcjonalnie `npm link` → `gateway`. Szczegóły: **`CLI.md`**, `architektura-katalogi-pliki.md` (sekcja 2a), `architektura.md`.
-21. **Testy** — jednostkowe (`src/**/*.spec.ts`, `npm test`) i E2E HTTP (`test/e2e/`, `npm run test:e2e`, `npm run test:all`); mocki providerów/Redis bez realnych kluczy API — **`testy.md`** (liczniki zestawów i przypadków — single source of truth).
+21. **Testy** — cztery warstwy: jednostkowe runtime (`npm test`, **66** zestawów / **1112** przypadków, bez `src/cli/`), jednostkowe CLI (`npm run test:cli`, **10** / **42**), E2E HTTP mock (`test/e2e/`, **8** / **85**), integracyjne live SDK+Redis (`test/integration/`, `npm run test:integration`); `npm run test:all` = runtime + E2E — **`testy.md`** (single source of truth dla liczników).
 
 ## Spis plików
 
@@ -50,7 +50,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 - `lista_endpointów.md` — szybka lista endpointów (standard + streaming).
 - `dokumentacja_api.md` — szczegółowy kontrakt endpointów, przykłady payloadów.
 - `conversation-tracking.md` — `conversationId`, tryby Sentry (pojedyncza wiadomość vs konwersacja), przepływ tura 1→2, obowiązki klienta.
-- `konfiguracja.md` — env + `gateway.config.yaml` (wizard `config:init`, wczytywanie przy starcie, walidacja Zod w `gateway-config.schema.ts` i spójność `providers` ↔ `models`); w **production** wymóg **minimum jednego** klucza Anthropic lub Google (`src/config/env.validation.ts`); opcjonalnie **`CACHE_*`** / **`REDIS_*`** dla cache odpowiedzi czatu; skrypt `npm run config:validate` — walidacja offline (YAML + reguły env) bez uruchamiania serwera.
+- `konfiguracja.md` — env + `gateway.config.yaml` (wizard `config:init`, wczytywanie przy starcie, walidacja Zod, klucze providerów **per `apiKeyRef`** w YAML — `provider-api-key.validation.ts`; legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` synchronizowane przez CLI); opcjonalnie **`CACHE_*`** / **`REDIS_*`**; skrypt `npm run config:validate`.
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.
 - `dictionary.md` — słownik pojęć, kody błędów, **macierz parametrów generacji ↔ provider** (Anthropic / Google / OpenAI planowany).
 - `anty-patterny.md` — na co uważać, czego nie robić.
@@ -60,7 +60,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 - `integracja-anthropic-messages.md` — **fasada** kontraktu Anthropic: podłączenie Claude Code (Base URL `/api/v1/anthropic`); models + messages (JSON i stream).
 - `architektura-katalogi-pliki.md` — drzewo katalogów repo, w tym **CLI** (`bin/`, `src/cli/`, sekcja 2a).
 - `CLI.md` — dokumentacja Gateway CLI (18 komend: `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate`; wizard, backup w `backup/`, uruchomienie).
-- `testy.md` — testy jednostkowe i E2E (`npm test`, `npm run test:e2e`, `npm run test:all`); struktura `test/e2e/`, mocki, scenariusze kontraktu HTTP.
+- `testy.md` — testy jednostkowe (runtime + CLI), E2E i integracyjne; skrypty `npm test`, `npm run test:cli`, `npm run test:e2e`, `npm run test:integration`, `npm run test:all`.
 
 ## Specyfikacje (SDD)
 

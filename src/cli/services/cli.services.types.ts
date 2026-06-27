@@ -1,7 +1,7 @@
 import type { GatewayProviderType } from 'src/config/provider-types';
 import type { GatewayClientType } from 'src/config/configuration.types';
 import type { ServerConfigPromptResult } from './prompts/server-prompt.service';
-import type { WizardStep } from './wizard-state-manager.service';
+import type { WizardStep } from '../constants/wizard-steps';
 
 export interface CliRateLimit {
   rps: number;

@@ -35,7 +35,7 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 | Adapter OpenAI (runtime)  | [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md) *(planowany)*          |
 | Architektura fasad IDE      | [`docs/integracje.md`](docs/integracje.md)                                                  |
 | Gateway CLI                 | [`docs/CLI.md`](docs/CLI.md)                                                                |
-| Testy (jednostkowe + E2E)   | [`docs/testy.md`](docs/testy.md)                                                             |
+| Testy (jednostkowe, CLI, E2E, integracyjne) | [`docs/testy.md`](docs/testy.md)                                             |
 
 ## Dystrybucja
 
@@ -129,7 +129,7 @@ npm run cli config:validate
 # alternatywa: npm run config:validate
 ```
 
-W **`NODE_ENV=production`** przy starcie wymagany jest **co najmniej jeden** niepusty klucz providera (po `trim()`). W development start nie jest blokowany — nadal potrzebujesz klucza dla używanego providera.
+Przy starcie każda **włączona** instancja providera w YAML musi mieć niepusty klucz w env pod nazwą wskazaną przez **`apiKeyRef`** (np. `ANTHROPIC_PRIMARY_API_KEY`). Wizard generuje nazwy `{INSTANCE_ID}_API_KEY` i dodatkowo synchronizuje legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` w `.env`. Opcjonalne legacy zmienne mają walidację formatu (`sk-ant-`, `AIza` / `AQ.`) — szczegóły: [`docs/konfiguracja.md`](docs/konfiguracja.md).
 
 **Uwaga:** Przed pierwszym uruchomieniem uzupełnij `.env` (klucze providerów + `MASTER_KEY` / `GATEWAY_KEY_*`) albo uruchom `npm run cli config:init`. Bez poprawnego YAML i env start aplikacji kończy się błędem walidacji.
 
@@ -224,9 +224,11 @@ Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.m
 Uruchomienie:
 
 ```bash
-npm test                 # jednostkowe
-npm run test:e2e         # end-to-end
-npm run test:all         # wszystkie
+npm test                 # jednostkowe (src/, bez src/cli/)
+npm run test:cli         # jednostkowe CLI (src/cli/)
+npm run test:e2e         # end-to-end HTTP (mocki)
+npm run test:integration # live SDK + Redis (Docker, .env.test)
+npm run test:all         # jednostkowe + E2E
 ```
 
 ## Gateway CLI
@@ -270,7 +272,9 @@ npm run start:prod      # po build
 npm run openapi:export  # openapi.json z dekoratorów @nestjs/swagger
 npm run cli             # Gateway CLI (alias: npx gateway)
 npm run config:validate # walidacja offline (scripts/validate-config.ts)
-npm test                # testy jednostkowe (src/**/*.spec.ts)
+npm test                # testy jednostkowe (src/, bez cli/)
+npm run test:cli        # testy jednostkowe CLI (src/cli/)
 npm run test:e2e        # testy E2E HTTP (test/e2e/)
+npm run test:integration # testy integracyjne live (test/integration/)
 npm run test:all        # jednostkowe + E2E
 ```

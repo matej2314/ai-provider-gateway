@@ -106,9 +106,9 @@ Uzasadnienie: Fasady IDE wymagają zgodności z OpenAI API i Anthropic Messages 
 
 ## 10) Uruchomienie bez wymaganego klucza API
 
-**Nie rób**: zwalniania **produkcyjnej** instancji do ruchu, gdy w env nie ma **co najmniej jednego** niepustego klucza spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (`NODE_ENV=production`; reguła w `src/config/env.validation.ts`).
+**Nie rób**: uruchamiania gatewaya, gdy w env brakuje klucza pod **`apiKeyRef`** dla którejkolwiek **włączonej** instancji providera w YAML (`assertEnabledProviderApiKeysPresent`).
 
-**Rób**: fail-fast w production przy starcie; lokalnie pamiętaj, że wywołanie providera i tak wymaga realnego klucza dla używanej **instancji** (`apiKeyRef` w YAML — szczegóły: `docs/konfiguracja.md`).
+**Rób**: fail-fast przy starcie; lokalnie upewnij się, że `.env` zawiera wartości dla wszystkich `apiKeyRef` włączonych providerów (szczegóły: `docs/konfiguracja.md`).
 
 ## 11) Mylenie kodów limitów (`RATE_LIMITED` vs `PROVIDER_RATE_LIMITED`)
 

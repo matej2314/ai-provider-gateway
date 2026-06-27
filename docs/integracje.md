@@ -138,7 +138,7 @@ Kody błędów wewnętrzne (`GATEWAY_KEY_MISSING`, `GATEWAY_KEY_INVALID`) są ma
 
 ### Klucze providerów (gateway → LLM)
 
-Adaptery w `src/providers/` używają wyłącznie `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` itd. z `.env` — **nigdy** klucza klienta z IDE.
+Adaptery w `src/providers/` używają kluczy z env wskazanych przez **`apiKeyRef`** w YAML (np. `ANTHROPIC_PRIMARY_API_KEY`, `GOOGLE_API_KEY`) — **nigdy** klucza klienta z IDE. CLI synchronizuje opcjonalnie legacy nazwy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`.
 
 ## Smart rate limit
 

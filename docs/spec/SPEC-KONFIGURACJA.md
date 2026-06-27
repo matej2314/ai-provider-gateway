@@ -13,13 +13,13 @@ Użytkownik ma móc skonfigurować gateway bez zmian w kodzie:
 ### Scenariusz A — minimalna konfiguracja
 
 1. Użytkownik uruchamia **`gateway config:init`** (zalecane po sklonowaniu — zastępuje boilerplate w repo) **lub** ręcznie ustawia env i YAML.
-2. Ustawia **co najmniej jeden** klucz providera w `.env`: `ANTHROPIC_API_KEY` **lub** `GOOGLE_API_KEY` (w środowisku **production** gateway odrzuca start bez żadnego niepustego klucza po `trim()`; w development ta reguła nie jest egzekwowana — patrz `src/config/env.validation.ts`).
-3. W configu dodaje `providerInstance=anthropic` (lub `google`) z `enabled: true` i `modelAlias=chat-default`.
+2. Ustawia klucze providerów w `.env` pod nazwami **`apiKeyRef`** z YAML (wizard generuje np. `ANTHROPIC_PRIMARY_API_KEY` dla instancji `anthropic-primary`; synchronizuje też legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`).
+3. W configu dodaje `providerInstance=anthropic-primary` (lub inne ID) z `enabled: true` i `modelAlias=chat-default`.
 4. Uruchamia serwis i wywołuje `/chat`.
 
 ### Scenariusz B — konfiguracja dwóch providerów + streaming
 
-1. Użytkownik ustawia w `.env` klucze dla **każdego** providera faktycznie używanego w konfiguracji modeli (np. przy aliasach na Anthropic i Google — typowo **oba** klucze: `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`). W **production** dodatkowo musi być spełniony **globalny** warunek: **co najmniej jeden** niepusty klucz spośród `env.validation.ts` (wystarczy jeden provider). Same zmienne env są opcjonalne pojedynczo (poza production); wartości są liczone po `trim()`.
+1. Użytkownik ustawia w `.env` klucze dla **każdej włączonej** instancji providera w YAML (pod `apiKeyRef` — np. `ANTHROPIC_PRIMARY_API_KEY` i `GOOGLE_PRIMARY_API_KEY` przy dwóch providerach).
 2. Tworzy dwa aliasy modeli, jeden z `streaming: true`.
 3. Wywołuje `POST /api/v1/chat/stream` dla aliasu wspierającego streaming.
 
@@ -27,7 +27,7 @@ Użytkownik ma móc skonfigurować gateway bez zmian w kodzie:
 
 F-1. Sekrety muszą być pobierane wyłącznie z env.
 
-F-1a. Przy starcie w **`NODE_ENV=production`** musi być spełniony warunek **„co najmniej jeden klucz API”** spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`). W przeciwnym razie serwis nie startuje. Implementacja: `hasAtLeastOneProviderKey` w `src/config/env.validation.ts` (po `validateSync` dla klasy `EnvironmentVariables`).
+F-1a. Dla każdej instancji providera z **`enabled !== false`** env pod **`apiKeyRef`** musi być niepusty po `trim()`. Implementacja: `assertEnabledProviderApiKeysPresent` w `src/config/provider-api-key.validation.ts`, wywoływane z `buildEffectiveGatewayConfig`. Gdy ustawione — opcjonalne legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` mają walidację formatu w `src/config/env.validation.ts`.
 
 F-1b. *(Opcjonalnie)* Zmienne env **`CACHE_*`** i **`REDIS_*`** mogą włączyć zapis/odczyt odpowiedzi czatu w Redis (`src/config/env.validation.ts`, `src/config/configuration.ts`, `src/app.module.ts`, `docs/konfiguracja.md`).
 
@@ -61,7 +61,7 @@ NFR-3. Dostępny jest skrypt npm **`config:validate`** (wpis w `package.json`), 
 
 ## Kryteria akceptacji
 
-- [x] Serwis nie startuje w **`NODE_ENV=production`** bez **minimum jednego** klucza providera w env (zg. z `env.validation.ts`) oraz bez env wymaganych przez `apiKeyRef` w aktywnej konfiguracji modeli. W development reguła globalna kluczy providerów nie blokuje startu; **`npm run config:validate`** zawsze wymaga ≥1 klucza Anthropic/Google.
+- [x] Serwis nie startuje bez env wymaganych przez **`apiKeyRef`** włączonych providerów oraz bez klucza master. `gateway config:validate` dodatkowo waliduje format legacy kluczy (`CliGatewayValidatorService`).
 - [x] Serwis nie startuje z configiem niespójnym: nieznany `providerInstance`, puste `models`, włączony provider bez modeli (F-3b, F-3c).
 - [x] Serwis nie startuje przy **duplikacie `apiKeyRef`** w `providers` (F-3a).
 - [x] W YAML dozwolone są **wiele instancji** z tym samym `type` (multi-instance runtime).

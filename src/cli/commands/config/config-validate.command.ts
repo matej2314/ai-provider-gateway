@@ -1,14 +1,19 @@
 import { Command, CommandRunner } from 'nest-commander';
 import { CliConfigLoaderService } from '../../services/cli-config-loader.service';
+import { CliGatewayValidatorService } from '../../services/cli-gateway-validator.service';
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
 import chalk from 'chalk';
+import { join } from 'path';
 
 @Command({
   name: 'config:validate',
   description: 'Validate gateway configuration files.',
 })
 export class ConfigValidateCommand extends CommandRunner {
-  constructor(private readonly cliLoader: CliConfigLoaderService) {
+  constructor(
+    private readonly cliLoader: CliConfigLoaderService,
+    private readonly gatewayValidator: CliGatewayValidatorService,
+  ) {
     super();
   }
 
@@ -30,36 +35,35 @@ export class ConfigValidateCommand extends CommandRunner {
         process.exit(1);
       }
 
-      const spinner = CliLogger.spinner('Checking YAML structure...');
-      const { config, missingEnvVars } = this.cliLoader.loadWithEnvCheck();
-      spinner.succeed('YAML structure is valid.');
+      const spinner = CliLogger.spinner('Validating (runtime rules)...');
+      const result = this.gatewayValidator.validate({
+        configPath: join(process.cwd(), 'gateway.config.yaml'),
+      });
 
-      if (missingEnvVars.length > 0) {
+      if (result.success) {
+        spinner.succeed('Configuration is valid!');
+        if (result.warnings.length > 0) {
+          CliLogger.blank();
+          CliLogger.warning('Warnings:');
+          result.warnings.forEach((w) => console.log(chalk.yellow(`  ${w}`)));
+        }
+        const config = this.cliLoader.loadRawConfig();
         CliLogger.blank();
-        CliLogger.warning('Missing environment variables:');
-        missingEnvVars.forEach((v) => {
-          console.log(chalk.yellow(`  • ${v}`));
-        });
-        CliLogger.blank();
-        CliLogger.info('These variables are required in .env file.');
-        CliLogger.info(
-          'Values should match references in gateway.config.yaml.',
+        CliLogger.dim('Details:');
+        CliLogger.dim(`  - Schema version: ${config.schemaVersion}`);
+        CliLogger.dim(
+          `  - Providers: ${Object.keys(config.providers).join(', ')}`,
         );
-        process.exit(1);
+        CliLogger.dim(`  - Models: ${Object.keys(config.models).length}`);
+        CliLogger.dim(`  - Clients: ${Object.keys(config.clients).length}`);
+        return Promise.resolve();
       }
 
-      CliLogger.blank();
-      CliLogger.success('Configuration is valid!');
-      CliLogger.blank();
-      CliLogger.dim('Details:');
-      CliLogger.dim(`  - Schema version: ${config.schemaVersion}`);
-      CliLogger.dim(
-        `  - Providers: ${Object.keys(config.providers).join(', ')}`,
+      spinner.fail('Configuration validation failed.');
+      result.errors.forEach((e, i) =>
+        console.log(chalk.red(`  ${i + 1}. ${e}`)),
       );
-      CliLogger.dim(`  - Models: ${Object.keys(config.models).length}`);
-      CliLogger.dim(`  - Clients: ${Object.keys(config.clients).length}`);
-      CliLogger.blank();
-      return Promise.resolve();
+      process.exit(1);
     } catch (error) {
       CliLogger.error(
         error instanceof Error ? error.message : 'Unknown error occurred.',

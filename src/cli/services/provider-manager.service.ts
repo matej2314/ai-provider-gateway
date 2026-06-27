@@ -11,6 +11,10 @@ import { EnvPatchService } from './env-patch.service';
 import { ConfigPersistenceService } from './config-persistence.service';
 import { ModelManagerService } from './model-manager.service';
 import { CliLogger } from '../utils/cli-logger.util';
+import { countActiveModelsAfterProviderChange } from '../utils/effective-config-preview.util';
+import { validateProviderApiKey } from '../utils/api-key-validation.util';
+import { deriveApiKeyRef } from '../utils/provider-id.util';
+import { syncLegacyProviderApiKeysInEnv } from '../utils/legacy-provider-env.util';
 
 @Injectable()
 export class ProviderManagerService {
@@ -21,11 +25,7 @@ export class ProviderManagerService {
   ) {}
 
   deriveApiKeyRef(instanceId: string): string {
-    const slug = instanceId
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '_');
-    return `${slug}_API_KEY`;
+    return deriveApiKeyRef(instanceId);
   }
 
   hasModelsForInstance(config: GatewayConfig, instanceId: string): boolean {
@@ -72,8 +72,10 @@ export class ProviderManagerService {
         name: 'apiKey',
         message: `API key (env: ${apiKeyRef}):`,
         mask: '*',
-        validate: (value: string) =>
-          value?.trim() ? true : 'API key is required.',
+        validate: (value: string) => {
+          const result = validateProviderApiKey(type, value);
+          return result === true ? true : result;
+        },
       },
     ]);
 
@@ -100,13 +102,16 @@ export class ProviderManagerService {
       await this.modelManager.addModelForProvider(config, id, cwd);
     }
 
+    await this.envPatch.setVar(cwd, apiKeyRef, apiKey.trim());
+    await syncLegacyProviderApiKeysInEnv(this.envPatch, cwd, config);
+
     try {
       await this.persistence.persistConfig(config, cwd);
     } catch (error) {
       delete config.providers[id];
+      await this.envPatch.removeVar(cwd, apiKeyRef);
       throw error;
     }
-    await this.envPatch.setVar(cwd, apiKeyRef, apiKey.trim());
 
     CliLogger.success(`Provider instance ${id} added to configuration.`);
   }
@@ -174,6 +179,9 @@ export class ProviderManagerService {
       await this.persistence.persistConfig(config, cwd);
     } catch (error) {
       if (isOnlyActive) {
+        await this.persistence.persistConfig(config, cwd, {
+          skipEffectiveCheck: true,
+        });
         CliLogger.warning(
           'Configuration is invalid after removing the last active provider. Fix with gateway provider:add command.',
         );
@@ -183,6 +191,7 @@ export class ProviderManagerService {
     }
 
     await this.envPatch.removeVar(cwd, row.apiKeyRef);
+    await syncLegacyProviderApiKeysInEnv(this.envPatch, cwd, config);
 
     CliLogger.success(
       `Removed provider instance ${instanceId} and ${linkedAliases.length} model(s).`,
@@ -234,13 +243,50 @@ export class ProviderManagerService {
             default: row.enabled !== false,
           },
         ]);
+
         if (enabled && !this.hasModelsForInstance(config, instanceId)) {
           throw new Error(
             `[PROVIDER_MANAGER] Cannot enable ${instanceId} without at least one model. Use gateway model:add command first.`,
           );
         }
+
+        let skipEffectiveCheck = false;
+
+        if (!enabled) {
+          const activeAfter = countActiveModelsAfterProviderChange(
+            config,
+            new Set([instanceId]),
+          );
+          if (activeAfter === 0) {
+            const warning = boxen(
+              chalk.bold.red('Warning: disabling last active provider') +
+                '\n\n' +
+                chalk.white(
+                  'The application will not start until you enable a provider with models again.\n' +
+                    'Add models with gateway model:add or re-enable a provider.',
+                ),
+              { borderColor: 'red', padding: 1 },
+            );
+            console.log(warning);
+            const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
+              {
+                type: 'confirm',
+                name: 'confirm',
+                message:
+                  'Disable anyway? (configuration will be saved in a non-bootable state)',
+                default: false,
+              },
+            ]);
+            if (!confirm) {
+              CliLogger.info('Cancelled.');
+              return;
+            }
+            skipEffectiveCheck = true;
+          }
+        }
+
         row.enabled = enabled;
-        await this.persistence.persistConfig(config, cwd);
+        await this.persistence.persistConfig(config, cwd, { skipEffectiveCheck });
         CliLogger.success(`Provider ${instanceId} enabled=${enabled}`);
         return;
       }
@@ -251,11 +297,14 @@ export class ProviderManagerService {
             name: 'apiKey',
             message: `New API key for ${instanceId} (env: ${row.apiKeyRef}):`,
             mask: '*',
-            validate: (value: string) =>
-              value?.trim() ? true : 'API key is required.',
+            validate: (value: string) => {
+              const result = validateProviderApiKey(row.type, value);
+              return result === true ? true : result;
+            },
           },
         ]);
         await this.envPatch.setVar(cwd, row.apiKeyRef, apiKey.trim());
+        await syncLegacyProviderApiKeysInEnv(this.envPatch, cwd, config);
         CliLogger.success(`API key updated for ${instanceId}.`);
         return;
       }

@@ -17,19 +17,34 @@ Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env`, `.env.example` oraz
 
 ## 1) Sekrety i env (`.env`)
 
-Zasada: **sekrety tylko w env**. Pliki konfiguracyjne nie zawierają wartości kluczy — jedynie **nazwy** zmiennych (`apiKeyRef`).
+Zasada: **sekrety tylko w env**. Pliki konfiguracyjne nie zawierają wartości kluczy — jedynie **nazwy** zmiennych (`apiKeyRef` per instancja providera w YAML).
 
-Zmienne providerów (Anthropic + Google Gemini — bieżący zestaw w repozytorium):
+### Klucze providerów (`apiKeyRef`)
 
-- `ANTHROPIC_API_KEY`
-- `GOOGLE_API_KEY`
+Runtime **nie** wymaga globalnie `ANTHROPIC_API_KEY` ani `GOOGLE_API_KEY`. Zamiast tego `buildEffectiveGatewayConfig()` (`src/config/configuration.ts`) wywołuje **`assertEnabledProviderApiKeysPresent()`** (`src/config/provider-api-key.validation.ts`): dla każdej instancji z **`enabled !== false`** env pod **`apiKeyRef`** z YAML musi być niepusty po `trim()`.
 
-**Walidacja przy starcie (`src/config/env.validation.ts`):**
+Przykłady nazw:
 
-- W **`NODE_ENV=production`** wymagane jest, aby **co najmniej jedna** z powyższych zmiennych była niepusta po `trim()`. W przeciwnym razie start się nie powiedzie.
-- W środowisku innym niż production ta reguła **nie jest sprawdzana** — nadal potrzebujesz jednak realnego klucza dla **instancji** providera powiązanej z aliasem (bootstrap / wywołanie API zakończy się błędem bez klucza).
+| Źródło | `providerInstance` | `apiKeyRef` w YAML |
+|--------|--------------------|--------------------|
+| Wizard (domyślnie) | `anthropic-primary` | `ANTHROPIC_PRIMARY_API_KEY` |
+| Wizard (domyślnie) | `google-primary` | `GOOGLE_PRIMARY_API_KEY` |
+| Ręcznie / starszy przykład | `anthropic` | `ANTHROPIC_API_KEY` |
 
-W repo powinien istnieć `.env.example` bez wartości sekretów.
+Wizard (`deriveApiKeyRef()` w `src/cli/utils/provider-id.util.ts`) buduje `apiKeyRef` jako `{INSTANCE_ID}_API_KEY` (slug wielkimi literami). Domyślne ID instancji: `{type}-primary` (np. `anthropic-primary`).
+
+**Legacy env (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`):** CLI przy generowaniu `.env` **kopiuje** klucze pod legacy nazwy (`applyLegacyProviderApiKeyEnv` w `src/cli/utils/legacy-provider-env.util.ts`) — pierwsza niepusta wartość per `type` providera. Komendy mutujące providerów synchronizują legacy przez `syncLegacyProviderApiKeysInEnv()`. Runtime **czyta wyłącznie `apiKeyRef` z YAML** — sam legacy klucz **nie wystarczy**, gdy YAML wskazuje inną nazwę (np. tylko `ANTHROPIC_API_KEY` w env, a YAML ma `ANTHROPIC_PRIMARY_API_KEY` → start fail).
+
+**Walidacja formatu (gdy zmienna jest ustawiona)** — `src/config/env.validation.ts`, klasa `EnvironmentVariables`:
+
+| Zmienna (opcjonalna) | Reguła formatu |
+|----------------------|----------------|
+| `ANTHROPIC_API_KEY` | prefiks `sk-ant-` |
+| `GOOGLE_API_KEY` | prefiks `AIza` lub `AQ.` |
+
+Brak tych zmiennych **nie blokuje** startu. `gateway config:validate` i `npm run config:validate` po sukcesie YAML dodatkowo uruchamiają `validateEnv()` (`CliGatewayValidatorService`) — błędny format legacy klucza kończy walidację exit `1`.
+
+W repo powinien istnieć `.env.example` bez wartości sekretów (nazwy `apiKeyRef` zgodne z przykładowym YAML).
 
 **Uwaga o `.env.example` vs domyślne wartości w kodzie:** szablon w repozytorium może mieć włączone funkcje opcjonalne (np. `CACHE_ENABLED=true`, `RATE_LIMIT_SMART_ENABLED=true`) dla wygody lokalnego developmentu. **Domyślne wartości walidatora** (`EnvironmentVariables` w `src/config/env.validation.ts`) przy braku zmiennej to: `CACHE_ENABLED=false`, `CACHE_BACKEND=noop`, `RATE_LIMIT_SMART_ENABLED=false`. Efektywna konfiguracja zależy od tego, co faktycznie ustawisz w `.env`.
 
@@ -44,17 +59,17 @@ W repo powinien istnieć `.env.example` bez wartości sekretów.
 
 Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/config/env.validation.ts` (m.in. typy i wartości domyślne). Wartości używane w runtime składa też `configuration.ts` (`cache`, `redis` w obiekcie zwracanym przez `load`).
 
-| Zmienna            | Domyślnie   | Znaczenie                                                                                                                                                                                                               |
-| ------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CACHE_ENABLED`    | `false`     | Gdy **`true`**, cache jest **włączony** w konfiguracji; faktyczny backend wybiera `CACHE_BACKEND` (patrz niżej). Gdy `false`, w konfiguracji wymuszany jest backend **`noop`** — brak odczytu/zapisu cache.             |
+| Zmienna            | Domyślnie   | Znaczenie                                                                                                                                                                                                                                                                                                              |
+| ------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CACHE_ENABLED`    | `false`     | Gdy **`true`**, cache jest **włączony** w konfiguracji; faktyczny backend wybiera `CACHE_BACKEND` (patrz niżej). Gdy `false`, w konfiguracji wymuszany jest backend **`noop`** — brak odczytu/zapisu cache.                                                                                                            |
 | `CACHE_BACKEND`    | `noop`      | Dozwolone wartości w walidatorze: `noop`, `redis`, `memory`, `other`. **W kodzie zarejestrowane są `noop` i `redis`.** Wizard `config:init` może zapisać `memory` — runtime traktuje nieznany backend jak **`noop`** (`CacheRegistryService.resolve`). Nieznany backend → ostrzeżenie w logu i fallback do **`noop`**. |
-| `CACHE_TTL`        | `3600`      | TTL wpisów cache w **sekundach** (liczba całkowita ≥ 1).                                                                                                                                                                |
-| `CACHE_KEY_PREFIX` | `aigw:`     | Prefiks kluczy zapisu odpowiedzi czatu (`ResponseCacheService`).                                                                                                                                                        |
-| `REDIS_HOST`       | `localhost` | Host Redis (gdy ładowany moduł Redis).                                                                                                                                                                                  |
-| `REDIS_PORT`       | `6379`      | Port Redis.                                                                                                                                                                                                             |
-| `REDIS_PASSWORD`   | _(pusty)_   | Hasło; puste → połączenie bez hasła.                                                                                                                                                                                    |
-| `REDIS_DB`         | `0`         | Numer bazy Redis.                                                                                                                                                                                                       |
-| `REDIS_KEY_PREFIX` | `aigw:`     | Prefiks konfiguracyjny Redis (osobny od `CACHE_KEY_PREFIX`; przy braku `cache.keyPrefix` w serwisie cache używany jest fallback).                                                                                       |
+| `CACHE_TTL`        | `3600`      | TTL wpisów cache w **sekundach** (liczba całkowita ≥ 1).                                                                                                                                                                                                                                                               |
+| `CACHE_KEY_PREFIX` | `aigw:`     | Prefiks kluczy zapisu odpowiedzi czatu (`ResponseCacheService`).                                                                                                                                                                                                                                                       |
+| `REDIS_HOST`       | `localhost` | Host Redis (gdy ładowany moduł Redis).                                                                                                                                                                                                                                                                                 |
+| `REDIS_PORT`       | `6379`      | Port Redis.                                                                                                                                                                                                                                                                                                            |
+| `REDIS_PASSWORD`   | _(pusty)_   | Hasło; puste → połączenie bez hasła.                                                                                                                                                                                                                                                                                   |
+| `REDIS_DB`         | `0`         | Numer bazy Redis.                                                                                                                                                                                                                                                                                                      |
+| `REDIS_KEY_PREFIX` | `aigw:`     | Prefiks konfiguracyjny Redis (osobny od `CACHE_KEY_PREFIX`; przy braku `cache.keyPrefix` w serwisie cache używany jest fallback).                                                                                                                                                                                      |
 
 **Ładowanie modułu Redis w Nest:**
 
@@ -94,22 +109,22 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 
 ### Observability (env)
 
-| Zmienna                                                                           | Domyślnie / zachowanie                                                                                            |
-| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `LOG_LEVEL`                                                                       | `info` — poziom logów (`LoggingModule`; **brak** wpisu w `EnvironmentVariables` — odczyt bezpośrednio w module).  |
-| `LOG_ADAPTER`                                                                     | `pino` — backend logów (`pino` / `console`; jak wyżej — poza walidatorem env).                                  |
-| `LOG_PRETTY`                                                                      | `false` w walidatorze; czytelny output Pino (dev).                                                                |
-| `SENTRY_DSN`                                                                      | Pusty — wymagany, gdy włączony adapter Sentry (metrics lub error reporting).                                      |
-| `SENTRY_ENABLED`                                                                  | `false` w walidatorze; w **development** włącza error reporting przez Sentry gdy `ERROR_REPORTING_ADAPTER` nie nadpisuje (`LoggingModule`). W **production** error reporting domyślnie próbuje Sentry (gdy `SENTRY_DSN` ustawiony). |
-| `SENTRY_ENVIRONMENT`                                                              | `development` w walidatorze; przekazywane do Sentry.                                                            |
-| `SENTRY_TRACES_SAMPLE_RATE`                                                       | `0.1` w walidatorze; w `instrument.ts` fallback `1.0` gdy brak wartości.                                        |
-| `ERROR_REPORTING_ADAPTER`                                                         | `noop` w walidatorze; dozwolone: `sentry` \| `noop`. W production bez override → Sentry gdy `SENTRY_DSN` jest ustawiony. |
-| `METRICS_BACKEND`                                                                 | `noop` w walidatorze; dozwolone: `sentry` \| `noop`. W **production** bez override → Sentry (`instrument.ts`, `MetricsModule`). |
-| `SENTRY_INCLUDE_PROMPTS`                                                          | Brak w walidatorze; gdy `true` — `gen_ai.input.messages` / `gen_ai.output.messages` na spanach (wymagane m.in. dla widoku Conversations). |
-| `APP_VERSION`                                                                     | W readiness (`GET /api/v1/health/ready`) — fallback **`1.0.0`** (`HealthService`). W logach (`LoggingModule`) — fallback **`dev`**. |
-| `SWAGGER_ENABLED`                                                                 | Domyślnie włączone poza production (`SWAGGER_ENABLED !== 'false'`). W **production** Swagger UI/JSON tylko gdy **`SWAGGER_ENABLED=true`** (`src/swagger/swagger.setup.ts`). UI: `/api/v1/api-docs`, spec JSON: `/api/v1/swagger.json` — obejmuje tagi **Health**, **Chat**, **OpenAI API**, **Anthropic API** (ten sam dokument co `openapi.json` z `npm run openapi:export`). |
-| `PORT`                                                                            | `3000`; używany też przy eksporcie OpenAPI (`openapi:export`).                                                    |
-| `NODE_ENV`                                                                        | W **production** wymusza regułę co najmniej jednego klucza providera (sekcja 1).                                  |
+| Zmienna                     | Domyślnie / zachowanie                                                                                                                                                                                                                                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `LOG_LEVEL`                 | `info` — poziom logów (`LoggingModule`; **brak** wpisu w `EnvironmentVariables` — odczyt bezpośrednio w module).                                                                                                                                                                                                                                                               |
+| `LOG_ADAPTER`               | `pino` — backend logów (`pino` / `console`; jak wyżej — poza walidatorem env).                                                                                                                                                                                                                                                                                                 |
+| `LOG_PRETTY`                | `false` w walidatorze; czytelny output Pino (dev).                                                                                                                                                                                                                                                                                                                             |
+| `SENTRY_DSN`                | Pusty — wymagany, gdy włączony adapter Sentry (metrics lub error reporting).                                                                                                                                                                                                                                                                                                   |
+| `SENTRY_ENABLED`            | `false` w walidatorze; w **development** włącza error reporting przez Sentry gdy `ERROR_REPORTING_ADAPTER` nie nadpisuje (`LoggingModule`). W **production** error reporting domyślnie próbuje Sentry (gdy `SENTRY_DSN` ustawiony).                                                                                                                                            |
+| `SENTRY_ENVIRONMENT`        | `development` w walidatorze; przekazywane do Sentry.                                                                                                                                                                                                                                                                                                                           |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0.1` w walidatorze; w `instrument.ts` fallback `1.0` gdy brak wartości.                                                                                                                                                                                                                                                                                                       |
+| `ERROR_REPORTING_ADAPTER`   | `noop` w walidatorze; dozwolone: `sentry` \| `noop`. W production bez override → Sentry gdy `SENTRY_DSN` jest ustawiony.                                                                                                                                                                                                                                                       |
+| `METRICS_BACKEND`           | `noop` w walidatorze; dozwolone: `sentry` \| `noop`. W **production** bez override → Sentry (`instrument.ts`, `MetricsModule`).                                                                                                                                                                                                                                                |
+| `SENTRY_INCLUDE_PROMPTS`    | Brak w walidatorze; gdy `true` — `gen_ai.input.messages` / `gen_ai.output.messages` na spanach (wymagane m.in. dla widoku Conversations).                                                                                                                                                                                                                                      |
+| `APP_VERSION`               | W readiness (`GET /api/v1/health/ready`) — fallback **`1.0.0`** (`HealthService`). W logach (`LoggingModule`) — fallback **`dev`**.                                                                                                                                                                                                                                            |
+| `SWAGGER_ENABLED`           | Domyślnie włączone poza production (`SWAGGER_ENABLED !== 'false'`). W **production** Swagger UI/JSON tylko gdy **`SWAGGER_ENABLED=true`** (`src/swagger/swagger.setup.ts`). UI: `/api/v1/api-docs`, spec JSON: `/api/v1/swagger.json` — obejmuje tagi **Health**, **Chat**, **OpenAI API**, **Anthropic API** (ten sam dokument co `openapi.json` z `npm run openapi:export`). |
+| `PORT`                      | `3000`; używany też przy eksporcie OpenAPI (`openapi:export`).                                                                                                                                                                                                                                                                                                                 |
+| `NODE_ENV`                  | Używany m.in. przez `LoggingModule`, Sentry, domyślne zachowanie Swagger — **nie** wymusza już globalnej reguły „≥1 klucz Anthropic/Google”; klucze providerów walidowane per `apiKeyRef` w YAML (sekcja 1). |
 
 **Sentry — dwa punkty inicjalizacji:**
 
@@ -117,6 +132,7 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 - **`LoggingModule`** / **`MetricsModule`**: adaptery error reporting i metryk LLM (`SentryAiMetricsAdapter`, `SentryErrorReportingAdapter`).
 
 **Readiness a Redis:** `GET /api/v1/health/ready` zwraca:
+
 - **`checks.redis`** — stan współdzielonej infrastruktury Redis (probe `PING` tylko gdy `required: true`; pola `required`, `consumers`: `cache`, `rate-limit`),
 - **`checks.cache`** — stan feature cache (gdy backend `redis`, dostępność wynika z `checks.redis`, bez osobnego probe).
 
@@ -139,31 +155,31 @@ masterKeyRef: MASTER_KEY
 clients:
   webapp:
     name: My web app
-    type: webapp          # dozwolone: webapp | ide | cli | service | backend | automation
+    type: webapp # dozwolone: webapp | ide | cli | service | backend | automation
     gatewayKeyRef: GATEWAY_KEY_WEBAPP
-    rateLimit:            # opcjonalne; brak → limity z env
+    rateLimit: # opcjonalne; brak → limity z env
       rps: 10
       burst: 10
       maxConcurrentStreams: 3
 
 providers:
-  anthropic:
+  anthropic-primary:
     type: anthropic
-    apiKeyRef: ANTHROPIC_API_KEY
+    apiKeyRef: ANTHROPIC_PRIMARY_API_KEY
     enabled: true
-  google:
+  google-primary:
     type: google
-    apiKeyRef: GOOGLE_API_KEY
+    apiKeyRef: GOOGLE_PRIMARY_API_KEY
     enabled: true
 
 models:
   chat-default:
-    providerInstance: anthropic
+    providerInstance: anthropic-primary
     modelId: claude-sonnet-4-5-20250929
     capabilities:
       streaming: true
       tools: true
-      thinking: true   # opcjonalne; wymagane dla params.thinkingEnabled / thinkingBudget
+      thinking: true # opcjonalne; wymagane dla params.thinkingEnabled / thinkingBudget
     policy:
       timeoutMs: 30000
       retry:
@@ -173,7 +189,7 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 500
-          thinkingEnabled: false   # opt-in w body; domyślnie wyłączone (koszt)
+          thinkingEnabled: false # opt-in w body; domyślnie wyłączone (koszt)
           # Anthropic: NIE ustawiaj topP w defaults obok temperature (API odrzuca oba naraz)
         allowOverrides:
           - temperature
@@ -194,13 +210,13 @@ models:
           presencePenalty: { min: -2, max: 2 }
 
   claude-sonnet:
-    providerInstance: anthropic
+    providerInstance: anthropic-primary
     modelId: claude-sonnet-4-5-20250929
     fallback: chat-default
     capabilities:
       streaming: true
       tools: true
-      thinking: true   # opcjonalne; wymagane dla params.thinkingEnabled / thinkingBudget
+      thinking: true # opcjonalne; wymagane dla params.thinkingEnabled / thinkingBudget
     policy:
       timeoutMs: 30000
       retry:
@@ -230,13 +246,13 @@ models:
           presencePenalty: { min: -2, max: 2 }
 
   gemini-flash:
-    providerInstance: google
+    providerInstance: google-primary
     modelId: gemini-2.5-flash
     fallback: chat-default
     capabilities:
       streaming: true
       tools: true
-      thinking: false   # w repo: false dla gemini-2.5-flash; Gemini 3.0+ — ustaw true gdy model wspiera ThinkingConfig
+      thinking: false # w repo: false dla gemini-2.5-flash; Gemini 3.0+ — ustaw true gdy model wspiera ThinkingConfig
     policy:
       timeoutMs: 30000
       retry:
@@ -246,7 +262,7 @@ models:
         defaults:
           temperature: 0.4
           maxOutputTokens: 1024
-          topP: 0.95   # Google Gemini: temperature + topP w defaults jest OK
+          topP: 0.95 # Google Gemini: temperature + topP w defaults jest OK
           thinkingEnabled: false
         allowOverrides:
           - temperature
@@ -271,21 +287,21 @@ models:
 
 Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (`anthropic`, `google`, …). Pola **`params`** w body HTTP i fasad IDE są **wspólne** dla całego gatewaya; **efekt u vendora** zależy od adaptera powiązanego z aliasem. Pełna macierz: **`dictionary.md`** (sekcja „Mapowanie parametrów na providerów”).
 
-| Typ providera (`providers.*.type`) | Adapter runtime | Przykładowe aliasy w repo |
-|------------------------------------|-----------------|---------------------------|
-| **`anthropic`** | `create-anthropic-provider.ts` | `chat-default`, `claude-sonnet` |
-| **`google`** | `create-google-provider.ts` | `gemini-flash` |
-| **`openai`** | **brak** — fabryka `create-openai-provider.ts` nie jest wdrożona | — |
+| Typ providera (`providers.*.type`) | Adapter runtime                                                  | Przykładowe aliasy w repo       |
+| ---------------------------------- | ---------------------------------------------------------------- | ------------------------------- |
+| **`anthropic`**                    | `create-anthropic-provider.ts`                                   | `chat-default`, `claude-sonnet` (przy `anthropic-primary`) |
+| **`google`**                       | `create-google-provider.ts`                                      | `gemini-flash` (przy `google-primary`)                  |
+| **`openai`**                       | **brak** — fabryka `create-openai-provider.ts` nie jest wdrożona | —                               |
 
 **OpenAI w projekcie:** istnieje **fasada HTTP** `/api/v1/openai` (mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`), ale wywołanie LLM i tak trafia do adaptera **Anthropic** lub **Google** wskazanego przez **`modelAlias`**. Docelowy **adapter runtime** OpenAI (bezpośrednie wywołanie API OpenAI) jest **poza zakresem MVP** — [`provider-openai-runtime.md`](provider-openai-runtime.md), [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md) (scenariusz A).
 
 #### Reguły konfiguracji YAML (`policy.params`)
 
-| Provider | `defaults` — parametry losowości | Uwaga operacyjna |
-|----------|----------------------------------|------------------|
-| **Anthropic** | Ustaw **`temperature` albo `topP` albo `topK`** w defaults (logicznie jeden tryb losowości) | Adapter wysyła do SDK **jeden** parametr losowości — priorytet: **`topK` > `topP` > `temperature`** (`resolveAnthropicSamplingParams`). Przykład repo: default `temperature: 0.4`, **bez** `topP` / `topK` w defaults. |
-| **Google Gemini** | Można **`temperature` i `topP` razem** | Przykład repo: `temperature: 0.4`, `topP: 0.95`. |
-| **OpenAI** (przyszły adapter) | Plan: jak OpenAI API — oba parametry zwykle dozwolone | Do czasu wdrożenia fabryki OpenAI alias musi wskazywać istniejący adapter. |
+| Provider                      | `defaults` — parametry losowości                                                            | Uwaga operacyjna                                                                                                                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Anthropic**                 | Ustaw **`temperature` albo `topP` albo `topK`** w defaults (logicznie jeden tryb losowości) | Adapter wysyła do SDK **jeden** parametr losowości — priorytet: **`topK` > `topP` > `temperature`** (`resolveAnthropicSamplingParams`). Przykład repo: default `temperature: 0.4`, **bez** `topP` / `topK` w defaults. |
+| **Google Gemini**             | Można **`temperature` i `topP` razem**                                                      | Przykład repo: `temperature: 0.4`, `topP: 0.95`.                                                                                                                                                                       |
+| **OpenAI** (przyszły adapter) | Plan: jak OpenAI API — oba parametry zwykle dozwolone                                       | Do czasu wdrożenia fabryki OpenAI alias musi wskazywać istniejący adapter.                                                                                                                                             |
 
 **Override z body (`params.topP` / `params.topK` itd.):** merge YAML ← body może ustawić wiele parametrów losowości w `ProviderCallOptions`, ale adapter Anthropic wysyła do SDK **tylko jeden** — priorytet **`topK` > `topP` > `temperature`**. Np. defaults `temperature` + body `topP` → do SDK trafi `top_p`, nie `temperature`.
 
@@ -342,16 +358,13 @@ Gateway kończy start m.in. gdy:
 - alias w `models` wskazuje **nieznany** `providerInstance`,
 - **włączony** provider (`enabled !== false`) **nie ma** żadnego aliasu w `models` z tym `providerInstance`,
 - po zastosowaniu flag `enabled` **nie ma żadnego aktywnego modelu** albo **aktywny** provider nie ma przypisanego aktywnego modelu,
-- dla **aktywnego** providera brakuje niepustego env wskazanego przez `apiKeyRef` (`[GatewayConfig] Missing API key…`),
+- dla **aktywnego** providera brakuje niepustego env pod **`apiKeyRef`** z YAML (`[GatewayConfig] Missing API key for enabled provider instance…`),
 - brakuje niepustego klucza **master** (`[GatewayKey] Missing master key.`),
-- w **production** nie ma co najmniej jednego klucza API providera w env (patrz sekcja 1).
 
-**Warstwy walidacji YAML:**
-
-| Warstwa                | Gdzie                         | Przykładowe reguły                                                                                                                   |
-| ---------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Warstwa                | Gdzie                         | Przykładowe reguły                                                                                                                        |
+| ---------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | Zod (surowy YAML)      | `GatewayConfigSchema`         | duplikat `apiKeyRef`; puste `models`; model → provider; provider (aktywny) → ≥1 model; `fallback` istnieje, bez samoodwołania i pętli A↔B |
-| Efektywna konfiguracja | `buildEffectiveGatewayConfig` | filtr `enabled`; ≥1 aktywny model globalnie; aktywny provider → aktywny model; klucz API dla aktywnych providerów                    |
+| Efektywna konfiguracja | `buildEffectiveGatewayConfig` | filtr `enabled`; ≥1 aktywny model globalnie; aktywny provider → aktywny model; klucz API dla aktywnych providerów                         |
 
 **Poza zakresem obecnej implementacji (plan — krok 5.6, część pozostała):** pełny katalog aliasów wszystkich modeli API Anthropic/Google oraz walidacja kompletności aliasów „zwyczajowych” względem ustalonej listy MVP.
 
@@ -362,7 +375,6 @@ Skrypt (`scripts/validate-config.ts`) waliduje konfigurację **offline** (bez ur
 - walidacja YAML przez `GatewayConfigSchema` (Zod),
 - walidacja reguł runtime przez `buildEffectiveGatewayConfig` (filtr `enabled` + wymagane klucze `apiKeyRef` dla włączonych providerów),
 - walidacja wymogu klucza master (`masterKeyRef`) jak w `buildGatewayKeyRuntime` (brak → błąd),
-- **wymóg co najmniej jednego** niepustego klucza providera (`ANTHROPIC_API_KEY` lub `GOOGLE_API_KEY`) — zawsze w tym skrypcie (szersze niż reguła production-only w `env.validation.ts`),
 - ostrzeżenia (nie blokują) m.in. dla klientów z pustym env pod `gatewayKeyRef` i wyłączonych providerów.
 
 Uruchomienie:
@@ -388,13 +400,13 @@ Uwaga: skrypt próbuje doładować `.env` przez `dotenv` **jeśli** paczka jest 
 
 Runtime HTTP i CLI **nie używają tej samej ścieżki** ładowania configu:
 
-| Aspekt | Runtime (`ConfigModule` → `configuration.ts`) | CLI (`CliConfigLoaderService`) |
-|--------|-----------------------------------------------|--------------------------------|
-| Entry point | `src/main.ts` → `AppModule` | `bin/gateway-cli-wrapper.js` → `CliModule` |
-| Wymaga `.env` przy starcie CLI | tak (przy starcie serwera HTTP) | **nie** — CLI startuje bez `.env` |
-| Parsowanie YAML | `yaml.load` + `GatewayConfigSchema` | to samo (`loadRawConfig`) |
-| Rozwiązywanie env | `buildEffectiveGatewayConfig()`, klucze master/provider/client | **pominięte** w `loadRawConfig`; opcjonalny raport braków w `loadWithEnvCheck()` |
-| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP | **`gateway config:init`** — na końcu wizarda; **`gateway config:validate`** lub `npm run config:validate` |
+| Aspekt                                   | Runtime (`ConfigModule` → `configuration.ts`)                  | CLI (`CliConfigLoaderService`)                                                                            |
+| ---------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Entry point                              | `src/main.ts` → `AppModule`                                    | `bin/gateway-cli-wrapper.js` → `CliModule`                                                                |
+| Wymaga `.env` przy starcie CLI           | tak (przy starcie serwera HTTP)                                | **nie** — CLI startuje bez `.env`                                                                         |
+| Parsowanie YAML                          | `yaml.load` + `GatewayConfigSchema`                            | to samo (`loadRawConfig`)                                                                                 |
+| Rozwiązywanie env                        | `buildEffectiveGatewayConfig()`, klucze master/provider/client | **pominięte** w `loadRawConfig`; opcjonalny raport braków w `loadWithEnvCheck()`                          |
+| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP                                          | **`gateway config:init`** — na końcu wizarda; **`gateway config:validate`** (`CliGatewayValidatorService`: YAML + `validateEnv()`) lub `npm run config:validate` |
 
 #### Inicjalizacja konfiguracji (wizard)
 

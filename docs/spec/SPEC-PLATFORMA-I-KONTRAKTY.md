@@ -19,7 +19,7 @@ Ten dokument definiuje **wspólne kontrakty** i zasady obowiązujące wszystkie 
 
 ### Scenariusz A — uruchomienie lokalne
 
-1. Użytkownik wypełnia `.env`: w **production** **minimum jeden** niepusty klucz spośród `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` (patrz `src/config/env.validation.ts` i `docs/konfiguracja.md`). Dodatkowo przygotowuje `gateway.config.yaml`.
+1. Użytkownik wypełnia `.env`: klucze pod **`apiKeyRef`** z YAML dla włączonych providerów (patrz `docs/konfiguracja.md`). Dodatkowo przygotowuje `gateway.config.yaml`.
 2. Użytkownik przygotowuje plik konfiguracyjny modeli/polityk.
 3. Uruchamia serwis.
 4. Wysyła request na `/chat` lub `/chat/stream`.

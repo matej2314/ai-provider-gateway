@@ -6,7 +6,7 @@ Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym for
 
 ## Warunki wstępne (env)
 
-Gateway musi działać na poprawnie zwalidowanym środowisku: w **`NODE_ENV=production`** obowiązuje **minimum jeden** niepusty klucz API spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY` (po `trim()`), zgodnie z `src/config/env.validation.ts` i `docs/konfiguracja.md`. Ponadto wymagany jest poprawny `gateway.config.yaml` (fail‑fast przy starcie).
+Gateway musi działać na poprawnie zwalidowanym środowisku: każda włączona instancja providera w YAML wymaga klucza pod **`apiKeyRef`** (`provider-api-key.validation.ts`, `docs/konfiguracja.md`), oraz poprawnego `gateway.config.yaml` (fail‑fast przy starcie).
 
 **Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body: `modelAlias`, `messages`, opcjonalne **`conversationId`** (metryki Sentry — `docs/conversation-tracking.md`), opcjonalne **`metadata`**, opcjonalne **`params`** (`temperature`, `maxOutputTokens`, `topP`, `topK`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat`, `thinkingEnabled`, `thinkingBudget` — merge YAML ← body przez `resolveProviderCallOptions`; `topK` / `stop` / `responseFormat` / `thinkingBudget` tylko z body). Odpowiedź może zawierać **`thinkingContent`**. **Cache odpowiedzi** dla czatu standardowego — **wdrożony** (`src/cache/`, klucz uwzględnia efektywne parametry wywołania — `konfiguracja.md`).
 

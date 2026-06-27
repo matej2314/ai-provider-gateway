@@ -10,9 +10,18 @@ import { ConfigPersistenceService } from './config-persistence.service';
 import { DEFAULT_MODELS } from '../constants/default-models';
 import {
   isThinkingCapableModel,
-  getRecommendedMaxOutputTokens,
 } from '../constants/thinking-capable-models';
+import {
+  buildDefaultModelPolicy,
+  getMaxOutputTokensBound,
+} from '../utils/default-model-policy.util';
 import type { GatewayProviderType } from 'src/config/provider-types';
+import boxen from 'boxen';
+import chalk from 'chalk';
+import {
+  isLastModelInConfig,
+  isLastModelForEnabledProvider,
+} from '../utils/effective-config-preview.util';
 
 type ModelEditField =
   | 'modelId'
@@ -25,45 +34,10 @@ export function defaultModelPolicy(
   modelId?: string,
   providerType?: GatewayProviderType,
 ): NonNullable<GatewayModelConfig['policy']> {
-  const supportsThinking =
-    modelId && providerType
-      ? isThinkingCapableModel(modelId, providerType)
-      : false;
-  const recommendedMaxTokens =
-    modelId && providerType
-      ? getRecommendedMaxOutputTokens(modelId, providerType)
-      : 1024;
-  return {
-    timeoutMs: 30000,
-    retry: { maxAttempts: 3, onStatus: [429, 500, 502, 503, 504] },
-    params: {
-      defaults: {
-        temperature: 0.7,
-        maxOutputTokens: recommendedMaxTokens,
-        ...(supportsThinking && { thinkingEnabled: false }),
-      },
-      allowOverrides: [
-        'temperature',
-        'maxOutputTokens',
-        'topP',
-        'topK',
-        'stop',
-        'frequencyPenalty',
-        'presencePenalty',
-        'seed',
-        'responseFormat',
-        'thinkingEnabled',
-        'thinkingBudget',
-      ],
-      bounds: {
-        temperature: { min: 0, max: 2 },
-        maxOutputTokens: { min: 1, max: supportsThinking ? 16384 : 8192 },
-        topP: { min: 0, max: 1 },
-        frequencyPenalty: { min: -2, max: 2 },
-        presencePenalty: { min: -2, max: 2 },
-      },
-    },
-  };
+  if (modelId && providerType) {
+    return buildDefaultModelPolicy(modelId, providerType);
+  }
+  return buildDefaultModelPolicy('unknown', 'anthropic');
 }
 
 @Injectable()
@@ -127,6 +101,7 @@ export class ModelManagerService {
         modelId: modelId.trim(),
         capabilities: {
           streaming: true,
+          tools: true,
           ...(supportsThinking && { thinking: true }),
         },
         policy: defaultModelPolicy(trimmedModelId, type),
@@ -185,6 +160,8 @@ export class ModelManagerService {
       return;
     }
 
+    let configPersisted = false;
+
     for (const field of fields) {
       switch (field) {
         case 'modelId': {
@@ -235,8 +212,49 @@ export class ModelManagerService {
               default: current.providerInstance,
             },
           ]);
-          const row = config.providers[providerInstance];
-          if (row?.enabled === false) {
+
+          const sourceInstanceId = current.providerInstance;
+          const targetRow = config.providers[providerInstance];
+
+          if (
+            providerInstance !== sourceInstanceId &&
+            isLastModelForEnabledProvider(config, alias)
+          ) {
+            console.log(
+              boxen(
+                chalk.bold.red(
+                  `Warning: moving the last model away from provider "${sourceInstanceId}"`,
+                ) +
+                  '\n\n' +
+                  chalk.white(
+                    `Provider "${sourceInstanceId}" will have no models while still enabled.\n` +
+                      'The application will not start until you add a model or disable that provider.',
+                  ),
+                { borderColor: 'red', padding: 1 },
+              ),
+            );
+            const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
+              {
+                type: 'confirm',
+                name: 'confirm',
+                message:
+                  'Move anyway? (configuration will be saved in a non-bootable state)',
+                default: false,
+              },
+            ]);
+            if (!confirm) {
+              CliLogger.info('Cancelled.');
+              break;
+            }
+            current.providerInstance = providerInstance;
+            await this.persistence.persistConfig(config, cwd, {
+              skipEffectiveCheck: true,
+            });
+            configPersisted = true;
+            break;
+          }
+
+          if (targetRow?.enabled === false) {
             CliLogger.warning(
               `[MODEL_MANAGER] Target instance ${providerInstance} is disabled - model inactive at runtime.`,
             );
@@ -292,10 +310,13 @@ export class ModelManagerService {
             min: 0,
             max: 2,
           };
-          const tokenBounds = base.params?.bounds?.maxOutputTokens ?? {
-            min: 1,
-            max: 8192,
-          };
+          const tokenBounds = base.params?.bounds?.maxOutputTokens ??
+            (providerType
+              ? {
+                  min: 1,
+                  max: getMaxOutputTokensBound(current.modelId, providerType),
+                }
+              : { min: 1, max: 8192 });
           const policyAnswers = await inquirer.prompt<{
             timeoutMs: number;
             maxAttempts: number;
@@ -387,7 +408,9 @@ export class ModelManagerService {
       }
     }
 
-    await this.persistence.persistConfig(config, cwd);
+    if (!configPersisted) {
+      await this.persistence.persistConfig(config, cwd);
+    }
     CliLogger.success(`Model ${alias} updated correctly.`);
   }
 
@@ -399,8 +422,49 @@ export class ModelManagerService {
     if (!config.models[alias]) {
       throw new Error(`Model ${alias} not found in configuration.`);
     }
-    delete config.models[alias];
-    await this.persistence.persistConfig(config, cwd);
+
+    const model = config.models[alias];
+    const lastInConfig = isLastModelInConfig(config, alias);
+    const lastForProvider = isLastModelForEnabledProvider(config, alias);
+
+    if (lastInConfig || lastForProvider) {
+      const detail = lastInConfig
+        ? 'The application will not start without at least one active model.'
+        : `Provider "${model.providerInstance}" will have no models while still enabled.\n` +
+          'The application will not start until you add a model (gateway model:add) or disable the provider.';
+
+      console.log(
+        boxen(
+          chalk.bold.red(
+            lastInConfig
+              ? 'Warning: removing the last model in configuration'
+              : `Warning: removing the last model for provider "${model.providerInstance}"`,
+          ) +
+            '\n\n' +
+            chalk.white(detail),
+          { borderColor: 'red', padding: 1 },
+        ),
+      );
+      const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
+        {
+          type: 'confirm',
+          name: 'confirm',
+          message:
+            'Remove anyway? (configuration will be saved in a non-bootable state)',
+          default: false,
+        },
+      ]);
+      if (!confirm) {
+        CliLogger.info('Cancelled.');
+        return;
+      }
+      delete config.models[alias];
+      await this.persistence.persistConfig(config, cwd, { skipEffectiveCheck: true });
+    } else {
+      delete config.models[alias];
+      await this.persistence.persistConfig(config, cwd);
+    }
+
     CliLogger.success(`Model ${alias} removed from configuration.`);
     CliLogger.info(
       `Note: Model prompt file (models/${alias}.md) was not removed. Remove it manually if needed.`,

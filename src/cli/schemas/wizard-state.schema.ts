@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { WizardStep } from '../services/wizard-state-manager.service';
+import { WIZARD_STEPS } from '../constants/wizard-steps';
 import { PROVIDER_TYPES } from '../../config/provider-types';
 import { GATEWAY_CLIENT_TYPES } from '../../config/configuration.types';
 import type { WizardState } from '../services/cli.services.types';
@@ -35,8 +35,8 @@ const GatewayClientSchema = z.object({
 export const WizardStateSchema = z.object({
   sessionId: z.string(),
   startedAt: z.string(),
-  currentStep: z.enum(WizardStep),
-  completedSteps: z.array(z.enum(WizardStep)),
+  currentStep: z.enum(WIZARD_STEPS),
+  completedSteps: z.array(z.enum(WIZARD_STEPS)),
   data: z.object({
     masterKey: z.string().optional(),
     providers: z.array(CliAiProviderSchema).optional(),
@@ -48,7 +48,7 @@ export const WizardStateSchema = z.object({
         nodeEnv: z.string(),
         swaggerEnabled: z.boolean().optional(),
         cacheEnabled: z.boolean().optional(),
-        cacheBackend: z.enum(['redis', 'memory', 'noop']).optional(),
+        cacheBackend: z.enum(['redis', 'noop']).optional(),
         redisHost: z.string().optional(),
         redisPort: z.number().optional(),
         redisPassword: z.string().optional(),

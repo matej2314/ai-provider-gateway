@@ -14,11 +14,6 @@ import {
 } from 'class-validator';
 import type { CACHE_BACKEND_TYPE } from '../cache/interfaces/cache-backend-interface';
 
-const isProduction = (config: Record<string, unknown>): boolean => {
-  const nodeEnv = config.NODE_ENV;
-  return nodeEnv === 'production';
-};
-
 function trimStringValue(value: unknown): unknown {
   return typeof value === 'string' ? value.trim() : value;
 }
@@ -44,12 +39,6 @@ function isRedisCacheBackend(obj: EnvironmentVariables): boolean {
     obj.CACHE_BACKEND === 'redis' &&
     (obj.CACHE_BACKEND ?? 'noop').toLowerCase() === 'redis'
   );
-}
-
-function hasAtLeastOneProviderKey(env: EnvironmentVariables): boolean {
-  const anthropic = (env.ANTHROPIC_API_KEY ?? '').trim();
-  const google = (env.GOOGLE_API_KEY ?? '').trim();
-  return anthropic.length > 0 || google.length > 0;
 }
 
 class EnvironmentVariables {
@@ -204,9 +193,6 @@ export function validate(config: Record<string, unknown>) {
     throw new Error(`Config validation error: ${errors.toString()}`);
   }
 
-  if (isProduction(config) && !hasAtLeastOneProviderKey(validatedConfig)) {
-    throw new Error('At least one API key is required in production');
-  }
   return validatedConfig;
 }
 

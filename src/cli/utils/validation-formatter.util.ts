@@ -30,4 +30,16 @@ export class ValidationFormatter {
   static formatSuccess(message: string): string {
     return chalk.green(`✓ ${message}`);
   }
+
+  static formatRuntimeError(error: Error): string {
+    return [
+      chalk.red.bold('Configuration would fail at application startup:'),
+      '',
+      chalk.red(`  • ${error.message}`),
+      '',
+      chalk.dim(
+        'Fix gateway.config.yaml and .env before saving, or confirm destructive action.',
+      ),
+    ].join('\n');
+  }
 }

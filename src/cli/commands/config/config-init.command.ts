@@ -1,6 +1,5 @@
 import { Command, CommandRunner } from 'nest-commander';
 import { join } from 'path';
-import { config as dotenvConfig } from 'dotenv';
 import * as inquirer from 'inquirer';
 import { WizardOrchestratorService } from 'src/cli/services/wizard-orchestrator.service';
 import { ConfigGeneratorService } from 'src/cli/services/config-generator.service';
@@ -9,7 +8,8 @@ import boxen from 'boxen';
 import chalk from 'chalk';
 import { CliConfigLoaderService } from 'src/cli/services/cli-config-loader.service';
 import { FileManagerService } from 'src/cli/services/file-manager.service';
-import { validateGatewayConfig } from 'src/config/config-validator';
+import { CliGatewayValidatorService } from 'src/cli/services/cli-gateway-validator.service';
+import { WizardStateManager } from 'src/cli/services/wizard-state-manager.service';
 
 @Command({
   name: 'config:init',
@@ -21,6 +21,8 @@ export class ConfigInitCommand extends CommandRunner {
     private readonly orchestrator: WizardOrchestratorService,
     private readonly configGenerator: ConfigGeneratorService,
     private readonly fileManager: FileManagerService,
+    private readonly gatewayValidator: CliGatewayValidatorService,
+    private readonly wizardStateManager: WizardStateManager,
   ) {
     super();
   }
@@ -72,35 +74,31 @@ export class ConfigInitCommand extends CommandRunner {
 
       CliLogger.blank();
 
-      const result = await this.orchestrator.runInitWizard();
+      const { configInput, envInput, wizardState } =
+        await this.orchestrator.runInitWizard();
 
       const spinner = CliLogger.spinner('Writing configuration files...');
 
-      await this.configGenerator.generateFullConfig(
-        result.configInput,
-        result.envInput,
-        undefined,
-        { backupExisting: false },
-      );
-
-      spinner.succeed('Configuration files created!');
-
-      await this.validateAndFixConfig();
-
-      this.printSuccess();
+      try {
+        await this.configGenerator.generateFullConfig(
+          configInput,
+          envInput,
+          wizardState,
+          { backupExisting: false },
+        );
+        spinner.succeed('Configuration files created!');
+        await this.validateAndFixConfig();
+        await this.wizardStateManager.clearState();
+        this.printSuccess();
+      } catch (error) {
+        await this.wizardStateManager.rollback(wizardState);
+        throw error;
+      }
     } catch (error) {
       CliLogger.error(
         error instanceof Error ? error.message : 'Unknown error occurred.',
       );
       process.exit(1);
-    }
-  }
-
-  private loadEnvForValidation(): void {
-    try {
-      dotenvConfig({ path: join(process.cwd(), '.env') });
-    } catch {
-      /* intentionally ignored */
     }
   }
 
@@ -115,12 +113,9 @@ export class ConfigInitCommand extends CommandRunner {
     while (!isValid && attempts < maxAttempts) {
       attempts++;
 
-      this.loadEnvForValidation();
-
       const spinner = CliLogger.spinner('Validating configuration...');
-      const result = validateGatewayConfig({
+      const result = this.gatewayValidator.validate({
         configPath: join(process.cwd(), 'gateway.config.yaml'),
-        env: process.env,
       });
 
       if (result.success) {

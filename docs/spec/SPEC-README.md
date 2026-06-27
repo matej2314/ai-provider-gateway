@@ -20,6 +20,6 @@ Ten katalog zawiera **specyfikacje obszarów** systemu (1 plik = 1 obszar). Plik
 - `SPEC-CHAT.md` — endpoint standardowego czatu (`POST /chat`).
 - `SPEC-CHAT-STREAMING.md` — streaming SSE (`POST /chat/stream`).
 - `SPEC-PROVIDERS.md` — fabryki providerów, multi-instance, rejestr i normalizacja SDK.
-- `SPEC-KONFIGURACJA.md` — konfiguracja plug&play (`gateway.config.yaml` + env), m.in. wymóg **minimum jednego** klucza API w **production** wg `env.validation.ts` oraz spójność `providers` ↔ `models` (F-3b, F-3c).
+- `SPEC-KONFIGURACJA.md` — konfiguracja plug&play (`gateway.config.yaml` + env), m.in. klucze providerów **per `apiKeyRef`** oraz spójność `providers` ↔ `models` (F-3b, F-3c).
 - `SPEC-HEALTH.md` — liveness/readiness.
 

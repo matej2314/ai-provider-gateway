@@ -11,6 +11,7 @@ import chalk from 'chalk';
 import * as inquirer from 'inquirer';
 import type { CliRateLimit } from './cli.services.types';
 import { KeyGeneratorService } from './key-generator.service';
+import { buildClientRateLimitConfig } from '../utils/client-rate-limit.util';
 
 @Injectable()
 export class ClientManagerService {
@@ -112,7 +113,7 @@ export class ClientManagerService {
         {
           type: 'number',
           name: 'maxConcurrentStreams',
-          message: 'Max concurrent streams (0 for default):',
+          message: 'Max concurrent streams (minimum 1):',
           default: 0,
           validate: (input: number) => {
             if (!Number.isFinite(input))
@@ -143,21 +144,19 @@ export class ClientManagerService {
       type: clientAnswers.type,
       gatewayKeyRef,
       ...(rateLimit && {
-        rateLimit: {
-          rps: rateLimit.rps,
-          burst: rateLimit.burst,
-          maxConcurrentStreams: rateLimit.maxConcurrentStreams ?? 3,
-        },
+        rateLimit: buildClientRateLimitConfig(rateLimit),
       }),
     };
+
+    await this.envPatch.setVar(cwd, gatewayKeyRef, gatewayKey);
 
     try {
       await this.persistence.persistConfig(config, cwd);
     } catch (error) {
       delete config.clients[clientId];
+      await this.envPatch.removeVar(cwd, gatewayKeyRef);
       throw error;
     }
-    await this.envPatch.setVar(cwd, gatewayKeyRef, gatewayKey);
 
     CliLogger.success(`Client ${clientId} added to configuration.`);
   }
@@ -289,25 +288,22 @@ export class ClientManagerService {
           {
             type: 'number',
             name: 'maxConcurrentStreams',
-            message: 'Max concurrent streams (0 to default = 3):',
+            message: 'Max concurrent streams (minimum 1):',
             default: row.rateLimit?.maxConcurrentStreams ?? 3,
             validate: (input: number) => {
               if (!Number.isFinite(input))
                 return 'Max concurrent streams must be a number.';
-              return input >= 0
+              return input >= 1
                 ? true
-                : 'Max concurrent streams must be 0 or positive.';
+                : 'Max concurrent streams must be at least 1.';
             },
           },
         ]);
-        row.rateLimit = {
+        row.rateLimit = buildClientRateLimitConfig({
           rps: rateLimitAnswers.rps,
           burst: rateLimitAnswers.burst,
-          maxConcurrentStreams:
-            rateLimitAnswers.maxConcurrentStreams > 0
-              ? rateLimitAnswers.maxConcurrentStreams
-              : 3,
-        };
+          maxConcurrentStreams: rateLimitAnswers.maxConcurrentStreams,
+        });
         await this.persistence.persistConfig(config, cwd);
         CliLogger.success(`Rate limit updated for client ${clientId}.`);
         return;

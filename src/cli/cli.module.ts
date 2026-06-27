@@ -17,6 +17,7 @@ import { ServerPromptService } from './services/prompts/server-prompt.service';
 import { ConfigValidateCommand } from './commands/config/config-validate.command';
 import { ConfigShowCommand } from './commands/config/config-show.command';
 import { ConfigPersistenceService } from './services/config-persistence.service';
+import { CliGatewayValidatorService } from './services/cli-gateway-validator.service';
 import { ProviderListCommand } from './commands/provider/provider-list.command';
 import { ProviderTestCommand } from './commands/provider/provider-test.command';
 import { ProviderTestService } from './services/provider-test.service';
@@ -64,6 +65,7 @@ import { KeyGenerateCommand } from './commands/key/key-generate.command';
     ProviderTestService,
     EnvPatchService,
     ConfigPersistenceService,
+    CliGatewayValidatorService,
     ProviderManagerService,
     ProviderAddCommand,
     ProviderRemoveCommand,

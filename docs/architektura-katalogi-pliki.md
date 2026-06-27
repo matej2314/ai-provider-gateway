@@ -45,25 +45,27 @@ ai-provider-gateway/
 │   ├── generate-key.sh             # pusty wrapper — użyj `gateway key:generate`
 │   └── generate-key.ps1            # pusty wrapper — użyj `gateway key:generate`
 │
-├── test/                           # testy E2E HTTP (Jest; szczegóły: docs/testy.md)
+├── test/
 │   ├── jest-e2e.json
-│   └── e2e/
-│       ├── gateway-chat.e2e-spec.ts
-│       ├── gateway-chat-stream-scenarios.e2e-spec.ts
-│       ├── gateway-chat-cache.e2e-spec.ts
-│       ├── openai-facade.e2e-spec.ts
-│       ├── openai-facade-extended.e2e-spec.ts
-│       ├── anthropic-facade.e2e-spec.ts
-│       ├── anthropic-facade-extended.e2e-spec.ts
+│   ├── jest-cli.json                 # npm run test:cli — src/cli/**/*.spec.ts
+│   ├── jest-integration.json         # npm run test:integration — live SDK + Redis
+│   ├── fixtures/cli/                 # oczekiwane wyjścia wizarda (testy)
+│   ├── e2e/
+│   │   ├── gateway-chat.e2e-spec.ts
+│   │   ├── gateway-chat-stream-scenarios.e2e-spec.ts
+│   │   ├── gateway-chat-cache.e2e-spec.ts
+│   │   ├── facade-models.e2e-spec.ts
+│   │   ├── openai-facade.e2e-spec.ts
+│   │   ├── openai-facade-extended.e2e-spec.ts
+│   │   ├── anthropic-facade.e2e-spec.ts
+│   │   ├── anthropic-facade-extended.e2e-spec.ts
+│   │   ├── helpers/
+│   │   └── setup/
+│   └── integration/                  # live SDK + Redis (Docker); README.md
+│       ├── docker-compose.redis.yml
+│       ├── fixtures/
 │       ├── helpers/
-│       │   ├── create-e2e-app.ts
-│       │   ├── e2e-constants.ts
-│       │   ├── e2e-infra-mocks.ts
-│       │   ├── e2e-provider-registry.ts
-│       │   └── e2e-rate-limiter.ts
 │       └── setup/
-│           ├── jest-e2e.setup.ts
-│           └── mock-configuration.ts
 │
 ├── src/
 │   ├── main.ts                     # bootstrap NestJS, Swagger, graceful shutdown
@@ -268,35 +270,42 @@ ai-provider-gateway/
 │   │   │   │   └── client-remove.command.ts
 │   │   │   └── key/
 │   │   │       └── key-generate.command.ts
+│   │   ├── cli-bootstrap.spec.ts
 │   │   ├── constants/
-│   │   │   └── default-models.ts           # domyślne modelId per provider (wizard)
+│   │   │   ├── default-models.ts
+│   │   │   ├── model-allow-overrides.ts
+│   │   │   └── wizard-steps.ts
+│   │   ├── schemas/
+│   │   │   └── wizard-state.schema.ts
 │   │   ├── services/
 │   │   │   ├── cli-config-loader.service.ts
+│   │   │   ├── cli-gateway-validator.service.ts   # validateGatewayConfig + validateEnv
 │   │   │   ├── cli.services.types.ts
-│   │   │   ├── config-generator.service.ts # generowanie YAML, .env, promptów (wizard)
-│   │   │   ├── config-persistence.service.ts # backup + zapis YAML po mutacjach
-│   │   │   ├── env-patch.service.ts        # setVar / removeVar w .env
-│   │   │   ├── file-manager.service.ts     # backup do backup/, read/write YAML i .env
+│   │   │   ├── config-generator.service.ts
+│   │   │   ├── config-persistence.service.ts
+│   │   │   ├── env-patch.service.ts
+│   │   │   ├── file-manager.service.ts
 │   │   │   ├── key-generator.service.ts
-│   │   │   ├── provider-manager.service.ts # add / remove / edit providerInstance
-│   │   │   ├── model-manager.service.ts      # add / remove / edit aliasów
-│   │   │   ├── client-manager.service.ts     # add / remove / edit klientów
-│   │   │   ├── provider-test.service.ts      # lekkie testy SDK Anthropic / Google
+│   │   │   ├── provider-manager.service.ts
+│   │   │   ├── model-manager.service.ts
+│   │   │   ├── client-manager.service.ts
+│   │   │   ├── provider-test.service.ts
 │   │   │   ├── wizard-orchestrator.service.ts
-│   │   │   ├── wizard-state-manager.service.ts  # .gateway-wizard-state.json
-│   │   │   └── prompts/                    # prompty wizarda config:init
-│   │   │       ├── key-prompt.service.ts
-│   │   │       ├── provider-prompt.service.ts
-│   │   │       ├── model-prompt.service.ts
-│   │   │       ├── client-prompt.service.ts
-│   │   │       └── server-prompt.service.ts
+│   │   │   ├── wizard-state-manager.service.ts
+│   │   │   └── prompts/
 │   │   ├── templates/
 │   │   │   ├── gateway-config.template.ts
 │   │   │   ├── env.template.ts
 │   │   │   ├── master-prompt.template.ts
 │   │   │   └── model-prompt.template.ts
 │   │   └── utils/
-│   │       ├── cli-logger.util.ts          # kolorowy output (chalk, ora)
+│   │       ├── api-key-validation.util.ts
+│   │       ├── cli-logger.util.ts
+│   │       ├── client-rate-limit.util.ts
+│   │       ├── default-model-policy.util.ts
+│   │       ├── effective-config-preview.util.ts
+│   │       ├── legacy-provider-env.util.ts
+│   │       ├── provider-id.util.ts
 │   │       └── validation-formatter.util.ts
 │   │
 │   ├── config/
@@ -306,7 +315,8 @@ ai-provider-gateway/
 │   │   ├── configuration.types.ts
 │   │   ├── configuration.helpers.ts
 │   │   ├── gateway-config.schema.ts        # GatewayConfigSchema (Zod), EXPECTED_SCHEMA_VERSION
-│   │   ├── config-validator.ts             # validateGatewayConfig() — CLI + npm run config:validate
+│   │   ├── config-validator.ts
+│   │   ├── provider-api-key.validation.ts  # assertEnabledProviderApiKeysPresent
 │   │   ├── env.validation.ts
 │   │   ├── provider-types.ts
 │   │   └── system-prompt/
@@ -473,7 +483,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`bin/`** | Entry point CLI: wrapper JS (`gateway-cli-wrapper.js`) uruchamia skompilowany `dist/bin/gateway-cli.js` lub — gdy brak build — TypeScript przez `ts-node` (`gateway-cli.ts` → `CliModule`). Dostęp: `npm run cli`, `npx gateway`, bin **`gateway`** z `package.json` (po `npm link` lub instalacji globalnej). |
 | **`src/cli/`** | Warstwa CLI: **nie importuje** `ConfigModule`. NestJS tylko dla DI. Wizard (`config:init`), walidacja/wyświetlanie configu, CRUD providerów (multi-instance), modeli, klientów, testy SDK, generowanie kluczy. Szczegóły: `CLI.md`, `architektura.md`. |
 | **`scripts/`** | Walidacja konfiguracji offline (`npm run config:validate` → `validateGatewayConfig()`); generowanie kluczy — **`gateway key:generate`**. |
-| **`test/`** | Testy E2E HTTP (Jest): natywny czat, fasady OpenAI/Anthropic; bootstrap `createE2eApp()` z mockami `ConfigService`, `ProviderRegistryService`, Redis. Skrypty: `npm run test:e2e`, `npm run test:all`. Szczegóły: **`testy.md`**. |
+| **`test/`** | Testy: E2E HTTP (`test/e2e/`, mocki), jednostkowe CLI (`test/jest-cli.json`), integracyjne live (`test/integration/`). Skrypty: `npm run test:e2e`, `npm run test:cli`, `npm run test:integration`, `npm run test:all` (runtime + E2E). Szczegóły: **`testy.md`**. |
 | **`docs/`** | Dokumentacja i specyfikacje SDD (`spec/`). |
 
 ---
@@ -526,6 +536,6 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — plan OpenAI: `provider-openai-runtime.md`.
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
-**Pozostałość v1:** tryb non-interactive CLI; testy E2E health/CLI; E2E z **realnym** Redis (obecnie mock connection); natywny extended thinking w E2E (pokrycie jednostkowe + fasada Anthropic extended).
+**Pozostałość v1:** tryb non-interactive CLI; E2E health; natywny extended thinking w E2E (pokrycie jednostkowe + fasada Anthropic extended). Integracyjne wymagają Docker + `.env.test`.
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

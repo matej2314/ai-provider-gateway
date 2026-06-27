@@ -5,6 +5,11 @@ import { CliLogger } from '../../utils/cli-logger.util';
 import { PROVIDER_TYPES } from 'src/config/provider-types';
 import type { GatewayProviderType } from 'src/config/provider-types';
 import type { CliAiProvider } from '../cli.services.types';
+import { validateProviderApiKey } from '../../utils/api-key-validation.util';
+import {
+  defaultProviderInstanceId,
+  deriveApiKeyRef,
+} from '../../utils/provider-id.util';
 
 type ProviderPromptResult = CliAiProvider;
 
@@ -42,25 +47,35 @@ export class ProviderPromptService {
     const providers: ProviderPromptResult[] = [];
 
     for (const providerType of selectedProviders) {
+      const defaultId = defaultProviderInstanceId(providerType);
+      const { instanceId } = await inquirer.prompt<{ instanceId: string }>([
+        {
+          type: 'input',
+          name: 'instanceId',
+          message: `Instance ID for ${providerType}:`,
+          default: defaultId,
+          validate: (input: string) =>
+            String(input).trim() ? true : 'Instance ID is required.',
+        },
+      ]);
+      const id = instanceId.trim();
+      const apiKeyRef = deriveApiKeyRef(id);
+
       const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
         {
           type: 'password',
           name: 'apiKey',
           message: `Enter API Key for ${providerType}:`,
           mask: '*',
-          validate: (input: string) => {
-            if (!input || String(input).trim() === '') {
-              return 'API Key is required';
-            }
-            return true;
-          },
+          validate: (input: string) =>
+            validateProviderApiKey(providerType, String(input)),
         },
       ]);
 
       providers.push({
-        id: providerType,
+        id,
         type: providerType,
-        apiKeyRef: `${providerType.toUpperCase()}_API_KEY`,
+        apiKeyRef,
         apiKey: String(apiKey).trim(),
       });
     }

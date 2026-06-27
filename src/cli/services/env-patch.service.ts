@@ -18,6 +18,17 @@ export class EnvPatchService {
     }
   }
 
+  async getVar(cwd: string, key: string): Promise<string | undefined> {
+    const lines = await this.readLines(cwd);
+    const prefix = `${key}=`;
+    for (const line of lines) {
+      if (line.startsWith(prefix)) {
+        return line.slice(prefix.length);
+      }
+    }
+    return undefined;
+  }
+
   async setVar(cwd: string, key: string, value: string): Promise<void> {
     const lines = await this.readLines(cwd);
     const prefix = `${key}=`;

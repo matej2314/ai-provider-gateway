@@ -15,7 +15,7 @@ Wersja dokumentu: **1.6**.
 | **Błędy (JSON)** | Envelope `ErrorEnvelope` (`{statusCode, code, message, requestId, details?}`) — schema w `openapi.json`, implementacja w `src/common/filters/http-exception.filter.ts` |
 | **`x-request-id`** | Nagłówek odpowiedzi (wszystkie trasy z `RequestIdMiddleware`, w tym health) — echo nagłówka żądania lub `req_<uuid>` |
 
-**Uruchomienie serwisu:** w **`NODE_ENV=production`** walidacja env wymaga **co najmniej jednego** niepustego klucza (po `trim()`) spośród `ANTHROPIC_API_KEY` i `GOOGLE_API_KEY`. W development ten warunek **nie** jest egzekwowany (`src/config/env.validation.ts`).  
+**Uruchomienie serwisu:** każda włączona instancja providera w `gateway.config.yaml` wymaga niepustego env pod **`apiKeyRef`** (`assertEnabledProviderApiKeysPresent` — `src/config/provider-api-key.validation.ts`).  
 Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + `buildEffectiveGatewayConfig`). Po sklonowaniu uzupełnij `.env` i YAML albo uruchom `gateway config:init` — `konfiguracja.md`.
 
 ---
