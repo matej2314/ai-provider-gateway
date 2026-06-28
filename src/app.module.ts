@@ -20,6 +20,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { LoggingModule } from './logging/logging.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { ModelsModule } from './models/models.module';
 
 @Module({
   providers: [
@@ -38,6 +39,7 @@ import { IntegrationsModule } from './integrations/integrations.module';
       includeRedisStack: isRedisRequiredFromEnv(),
     }),
     ChatModule,
+    ModelsModule,
     ProvidersModule.register(),
     HealthModule,
     RateLimitModule.register({

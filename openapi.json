@@ -245,6 +245,192 @@
         ]
       }
     },
+    "/api/v1/models": {
+      "get": {
+        "description": "Returns active model aliases from gateway.config.yaml",
+        "operationId": "ModelsController_list",
+        "parameters": [
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelsListResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "GATEWAY_KEY_MISSING",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "GATEWAY_KEY_INVALID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "MODEL_ALIAS_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_SERVER_ERROR, GATEWAY_KEY_NOT_CONFIGURED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "GatewayKeyAuth": []
+          }
+        ],
+        "summary": "List available model aliases",
+        "tags": [
+          "Models"
+        ]
+      }
+    },
+    "/api/v1/models/{modelAlias}": {
+      "get": {
+        "operationId": "ModelsController_getOne",
+        "parameters": [
+          {
+            "name": "modelAlias",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "chat-default",
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Request correlation ID — echo request header `x-request-id` (if not empty) or `req_<uuid>`. Set by `RequestIdMiddleware` (`src/common/middleware/request-id.middleware.ts`) on all routes with middleware. The same ID as the `requestId` field in JSON (success, error, SSE `meta`).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "req_123e4567-e89b-12d3-a456-426614174000"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayModelDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "GATEWAY_KEY_MISSING",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "GATEWAY_KEY_INVALID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "MODEL_ALIAS_NOT_FOUND\n\nMODEL_ALIAS_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_SERVER_ERROR, GATEWAY_KEY_NOT_CONFIGURED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelopeDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "GatewayKeyAuth": []
+          }
+        ],
+        "summary": "Get model alias details",
+        "tags": [
+          "Models"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "description": "LightWeight process probe. Does not require X-Gateway-Key.",
@@ -1129,7 +1315,7 @@
   "info": {
     "title": "AI Provider Gateway API",
     "description": "REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/dokumentacja_api.md`.",
-    "version": "0.13.0",
+    "version": "0.14.0",
     "contact": {}
   },
   "tags": [
@@ -1687,6 +1873,80 @@
           "code",
           "message",
           "requestId"
+        ]
+      },
+      "GatewayModelCapabilitiesDto": {
+        "type": "object",
+        "properties": {
+          "streaming": {
+            "type": "boolean",
+            "example": true
+          },
+          "tools": {
+            "type": "boolean",
+            "example": true
+          },
+          "thinking": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "GatewayModelDto": {
+        "type": "object",
+        "properties": {
+          "modelAlias": {
+            "type": "string",
+            "example": "chat-default",
+            "description": "Public model alias from gateway.config.yaml"
+          },
+          "providerInstance": {
+            "type": "string",
+            "example": "anthropic-primary"
+          },
+          "providerType": {
+            "enum": [
+              "anthropic",
+              "google",
+              "gateway"
+            ],
+            "type": "string",
+            "example": "anthropic",
+            "description": "Provider adapter type from providers[].type"
+          },
+          "modelId": {
+            "type": "string",
+            "example": "claude-sonnet-4-5-20250929",
+            "description": "Vendor model ID used by the runtime adapter"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/GatewayModelCapabilitiesDto"
+          },
+          "fallback": {
+            "type": "string",
+            "example": "chat-backup",
+            "description": "Optional fallback alias from models[].fallback"
+          }
+        },
+        "required": [
+          "modelAlias",
+          "providerInstance",
+          "providerType",
+          "modelId"
+        ]
+      },
+      "ModelsListResponseDto": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayModelDto"
+            }
+          }
+        },
+        "required": [
+          "models"
         ]
       },
       "HealthLivenessResponseDto": {
