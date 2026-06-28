@@ -18,6 +18,7 @@ flowchart TB
     http[wejście HTTP: walidacja, requestId, logi]
     integrations[Integrations Module — fasady IDE]
     chat[Chat Module]
+    models[Models Module]
     cache[Cache Module — opcjonalny backend odpowiedzi]
     providers[Providers Module]
     health[Health Module]
@@ -33,7 +34,9 @@ flowchart TB
   cursor --> integrations
   claude --> integrations
   http --> chat
+  http --> models
   integrations --> chat
+  integrations --> models
   chat --> cache
   chat --> providers
   http --> health
@@ -47,14 +50,15 @@ flowchart TB
 | Moduł | Odpowiedzialność |
 |------|------------------|
 | **Chat** (`src/chat`) | Czat standardowy (`POST /api/v1/chat`) i streaming SSE (`POST /api/v1/chat/stream` — `ChatStreamController`). **`ChatService`**: wspólne `prepareRequestForExecution` (ingress, cooldown check), `executeChat` (cache) / `executeStream` (SSE), `ResilientExecutor`. **`ChatProviderCallService`**: `completeOnce` / `streamOnce`, metryki LLM, SSE `meta`/`delta`. Eksport **`ChatService`** i **`SmartRateLimitGuard`** dla fasad. Odpowiedź / `done`: `toolCalls`, `finishReason`, `usageDetails`, opcjonalnie `thinkingContent`, `systemFingerprint`, `warnings`. |
-| **Integrations** (`src/integrations`) | Fasady OpenAI i Anthropic Messages — mapowanie na `ChatService`. Anthropic: `anthropic-usage.mapper.ts` (usage JSON ↔ stream), `anthropic-stream.mapper.ts` (thinking w fazie `done`). Szczegóły: `integracje.md`, `integracja-anthropic-messages.md`. |
+| **Models** (`src/models`) | Katalog aliasów: `GET /api/v1/models`, `GET /api/v1/models/:modelAlias`. **`GatewayModelsCatalogService`**: odczyt `gateway.config.yaml` (bez SDK). Eksport serwisu dla fasad OpenAI/Anthropic (mappery `openai-models.mapper.ts`, `anthropic-models.mapper.ts`). |
+| **Integrations** (`src/integrations`) | Fasady OpenAI i Anthropic Messages — mapowanie na `ChatService` (czat) i `GatewayModelsCatalogService` (models). Anthropic: `anthropic-usage.mapper.ts` (usage JSON ↔ stream), `anthropic-stream.mapper.ts` (thinking w fazie `done`). Szczegóły: `integracje.md`, `integracja-anthropic-messages.md`. |
 | **Cache** (`src/cache`) | Globalny moduł dynamiczny: rejestr backendów (`noop` zawsze, `redis` warunkowo), `ResponseCacheService` — cache wyłącznie dla **`POST /api/v1/chat`**. Odczyt wpisów walidowany schematem Zod `CachedChatResponseSchema` (`schemas/cached-chat-response.schema.ts`); niepoprawny kształt → usunięcie klucza i cache MISS. **`RedisConnectionService`** (`adapters/redis-cache/`) to współdzielona infrastruktura Redis (cache + rate limit); aktywacja: `isRedisRequiredFromEnv()` w `should-include-redis-stack.ts`. Konfiguracja env: `docs/konfiguracja.md`. |
 | **Providers** (`src/providers`) | Fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr po **`providerInstance`** (`ProviderRegistryService`). Mapery tool calling: `anthropic-tools.mapper.ts`, `google-tools.mapper.ts`. Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config` + `ConfigModule.forRoot` w `AppModule`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Loader `configuration.ts` składa obiekt **`AppConfiguration`** (`app-configuration.types.ts`); odczyt w runtime przez **`getAppConfig` / `getAppConfigOrThrow`** (`typed-config.ts`). Brak osobnego Nest feature module. Fail‑fast przy starcie. |
 | **Health** (`src/health`) | Liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready` — `checks.config`, `checks.redis`, `checks.cache`). **`checks.redis`**: probe współdzielonej infrastruktury Redis (`RedisConnectionService.ping()`), tylko gdy `isRedisRequiredFromConfig()`; pola `required`, `consumers`. **`checks.cache`**: stan feature cache; przy backendzie `redis` dostępność wynika z `checks.redis`. Walidacja konfiguracji przy **starcie** procesu. |
 | **Rate limit** (`src/rate-limit`) | Jedyna warstwa limitów gateway: smart limiting per klucz klienta (Redis przez wspólny `RedisConnectionService`) — token bucket (RPS/burst), równoległe streamy (`SmartRateLimitGuard`, `SmartRateLimiterService`); cooldown po 429 od providera — `prepareRequestForExecution` (check) i `ChatErrorHandlerService` (set). Limity: opcjonalnie `clients[].rateLimit` w YAML, inaczej env; przełącznik `RATE_LIMIT_SMART_ENABLED`. Bez `@nestjs/throttler`. |
 | **Logging / Metrics** | Structured logging (Pino), opcjonalnie Sentry (błędy + spany LLM). |
-| **Swagger / OpenAPI** (`src/swagger`) | Jeden dokument OpenAPI 3.1 dla **natywnego czatu**, **health** i **fasad IDE** (OpenAI + Anthropic). Dekoratory `@Api*` na wszystkich kontrolerach HTTP; `swagger.setup.ts` rejestruje `extraModels` i trzy `securitySchemes` (`GatewayKeyAuth`, `BearerAuth`, `ApiKeyAuth`). UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport: `npm run openapi:export` → `openapi.json`. |
+| **Swagger / OpenAPI** (`src/swagger`) | Jeden dokument OpenAPI 3.1 dla **natywnego czatu**, **models**, **health** i **fasad IDE** (OpenAI + Anthropic). Dekoratory `@Api*` na wszystkich kontrolerach HTTP; `swagger.setup.ts` rejestruje `extraModels` i trzy `securitySchemes` (`GatewayKeyAuth`, `BearerAuth`, `ApiKeyAuth`). UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport: `npm run openapi:export` → `openapi.json`. |
 | **CLI** (`src/cli`, `bin/`) | Narzędzie wiersza poleceń dla konfiguracji i operacji developerskich. **Osobny entry point** (`bin/gateway-cli-wrapper.js` → `CommandFactory.run(CliModule)`), **bez** importu `ConfigModule`. Reużywa schematy Zod z `src/config/`, ale ładuje YAML bez rozwiązywania env (`CliConfigLoaderService`). **Wdrożone:** wizard `config:init`, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli i klientów, `provider:test`, `key:generate`. Szczegóły: `CLI.md`, `architektura-katalogi-pliki.md` (sekcja 2a). |
 
 ## CLI — izolacja od runtime HTTP

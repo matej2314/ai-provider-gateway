@@ -6,7 +6,7 @@ Gateway udostępnia **trzy powierzchnie HTTP** pod prefiksem `/api/v1`:
 
 | Powierzchnia | Odbiorca | Auth | Główne trasy |
 |--------------|----------|------|--------------|
-| **Natywna** | Aplikacje zintegrowane z kontraktem gateway | `X-Gateway-Key` | `POST /chat`, `POST /chat/stream` |
+| **Natywna** | Aplikacje zintegrowane z kontraktem gateway | `X-Gateway-Key` | `GET /models`, `POST /chat`, `POST /chat/stream` |
 | **OpenAI** | Cursor i klienty OpenAI SDK | `Authorization: Bearer` | `GET /openai/models`, `POST /openai/chat/completions` |
 | **Anthropic** | Claude Code i klienty Messages API | `x-api-key` (lub Bearer) | `GET /anthropic/models`, `POST /anthropic/messages` |
 
@@ -14,15 +14,15 @@ Szczegóły fasad (mapowanie `model` → `modelAlias`, błędy vendora, stan wdr
 
 ### OpenAPI / Swagger (wszystkie powierzchnie)
 
-Jeden plik **`openapi.json`** (v0.13.0, OpenAPI 3.1) generowany z kodu (`npm run openapi:export`). Zawiera trasy health, czatu natywnego oraz fasad OpenAI i Anthropic. Schematy bezpieczeństwa:
+Jeden plik **`openapi.json`** (v0.14.0, OpenAPI 3.1) generowany z kodu (`npm run openapi:export`). Zawiera trasy health, czatu natywnego, **models**, oraz fasad OpenAI i Anthropic. Schematy bezpieczeństwa:
 
 | Scheme | Nagłówek | Trasy |
 |--------|----------|-------|
-| `GatewayKeyAuth` | `X-Gateway-Key` | `POST /chat`, `POST /chat/stream` |
+| `GatewayKeyAuth` | `X-Gateway-Key` | `GET /models`, `POST /chat`, `POST /chat/stream` |
 | `BearerAuth` | `Authorization: Bearer` | `/openai/*` |
 | `ApiKeyAuth` | `x-api-key` | `/anthropic/*` |
 
-Błędy w spec: natywny czat — `ErrorEnvelope`; fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (runtime: lokalne filtry, nie `GlobalExceptionFilter`). Swagger UI: `/api/v1/api-docs` (`SWAGGER_ENABLED` — `konfiguracja.md`).
+Błędy w spec: natywny czat i models — `ErrorEnvelope`; fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (runtime: lokalne filtry, nie `GlobalExceptionFilter`). Swagger UI: `/api/v1/api-docs` (`SWAGGER_ENABLED` — `konfiguracja.md`).
 
 ### Natywny kontrakt (rdzeń)
 
@@ -111,7 +111,7 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 
 ## Auth
 
-**Natywny czat** wymaga **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()`).
+**Natywny czat i models** wymagają **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()` na `ChatController`, `ChatStreamController`, `ModelsController`).
 
 **Fasady IDE** używają tej samej allowlisty kluczy klienta, ale innych nagłówków — Bearer (OpenAI) lub `x-api-key` / Bearer (Anthropic); guard fasady ustawia `req.gatewayKey`, potem `SmartRateLimitGuard` (`readClientGatewayKey`). Klucze providerów w `.env` (per `apiKeyRef` / `providerInstance`) pozostają wyłącznie w warstwie `src/providers/`.
 

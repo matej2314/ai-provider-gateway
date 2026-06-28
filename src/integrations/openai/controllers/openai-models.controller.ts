@@ -8,7 +8,7 @@ import {
   ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import { OpenAiAuth } from '../decorators/openai-auth.decorator';
-import { OpenAiModelsCatalogService } from '../services/openai-models-catalog.service';
+import { GatewayModelsCatalogService } from '../../../models/services/gateway-models-catalog.service';
 import { OPENAI_INTEGRATION_PATH } from '../../../integrations/integrations.constants';
 import {
   OpenAiModelsListResponseDto,
@@ -17,13 +17,17 @@ import {
 import { ApiOpenAiErrorResponses } from '../../../common/decorators/api-openai-error-response.decorator';
 import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-header.decorator';
 import { OpenAiErrorResponseDto } from '../dtos/openai-error-response.dto';
+import {
+  mapGatewayModelToOpenAi,
+  mapGatewayModelsListToOpenAi,
+} from '../mappers/openai-models.mapper';
 
 @ApiTags('OpenAI API')
 @ApiSecurity('BearerAuth')
 @Controller(OPENAI_INTEGRATION_PATH)
 @OpenAiAuth()
 export class OpenAiModelsController {
-  constructor(private readonly catalog: OpenAiModelsCatalogService) {}
+  constructor(private readonly catalog: GatewayModelsCatalogService) {}
 
   @Get('models')
   @ApiOperation({ summary: 'List available models (OPENAI API spec)' })
@@ -31,7 +35,7 @@ export class OpenAiModelsController {
   @ApiOpenAiErrorResponses()
   @ApiRequestIdHeader()
   list(): OpenAiModelsListResponseDto {
-    return this.catalog.listModels();
+    return mapGatewayModelsListToOpenAi(this.catalog.list());
   }
 
   @Get('models/:model')
@@ -45,12 +49,12 @@ export class OpenAiModelsController {
   @ApiOpenAiErrorResponses()
   @ApiRequestIdHeader()
   getOne(@Param('model') model: string) {
-    const found = this.catalog.getModel(model);
+    const found = this.catalog.getOne(model);
     if (!found) {
       throw new NotFoundException({
         message: `Model ${model} does not exist.`,
       });
     }
-    return found;
+    return mapGatewayModelToOpenAi(found);
   }
 }

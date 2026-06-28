@@ -54,6 +54,7 @@ ai-provider-gateway/
 │   │   ├── gateway-chat.e2e-spec.ts
 │   │   ├── gateway-chat-stream-scenarios.e2e-spec.ts
 │   │   ├── gateway-chat-cache.e2e-spec.ts
+│   │   ├── native-models.e2e-spec.ts
 │   │   ├── facade-models.e2e-spec.ts
 │   │   ├── openai-facade.e2e-spec.ts
 │   │   ├── openai-facade-extended.e2e-spec.ts
@@ -138,6 +139,18 @@ ai-provider-gateway/
 │   │       ├── sse-event.type.ts
 │   │       └── sse.serializer.ts
 │   │
+│   ├── models/                               # katalog aliasów (natywny GET /models + export dla fasad)
+│   │   ├── models.module.ts
+│   │   ├── controllers/
+│   │   │   ├── models.controller.ts
+│   │   │   └── models.controller.spec.ts
+│   │   ├── services/
+│   │   │   ├── gateway-models-catalog.service.ts
+│   │   │   └── gateway-models-catalog.service.spec.ts
+│   │   └── dto/
+│   │       ├── gateway-model.dto.ts
+│   │       └── models-list-response.dto.ts
+│   │
 │   ├── providers/
 │   │   ├── providers.module.ts             # ProviderRegistryModule + bootstrap instancji
 │   │   ├── provider-registry.module.ts
@@ -171,9 +184,6 @@ ai-provider-gateway/
 │   │   │   │   ├── openai-chat-completions.controller.spec.ts
 │   │   │   │   ├── openai-models.controller.ts
 │   │   │   │   └── openai-models.controller.spec.ts
-│   │   │   ├── services/
-│   │   │   │   ├── openai-models-catalog.service.ts
-│   │   │   │   └── openai-models-catalog.service.spec.ts
 │   │   │   ├── mappers/
 │   │   │   │   ├── openai-request.mapper.ts
 │   │   │   │   ├── openai-request.mapper.spec.ts
@@ -184,7 +194,9 @@ ai-provider-gateway/
 │   │   │   │   ├── openai-tools.mapper.ts
 │   │   │   │   ├── openai-tools.mapper.spec.ts
 │   │   │   │   ├── openai-messages.mapper.ts
-│   │   │   │   └── openai-messages.mapper.spec.ts
+│   │   │   │   ├── openai-messages.mapper.spec.ts
+│   │   │   │   ├── openai-models.mapper.ts
+│   │   │   │   └── openai-models.mapper.spec.ts
 │   │   │   ├── helpers/
 │   │   │   │   ├── normalize-openai-content.ts
 │   │   │   │   ├── normalize-openai-content.spec.ts
@@ -210,9 +222,6 @@ ai-provider-gateway/
 │   │       │   ├── anthropic-messages.controller.spec.ts
 │   │       │   ├── anthropic-models.controller.ts
 │   │       │   └── anthropic-models.controller.spec.ts
-│   │       ├── services/
-│   │       │   ├── anthropic-models-catalog.service.ts
-│   │       │   └── anthropic-models-catalog.service.spec.ts
 │   │       ├── mappers/
 │   │       │   ├── anthropic-request.mapper.ts
 │   │       │   ├── anthropic-request.mapper.spec.ts
@@ -225,7 +234,9 @@ ai-provider-gateway/
 │   │       │   ├── anthropic-stop-reason.mapper.ts   # GatewayFinishReason → stop_reason
 │   │       │   ├── anthropic-stop-reason.spec.ts
 │   │       │   ├── anthropic-tools.mapper.ts
-│   │       │   └── anthropic-tools.mapper.spec.ts
+│   │       │   ├── anthropic-tools.mapper.spec.ts
+│   │       │   ├── anthropic-models.mapper.ts
+│   │       │   └── anthropic-models.mapper.spec.ts
 │   │       ├── helpers/
 │   │       │   └── anthropic-stream-api-description.ts
 │   │       ├── guards/
@@ -533,7 +544,7 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - System prompt z plików, cache (`noop`/`redis`, walidacja odczytu `CachedChatResponseSchema`), typed config (`AppConfiguration`, `typed-config.ts`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.redis`, `checks.cache`), graceful shutdown.
 - `GatewayFinishReason` (`stop` | `tool_calls` | `length` | `content_filter`) w natywnym API; reverse map na fasadzie Anthropic (`anthropic-stop-reason.mapper.ts`).
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad IDE; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
-- **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule`; trasy `/api/v1/openai/…` i `/api/v1/anthropic/…` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — plan OpenAI: `provider-openai-runtime.md`.
+- **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule` i `ModelsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` oraz natywny `/api/v1/models` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — plan OpenAI: `provider-openai-runtime.md`.
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
 **Pozostałość v1:** tryb non-interactive CLI; E2E health; natywny extended thinking w E2E (pokrycie jednostkowe + fasada Anthropic extended). Integracyjne wymagają Docker + `.env.test`.

@@ -1,6 +1,6 @@
 # Testy — AI Provider Gateway
 
-Wersja dokumentu: **1.6** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
+Wersja dokumentu: **1.7** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
 
 ## Przegląd
 
@@ -16,9 +16,9 @@ Wersja dokumentu: **1.6** (zsynchronizowana z `package.json`, `test/` i `src/**/
 
 | Skrypt | Zestawy | Przypadki |
 |--------|---------|-----------|
-| `npm test` | 66 | 1112 |
+| `npm test` | 68 | 1114 |
 | `npm run test:cli` | 10 | 42 |
-| `npm run test:e2e` | 8 | 85 |
+| `npm run test:e2e` | 9 | 91 |
 
 Integracyjne wymagają Docker (Redis) i `.env.test` — patrz `test/integration/README.md`.
 
@@ -41,12 +41,13 @@ Konfiguracja: sekcja `"jest"` w `package.json` (`testRegex: .*\.spec\.ts$`, `roo
 | Moduł / obszar | Przykładowe pliki |
 |----------------|-------------------|
 | **Czat** | `chat.service.spec.ts`, `chat.controller.spec.ts`, `chat-stream.controller.spec.ts`, `services/chat-cache-guard.service.spec.ts`, `chat-validation.service.spec.ts`, `chat-error-handler.service.spec.ts`, `chat-provider-call.service.spec.ts`, `chat-response-builder.service.spec.ts`, `validation/chat-ingress.validator.spec.ts`, `helpers/*.spec.ts` (m.in. `map-provider-finish-reason`, `provider-input`, `generation-warnings`, `cache-policy`, `tooling-request`, `retry-policy`), `sse/sse.serializer.spec.ts` |
+| **Models** | `models/controllers/models.controller.spec.ts`, `models/services/gateway-models-catalog.service.spec.ts` |
 | **Config** | `config-validator.spec.ts`, `provider-api-key.validation.spec.ts` |
 | **Providery** | `provider-registry.service.spec.ts`, `factories/create-*-provider.spec.ts`, `anthropic/anthropic-*.mapper.spec.ts`, `google/google-tools.mapper.spec.ts` |
 | **Cache** | `cache-registry.service.spec.ts`, `response-cache.service.spec.ts`, `should-include-redis-stack.spec.ts`, adaptery `noop` / `redis` |
 | **Rate limit** | `smart-rate-limiter.service.spec.ts` |
 | **Guardy** | `gateway-key.guard.spec.ts`, `openai-bearer-auth.guard.spec.ts`, `anthropic-api-key.guard.spec.ts` |
-| **Fasady** (`src/integrations/`) | kontrolery fasad, filtry błędów, katalogi modeli, mapery (w tym `anthropic-stop-reason`, `anthropic-usage.mapper`) |
+| **Fasady** (`src/integrations/`) | kontrolery fasad, filtry błędów, mapery modeli (`openai-models.mapper`, `anthropic-models.mapper`), mapery czatu (w tym `anthropic-stop-reason`, `anthropic-usage.mapper`) |
 | **Odporność** | `resilient-executor.spec.ts`, `fallback-chain.spec.ts`, `is-retryable-http-error.spec.ts` |
 | **Błędy** | `provider-error.mapper.spec.ts`, `provider-error-mapper.helpers.spec.ts` |
 | **Health / logging / metrics** | `health.*.spec.ts`, `logging.service.spec.ts`, `metrics.service.spec.ts` |
@@ -78,6 +79,7 @@ Konwencja nazw: `*-facade*.e2e-spec.ts` = test **fasady HTTP** (`src/integration
 | `gateway-chat.e2e-spec.ts` | Natywny czat: `POST /api/v1/chat`, `POST /api/v1/chat/stream`, generation warnings |
 | `gateway-chat-stream-scenarios.e2e-spec.ts` | SSE: nagłówki, zdarzenia, fallback w streamie, limity równoległych streamów, `warnings` w `done` |
 | `gateway-chat-cache.e2e-spec.ts` | Cache odpowiedzi `POST /api/v1/chat` (mock backendu cache), persystencja `warnings` |
+| `native-models.e2e-spec.ts` | Natywny katalog: `GET /models`, auth, `ErrorEnvelope` 404, parity aliasów z fasadami |
 | `facade-models.e2e-spec.ts` | Katalogi modeli fasad OpenAI i Anthropic (`GET /openai/models`, `GET /anthropic/models`) — auth, kształt listy, wiele aliasów |
 | `openai-facade.e2e-spec.ts` | Fasada OpenAI: auth, kształt odpowiedzi, streaming |
 | `openai-facade-extended.e2e-spec.ts` | Fasada OpenAI: tool calling, rozszerzone scenariusze kontraktu |
@@ -99,6 +101,10 @@ Konwencja nazw: `*-facade*.e2e-spec.ts` = test **fasady HTTP** (`src/integration
 
 | Ścieżka | Tryb | Oczekiwany sukces w testach |
 |---------|------|----------------------------|
+| `GET /api/v1/models` | JSON | **200** |
+| `GET /api/v1/models/:modelAlias` | JSON | **200** |
+| `GET /api/v1/openai/models` | JSON | **200** |
+| `GET /api/v1/anthropic/models` | JSON | **200** |
 | `POST /api/v1/chat` | JSON | **201** |
 | `POST /api/v1/chat/stream` | SSE | **200** |
 | `POST /api/v1/openai/chat/completions` | JSON | **201** |

@@ -133,7 +133,7 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 **Nie rób**:
 
-- wystawiania jednej trasy `GET /api/v1/models` dla wszystkich klientów (OpenAI i Anthropic mają różny kształt listy),
+- wystawiania **jednej** trasy `GET /api/v1/models` w **formacie vendora** dla wszystkich klientów (OpenAI i Anthropic mają różny kształt listy) — natywny `/models` ma **własny** kontrakt gateway; fasady mają osobne prefiksy,
 - przekazywania klucza klienta (Bearer / `x-api-key`) do warstwy providerów zamiast kluczy z `.env` (per `apiKeyRef`),
 - **zakładania, że fasada `/openai` lub `/anthropic` oznacza backend tego samego vendora** — to tylko kształt HTTP; LLM wybiera `modelAlias` → `providerInstance` w YAML,
 - **traktowania Bearer na `/openai` jako klucza OpenAI.com** lub `x-api-key` na `/anthropic` jako klucza z konsole Anthropic — to klucze klienta gateway,
@@ -142,7 +142,8 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 **Rób**:
 
-- osobne prefiksy `/api/v1/openai` i `/api/v1/anthropic` + natywny `/api/v1/chat`,
+- osobne prefiksy `/api/v1/openai` i `/api/v1/anthropic` + natywny `/api/v1/chat` i **`GET /api/v1/models`** (kontrakt gateway),
+- wspólny katalog `GatewayModelsCatalogService` + mappery outbound per fasada (nie duplikować logiki odczytu YAML),
 - `readClientGatewayKey` + ta sama allowlista dla wszystkich powierzchni,
 - mapowanie `model` (vendor) → `modelAlias` (YAML) w warstwie mapperów,
 - rozróżnienie **fasady integracji** (`src/integrations/`) vs **providera runtime** (`src/providers/`) — patrz `dictionary.md` (sekcja „Fasada vs provider runtime”).

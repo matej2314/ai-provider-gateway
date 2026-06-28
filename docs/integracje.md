@@ -49,7 +49,7 @@ flowchart LR
 
 | Zasada | Opis |
 |--------|------|
-| **Trzy kontrakty, jeden silnik** | Kontrolery i mappery tłumaczą HTTP; **`ChatService`** pozostaje jedynym orchestratorem (cache, retry, fallback, limity). |
+| **Trzy kontrakty, jeden silnik** | Kontrolery i mappery tłumaczą HTTP; **`ChatService`** pozostaje jedynym orchestratorem czatu (cache, retry, fallback, limity). Katalog modeli — wspólny **`GatewayModelsCatalogService`** (`ModelsModule`) + mappery fasad. |
 | **Anti-corruption layer** | Podmoduły `openai/` i `anthropic/` są izolowane — zmiana formatu OpenAI nie wpływa na Messages API. |
 | **Bez zmiany natywnego API** | `ChatController` / `ChatStreamController` i warstwa providerów pozostają punktem odniesienia dla aplikacji pisanych pod kontrakt gateway. |
 | **Separacja kluczy** | Klucze **klientów** (IDE → gateway) ≠ klucze **providerów** (gateway → LLM w `.env`). |
@@ -63,9 +63,10 @@ flowchart LR
 | `Request.gatewayKey` w `src/common/types/express.d.ts` | W repozytorium |
 | Eksport `ChatService`, `SmartRateLimitGuard` z `ChatModule` | W repozytorium — fasady importują guard z `src/guards/smart-rate-limit-guard.ts` przez `@OpenAiAuth()` / `@AnthropicAuth()` |
 | `readClientGatewayKey` + aktualizacja `SmartRateLimitGuard` / `StreamCleanupInterceptor` | **Wdrożone** (`src/common/readClientGatewayKey.ts`) |
-| **Fasada OpenAI** (`OpenAiModule`) — auth, models, completions JSON + stream | **Wdrożona** — [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md) |
-| **Fasada Anthropic** (`AnthropicModule`) — auth, models, messages JSON + stream | **Wdrożona** — [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md) |
-| Testy E2E kontraktu HTTP fasad (mock adapterów runtime) | **Wdrożone** — `test/e2e/gateway-chat*.e2e-spec.ts`, `openai-facade*.e2e-spec.ts`, `anthropic-facade*.e2e-spec.ts` — [`testy.md`](testy.md) |
+| **Fasada OpenAI** (`OpenAiModule`) — auth, models, completions JSON + stream | **Wdrożona** — [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md); models przez `GatewayModelsCatalogService` + `openai-models.mapper.ts` |
+| **Fasada Anthropic** (`AnthropicModule`) — auth, models, messages JSON + stream | **Wdrożona** — [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md); models przez `GatewayModelsCatalogService` + `anthropic-models.mapper.ts` |
+| **ModelsModule** — natywny `GET /api/v1/models` | **Wdrożony** — wspólny katalog aliasów dla natywnego API i fasad |
+| Testy E2E kontraktu HTTP fasad (mock adapterów runtime) | **Wdrożone** — `test/e2e/gateway-chat*.e2e-spec.ts`, `openai-facade*.e2e-spec.ts`, `anthropic-facade*.e2e-spec.ts`, `facade-models.e2e-spec.ts`, `native-models.e2e-spec.ts` — [`testy.md`](testy.md) |
 
 Szczegóły konfiguracji klientów (Cursor, Claude Code): **`integracja-openai-kontrakt.md`**, **`integracja-anthropic-messages.md`**.
 
@@ -90,10 +91,13 @@ flowchart TB
   end
 
   native -->|X-Gateway-Key POST /chat| chat
+  native -->|X-Gateway-Key GET /models| models[ModelsModule]
   cursor -->|Bearer POST /openai/chat/completions| openaiF
   claude -->|x-api-key POST /anthropic/messages| anthropicF
   openaiF --> chat
+  openaiF --> models
   anthropicF --> chat
+  anthropicF --> models
   chat --> providers
 ```
 
@@ -103,13 +107,13 @@ Globalny prefiks aplikacji: **`/api/v1`** (`API_GLOBAL_PREFIX` w `src/setup.app.
 
 | Powierzchnia | Base URL (przykład) | Auth klienta | Główne trasy |
 |--------------|---------------------|--------------|--------------|
-| **Natywna** | `http://host:3000/api/v1` | `X-Gateway-Key` | `POST /chat`, `POST /chat/stream` |
+| **Natywna** | `http://host:3000/api/v1` | `X-Gateway-Key` | `GET /models`, `POST /chat`, `POST /chat/stream` |
 | **OpenAI** | `http://host:3000/api/v1/openai` | `Authorization: Bearer <klucz_klienta>` | `GET /models`, `POST /chat/completions` |
 | **Anthropic** | `http://host:3000/api/v1/anthropic` | `x-api-key` (lub Bearer) | `GET /models`, `POST /messages` |
 
 IDE ustawia **Base URL** z segmentem integracji; klient dokleja ścieżki ze specyfikacji vendora (`/models`, `/chat/completions`, `/messages`) — ten sam wzorzec co `https://api.openai.com/v1` + `/chat/completions`.
 
-**Świadomie brak** wspólnej trasy `GET /api/v1/models` — OpenAI i Anthropic mają różny kształt listy modeli.
+**Natywny katalog modeli:** `GET /api/v1/models` — własny kontrakt gateway (`GatewayModelDto`), nie kształt OpenAI ani Anthropic. Fasady nadal wystawiają `/openai/models` i `/anthropic/models` w formacie vendora; wszystkie trzy powierzchnie czytają ten sam YAML przez **`GatewayModelsCatalogService`**.
 
 Stałe ścieżek w `src/integrations/integrations.constants.ts`:
 
@@ -120,7 +124,7 @@ Stałe ścieżek w `src/integrations/integrations.constants.ts`:
 
 Pole **`model`** w żądaniu fasady (OpenAI / Anthropic) = **`modelAlias`** z `gateway.config.yaml` (np. `chat-default`, `claude-sonnet`). Vendorowy `modelId` pozostaje w konfiguracji; klient IDE nie podaje go bezpośrednio.
 
-`GET .../models` zwraca aliasy włączone w YAML (provider instancji `enabled !== false`), w formacie JSON odpowiedniego standardu.
+`GET .../models` (fasada lub natywny `/models`) zwraca aliasy z `gateway.config.yaml`, w formacie odpowiedniej powierzchni (gateway DTO vs OpenAI list vs Anthropic list).
 
 ## Autoryzacja — dwa poziomy
 
@@ -213,8 +217,7 @@ src/integrations/
 ├── integrations.constants.ts
 ├── openai/
 │   ├── controllers/     # models, chat/completions
-│   ├── services/        # models catalog (kontrolery wywołują ChatService bezpośrednio)
-│   ├── mappers/         # request, response, stream, tools, messages
+│   ├── mappers/         # request, response, stream, tools, messages, openai-models
 │   ├── helpers/         # normalize-openai-content, openai-stream-api-description
 │   ├── guards/          # Bearer auth
 │   ├── filters/         # OpenAI-shaped errors
@@ -222,14 +225,15 @@ src/integrations/
 │   └── dtos/            # w tym openai-error-response.dto.ts
 └── anthropic/
     ├── controllers/     # models, messages
-    ├── services/
-    ├── mappers/         # request, response, stream, tools, anthropic-stop-reason, anthropic-usage
+    ├── mappers/         # request, response, stream, tools, anthropic-stop-reason, anthropic-usage, anthropic-models
     ├── helpers/         # anthropic-stream-api-description
     ├── guards/          # x-api-key auth
     ├── filters/
     ├── decorators/      # @AnthropicAuth()
     └── dtos/            # w tym anthropic-error-response.dto.ts
 ```
+
+Katalog aliasów: **`src/models/`** (`ModelsModule`, `GatewayModelsCatalogService`) — importowany przez `OpenAiModule` i `AnthropicModule`. Kontrolery fasad wywołują `catalog.list()` / `getOne()` i mapują wynik przez `openai-models.mapper.ts` / `anthropic-models.mapper.ts`.
 
 ## Powiązane dokumenty
 

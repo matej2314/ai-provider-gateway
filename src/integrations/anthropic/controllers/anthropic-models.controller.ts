@@ -8,7 +8,7 @@ import {
   ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import { AnthropicAuth } from '../decorators/anthropic-auth.decorator';
-import { AnthropicModelsCatalogService } from '../services/anthropic-models-catalog.service';
+import { GatewayModelsCatalogService } from '../../../models/services/gateway-models-catalog.service';
 import {
   AnthropicModelsListResponseDto,
   AnthropicModelDto,
@@ -17,13 +17,17 @@ import { ApiAnthropicErrorResponses } from '../../../common/decorators/api-anthr
 import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-header.decorator';
 import { AnthropicErrorResponseDto } from '../dtos/anthropic-error-response.dto';
 import { ANTHROPIC_INTEGRATION_PATH } from '../../../integrations/integrations.constants';
+import {
+  mapGatewayModelToAnthropic,
+  mapGatewayModelsListToAnthropic,
+} from '../mappers/anthropic-models.mapper';
 
 @ApiTags('Anthropic API')
 @ApiSecurity('ApiKeyAuth')
 @Controller(ANTHROPIC_INTEGRATION_PATH)
 @AnthropicAuth()
 export class AnthropicModelsController {
-  constructor(private readonly catalog: AnthropicModelsCatalogService) {}
+  constructor(private readonly catalog: GatewayModelsCatalogService) {}
 
   @Get('models')
   @ApiOperation({ summary: 'List available models (Anthropic API spec)' })
@@ -31,7 +35,7 @@ export class AnthropicModelsController {
   @ApiAnthropicErrorResponses()
   @ApiRequestIdHeader()
   list() {
-    return this.catalog.listModels();
+    return mapGatewayModelsListToAnthropic(this.catalog.list());
   }
 
   @Get('models/:model')
@@ -45,12 +49,12 @@ export class AnthropicModelsController {
   @ApiAnthropicErrorResponses()
   @ApiRequestIdHeader()
   getOne(@Param('model') model: string) {
-    const found = this.catalog.getModel(model);
+    const found = this.catalog.getOne(model);
     if (!found) {
       throw new NotFoundException({
         message: `model ${model} not found.`,
       });
     }
-    return found;
+    return mapGatewayModelToAnthropic(found);
   }
 }

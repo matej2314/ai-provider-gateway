@@ -1,10 +1,10 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **1.3**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat, fasada OpenAI, fasada Anthropic) oraz health. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
+Wersja dokumentu: **1.4**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat + **models**, fasada OpenAI, fasada Anthropic) oraz health. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
 
 ## Źródła prawdy (kolejność)
 
-1. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — dekoratory `@nestjs/swagger` na kontrolerach i klasach odpowiedzi (`@ApiProperty`, `@ApiOperation`, `@ApiGatewayChatErrorResponses`, `@ApiOpenAiErrorResponses`, `@ApiAnthropicErrorResponses`, `@ApiRequestIdHeader`, …). Konfiguracja dokumentu: `src/swagger/swagger.setup.ts` (`extraModels`, trzy `securitySchemes`).
+1. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — dekoratory `@nestjs/swagger` na kontrolerach i klasach odpowiedzi (`@ApiProperty`, `@ApiOperation`, `@ApiGatewayChatErrorResponses`, `@ApiGatewayModelsErrorResponses`, `@ApiOpenAiErrorResponses`, `@ApiAnthropicErrorResponses`, `@ApiRequestIdHeader`, …). Konfiguracja dokumentu: `src/swagger/swagger.setup.ts` (`extraModels`, trzy `securitySchemes`).
 2. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) **generowany z kodu** (`npm run openapi:export` → `src/swagger/export-openapi.ts`). W runtime ten sam dokument serwowany jako `/api/v1/swagger.json` (gdy Swagger włączony).
 3. **Swagger UI** — interaktywna dokumentacja pod `/api/v1/api-docs` (`setupSwagger` w `src/main.ts`; wyłączanie: `SWAGGER_ENABLED` — `konfiguracja.md`).
 4. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1. **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` — `konfiguracja.md`.
@@ -28,7 +28,7 @@ Wersja dokumentu: **1.3**. Dokument jest wersjonowany razem z kodem. **`openapi.
 - **Pliki system promptu** — `MASTER_SYSTEM_PROMPT.md` (wymagany), opcjonalnie `MAIN_SYSTEM_PROMPT.md` oraz `models/<modelAlias>.md` dla aliasów z YAML; treść składana w runtime (`composeSystemPrompt` w `src/chat/helpers/system-prompt.ts`). Szczegóły: `konfiguracja.md`.
 - **Env** — każda włączona instancja providera w YAML wymaga klucza pod **`apiKeyRef`** (`provider-api-key.validation.ts`). Opcjonalnie zmienne **`CACHE_*`** / **`REDIS_*`** — `konfiguracja.md`.
 
-**Nagłówek `X-Gateway-Key`:** **wymagany** dla czatu (`@GatewayKeyAndSmartRateLimit()` na kontrolerach). Allowlista: `buildGatewayKeyRuntime` w `configuration.ts`. Przy `RATE_LIMIT_SMART_ENABLED=true` i gotowym Redis — dodatkowo limity per klucz (`SmartRateLimitGuard`, `SmartRateLimiterService`; szczegóły `konfiguracja.md`). **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** — bez klucza (guardy czatu ich nie obejmują).
+**Nagłówek `X-Gateway-Key`:** **wymagany** dla czatu i katalogu modeli (`@GatewayKeyAndSmartRateLimit()` na kontrolerach `ChatController`, `ChatStreamController`, `ModelsController`). Allowlista: `buildGatewayKeyRuntime` w `configuration.ts`. Przy `RATE_LIMIT_SMART_ENABLED=true` i gotowym Redis — dodatkowo limity per klucz (`SmartRateLimitGuard`, `SmartRateLimiterService`; szczegóły `konfiguracja.md`). **`GET /api/v1/health`** i **`GET /api/v1/health/ready`** — bez klucza (guardy czatu/models ich nie obejmują).
 
 **`requestId`:** `RequestIdMiddleware` ustawia `req.requestId` z nagłówka żądania **`x-request-id`** (jeśli niepusty) lub generuje `req_<uuid>`, oraz ustawia **nagłówek odpowiedzi** `x-request-id` na tę samą wartość (`src/common/middleware/request-id.middleware.ts`). Pole **`requestId`** w JSON (sukces, błąd, SSE `meta`) pochodzi z `req.requestId`. Klient może korelować logi po nagłówku odpowiedzi lub po polu w body.
 
@@ -195,6 +195,44 @@ Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), 
 | **`checks.cache`** | Stan **feature** cache: wyłączony → **`healthy`** („Cache disabled (noop)”). Backend **`redis`** → status zależy od **`checks.redis`** (bez osobnego probe przez `CacheRegistryService`). Inne backendy → probe przez registry jak dotychczas. **`degraded`** nie blokuje `ready`. |
 
 Orchestrator powinien traktować instancję jako gotową tylko przy `status === "ready"` w JSON.
+
+---
+
+## `GET /api/v1/models` — katalog aliasów
+
+**Moduł:** `ModelsModule` (`src/models/`). **Serwis:** `GatewayModelsCatalogService` — odczyt `gateway.config.yaml` (bez wywołań SDK providerów).
+
+### `GET /api/v1/models`
+
+| | |
+|--|--|
+| **Auth** | `X-Gateway-Key` |
+| **200** | `{ "models": GatewayModelDto[] }` |
+
+Pola **`GatewayModelDto`**:
+
+| Pole | Opis |
+|------|------|
+| `modelAlias` | publiczny alias z YAML |
+| `providerInstance` | identyfikator instancji w `providers[]` |
+| `providerType` | `anthropic` \| `google` \| `openai` \| `gateway` (gdy brak wpisu providera) |
+| `modelId` | vendorowy identyfikator modelu dla adaptera runtime |
+| `capabilities` | opcjonalnie: `streaming`, `tools`, `thinking` |
+| `fallback` | opcjonalny alias zapasowy z `models[].fallback` |
+
+### `GET /api/v1/models/:modelAlias`
+
+| HTTP | Kiedy |
+|------|--------|
+| 200 | Znaleziony alias — pojedynczy `GatewayModelDto` |
+| 401 | Brak `X-Gateway-Key` (`GATEWAY_KEY_MISSING`) |
+| 403 | Niepoprawny klucz (`GATEWAY_KEY_INVALID`) |
+| 404 | Nieznany alias — **`MODEL_ALIAS_NOT_FOUND`** (`ErrorEnvelope`) |
+| 429 | Smart rate limit (`RATE_LIMITED`) |
+
+> **Różnica vs czat:** `POST /chat` z nieznanym `modelAlias` zwraca **400** + `MODEL_ALIAS_NOT_FOUND` (walidacja ingress przed LLM). Katalog modeli używa **404** dla nieistniejącego aliasu.
+
+Fasady OpenAI (`GET /openai/models`) i Anthropic (`GET /anthropic/models`) zwracają **ten sam zestaw aliasów** w formacie vendora — mapowanie przez `openai-models.mapper.ts` / `anthropic-models.mapper.ts`. Szczegóły: `integracje.md`.
 
 ---
 

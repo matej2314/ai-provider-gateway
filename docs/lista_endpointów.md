@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **1.6**.  
-**OpenAPI:** `openapi.json` (v0.13.0) — zsynchronizowany z `src/` (health, czat natywny, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`, dekoratory `@nestjs/swagger`). **Błędy:** natywny czat — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat:** `@GatewayKeyAndSmartRateLimit()` na `ChatController` / `ChatStreamController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
+Wersja dokumentu: **1.7**.  
+**OpenAPI:** `openapi.json` (v0.14.0) — zsynchronizowany z `src/` (health, czat natywny, **models**, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`, dekoratory `@nestjs/swagger`). **Błędy:** natywny czat i models — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat, models), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat / models:** `@GatewayKeyAndSmartRateLimit()` na `ChatController`, `ChatStreamController`, `ModelsController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
 
 ## Konwencje globalne
 
@@ -33,6 +33,30 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + 
 | | |
 |--|--|
 | **200** | Readiness w body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.redis`, `checks.cache`. **HTTP zawsze 200** — probe ocenia pole `status`, nie kod HTTP. `checks.redis: degraded` (Redis wymagany, ale niedostępny) i `checks.cache: degraded` **nie** blokują `ready`. Szczegóły: `dokumentacja_api.md`. |
+
+---
+
+## Models *(wymaga `X-Gateway-Key`)*
+
+### `GET /api/v1/models`
+
+Lista aliasów modeli z `gateway.config.yaml` w kontrakcie gateway (`ModelsController`, `GatewayModelsCatalogService`).
+
+| | |
+|--|--|
+| **200** | `{ models: GatewayModelDto[] }` — pola: `modelAlias`, `providerInstance`, `providerType`, `modelId`, opcjonalnie `capabilities`, `fallback` |
+| **401** | brak `X-Gateway-Key` — `GATEWAY_KEY_MISSING` |
+| **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |
+| **429** | `RATE_LIMITED` (smart rate limit) |
+
+### `GET /api/v1/models/:modelAlias`
+
+| | |
+|--|--|
+| **200** | pojedynczy `GatewayModelDto` |
+| **404** | nieznany alias — `MODEL_ALIAS_NOT_FOUND` (`ErrorEnvelope`) |
+
+> **Uwaga:** nieznany alias w **`POST /chat`** zwraca **400** + `MODEL_ALIAS_NOT_FOUND` (walidacja przed wywołaniem LLM). W katalogu modeli celowo **404**.
 
 ---
 
@@ -73,6 +97,8 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 |--------|---------|------|
 | GET | `/api/v1/health` | liveness |
 | GET | `/api/v1/health/ready` | readiness (`checks.config`, `checks.redis`, `checks.cache`) |
+| GET | `/api/v1/models` | lista aliasów modeli (kontrakt gateway) |
+| GET | `/api/v1/models/:modelAlias` | szczegóły aliasu |
 | POST | `/api/v1/chat` | standard (pełna odpowiedź) |
 | POST | `/api/v1/chat/stream` | streaming SSE (`ChatStreamController`) |
 | GET | `/api/v1/openai/models` | lista modeli (fasada OpenAI) |

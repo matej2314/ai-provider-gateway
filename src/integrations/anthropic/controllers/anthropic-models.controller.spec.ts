@@ -5,26 +5,28 @@ jest.mock('uuid', () => ({
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { AnthropicModelsController } from './anthropic-models.controller';
-import { AnthropicModelsCatalogService } from '../services/anthropic-models-catalog.service';
+import { GatewayModelsCatalogService } from '../../../models/services/gateway-models-catalog.service';
 import { AnthropicApiKeyGuard } from '../guards/anthropic-api-key.guard';
 import { SmartRateLimitGuard } from '../../../guards/smart-rate-limit-guard';
 
 describe('AnthropicModelsController', () => {
   let controller: AnthropicModelsController;
-  let catalog: jest.Mocked<AnthropicModelsCatalogService>;
-  let listModelsMock: jest.Mock;
-  let getModelMock: jest.Mock;
+  let catalog: jest.Mocked<GatewayModelsCatalogService>;
+
+  const gatewayModel = {
+    modelAlias: 'claude-3-opus',
+    providerInstance: 'anthropic-main',
+    providerType: 'anthropic' as const,
+    modelId: 'claude-3-opus-20240229',
+  };
 
   beforeEach(async () => {
-    listModelsMock = jest.fn();
-    getModelMock = jest.fn();
-
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnthropicModelsController],
       providers: [
         {
-          provide: AnthropicModelsCatalogService,
-          useValue: { listModels: listModelsMock, getModel: getModelMock },
+          provide: GatewayModelsCatalogService,
+          useValue: { list: jest.fn(), getOne: jest.fn() },
         },
       ],
     })
@@ -35,43 +37,34 @@ describe('AnthropicModelsController', () => {
       .compile();
 
     controller = module.get(AnthropicModelsController);
-    catalog = module.get(AnthropicModelsCatalogService);
+    catalog = module.get(GatewayModelsCatalogService);
   });
 
-  it('list should return catalog listModels result', () => {
-    const list = {
-      data: [
-        {
-          id: 'claude-3',
-          type: 'model' as const,
-          display_name: 'Claude 3',
-          created_at: '',
-        },
-      ],
-      first_id: 'claude-3',
-      last_id: 'claude-3',
-      has_more: false,
-    };
-    catalog.listModels.mockReturnValue(list);
+  it('list should map catalog rows to Anthropic list format', () => {
+    catalog.list.mockReturnValue([gatewayModel]);
 
-    expect(controller.list()).toBe(list);
-    expect(listModelsMock).toHaveBeenCalled();
-  });
+    const result = controller.list();
 
-  it('getOne should return model when found', () => {
-    const model = {
+    expect(result.has_more).toBe(false);
+    expect(result.data[0]).toMatchObject({
       id: 'claude-3-opus',
-      type: 'model' as const,
+      type: 'model',
       display_name: 'Claude 3 Opus',
-      created_at: '2024-01-01T00:00:00.000Z',
-    };
-    catalog.getModel.mockReturnValue(model);
+    });
+  });
 
-    expect(controller.getOne('claude-3-opus')).toBe(model);
+  it('getOne should map single row when found', () => {
+    catalog.getOne.mockReturnValue(gatewayModel);
+
+    expect(controller.getOne('claude-3-opus')).toMatchObject({
+      id: 'claude-3-opus',
+      type: 'model',
+      display_name: 'Claude 3 Opus',
+    });
   });
 
   it('getOne should throw NotFoundException with Anthropic message format', () => {
-    catalog.getModel.mockReturnValue(null);
+    catalog.getOne.mockReturnValue(null);
 
     expect(() => controller.getOne('missing-model')).toThrow(NotFoundException);
     try {

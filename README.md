@@ -4,6 +4,7 @@ Gateway HTTP dla LLM, który **ukrywa SDK providerów** i wystawia spójny kontr
 
 - standardowego czatu (`POST /api/v1/chat`),
 - streamingu SSE (`POST /api/v1/chat/stream`),
+- katalogu aliasów modeli (`GET /api/v1/models`, `GET /api/v1/models/:modelAlias`),
 - healthchecka (`GET /api/v1/health`, `GET /api/v1/health/ready`),
 - odporności (retry, timeout, opcjonalny fallback aliasu z `gateway.config.yaml`) — **`ResilientExecutor`**.
 
@@ -24,8 +25,8 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 
 | Temat                       | Plik                                                                                       |
 | --------------------------- | ------------------------------------------------------------------------------------------ |
-| Kontrakt HTTP (OpenAPI 3.1) | [`openapi.json`](openapi.json) — natywny czat + health + fasady OpenAI/Anthropic; generowany: `npm run openapi:export` |
-| Swagger UI (runtime)        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`); tagi: Health, Chat, OpenAI API *(fasada IDE)*, Anthropic API *(fasada IDE)* |
+| Kontrakt HTTP (OpenAPI 3.1) | [`openapi.json`](openapi.json) — natywny czat + models + health + fasady OpenAI/Anthropic; generowany: `npm run openapi:export` |
+| Swagger UI (runtime)        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`); tagi: Health, Chat, **Models**, OpenAI API *(fasada IDE)*, Anthropic API *(fasada IDE)* |
 | API (ludzki opis)           | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md)                                     |
 | Konfiguracja env + YAML     | [`docs/konfiguracja.md`](docs/konfiguracja.md)                                             |
 | Kody błędów                 | [`docs/dictionary.md`](docs/dictionary.md)                                                 |
@@ -57,7 +58,7 @@ Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 
 | Standard | Endpointy | Dokumentacja | Dla |
 |----------|-----------|--------------|-----|
-| **Natywny** | `/api/v1/chat`, `/api/v1/chat/stream` | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md) | Własne aplikacje |
+| **Natywny** | `/api/v1/chat`, `/api/v1/chat/stream`, `/api/v1/models` | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md) | Własne aplikacje |
 | **Fasada OpenAI** (kontrakt HTTP) | `/api/v1/openai/models`, `/api/v1/openai/chat/completions` | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md) | Cursor IDE |
 | **Fasada Anthropic** (kontrakt HTTP) | `/api/v1/anthropic/messages`, `/api/v1/anthropic/models` | [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md) | Claude Code |
 
@@ -100,6 +101,7 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 - **Resilient execution**: retry z exponential backoff, timeout per model, opcjonalny fallback chain
 - **Multi-provider (runtime)**: adaptery SDK w `src/providers/` — Anthropic, Google Gemini; adapter OpenAI planowany (`docs/provider-openai-runtime.md`)
 - **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
+- **Models catalog**: natywny `GET /api/v1/models` + fasady — wspólny `GatewayModelsCatalogService`, ten sam zestaw aliasów z YAML
 - **Production-ready**: Pino logging, Sentry observability, graceful shutdown, readiness probes
 - **CLI wizard**: `gateway config:init` — interaktywna konfiguracja, `provider:test`, model/client management
 
@@ -153,6 +155,18 @@ curl -i http://localhost:3000/api/v1/health/ready
 ```
 
 Readiness: HTTP zawsze **200** — sprawdzaj `body.status` (`ready` / `not_ready`). Pola w `checks`: **`config`**, **`redis`** (współdzielona infrastruktura; probe tylko gdy `required: true`), **`cache`** (stan feature cache).
+
+### Models (wymaga `X-Gateway-Key`)
+
+```bash
+curl -i http://localhost:3000/api/v1/models ^
+  -H "X-Gateway-Key: YOUR_GATEWAY_KEY"
+
+curl -i http://localhost:3000/api/v1/models/chat-default ^
+  -H "X-Gateway-Key: YOUR_GATEWAY_KEY"
+```
+
+Odpowiedź zawiera aliasy z `gateway.config.yaml` w kontrakcie gateway (`modelAlias`, `providerInstance`, `providerType`, `modelId`, opcjonalnie `capabilities`, `fallback`). Fasady OpenAI/Anthropic zwracają ten sam zestaw aliasów w formacie vendora — wspólna warstwa: `GatewayModelsCatalogService` (`src/models/`). Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/lista_endpointów.md`](docs/lista_endpointów.md).
 
 ### Chat (wymaga `X-Gateway-Key`)
 
@@ -211,6 +225,7 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 | Warstwa                    | Lokalizacja                                                                                                                                     |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Orkiestracja czatu         | [`ChatService`](src/chat/chat.service.ts)                                                                                                       |
+| Katalog aliasów modeli     | [`GatewayModelsCatalogService`](src/models/services/gateway-models-catalog.service.ts) — natywny `GET /models` + fasady przez mappery          |
 | Wywołania providerów + SSE | [`ChatProviderCallService`](src/chat/services/chat-provider-call.service.ts)                                                                    |
 | Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`)                                                   |
 | Błędy / `requestId`        | [`GlobalExceptionFilter`](src/common/filters/http-exception.filter.ts), [`RequestIdMiddleware`](src/common/middleware/request-id.middleware.ts) |

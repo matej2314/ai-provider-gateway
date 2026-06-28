@@ -5,26 +5,28 @@ jest.mock('uuid', () => ({
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { OpenAiModelsController } from './openai-models.controller';
-import { OpenAiModelsCatalogService } from '../services/openai-models-catalog.service';
+import { GatewayModelsCatalogService } from '../../../models/services/gateway-models-catalog.service';
 import { OpenAiBearerAuthGuard } from '../guards/openai-bearer-auth.guard';
 import { SmartRateLimitGuard } from '../../../guards/smart-rate-limit-guard';
 
 describe('OpenAiModelsController', () => {
   let controller: OpenAiModelsController;
-  let catalog: jest.Mocked<OpenAiModelsCatalogService>;
-  let listModelsMock: jest.Mock;
-  let getModelMock: jest.Mock;
+  let catalog: jest.Mocked<GatewayModelsCatalogService>;
+
+  const gatewayModel = {
+    modelAlias: 'gpt-4',
+    providerInstance: 'openai-main',
+    providerType: 'anthropic' as const,
+    modelId: 'gpt-4',
+  };
 
   beforeEach(async () => {
-    listModelsMock = jest.fn();
-    getModelMock = jest.fn();
-
     const module: TestingModule = await Test.createTestingModule({
       controllers: [OpenAiModelsController],
       providers: [
         {
-          provide: OpenAiModelsCatalogService,
-          useValue: { listModels: listModelsMock, getModel: getModelMock },
+          provide: GatewayModelsCatalogService,
+          useValue: { list: jest.fn(), getOne: jest.fn() },
         },
       ],
     })
@@ -35,41 +37,34 @@ describe('OpenAiModelsController', () => {
       .compile();
 
     controller = module.get(OpenAiModelsController);
-    catalog = module.get(OpenAiModelsCatalogService);
+    catalog = module.get(GatewayModelsCatalogService);
   });
 
-  it('list should return catalog listModels result', () => {
-    const list = {
-      object: 'list' as const,
-      data: [
-        {
-          id: 'gpt-4',
-          object: 'model' as const,
-          created: 1,
-          owned_by: 'openai',
-        },
-      ],
-    };
-    catalog.listModels.mockReturnValue(list);
+  it('list should map catalog rows to OpenAI list format', () => {
+    catalog.list.mockReturnValue([gatewayModel]);
 
-    expect(controller.list()).toBe(list);
-  });
+    const result = controller.list();
 
-  it('getOne should return model when found', () => {
-    const model = {
+    expect(result.object).toBe('list');
+    expect(result.data[0]).toMatchObject({
       id: 'gpt-4',
-      object: 'model' as const,
-      created: 123,
-      owned_by: 'openai',
-    };
-    catalog.getModel.mockReturnValue(model);
+      object: 'model',
+      owned_by: 'anthropic',
+    });
+  });
 
-    expect(controller.getOne('gpt-4')).toBe(model);
-    expect(getModelMock).toHaveBeenCalledWith('gpt-4');
+  it('getOne should map single row when found', () => {
+    catalog.getOne.mockReturnValue(gatewayModel);
+
+    expect(controller.getOne('gpt-4')).toMatchObject({
+      id: 'gpt-4',
+      object: 'model',
+      owned_by: 'anthropic',
+    });
   });
 
   it('getOne should throw NotFoundException with OpenAI message format', () => {
-    catalog.getModel.mockReturnValue(null);
+    catalog.getOne.mockReturnValue(null);
 
     expect(() => controller.getOne('missing')).toThrow(NotFoundException);
     try {
