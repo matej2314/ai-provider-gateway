@@ -1,8 +1,14 @@
 import { z } from 'zod';
-import { PROVIDER_TYPES } from './provider-types';
+import { isOpenAiProviderType, PROVIDER_TYPES } from './provider-types';
 import { GATEWAY_CLIENT_TYPES } from './configuration.types';
 
 export const EXPECTED_SCHEMA_VERSION = 1;
+
+export const OpenAiApiSurfaceSchema = z.enum([
+  'chat-completions',
+  'responses',
+  'auto',
+]);
 
 export const GatewayConfigSchema = z
   .object({
@@ -15,6 +21,8 @@ export const GatewayConfigSchema = z
           type: z.enum(PROVIDER_TYPES),
           apiKeyRef: z.string(),
           enabled: z.boolean().optional().default(false),
+          baseUrlRef: z.string().optional(),
+          apiSurface: OpenAiApiSurfaceSchema.optional(),
         }),
       )
       .superRefine((providers, ctx) => {
@@ -29,6 +37,35 @@ export const GatewayConfigSchema = z
             });
           }
           refs.set(row.apiKeyRef, instanceId);
+
+          if (isOpenAiProviderType(row.type)) {
+            if (!row.baseUrlRef?.trim()) {
+              ctx.addIssue({
+                code: 'custom',
+                message: `baseUrlRef is required for provider type ${row.type}`,
+                path: ['providers', instanceId, 'baseUrlRef'],
+              });
+            }
+          }
+
+          if (row.type === 'openai-compatible' && row.apiSurface === 'auto') {
+            ctx.addIssue({
+              code: 'custom',
+              message: `apiSurface "auto" is only allowed for type "openai"`,
+              path: ['providers', instanceId, 'apiSurface'],
+            });
+          }
+
+          if (
+            row.type === 'openai-compatible' &&
+            row.apiSurface === 'responses'
+          ) {
+            ctx.addIssue({
+              code: 'custom',
+              message: `apiSurface "responses" is only allowed for type "openai"`,
+              path: ['providers', instanceId, 'apiSurface'],
+            });
+          }
         }
       }),
     clients: z
