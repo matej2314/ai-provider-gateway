@@ -13,6 +13,14 @@ import {
   GatewayModelConfig,
 } from './gateway-config.schema';
 
+import { isOpenAiProviderType } from './provider-types';
+import { resolveApiSurfaceDefault } from 'src/providers/openai/resolve-api-surface-default';
+import {
+  assertEnabledProviderBaseUrlPresent,
+  resolveBaseUrlFromEnv,
+} from './provider-base-url.validation';
+import type { OpenAiApiSurface } from 'src/providers/openai/openai-provider.types';
+
 import type {
   ResolvedSystemPrompts,
   ResolvedGatewayClient,
@@ -45,6 +53,9 @@ export interface ProviderInstanceRuntime {
   type: GatewayProviderType;
   apiKeyRef: string;
   apiKey: string;
+  baseUrlRef?: string;
+  baseUrl?: string;
+  apiSurface?: OpenAiApiSurface;
 }
 
 const MASTER_PROMPT = 'src/config/system-prompt/MASTER_SYSTEM_PROMPT.md';
@@ -140,6 +151,7 @@ export function buildEffectiveGatewayConfig(
   }
 
   assertEnabledProviderApiKeysPresent(raw, env);
+  assertEnabledProviderBaseUrlPresent(raw, env);
 
   return {
     ...raw,
@@ -217,11 +229,22 @@ export function buildAppConfiguration(
   const providersByInstance: Record<string, ProviderInstanceRuntime> = {};
 
   for (const [instanceId, row] of Object.entries(gatewayConfig.providers)) {
-    providersByInstance[instanceId] = {
+    const base: ProviderInstanceRuntime = {
       type: row.type,
       apiKeyRef: row.apiKeyRef,
       apiKey: (rawEnv[row.apiKeyRef] ?? '').trim(),
     };
+
+    if (isOpenAiProviderType(row.type)) {
+      providersByInstance[instanceId] = {
+        ...base,
+        baseUrlRef: row.baseUrlRef,
+        baseUrl: resolveBaseUrlFromEnv(row.baseUrlRef, rawEnv),
+        apiSurface: resolveApiSurfaceDefault(row.type, row.apiSurface),
+      };
+    } else {
+      providersByInstance[instanceId] = base;
+    }
   }
 
   const cacheEnabled = env.CACHE_ENABLED ?? false;
