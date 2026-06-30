@@ -1,11 +1,21 @@
 import type { z } from 'zod';
 import type { GatewayConfigSchema } from './gateway-config.schema';
+import {
+  isOpenAiProviderType,
+  type GatewayProviderType,
+} from './provider-types';
 
 export type RawGatewayConfig = z.infer<typeof GatewayConfigSchema>;
 
 export interface MissingProviderApiKey {
   instanceId: string;
   apiKeyRef: string;
+}
+
+export function isApiKeyRequiredForProviderType(
+  type: GatewayProviderType,
+): boolean {
+  return !isOpenAiProviderType(type);
 }
 
 export function collectMissingEnabledProviderApiKeyErrors(
@@ -15,6 +25,7 @@ export function collectMissingEnabledProviderApiKeyErrors(
   const missing: MissingProviderApiKey[] = [];
   for (const [instanceId, row] of Object.entries(config.providers)) {
     if (row.enabled === false) continue;
+    if (!isApiKeyRequiredForProviderType(row.type)) continue;
     const key = (env[row.apiKeyRef] ?? '').trim();
     if (!key) {
       missing.push({ instanceId, apiKeyRef: row.apiKeyRef });

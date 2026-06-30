@@ -2,6 +2,7 @@ import { createTestGatewayConfig } from '../common/mocks/createTestGatewayConfig
 import {
   collectMissingEnabledProviderApiKeyErrors,
   formatMissingProviderApiKeyError,
+  isApiKeyRequiredForProviderType,
 } from './provider-api-key.validation';
 
 describe('provider-api-key.validation', () => {
@@ -60,9 +61,7 @@ describe('provider-api-key.validation', () => {
         },
       });
 
-      expect(
-        collectMissingEnabledProviderApiKeyErrors(config, {}),
-      ).toEqual([]);
+      expect(collectMissingEnabledProviderApiKeyErrors(config, {})).toEqual([]);
     });
 
     it('does not require legacy ANTHROPIC_API_KEY when custom ref is set', () => {
@@ -96,5 +95,31 @@ describe('provider-api-key.validation', () => {
         }),
       ).toContain('ANTHROPIC_PRIMARY_API_KEY');
     });
+  });
+});
+
+describe('isApiKeyRequiredForProviderType', () => {
+  it('requires key for anthropic and google only', () => {
+    expect(isApiKeyRequiredForProviderType('anthropic')).toBe(true);
+    expect(isApiKeyRequiredForProviderType('google')).toBe(true);
+    expect(isApiKeyRequiredForProviderType('openai')).toBe(false);
+    expect(isApiKeyRequiredForProviderType('openai-compatible')).toBe(false);
+  });
+});
+
+describe('openai types with empty api key', () => {
+  it('does not report missing key for enabled openai provider', () => {
+    const config = createTestGatewayConfig({
+      providers: {
+        'anthropic-primary': { enabled: false },
+        'openai-primary': {
+          type: 'openai',
+          apiKeyRef: 'OPENAI_API_KEY',
+          baseUrlRef: 'OPENAI_BASE_URL',
+          enabled: true,
+        },
+      },
+    });
+    expect(collectMissingEnabledProviderApiKeyErrors(config, {})).toEqual([]);
   });
 });
