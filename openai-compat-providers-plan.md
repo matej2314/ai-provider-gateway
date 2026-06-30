@@ -131,7 +131,7 @@ describe('provider-types (OpenAI)', () => {
 
 ---
 
-### Krok 1.2 — Typy modułu OpenAI
+### Krok 1.2 — Typy modułu OpenAI — **WYKONANY**
 
 | Akcja | Plik |
 |-------|------|
@@ -141,17 +141,9 @@ describe('provider-types (OpenAI)', () => {
 
 ```typescript
 export type OpenAiApiSurface = 'chat-completions' | 'responses' | 'auto';
-
-/** Wartość po resolveApiSurfaceDefault — dla openai może być 'auto'; dla compatible zawsze 'chat-completions' */
-export type OpenAiResolvedApiSurface = 'chat-completions' | 'responses' | 'auto';
-
-export interface OpenAiProviderConfig {
-  apiKey: string; // może być ''
-  baseUrl: string;
-  apiSurface: OpenAiResolvedApiSurface;
-  defaultHeaders?: Record<string, string>;
-}
 ```
+
+> `OpenAiProviderConfig` — dodany w kroku 2.3 (przed `select-api-surface.ts`).
 
 ---
 
@@ -289,15 +281,12 @@ OLLAMA_BASE_URL=http://localhost:11434/v1
 
 ```typescript
 import type { OpenAiProviderType } from '../../config/provider-types';
-import type {
-  OpenAiApiSurface,
-  OpenAiResolvedApiSurface,
-} from './openai-provider.types';
+import type { OpenAiApiSurface } from './openai-provider.types';
 
 export function resolveApiSurfaceDefault(
   providerType: OpenAiProviderType,
   yamlValue?: OpenAiApiSurface,
-): OpenAiResolvedApiSurface {
+): OpenAiApiSurface {
   if (yamlValue !== undefined) return yamlValue;
   return providerType === 'openai' ? 'auto' : 'chat-completions';
 }
@@ -334,7 +323,7 @@ describe('resolveApiSurfaceDefault', () => {
 ```typescript
 // [DODANE] — importy
 import { isOpenAiProviderType } from './provider-types';
-import type { OpenAiResolvedApiSurface } from '../providers/openai/openai-provider.types';
+import type { OpenAiApiSurface } from '../providers/openai/openai-provider.types';
 import { resolveApiSurfaceDefault } from '../providers/openai/resolve-api-surface-default';
 import { resolveBaseUrlFromEnv } from './provider-base-url.validation';
 // [DODANE] — obok assertEnabledProviderApiKeysPresent
@@ -348,7 +337,7 @@ export interface ProviderInstanceRuntime {
   // [DODANE]
   baseUrlRef?: string;
   baseUrl?: string;
-  apiSurface?: OpenAiResolvedApiSurface;
+  apiSurface?: OpenAiApiSurface;
 }
 
 // [ZMIENIONE] — w buildEffectiveGatewayConfig, po assertEnabledProviderApiKeysPresent:
@@ -623,7 +612,7 @@ describe('provider-base-url.validation', () => {
 import type { AIProvider } from '../interfaces/ai-provider.interface';
 import type { LoggingService } from 'src/logging/logging.service';
 import type { GatewayProviderType } from '../../config/provider-types';
-import type { OpenAiResolvedApiSurface } from '../openai/openai-provider.types';
+import type { OpenAiApiSurface } from '../openai/openai-provider.types';
 
 /** Sygnatura istniejących fabryk — bez zmian w create-anthropic/google-provider.ts */
 export type LegacyProviderFactoryFn = (
@@ -639,7 +628,7 @@ export interface ProviderFactoryContext {
   apiKey: string; // może być '' dla typów OpenAI
   baseUrlRef?: string;
   baseUrl?: string;
-  apiSurface?: OpenAiResolvedApiSurface;
+  apiSurface?: OpenAiApiSurface;
 }
 
 export type ProviderFactoryFn = (
@@ -1250,8 +1239,20 @@ describe('openai-api-surface.models', () => {
 
 | Akcja | Plik |
 |-------|------|
+| MODIFY | `src/providers/openai/openai-provider.types.ts` |
 | NEW | `src/providers/openai/select-api-surface.ts` |
 | NEW | `src/providers/openai/select-api-surface.spec.ts` |
+
+#### `src/providers/openai/openai-provider.types.ts` — [DODANE] `OpenAiProviderConfig`
+
+```typescript
+export interface OpenAiProviderConfig {
+  apiKey: string; // może być ''
+  baseUrl: string;
+  apiSurface: OpenAiApiSurface;
+  defaultHeaders?: Record<string, string>;
+}
+```
 
 #### `src/providers/openai/select-api-surface.ts` (nowy)
 
