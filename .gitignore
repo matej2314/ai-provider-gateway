@@ -82,3 +82,4 @@ type-safety-plan.md
 .env.example.old
 gateway.config.placeholder.yaml
 check-models-implementation-plan.md
+openai-compat-providers-plan-2.md
