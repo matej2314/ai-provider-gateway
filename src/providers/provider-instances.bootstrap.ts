@@ -6,17 +6,44 @@ import { createAnthropicProvider } from './factories/create-anthropic-provider';
 import { createGoogleProvider } from './factories/create-google-provider';
 import { LoggingService } from 'src/logging/logging.service';
 import type { GatewayProviderType } from '../config/provider-types';
+import { adaptApiKeyProviderFactory } from './factories/adapt-api-key-provider-factory';
+import { createOpenAiProvider } from './factories/create-openai-provider';
+import { createOpenAiCompatibleProviderInstance } from './factories/create-openai-compatible-provider-instance';
+import type {
+  ProviderFactoryContext,
+  ProviderFactoryFn,
+} from './factories/provider-factory.types';
+import { isApiKeyRequiredForProviderType } from '../config/provider-api-key.validation';
+import { isOpenAiProviderType } from '../config/provider-types';
+import type { GatewayProviderInstanceConfig } from '../config/gateway-config.schema';
+import type { ProviderInstanceRuntime } from '../config/configuration';
 
-const FACTORIES: Record<
-  GatewayProviderType,
-  (
-    apiKey: string,
-    logger: LoggingService,
-  ) => import('./interfaces/ai-provider.interface').AIProvider
-> = {
-  anthropic: createAnthropicProvider,
-  google: createGoogleProvider,
+const FACTORIES: Partial<Record<GatewayProviderType, ProviderFactoryFn>> = {
+  anthropic: adaptApiKeyProviderFactory(createAnthropicProvider),
+  google: adaptApiKeyProviderFactory(createGoogleProvider),
+  openai: createOpenAiProvider,
+  'openai-compatible': createOpenAiCompatibleProviderInstance,
 };
+
+function buildFactoryContext(
+  instanceId: string,
+  row: GatewayProviderInstanceConfig,
+  runtime: ProviderInstanceRuntime,
+): ProviderFactoryContext {
+  const base: ProviderFactoryContext = {
+    instanceId,
+    type: row.type,
+    apiKeyRef: row.apiKeyRef,
+    apiKey: (runtime.apiKey ?? '').trim(),
+  };
+  if (!isOpenAiProviderType(row.type)) return base;
+  return {
+    ...base,
+    baseUrlRef: row.baseUrlRef,
+    baseUrl: runtime.baseUrl,
+    apiSurface: runtime.apiSurface,
+  };
+}
 
 @Injectable()
 export class ProviderInstancesBootstrap implements OnApplicationBootstrap {
@@ -33,9 +60,16 @@ export class ProviderInstancesBootstrap implements OnApplicationBootstrap {
       if (row.enabled === false) continue;
 
       const runtime = byInstance[instanceId];
+
+      if (!runtime) {
+        throw new Error(
+          `[ProviderInstancesBootstrap] Missing runtime config for instance ${instanceId}`,
+        );
+      }
+
       const apiKey = (runtime?.apiKey ?? '').trim();
 
-      if (!apiKey) {
+      if (isApiKeyRequiredForProviderType(row.type) && !apiKey) {
         throw new Error(
           `[ProviderInstancesBootstrap] Missing API key for instance ${instanceId}`,
         );
@@ -47,7 +81,8 @@ export class ProviderInstancesBootstrap implements OnApplicationBootstrap {
           `[ProviderInstancesBootstrap] Unsupported provider type: ${row.type}`,
         );
       }
-      const provider = factory(apiKey, this.loggingService);
+      const context = buildFactoryContext(instanceId, row, runtime);
+      const provider = factory(context, this.loggingService);
       this.registry.registerInstance(instanceId, row.type, provider);
     }
   }

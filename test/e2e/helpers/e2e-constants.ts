@@ -5,6 +5,9 @@ export const E2E_GATEWAY_KEY = TEST_GATEWAY_KEY;
 export const E2E_INVALID_GATEWAY_KEY = 'invalid_gateway_key';
 export const E2E_API_PREFIX = `/${API_GLOBAL_PREFIX}`;
 
+export const E2E_OPENAI_MODEL_ALIAS = 'gpt-4o';
+export const E2E_OPENAI_PROVIDER_INSTANCE = 'openai-primary';
+
 export const E2E_ROUTES = {
   chat: `${E2E_API_PREFIX}/chat`,
   chatStream: `${E2E_API_PREFIX}/chat/stream`,

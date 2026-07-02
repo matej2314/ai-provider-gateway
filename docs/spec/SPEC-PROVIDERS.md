@@ -1,4 +1,4 @@
-# SPEC — Provider adapters (Anthropic / Google Gemini)
+# SPEC — Provider adapters (Anthropic / Google Gemini / OpenAI)
 
 ## Cel / problem
 
@@ -13,7 +13,7 @@ Zamknąć integracje z providerami LLM w warstwie `src/providers/` tak, aby:
 
 | Pojęcie | Znaczenie | Przykład |
 |---------|-----------|----------|
-| **`type`** | Typ adaptera w kodzie (`PROVIDER_TYPES`) — wybór fabryki SDK | `google`, `anthropic` |
+| **`type`** | Typ adaptera w kodzie (`PROVIDER_TYPES`) — wybór fabryki SDK | `google`, `anthropic`, `openai`, `openai-compatible` |
 | **`providerInstance`** | Klucz wpisu w `providers:` w YAML — unikalna instancja runtime | `google`, `google-office` |
 | **`AIProvider`** | Obiekt portu (`complete` / `stream`) z własnym klientem SDK | jeden per `providerInstance` |
 
@@ -83,7 +83,7 @@ F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK (`ProviderCallOpti
 
 **Anthropic — jeden parametr losowości:** adapter wysyła do SDK wyłącznie jeden z `top_k`, `top_p`, `temperature` — priorytet: **`topK` > `topP` > `temperature`** (`resolveAnthropicSamplingParams` w `create-anthropic-provider.ts`). Operator konfiguruje `policy.params.defaults` zgodnie z zamierzonym trybem (np. tylko `temperature`).
 
-**OpenAI — adapter:** **nie wdrożony** (`create-openai-provider.ts` brak w repo). Fasada HTTP `/api/v1/openai` mapuje parametry vendora na `params.*`; wywołanie trafia do adaptera aliasu (Anthropic/Google). Docelowy adapter OpenAI — scenariusz A poniżej oraz [`provider-openai-runtime.md`](../provider-openai-runtime.md); penalties/seed/`response_format`/`top_k` będą mapowane po implementacji fabryki.
+**OpenAI — adapter:** **wdrożony** (`create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts`). Routing Chat Completions vs Responses API: `select-api-surface.ts`. Parametry: `temperature`, `topP`, `maxOutputTokens`, `stop`, penalties, `seed`, `responseFormat`; thinking przez Responses API (`reasoning.effort`). Wymaga `baseUrlRef` w YAML. Szczegóły: [`provider-openai-runtime.md`](../provider-openai-runtime.md).
 
 F-4. Adapter mapuje błędy SDK na błędy gateway:
 
@@ -109,11 +109,11 @@ Mapowanie `system` na pierwszą wiadomość `user` jest dopuszczalne **tylko** j
 
 ## Kryteria akceptacji
 
-- [x] Dwa typy providerów (Anthropic i Google Gemini) działają zgodnie z portem `AIProvider` (fabryki + bootstrap).
+- [x] Cztery typy providerów (Anthropic, Google Gemini, OpenAI, OpenAI-compatible) działają zgodnie z portem `AIProvider` (fabryki + bootstrap).
 - [x] Rejestr providerów jest indeksowany po **`providerInstance`**, nie po `type`.
 - [x] W YAML dozwolone są **wiele wpisów** z tym samym `type` (unikalne `apiKeyRef` per instancja).
-- [x] Błędy 429/timeout/5xx/auth są mapowane na wspólne kody `PROVIDER_*` (F-4) — `mapAnthropicSdkError` / `mapGoogleGenAiError` w `provider-error.mapper.ts`; testy: `provider-error.mapper.spec.ts`.
-- [ ] Dodanie trzeciego **typu** (np. OpenAI) wymaga fabryki + wpisu w `FACTORIES` oraz rozszerzenia `PROVIDER_TYPES` / schematu YAML — bez zmian w kontrolerach HTTP. *(OpenAI — planowany; patrz [`provider-openai-runtime.md`](../provider-openai-runtime.md).)*
+- [x] Błędy 429/timeout/5xx/auth są mapowane na wspólne kody `PROVIDER_*` (F-4) — `mapAnthropicSdkError` / `mapGoogleGenAiError` / `mapOpenAiSdkError` w `provider-error.mapper.ts`; testy: `provider-error.mapper.spec.ts`.
+- [x] Dodanie nowego **typu** wymaga fabryki + wpisu w `FACTORIES` oraz rozszerzenia `PROVIDER_TYPES` / schematu YAML — bez zmian w kontrolerach HTTP. *(OpenAI wdrożony — patrz [`provider-openai-runtime.md`](../provider-openai-runtime.md).)*
 
 ## Poza zakresem (względem rdzenia MVP)
 
@@ -164,22 +164,24 @@ SDK `@google/genai` zastąpiło wcześniejszy pakiet `@google/generative-ai`. Ad
 
 Dla rdzenia MVP wystarczy `chats.create` (obsługuje historię i system instruction). Dla pojedynczych zapytań bez historii idiomatyczne jest `ai.models.generateContent({ model, contents, config })`.
 
-### OpenAI — `@openai/openai` (plan, post-MVP)
+### OpenAI — `@openai/openai` (6.x)
 
 Szczegóły warstwy runtime (rola, status, konfiguracja YAML): [`provider-openai-runtime.md`](../provider-openai-runtime.md).
 
-Fabryka **`create-openai-provider.ts`** **nie istnieje** w repozytorium. Fasada `src/integrations/openai/` mapuje już `temperature`, `top_p`, `stop`, `frequency_penalty`, `presence_penalty`, `seed` na `params.*`. Po wdrożeniu adaptera oczekiwane mapowanie (orientacyjnie):
+Fabryki **`create-openai-provider.ts`** i **`create-openai-compatible-provider-instance.ts`** implementują port `AIProvider`. Routing między Chat Completions a Responses API: `select-api-surface.ts` (modele `o*`, `gpt-5*`, reasoning w body → Responses).
 
-| Port providera | Pole SDK (Chat Completions) |
-|----------------|----------------------------|
-| `options.temperature` | `temperature` |
-| `options.topP` | `top_p` |
-| `options.maxOutputTokens` | `max_completion_tokens` / `max_tokens` (zależnie od wersji API) |
-| `options.stop` | `stop` |
-| `options.frequencyPenalty` | `frequency_penalty` |
-| `options.presencePenalty` | `presence_penalty` |
-| `options.seed` | `seed` |
-| `options.responseFormat` | `response_format` |
+| Port providera | Pole SDK (Chat Completions) | Pole SDK (Responses API) |
+|----------------|----------------------------|--------------------------|
+| `options.temperature` | `temperature` | `temperature` |
+| `options.topP` | `top_p` | `top_p` |
+| `options.maxOutputTokens` | `max_tokens` | `max_output_tokens` |
+| `options.stop` | `stop` | — |
+| `options.frequencyPenalty` | `frequency_penalty` | — |
+| `options.presencePenalty` | `presence_penalty` | — |
+| `options.seed` | `seed` | — |
+| `options.responseFormat` | `response_format` | `text.format.type: json_object` |
+| `options.thinkingEnabled` + effort | — | `reasoning.effort` + `reasoning.summary: auto` |
+| `systemFingerprint` (odpowiedź) | `system_fingerprint` | — |
 
-Do czasu wdrożenia aliasy muszą wskazywać **`anthropic`** lub **`google`** w `providerInstance`.
+Typ **`openai-compatible`**: zawsze Chat Completions; wymaga `baseUrlRef`; `apiSurface: responses` i `auto` zabronione w walidacji Zod.
 

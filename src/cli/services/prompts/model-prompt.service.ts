@@ -41,6 +41,10 @@ export class ModelPromptService {
         );
       } else if (provider.type === 'google') {
         console.log(chalk.dim(' Examples: gemini-2.5-flash, gemini-2.5-pro'));
+      } else if (provider.type === 'openai') {
+        console.log(chalk.dim(' Examples: gpt-4o, o3-mini, gpt-5'));
+      } else if (provider.type === 'openai-compatible') {
+        console.log(chalk.dim(' Examples: llama3.2, deepseek-chat'));
       }
       console.log();
 

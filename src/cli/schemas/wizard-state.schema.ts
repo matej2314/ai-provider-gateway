@@ -15,6 +15,11 @@ const CliAiProviderSchema = z.object({
   type: z.enum(PROVIDER_TYPES),
   apiKeyRef: z.string(),
   apiKey: z.string(),
+  baseUrlRef: z.string().optional(),
+  baseUrl: z.string().optional(),
+  apiSurface: z
+    .enum(['chat-completions', 'responses', 'auto'])
+    .optional(),
 });
 
 const CliAiModelSchema = z.object({

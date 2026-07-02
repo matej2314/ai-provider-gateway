@@ -10,6 +10,11 @@ import {
   TEST_PROVIDER_INSTANCE,
 } from '../../../src/common/mocks/test-constants';
 import type { GatewayProviderType } from '../../../src/config/provider-types';
+import type { OpenAiApiSurface } from '../../../src/providers/openai/openai-provider.types';
+import {
+  E2E_OPENAI_MODEL_ALIAS,
+  E2E_OPENAI_PROVIDER_INSTANCE,
+} from './e2e-constants';
 
 const E2E_DEFAULT_ALLOW_OVERRIDES = [
   'temperature',
@@ -39,14 +44,25 @@ export type E2eProviderCapabilities = {
   thinking?: boolean;
 };
 
+export type E2eStreamResultOptions = {
+  chunks?: string[];
+  hang?: boolean;
+  systemFingerprint?: string;
+  thinkingContent?: string;
+  toolCalls?: ProviderChatResponse['toolCalls'];
+  stopReason?: ProviderChatResponse['stopReason'];
+};
+
 export type E2eProviderRegistryOptions = {
   modelAlias?: string;
   fallbackAlias?: string;
   providerName?: string;
   providerType?: GatewayProviderType;
   modelId?: string;
+  openAiApiSurface?: OpenAiApiSurface;
   completeResponse?: Partial<ProviderChatResponse>;
   streamChunks?: string[];
+  streamOptions?: E2eStreamResultOptions;
   hangStream?: boolean;
   capabilities?: E2eProviderCapabilities;
 };
@@ -75,8 +91,11 @@ function createDefaultCompleteResponse(
   };
 }
 
-function createStreamResult(chunks: string[], hang = false): StreamResult {
-  async function* textStream() {
+function createStreamResult(options: E2eStreamResultOptions = {}): StreamResult {
+  const chunks = options.chunks ?? ['Hello', ' world'];
+  const hang = options.hang === true;
+
+  async function* textStream(): AsyncIterable<string> {
     if (hang) {
       await new Promise<void>(() => undefined);
       yield 'never';
@@ -94,33 +113,35 @@ function createStreamResult(chunks: string[], hang = false): StreamResult {
       inputTokens: 5,
       outputTokens: 10,
     }),
-    getStopReason: jest.fn().mockResolvedValue('end_turn' as const),
+    getStopReason: jest
+      .fn()
+      .mockResolvedValue(options.stopReason ?? ('end_turn' as const)),
+    ...(options.systemFingerprint !== undefined && {
+      getSystemFingerprint: jest
+        .fn()
+        .mockResolvedValue(options.systemFingerprint),
+    }),
+    ...(options.thinkingContent !== undefined && {
+      getThinkingContent: jest.fn().mockResolvedValue(options.thinkingContent),
+    }),
+    ...(options.toolCalls !== undefined && {
+      getFinalToolCalls: jest.fn().mockResolvedValue(options.toolCalls),
+    }),
   };
 }
 
-export function createE2eProviderRegistry(
-  options: E2eProviderRegistryOptions = {},
-): E2eProviderRegistryMock {
-  const primaryAlias = options.modelAlias ?? TEST_MODEL_ALIAS;
-  const streamChunks = options.streamChunks ?? ['Hello', ' world'];
+function buildResolvedConfig(
+  alias: string,
+  options: E2eProviderRegistryOptions,
+  provider: AIProvider,
+  primaryAlias: string,
+) {
+  const providerType = options.providerType ?? 'anthropic';
 
-  const provider: AIProvider = {
-    complete: jest
-      .fn()
-      .mockResolvedValue(
-        createDefaultCompleteResponse(options.completeResponse),
-      ),
-    stream: jest
-      .fn()
-      .mockReturnValue(
-        createStreamResult(streamChunks, options.hangStream === true),
-      ),
-  };
-
-  const resolveMock = jest.fn((alias: string) => ({
+  return {
     provider,
     providerName: options.providerName ?? TEST_PROVIDER_INSTANCE,
-    providerType: options.providerType ?? 'anthropic',
+    providerType,
     modelId: options.modelId ?? 'claude-sonnet-4-5',
     modelAlias: alias,
     fallbackAlias: alias === primaryAlias ? options.fallbackAlias : undefined,
@@ -129,7 +150,35 @@ export function createE2eProviderRegistry(
       retry: { maxAttempts: 1, onStatus: [429, 500, 502, 503, 504] },
     },
     params: createDefaultParams(),
-  }));
+    ...(providerType === 'openai' && {
+      openAiApiSurface: options.openAiApiSurface ?? 'auto',
+    }),
+  };
+}
+
+export function createE2eProviderRegistry(
+  options: E2eProviderRegistryOptions = {},
+): E2eProviderRegistryMock {
+  const primaryAlias = options.modelAlias ?? TEST_MODEL_ALIAS;
+  const streamChunks = options.streamChunks ?? ['Hello', ' world'];
+  const streamOptions: E2eStreamResultOptions = {
+    chunks: streamChunks,
+    hang: options.hangStream === true,
+    ...options.streamOptions,
+  };
+
+  const provider: AIProvider = {
+    complete: jest
+      .fn()
+      .mockResolvedValue(
+        createDefaultCompleteResponse(options.completeResponse),
+      ),
+    stream: jest.fn().mockReturnValue(createStreamResult(streamOptions)),
+  };
+
+  const resolveMock = jest.fn((alias: string) =>
+    buildResolvedConfig(alias, options, provider, primaryAlias),
+  );
 
   return {
     provider,
@@ -139,6 +188,19 @@ export function createE2eProviderRegistry(
     registerInstance: jest.fn(),
     list: jest.fn().mockReturnValue([]),
   };
+}
+
+export function createE2eOpenAiProviderRegistry(
+  options: Omit<E2eProviderRegistryOptions, 'providerType'> = {},
+): E2eProviderRegistryMock {
+  return createE2eProviderRegistry({
+    modelAlias: E2E_OPENAI_MODEL_ALIAS,
+    providerName: E2E_OPENAI_PROVIDER_INSTANCE,
+    modelId: 'gpt-4o',
+    providerType: 'openai',
+    openAiApiSurface: 'auto',
+    ...options,
+  });
 }
 
 export function createE2eFallbackProviderRegistry(options: {
@@ -167,7 +229,7 @@ export function createE2eFallbackProviderRegistry(options: {
         usage: { inputTokens: 10, outputTokens: 15 },
       }),
     ),
-    stream: jest.fn().mockReturnValue(createStreamResult(['fallback'])),
+    stream: jest.fn().mockReturnValue(createStreamResult({ chunks: ['fallback'] })),
   };
 
   const resolveMock = jest.fn((alias: string) => {

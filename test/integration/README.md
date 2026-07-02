@@ -21,6 +21,8 @@ Osobny runner: `npm run test:integration` — nie uruchamiaj przez `npm test` an
 - `.env.test` z kluczami API (`INTEGRATION_ANTHROPIC_API_KEY` lub `INTEGRATION_GOOGLE_API_KEY`)
 - Redis (`npm run test:integration:redis:up`)
 
+Testy OpenAI provider (`*openai*integration-spec.ts`) wymagają dodatkowo `INTEGRATION_OPENAI_API_KEY` i `INTEGRATION_OPENAI_BASE_URL`. Bez tych zmiennych suite OpenAI jest **pomijana** (`describe.skip`), nie powoduje failu.
+
 Brak Redis → `globalSetup` rzuca błąd (exit ≠ 0). Brak klucza API → testy live padną przy wywołaniu providera.
 
 ## Co jest prawdziwe vs mock

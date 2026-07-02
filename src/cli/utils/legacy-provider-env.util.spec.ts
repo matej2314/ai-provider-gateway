@@ -27,4 +27,17 @@ describe('legacy-provider-env.util', () => {
 
     expect(env.GOOGLE_API_KEY).toBe('AIza-test');
   });
+
+  it('sets OPENAI_API_KEY from openai provider', () => {
+    const env: Record<string, string> = {};
+
+    applyLegacyProviderApiKeyEnv(env, [
+      {
+        type: 'openai',
+        apiKey: 'sk-test',
+      },
+    ]);
+
+    expect(env.OPENAI_API_KEY).toBe('sk-test');
+  });
 });

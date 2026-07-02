@@ -291,9 +291,47 @@ Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (
 | ---------------------------------- | ---------------------------------------------------------------- | ------------------------------- |
 | **`anthropic`**                    | `create-anthropic-provider.ts`                                   | `chat-default`, `claude-sonnet` (przy `anthropic-primary`) |
 | **`google`**                       | `create-google-provider.ts`                                      | `gemini-flash` (przy `google-primary`)                  |
-| **`openai`**                       | **brak** — fabryka `create-openai-provider.ts` nie jest wdrożona | —                               |
+| **`openai`**                       | `create-openai-provider.ts` — Chat Completions + Responses API   | np. `gpt-4o-alias` (przy `openai-main`)                 |
+| **`openai-compatible`**            | `create-openai-compatible-provider-instance.ts` — tylko Chat Completions | np. `ollama-local` (przy `ollama-local`)          |
 
-**OpenAI w projekcie:** istnieje **fasada HTTP** `/api/v1/openai` (mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`), ale wywołanie LLM i tak trafia do adaptera **Anthropic** lub **Google** wskazanego przez **`modelAlias`**. Docelowy **adapter runtime** OpenAI (bezpośrednie wywołanie API OpenAI) jest **poza zakresem MVP** — [`provider-openai-runtime.md`](provider-openai-runtime.md), [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md) (scenariusz A).
+**OpenAI w projekcie:** istnieją **dwie ortogonalne warstwy** — fasada HTTP `/api/v1/openai` (kształt kontraktu dla Cursor) oraz **adapter runtime** `type: openai` / `openai-compatible` (wywołanie SDK po `baseUrlRef` + `apiKeyRef`). Fasada mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`; adapter runtime przekazuje je do SDK gdy alias wskazuje instancję OpenAI. Szczegóły adaptera: [`provider-openai-runtime.md`](provider-openai-runtime.md), [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md).
+
+#### Pola specyficzne dla OpenAI w YAML (`providers`)
+
+| Pole | Typy | Znaczenie |
+|------|------|-----------|
+| `baseUrlRef` | `openai`, `openai-compatible` | **Wymagane** — nazwa zmiennej env z bazowym URL API (np. `OPENAI_BASE_URL`, `OLLAMA_BASE_URL`) |
+| `apiSurface` | `openai` | Opcjonalne: `auto` (domyślnie), `chat-completions`, `responses` — routing między Chat Completions a Responses API (`select-api-surface.ts`) |
+| `apiSurface` | `openai-compatible` | Domyślnie `chat-completions`; `auto` i `responses` są **zabronione** (walidacja Zod) |
+
+**Klucz API:** dla typów OpenAI `apiKeyRef` jest opcjonalny przy starcie (pusty klucz dozwolony — np. lokalny Ollama). Gdy zmienna jest ustawiona, walidacja formatu odbywa się w CLI (`api-key-validation.util.ts`).
+
+Przykład wpisu providera OpenAI:
+
+```yaml
+providers:
+  openai-main:
+    type: openai
+    enabled: true
+    apiKeyRef: OPENAI_API_KEY
+    baseUrlRef: OPENAI_BASE_URL
+    # apiSurface: auto
+
+  ollama-local:
+    type: openai-compatible
+    enabled: true
+    apiKeyRef: OLLAMA_API_KEY
+    baseUrlRef: OLLAMA_BASE_URL
+```
+
+W `.env`:
+
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://api.openai.com/v1
+OLLAMA_API_KEY=
+OLLAMA_BASE_URL=http://localhost:11434/v1
+```
 
 #### Reguły konfiguracji YAML (`policy.params`)
 
@@ -301,7 +339,7 @@ Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (
 | ----------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Anthropic**                 | Ustaw **`temperature` albo `topP` albo `topK`** w defaults (logicznie jeden tryb losowości) | Adapter wysyła do SDK **jeden** parametr losowości — priorytet: **`topK` > `topP` > `temperature`** (`resolveAnthropicSamplingParams`). Przykład repo: default `temperature: 0.4`, **bez** `topP` / `topK` w defaults. |
 | **Google Gemini**             | Można **`temperature` i `topP` razem**                                                      | Przykład repo: `temperature: 0.4`, `topP: 0.95`.                                                                                                                                                                       |
-| **OpenAI** (przyszły adapter) | Plan: jak OpenAI API — oba parametry zwykle dozwolone                                       | Do czasu wdrożenia fabryki OpenAI alias musi wskazywać istniejący adapter.                                                                                                                                             |
+| **OpenAI** (adapter) | Można **`temperature` i `topP` razem** (jak upstream OpenAI) | Routing surface: `apiSurface` w YAML + `select-api-surface.ts` |
 
 **Override z body (`params.topP` / `params.topK` itd.):** merge YAML ← body może ustawić wiele parametrów losowości w `ProviderCallOptions`, ale adapter Anthropic wysyła do SDK **tylko jeden** — priorytet **`topK` > `topP` > `temperature`**. Np. defaults `temperature` + body `topP` → do SDK trafi `top_p`, nie `temperature`.
 

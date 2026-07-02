@@ -19,6 +19,7 @@ import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
 import { validateChatIngress } from './validation/chat-ingress.validator';
+import { toGenerationWarningsContext } from './helpers/generation-warnings';
 import type { ChatIngressProfile } from './validation/chat-ingress.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
 
@@ -64,11 +65,9 @@ export class ChatService {
       requestBody.params,
     );
 
-    this.validationService.validateThinking(
-      requestBody,
-      primaryResolved,
-      options,
-    );
+    this.validationService.validateThinking(primaryResolved, options);
+
+    this.validationService.validateOpenAiSurface(primaryResolved);
 
     if (gatewayKey) {
       await this.cacheGuardService.checkRateLimit(
@@ -92,7 +91,7 @@ export class ChatService {
     gatewayKey: string,
     ingressProfile: ChatIngressProfile,
   ) {
-    // validateChatIngress(requestBody, ingressProfile);
+    
 
     const {
       primaryResolved,
@@ -169,6 +168,7 @@ export class ChatService {
         didFallback ? usedAlias : undefined,
         options,
         resolved.providerType,
+        toGenerationWarningsContext(resolved),
       );
 
       const latency = Date.now() - startedAt;
@@ -233,28 +233,6 @@ export class ChatService {
       modelAlias: requestBody.modelAlias,
     });
 
-    // const resolvedPrompts = getResolvedSystemPrompts(() =>
-    //   getAppConfigOrThrow(this.config, 'resolvedSystemPrompts'),
-    // );
-
-    // const responseConversationId =
-    //   getOrCreateConversationIdForResponse(requestBody);
-
-    // const primaryResolved = this.registry.resolve(requestBody.modelAlias);
-
-    // this.validationService.validateTooling(requestBody, primaryResolved);
-
-    // const options = resolveProviderCallOptions(
-    //   primaryResolved.params,
-    //   requestBody.params,
-    // );
-
-    // this.validationService.validateThinking(
-    //   requestBody,
-    //   primaryResolved,
-    //   options,
-    // );
-
     const startedAt = Date.now();
     const id = `gw_${uuidv4()}`;
     const metaEmitted = { value: false };
@@ -314,6 +292,7 @@ export class ChatService {
         resolved.providerType,
         usageDetails,
         didFallback ? usedAlias : undefined,
+        toGenerationWarningsContext(resolved),
       );
       emit(doneEvent);
 

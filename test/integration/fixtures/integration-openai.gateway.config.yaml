@@ -1,0 +1,31 @@
+schemaVersion: 1
+masterKeyRef: MASTER_KEY
+
+clients:
+  integration-ide:
+    name: Integration IDE Client
+    type: ide
+    gatewayKeyRef: INTEGRATION_GATEWAY_KEY
+
+providers:
+  openai-it:
+    type: openai
+    apiKeyRef: INTEGRATION_OPENAI_API_KEY
+    baseUrlRef: INTEGRATION_OPENAI_BASE_URL
+    enabled: true
+
+models:
+  it-openai-chat:
+    providerInstance: openai-it
+    modelId: gpt-4o-mini
+    capabilities:
+      streaming: true
+      tools: false
+    policy:
+      retry: {}
+      params:
+        defaults: {}
+        allowOverrides:
+          - maxOutputTokens
+          - temperature
+        bounds: {}

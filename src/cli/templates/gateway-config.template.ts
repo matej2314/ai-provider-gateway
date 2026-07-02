@@ -14,6 +14,7 @@ export interface ConfigTemplateInput {
     id: string;
     type: GatewayProviderType;
     apiKeyRef: string;
+    baseUrlRef?: string;
   }>;
   clients: Array<{
     id: string;
@@ -44,6 +45,7 @@ export function generateGatewayConfigTemplate(
         type: provider.type,
         apiKeyRef: provider.apiKeyRef,
         enabled: true,
+        ...(provider.baseUrlRef && { baseUrlRef: provider.baseUrlRef }),
       },
     ]),
   );

@@ -5,11 +5,13 @@ import {
 } from 'src/config/provider-types';
 import type { EnvPatchService } from '../services/env-patch.service';
 
-export const LEGACY_PROVIDER_API_KEY_ENV: Record<GatewayProviderType, string> =
-  {
-    anthropic: 'ANTHROPIC_API_KEY',
-    google: 'GOOGLE_API_KEY',
-  };
+export const LEGACY_PROVIDER_API_KEY_ENV: Partial<
+  Record<GatewayProviderType, string>
+> = {
+  anthropic: 'ANTHROPIC_API_KEY',
+  google: 'GOOGLE_API_KEY',
+  openai: 'OPENAI_API_KEY',
+};
 
 export interface ProviderEnvEntry {
   type?: GatewayProviderType;
@@ -18,7 +20,7 @@ export interface ProviderEnvEntry {
 
 /**
  * Mirrors provider API keys under legacy env names required by production
- * startup validation (ANTHROPIC_API_KEY / GOOGLE_API_KEY).
+ * startup validation (ANTHROPIC_API_KEY / GOOGLE_API_KEY / OPENAI_API_KEY).
  */
 export function applyLegacyProviderApiKeyEnv(
   env: Record<string, string>,
@@ -26,6 +28,8 @@ export function applyLegacyProviderApiKeyEnv(
 ): void {
   for (const type of PROVIDER_TYPES) {
     const legacyKey = LEGACY_PROVIDER_API_KEY_ENV[type];
+    if (!legacyKey) continue;
+
     const provider = providers.find(
       (entry) => entry.type === type && entry.apiKey.trim(),
     );
@@ -42,6 +46,8 @@ export async function syncLegacyProviderApiKeysInEnv(
 ): Promise<void> {
   for (const type of PROVIDER_TYPES) {
     const legacyKey = LEGACY_PROVIDER_API_KEY_ENV[type];
+    if (!legacyKey) continue;
+
     const providerRow = Object.values(config.providers).find(
       (row) => row.type === type && row.enabled !== false,
     );

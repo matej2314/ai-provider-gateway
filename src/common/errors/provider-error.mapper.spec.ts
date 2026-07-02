@@ -2,10 +2,12 @@ import { HttpStatus } from '@nestjs/common';
 import {
   mapAnthropicSdkError,
   mapGoogleGenAiError,
+  mapOpenAiSdkError,
   toHttpException,
 } from './provider-error.mapper';
 import { ApiErrorCode } from './api-error.code';
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
 describe('mapAnthropicSdkError', () => {
   it('should map RateLimitError to 429', () => {
@@ -392,6 +394,88 @@ describe('mapGoogleGenAiError', () => {
       expect(result.payload.details).toEqual([]);
     },
   );
+});
+
+describe('mapOpenAiSdkError', () => {
+  it('should map TimeoutError to PROVIDER_TIMEOUT', () => {
+    const error = new Error('Timeout');
+    error.name = 'TimeoutError';
+
+    const result = mapOpenAiSdkError(error);
+
+    expect(result.httpStatus).toBe(HttpStatus.GATEWAY_TIMEOUT);
+    expect(result.payload.code).toBe(ApiErrorCode.PROVIDER_TIMEOUT);
+    expect(result.payload.details).toEqual([]);
+  });
+
+  it('should map AbortError to PROVIDER_TIMEOUT', () => {
+    const error = new Error('Request aborted');
+    error.name = 'AbortError';
+
+    const result = mapOpenAiSdkError(error);
+
+    expect(result.httpStatus).toBe(HttpStatus.GATEWAY_TIMEOUT);
+    expect(result.payload.code).toBe(ApiErrorCode.PROVIDER_TIMEOUT);
+  });
+
+  it('should map OpenAI.APIError 429 to PROVIDER_RATE_LIMITED', () => {
+    const error = new OpenAI.APIError(
+      429,
+      undefined,
+      'Rate limited',
+      undefined,
+    );
+
+    const result = mapOpenAiSdkError(error);
+
+    expect(result.httpStatus).toBe(HttpStatus.TOO_MANY_REQUESTS);
+    expect(result.payload.code).toBe(ApiErrorCode.PROVIDER_RATE_LIMITED);
+  });
+
+  it('should map OpenAI.APIError 401 to PROVIDER_AUTH_FAILED', () => {
+    const error = new OpenAI.APIError(
+      401,
+      undefined,
+      'Unauthorized',
+      undefined,
+    );
+
+    const result = mapOpenAiSdkError(error);
+
+    expect(result.httpStatus).toBe(HttpStatus.UNAUTHORIZED);
+    expect(result.payload.code).toBe(ApiErrorCode.PROVIDER_AUTH_FAILED);
+  });
+
+  it('should map OpenAI.APIError 500 to PROVIDER_UNAVAILABLE', () => {
+    const error = new OpenAI.APIError(
+      500,
+      undefined,
+      'Server error',
+      undefined,
+    );
+
+    const result = mapOpenAiSdkError(error);
+
+    expect(result.httpStatus).toBe(HttpStatus.BAD_GATEWAY);
+    expect(result.payload.code).toBe(ApiErrorCode.PROVIDER_UNAVAILABLE);
+  });
+
+  it('should map OpenAI.APIError 400 to VALIDATION_FAILED', () => {
+    const error = new OpenAI.APIError(400, undefined, 'Bad request', undefined);
+
+    const result = mapOpenAiSdkError(error);
+
+    expect(result.httpStatus).toBe(HttpStatus.BAD_REQUEST);
+    expect(result.payload.code).toBe(ApiErrorCode.VALIDATION_FAILED);
+  });
+
+  it('should map unknown errors to PROVIDER_UNAVAILABLE', () => {
+    const result = mapOpenAiSdkError(new Error('network failure'));
+
+    expect(result.httpStatus).toBe(HttpStatus.BAD_GATEWAY);
+    expect(result.payload.code).toBe(ApiErrorCode.PROVIDER_UNAVAILABLE);
+    expect(result.payload.message).toBe('network failure');
+  });
 });
 
 describe('toHttpException', () => {

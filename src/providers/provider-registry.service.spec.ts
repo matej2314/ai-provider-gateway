@@ -653,4 +653,67 @@ describe('ProviderRegistryService', () => {
       expect(aAgain.provider).toBe(a.provider);
     });
   });
+
+  describe('resolve — OpenAI apiSurface', () => {
+    const OPENAI_ALIAS = 'gpt-4o-alias';
+    const OLLAMA_ALIAS = 'ollama-alias';
+    const OPENAI_INSTANCE = 'openai-main';
+    const OLLAMA_INSTANCE = 'ollama-local';
+
+    beforeEach(async () => {
+      await initService({
+        gateway: buildResolveGateway({
+          replace: { clients: true, providers: true, models: true },
+          providers: {
+            [OPENAI_INSTANCE]: {
+              type: 'openai',
+              apiKeyRef: 'OPENAI_API_KEY',
+              baseUrlRef: 'OPENAI_BASE_URL',
+              enabled: true,
+              apiSurface: 'auto',
+            },
+            [OLLAMA_INSTANCE]: {
+              type: 'openai-compatible',
+              apiKeyRef: 'OLLAMA_API_KEY',
+              baseUrlRef: 'OLLAMA_BASE_URL',
+              enabled: true,
+            },
+          },
+          models: {
+            [OPENAI_ALIAS]: {
+              modelId: 'gpt-4o',
+              providerInstance: OPENAI_INSTANCE,
+              policy: EMPTY_MODEL_POLICY,
+            },
+            [OLLAMA_ALIAS]: {
+              modelId: 'llama3.2',
+              providerInstance: OLLAMA_INSTANCE,
+              policy: EMPTY_MODEL_POLICY,
+            },
+          },
+        }),
+      });
+
+      service.registerInstance(
+        OPENAI_INSTANCE,
+        'openai',
+        createMockAIProvider() as AIProvider,
+      );
+      service.registerInstance(
+        OLLAMA_INSTANCE,
+        'openai-compatible',
+        createMockAIProvider() as AIProvider,
+      );
+    });
+
+    it('should expose openAiApiSurface for OpenAI provider instances', () => {
+      const result = service.resolve(OPENAI_ALIAS);
+      expect(result.openAiApiSurface).toBe('auto');
+    });
+
+    it('should expose chat-completions apiSurface for openai-compatible', () => {
+      const result = service.resolve(OLLAMA_ALIAS);
+      expect(result.openAiApiSurface).toBe('chat-completions');
+    });
+  });
 });

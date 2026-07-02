@@ -9,6 +9,7 @@ export const THINKING_CAPABLE_MODEL_PATTERNS: Partial<
     /^claude-sonnet-[5-9]-/i,
   ],
   google: [/^gemini-3\./i, /^gemini-[4-9]\./i],
+  openai: [/^o\d/i, /^gpt-5/i],
 };
 
 export function isThinkingCapableModel(

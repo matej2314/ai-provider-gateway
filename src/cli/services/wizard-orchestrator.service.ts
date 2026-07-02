@@ -158,6 +158,10 @@ export class WizardOrchestratorService {
         apiKeyRef: provider.apiKeyRef,
         apiKey: provider.apiKey,
         type: provider.type,
+        ...(provider.baseUrlRef && {
+          baseUrlRef: provider.baseUrlRef,
+          baseUrl: provider.baseUrl,
+        }),
       })),
       clients: state.data.clients!.map((client) => ({
         gatewayKeyRef: client.gatewayKeyRef,
@@ -183,6 +187,7 @@ export class WizardOrchestratorService {
           id: provider.id,
           type: provider.type,
           apiKeyRef: provider.apiKeyRef,
+          ...(provider.baseUrlRef && { baseUrlRef: provider.baseUrlRef }),
         })),
         clients: state.data.clients!.map((client) => ({
           id: client.id,

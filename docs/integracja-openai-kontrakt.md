@@ -2,9 +2,9 @@
 
 > **Ważne — fasada ≠ provider OpenAI:**  
 > Ten dokument opisuje **fasadę integracji** — warstwę HTTP w `src/integrations/openai/`, która implementuje **kształt** OpenAI Chat Completions API. Służy kompatybilności z Cursor i podobnymi klientami; OpenAI API stało się jednym ze standardów branżowych dla narzędzi IDE.  
-> **To nie jest** integracja z api.openai.com ani gwarancja, że w projekcie istnieje provider `type: openai`. Routing LLM zależy wyłącznie od **`model`** (= `modelAlias` w YAML) i wpisu `models[]` → `providerInstance` — backend może być Anthropic, Google lub (po wdrożeniu) adapter OpenAI.  
+> **To nie jest** gwarancja, że backend LLM to api.openai.com — routing zależy wyłącznie od **`model`** (= `modelAlias` w YAML) i wpisu `models[]` → `providerInstance` (może być Anthropic, Google, OpenAI lub compatible).  
 > **Auth:** `Authorization: Bearer` to **klucz klienta gateway** z allowlisty, nie klucz OpenAI.com.  
-> Adapter runtime OpenAI (`create-openai-provider.ts` w `src/providers/`) — osobna warstwa; planowany, obecnie niezaimplementowany — [`provider-openai-runtime.md`](provider-openai-runtime.md).  
+> Adapter runtime OpenAI (`create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts` w `src/providers/`) — **wdrożony**, osobna warstwa — [`provider-openai-runtime.md`](provider-openai-runtime.md).  
 > Analogiczna zasada dla fasady Anthropic: [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md), [`dictionary.md`](dictionary.md).
 
 Fasada **`/api/v1/openai`** pozwala podłączyć **Cursor** (i inne klienty ze sztywnym klientem OpenAI) do gatewaya, używając własnej allowlisty kluców zamiast klucza OpenAI.com.

@@ -19,7 +19,7 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Tool calling / tooling** | Function calling: definicje narzędzi w body (`tooling.definitions`), wyniki w `messages[]` z rolą `tool`, odpowiedzi modelu z `toolCalls`. | Wymaga `capabilities.tools: true` dla aliasu; mapowanie SDK w `anthropic-tools.mapper.ts` / `google-tools.mapper.ts`; fasady OpenAI/Anthropic mapują kontrakt vendora. Cache i fallback YAML wyłączone dla tooling w czacie JSON. |
 | **Request metadata** | Opcjonalne pole `metadata` w body czatu (`Record<string, string \| number \| boolean>`). | Propagowane przez `buildProviderInputForAlias` do `ProviderChatInput.metadata`. **Anthropic:** gdy `metadata.userId` jest ustawione → `messages.create({ metadata: { user_id } })`. **Google:** obecnie ignorowane. |
 | **Usage details** | Rozszerzone statystyki użycia w odpowiedzi JSON (`usageDetails`) i w SSE `done`. | Pola `promptCacheHitTokens`, `promptCacheCreationTokens` — gdy adapter Anthropic zwraca cache token stats. Fasada Anthropic mapuje je na `cache_read_input_tokens` / `cache_creation_input_tokens` w JSON i w finalnym `message_delta` streamu (`anthropic-usage.mapper.ts`). |
-| **System fingerprint** | Opcjonalne pole `systemFingerprint` w odpowiedzi JSON natywnego czatu i w SSE `done`. | Pochodzi z upstreamu **tylko gdy vendor je zwraca** — w praktyce dotyczy **OpenAI Chat Completions** (`system_fingerprint`). **Anthropic Messages API** i **Google Gemini** **nie mają** odpowiednika; adaptery `anthropic` / `google` **nie wypełniają** tego pola (to oczekiwane, nie brak implementacji). Planowany adapter `type: openai` ma mapować `system_fingerprint` → `systemFingerprint`. Fasada `/api/v1/openai` przekazuje je jako `system_fingerprint` gdy obecne; fasada Anthropic **nie** eksponuje tego pola. Szczegóły: sekcja poniżej. |
+| **System fingerprint** | Opcjonalne pole `systemFingerprint` w odpowiedzi JSON natywnego czatu i w SSE `done`. | Pochodzi z upstreamu **tylko gdy vendor je zwraca** — w praktyce dotyczy **OpenAI Chat Completions** (`system_fingerprint`). **Anthropic Messages API** i **Google Gemini** **nie mają** odpowiednika; adaptery `anthropic` / `google` **nie wypełniają** tego pola (to oczekiwane, nie brak implementacji). Adapter `type: openai` / `openai-compatible` mapuje `system_fingerprint` → `systemFingerprint` (ścieżka Chat Completions). Fasada `/api/v1/openai` przekazuje je jako `system_fingerprint` gdy obecne; fasada Anthropic **nie** eksponuje tego pola. Szczegóły: sekcja poniżej. |
 | **Fallback alias** | Opcjonalny alias zapasowy (`models[].fallback` w YAML). | Używany przez `ResilientExecutor` po wyczerpaniu retry na aliasie żądanym. |
 | **Effective model alias** (`effectiveModelAlias`) | Alias faktycznie użyty do wywołania providera. | Obecny w odpowiedzi JSON / SSE `meta` tylko gdy żądany alias różni się od użytego (sukces na fallbacku). Pole `model` = żądany `modelAlias`. |
 | **Standard** | Tryb odpowiedzi: pełna odpowiedź JSON. | `POST /api/v1/chat`. |
@@ -48,7 +48,7 @@ Gateway rozdziela **dwa niezależne pojęcia**. Mylenie ich to najczęstszy bł�
 | Termin | Ścieżka | Rola |
 |--------|---------|------|
 | **Fasada OpenAI** | `src/integrations/openai/` | Tłumaczy HTTP w kształcie OpenAI Chat Completions → `ChatService`; **nie** woła api.openai.com |
-| **Adapter OpenAI** (provider runtime) | `src/providers/factories/create-openai-provider.ts` *(planowany)* | Woła SDK OpenAI po `type: openai` w YAML; **nie** obsługuje tras `/api/v1/openai/*` |
+| **Adapter OpenAI** (provider runtime) | `src/providers/factories/create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts` | Woła SDK OpenAI po `type: openai` lub `openai-compatible` w YAML; **nie** obsługuje tras `/api/v1/openai/*` |
 | **Fasada Anthropic** | `src/integrations/anthropic/` | Kształt Anthropic Messages API → `ChatService` |
 | **Adapter Anthropic** | `src/providers/factories/create-anthropic-provider.ts` | Woła API Anthropic po `type: anthropic` w YAML |
 
@@ -63,7 +63,7 @@ Analogia Anthropic (fasada + adapter **oba wdrożone**) uczy wzorca: nazwa vendo
 | Auth klienta | Bearer = klucz gateway | — |
 | Auth do vendora | — | `OPENAI_API_KEY` / `apiKeyRef` |
 | Wymaga drugiej warstwy? | Nie | Nie |
-| Status | Wdrożone | Planowane — [`provider-openai-runtime.md`](provider-openai-runtime.md) |
+| Status | Wdrożone | Wdrożone — [`provider-openai-runtime.md`](provider-openai-runtime.md) |
 
 | Pojęcie | Warstwa | Rola | Czego **nie** oznacza |
 |---------|---------|------|------------------------|
@@ -90,7 +90,7 @@ Przykład: żądanie na `/api/v1/openai/chat/completions` z `model: "gemini-flas
 | **OpenAI (upstream)** | `system_fingerprint` w Chat Completions — identyfikator snapshotu konfiguracji backendu OpenAI |
 | **Anthropic** | Brak pola w Messages API — wartość **zawsze** pominięta |
 | **Google Gemini** | Brak `system_fingerprint`; są `responseId` (ID odpowiedzi) i `modelVersion` — **inna semantyka**, gateway **nie** mapuje ich na `systemFingerprint` |
-| **Adapter OpenAI** (`create-openai-provider.ts`) | Planowany: ekstrakcja `system_fingerprint` w `complete` / `getSystemFingerprint` |
+| **Adapter OpenAI** (`create-openai-provider.ts`) | Ekstrakcja `system_fingerprint` w Chat Completions (`chat-completions.adapter.ts`); Responses API — brak odpowiednika |
 | **Fasada OpenAI** | Mapuje `systemFingerprint` → `system_fingerprint`, gdy pole jest ustawione |
 | **Fasada Anthropic** | Brak odpowiednika w kontrakcie Anthropic Messages API |
 
@@ -104,17 +104,17 @@ Pole w **`params`** (natywny czat) / mapowanie fasad OpenAI / Anthropic → **`P
 
 | Parametr gateway | Pole SDK (orientacyjnie) | Anthropic | Google Gemini | OpenAI (adapter) |
 |------------------|--------------------------|-----------|---------------|------------------|
-| `temperature` | `temperature` | ✅ przekazywany | ✅ przekazywany | ⏳ **brak fabryki** — fasada `/openai` mapuje na `params`, wywołanie idzie przez alias |
-| `maxOutputTokens` | `max_tokens` / `maxOutputTokens` | ✅ | ✅ | ⏳ j.w. |
-| `topP` | `top_p` / `topP` | ✅ * | ✅ | ⏳ j.w. |
-| `stop` | `stop_sequences` / `stopSequences` / `stop` | ✅ | ✅ | ⏳ j.w. |
-| `frequencyPenalty` | `frequency_penalty` | ❌ ignorowany | ❌ ignorowany | ⏳ fasada przyjmuje; bez adaptera OpenAI brak efektu u OpenAI.com |
-| `presencePenalty` | `presence_penalty` | ❌ ignorowany | ❌ ignorowany | ⏳ j.w. |
-| `seed` | `seed` | ❌ ignorowany | ✅ przekazywany | ⏳ j.w. |
-| `responseFormat` | `output_config.format` (Anthropic) / `response_format` + `response_schema` (Google) | ✅ `json_object` + opcjonalny `jsonSchema` | ✅ j.w. | ⏳ fasada `/openai` mapuje `response_format.type`; wywołanie idzie przez alias Anthropic/Google |
-| `topK` | `top_k` / `topK` | ✅ (priorytet nad `topP` / `temperature`) | ✅ | ⏳ fasada mapuje na `params.topK`; wywołanie idzie przez alias Anthropic/Google |
-| `thinkingEnabled` | `thinking` (Anthropic) / `thinkingConfig` (Google) | ✅ `thinking: { type, budget_tokens?, display }` | ✅ `thinkingConfig: { includeThoughts }` (Gemini 3.0+) | ⚠️ fasada przyjmuje `reasoning_effort`, ale **nie działa** (wymaga `/v1/responses` API) |
-| `thinkingBudget` | token budget / effort level / thinkingLevel | ✅ number → `thinking.budget_tokens`; string → `output_config.effort` | ✅ number → `thinkingBudget`; string → `thinkingLevel` | ⚠️ j.w. |
+| `temperature` | `temperature` | ✅ przekazywany | ✅ przekazywany | ✅ Chat Completions + Responses |
+| `maxOutputTokens` | `max_tokens` / `maxOutputTokens` / `max_output_tokens` | ✅ | ✅ | ✅ |
+| `topP` | `top_p` / `topP` | ✅ * | ✅ | ✅ |
+| `stop` | `stop_sequences` / `stopSequences` / `stop` | ✅ | ✅ | ✅ Chat Completions |
+| `frequencyPenalty` | `frequency_penalty` | ❌ ignorowany | ❌ ignorowany | ✅ Chat Completions |
+| `presencePenalty` | `presence_penalty` | ❌ ignorowany | ❌ ignorowany | ✅ Chat Completions |
+| `seed` | `seed` | ❌ ignorowany | ✅ przekazywany | ✅ Chat Completions |
+| `responseFormat` | `output_config.format` (Anthropic) / `response_format` + `response_schema` (Google) / `response_format` lub `text.format` (OpenAI) | ✅ `json_object` + opcjonalny `jsonSchema` | ✅ j.w. | ✅ Chat Completions + Responses (`json_object`) |
+| `topK` | `top_k` / `topK` | ✅ (priorytet nad `topP` / `temperature`) | ✅ | ❌ ignorowany |
+| `thinkingEnabled` | `thinking` (Anthropic) / `thinkingConfig` (Google) / `reasoning.effort` (OpenAI Responses) | ✅ `thinking: { type, budget_tokens?, display }` | ✅ `thinkingConfig: { includeThoughts }` (Gemini 3.0+) | ✅ Responses API (`reasoning.effort` + `reasoning.summary: auto`); routing przez `select-api-surface.ts` |
+| `thinkingBudget` | token budget / effort level / thinkingLevel | ✅ number → `thinking.budget_tokens`; string → `output_config.effort` | ✅ number → `thinkingBudget`; string → `thinkingLevel` | ✅ string effort → `reasoning.effort`; number — walidacja surface (Responses) |
 
 \* **Anthropic — jeden parametr losowości:** adapter wysyła **wyłącznie jeden** z `top_k`, `top_p`, `temperature` — priorytet w `resolveAnthropicSamplingParams()`: **`topK` > `topP` > `temperature`** (`create-anthropic-provider.ts`). Merge z YAML + body może ustawić wiele wartości w `ProviderCallOptions`, ale do SDK trafia tylko zwycięzca priorytetu. Szczegóły: `konfiguracja.md`.
 
@@ -135,8 +135,8 @@ Pole w **`params`** (natywny czat) / mapowanie fasad OpenAI / Anthropic → **`P
 | **seed** | Liczba całkowita (integer) do deterministycznego samplingowania — ta sama seed + te same parametry = prawie identyczna odpowiedź. | **OpenAI + Google**: wspierają natywnie. **Anthropic**: nie wspiera. Przydatne do testów A/B i reprodukowalnych wyników. Nie gwarantuje absolutnego determinizmu, ale zapewnia że "losowe" wybory modelu będą takie same przy każdym wywołaniu. |
 | **topK** | Top-K sampling — model bierze pod uwagę tylko K najbardziej prawdopodobnych tokenów dla następnego tokena (liczba całkowita ≥0). | Pole w `ChatParamsDto` i `ProviderCallOptions`; override tylko z body (brak merge z YAML `defaults`). **Anthropic:** `top_k` (priorytet nad `topP` / `temperature`). **Google:** `topK` w `buildGenerationConfig`. Wymaga wpisu w `allowOverrides`. |
 | **responseFormat** (JSON mode) | Wymusza strukturę odpowiedzi modelu. `{ type: "json_object" }` + opcjonalny **`jsonSchema`**. | Tylko z body (`params.responseFormat`); brak merge z YAML `defaults`. **Anthropic** → `output_config.format.type: json_schema` (domyślny schemat `{ type: object, additionalProperties: true }` gdy brak `jsonSchema`); **Google** → `response_format: application/json` + `response_schema`. Fasada Anthropic: `output_config` w żądaniu Messages API — `integracja-anthropic-messages.md`. |
-| **thinkingEnabled** | Włącza extended thinking/reasoning mode dla reasoning-capable models (boolean). | Pole w `ChatParamsDto` i `ProviderCallOptions`; może pochodzić z body lub YAML `defaults`. **Anthropic Claude Opus/Sonnet 4.5+** → `thinking: { type: 'enabled' \| 'adaptive', budget_tokens?, display }`. **Google Gemini 3.0+** → `thinkingConfig: { includeThoughts: true }`. **OpenAI**: nieobsługiwane (wymaga `/v1/responses` API). Wymaga `capabilities.thinking: true` i wpisu w `allowOverrides`. **Koszty:** 2-10x więcej tokenów. |
-| **thinkingBudget** | Budżet/intensywność thinking: string (`"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"`) lub integer (min 1024). | Override tylko z body (brak merge z YAML `defaults`). **Anthropic**: number → `thinking.budget_tokens`; string → `output_config.effort`. **Google Gemini 3.0+**: number → `thinkingConfig.thinkingBudget`; string → `thinkingConfig.thinkingLevel`. **OpenAI**: nieobsługiwane. **Cross-validation:** gdy number, wymagane `maxOutputTokens >= thinkingBudget + 512`. Wymaga wpisu w `allowOverrides`. |
+| **thinkingEnabled** | Włącza extended thinking/reasoning mode dla reasoning-capable models (boolean). | Pole w `ChatParamsDto` i `ProviderCallOptions`; może pochodzić z body lub YAML `defaults`. **Anthropic Claude Opus/Sonnet 4.5+** → `thinking: { type: 'enabled' \| 'adaptive', budget_tokens?, display }`. **Google Gemini 3.0+** → `thinkingConfig: { includeThoughts: true }`. **OpenAI** → Responses API (`reasoning.effort` + `reasoning.summary: auto`); routing przez `select-api-surface.ts` (modele `o*`, `gpt-5*`, reasoning w body). Wymaga `capabilities.thinking: true` i wpisu w `allowOverrides`. **Koszty:** 2-10x więcej tokenów. |
+| **thinkingBudget** | Budżet/intensywność thinking: string (`"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"`) lub integer (min 1024). | Override tylko z body (brak merge z YAML `defaults`). **Anthropic**: number → `thinking.budget_tokens`; string → `output_config.effort`. **Google Gemini 3.0+**: number → `thinkingConfig.thinkingBudget`; string → `thinkingConfig.thinkingLevel`. **OpenAI**: string effort → `reasoning.effort` (Responses API). **Cross-validation:** gdy number, wymagane `maxOutputTokens >= thinkingBudget + 512`. Wymaga wpisu w `allowOverrides`. |
 
 ## Kody ostrzeżeń (warnings)
 

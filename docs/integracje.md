@@ -7,7 +7,7 @@ Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzę
 | | **Fasada** (`src/integrations/`) | **Provider runtime** (`src/providers/`) |
 |---|----------------------------------|----------------------------------------|
 | **Cel** | Kompatybilność **kontraktu HTTP** z narzędziami (Cursor, Claude Code) | Wywołanie LLM u vendora przez SDK |
-| **OpenAI** | `/api/v1/openai/*` — kształt OpenAI API | `type: openai` w YAML (planowany adapter) — osobna sprawa |
+| **OpenAI** | `/api/v1/openai/*` — kształt OpenAI API | `type: openai` / `openai-compatible` w YAML — adapter SDK (`src/providers/`) |
 | **Anthropic** | `/api/v1/anthropic/*` — kształt Anthropic Messages API | `type: anthropic` w YAML — adapter SDK |
 | **Gwarancja backendu** | **Brak** — fasada nie wiąże się z vendorem | Tak — `providerInstance` + `modelId` w konfiguracji |
 
@@ -29,7 +29,7 @@ flowchart LR
   subgraph runtime [Adaptery — src/providers]
     Anthropic[adapter anthropic]
     Google[adapter google]
-    OpenAIAdapter["adapter openai — planowany"]
+    OpenAIAdapter["adapter openai / openai-compatible"]
   end
   subgraph vendors [Vendory]
     OAI[(api.openai.com)]
@@ -40,7 +40,7 @@ flowchart LR
   Cursor --> Routes --> Chat
   Chat --> Anthropic --> Ant
   Chat --> Google --> Gem
-  Chat -.->|tylko gdy type: openai w YAML| OpenAIAdapter -.-> OAI
+  Chat --> OpenAIAdapter --> OAI
 ```
 
 Ścieżka fasady i ścieżka adaptera są **ortogonalne** — wybór `/openai` vs `/anthropic` nie wybiera vendora LLM.
@@ -66,7 +66,7 @@ flowchart LR
 | **Fasada OpenAI** (`OpenAiModule`) — auth, models, completions JSON + stream | **Wdrożona** — [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md); models przez `GatewayModelsCatalogService` + `openai-models.mapper.ts` |
 | **Fasada Anthropic** (`AnthropicModule`) — auth, models, messages JSON + stream | **Wdrożona** — [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md); models przez `GatewayModelsCatalogService` + `anthropic-models.mapper.ts` |
 | **ModelsModule** — natywny `GET /api/v1/models` | **Wdrożony** — wspólny katalog aliasów dla natywnego API i fasad |
-| Testy E2E kontraktu HTTP fasad (mock adapterów runtime) | **Wdrożone** — `test/e2e/gateway-chat*.e2e-spec.ts`, `openai-facade*.e2e-spec.ts`, `anthropic-facade*.e2e-spec.ts`, `facade-models.e2e-spec.ts`, `native-models.e2e-spec.ts` — [`testy.md`](testy.md) |
+| Testy E2E kontraktu HTTP fasad (mock adapterów runtime) | **Wdrożone** — `test/e2e/gateway-chat*.e2e-spec.ts`, `gateway-chat-openai.e2e-spec.ts`, `openai-facade*.e2e-spec.ts`, `anthropic-facade*.e2e-spec.ts`, `facade-models.e2e-spec.ts`, `native-models.e2e-spec.ts` — [`testy.md`](testy.md) |
 
 Szczegóły konfiguracji klientów (Cursor, Claude Code): **`integracja-openai-kontrakt.md`**, **`integracja-anthropic-messages.md`**.
 
@@ -238,7 +238,7 @@ Katalog aliasów: **`src/models/`** (`ModelsModule`, `GatewayModelsCatalogServic
 ## Powiązane dokumenty
 
 - `integracja-openai-kontrakt.md` — fasada OpenAI, konfiguracja Cursor IDE
-- `provider-openai-runtime.md` — adapter runtime OpenAI (`src/providers/`, plan)
+- `provider-openai-runtime.md` — adapter runtime OpenAI (`src/providers/`, wdrożony)
 - `integracja-anthropic-messages.md` — fasada Anthropic, konfiguracja Claude Code
 - `lista_endpointów.md` — pełna lista tras (w tym fasady)
 - `data_flow.md` — diagramy przepływu

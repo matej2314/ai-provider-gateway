@@ -6,6 +6,8 @@ import { GatewayConfig } from 'src/config/gateway-config.schema';
 import {
   PROVIDER_TYPES,
   type GatewayProviderType,
+  isOpenAiProviderType,
+  type OpenAiProviderType,
 } from 'src/config/provider-types';
 import { EnvPatchService } from './env-patch.service';
 import { ConfigPersistenceService } from './config-persistence.service';
@@ -13,7 +15,12 @@ import { ModelManagerService } from './model-manager.service';
 import { CliLogger } from '../utils/cli-logger.util';
 import { countActiveModelsAfterProviderChange } from '../utils/effective-config-preview.util';
 import { validateProviderApiKey } from '../utils/api-key-validation.util';
-import { deriveApiKeyRef } from '../utils/provider-id.util';
+import { deriveApiKeyRef, deriveBaseUrlRef } from '../utils/provider-id.util';
+import {
+  defaultBaseUrlForOpenAiProviderType,
+  normalizeCliProviderBaseUrl,
+  validateCliProviderBaseUrl,
+} from '../utils/provider-base-url.cli.util';
 import { syncLegacyProviderApiKeysInEnv } from '../utils/legacy-provider-env.util';
 
 @Injectable()
@@ -65,12 +72,17 @@ export class ProviderManagerService {
     ]);
 
     const apiKeyRef = this.deriveApiKeyRef(id);
+    const baseUrlRef = isOpenAiProviderType(type)
+      ? deriveBaseUrlRef(id)
+      : undefined;
 
     const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
       {
         type: 'password',
         name: 'apiKey',
-        message: `API key (env: ${apiKeyRef}):`,
+        message: isOpenAiProviderType(type)
+          ? `API key (optional, env: ${apiKeyRef}):`
+          : `API key (env: ${apiKeyRef}):`,
         mask: '*',
         validate: (value: string) => {
           const result = validateProviderApiKey(type, value);
@@ -78,6 +90,20 @@ export class ProviderManagerService {
         },
       },
     ]);
+
+    let baseUrl = '';
+    if (baseUrlRef) {
+      const { url } = await inquirer.prompt<{ url: string }>([
+        {
+          type: 'input',
+          name: 'url',
+          message: `Base URL (env: ${baseUrlRef}):`,
+          default: defaultBaseUrlForOpenAiProviderType(type as OpenAiProviderType),
+          validate: (input: string) => validateCliProviderBaseUrl(input),
+        },
+      ]);
+      baseUrl = normalizeCliProviderBaseUrl(url);
+    }
 
     const { enabled } = await inquirer.prompt<{ enabled: boolean }>([
       {
@@ -92,6 +118,7 @@ export class ProviderManagerService {
       type,
       apiKeyRef,
       enabled,
+      ...(baseUrlRef && { baseUrlRef }),
     };
 
     if (!this.hasModelsForInstance(config, id)) {
@@ -103,6 +130,9 @@ export class ProviderManagerService {
     }
 
     await this.envPatch.setVar(cwd, apiKeyRef, apiKey.trim());
+    if (baseUrlRef) {
+      await this.envPatch.setVar(cwd, baseUrlRef, baseUrl);
+    }
     await syncLegacyProviderApiKeysInEnv(this.envPatch, cwd, config);
 
     try {
@@ -110,6 +140,9 @@ export class ProviderManagerService {
     } catch (error) {
       delete config.providers[id];
       await this.envPatch.removeVar(cwd, apiKeyRef);
+      if (baseUrlRef) {
+        await this.envPatch.removeVar(cwd, baseUrlRef);
+      }
       throw error;
     }
 
@@ -191,6 +224,9 @@ export class ProviderManagerService {
     }
 
     await this.envPatch.removeVar(cwd, row.apiKeyRef);
+    if (row.baseUrlRef) {
+      await this.envPatch.removeVar(cwd, row.baseUrlRef);
+    }
     await syncLegacyProviderApiKeysInEnv(this.envPatch, cwd, config);
 
     CliLogger.success(
@@ -213,7 +249,7 @@ export class ProviderManagerService {
 
     CliLogger.section(`Edit provider instance: ${instanceId}`);
     CliLogger.dim(
-      `Type: ${row.type} | apiKeyRef: ${row.apiKeyRef} | enabled: ${row.enabled !== false ? 'Yes' : 'No'}`,
+      `Type: ${row.type} | apiKeyRef: ${row.apiKeyRef}${row.baseUrlRef ? ` | baseUrlRef: ${row.baseUrlRef}` : ''} | enabled: ${row.enabled !== false ? 'Yes' : 'No'}`,
     );
 
     const { action } = await inquirer.prompt<{

@@ -167,7 +167,7 @@ describe('ChatValidationService', () => {
         const options = { thinkingEnabled: false };
 
         expect(() =>
-          service.validateThinking(baseRequest, resolvedConfig, options),
+          service.validateThinking(resolvedConfig, options),
         ).not.toThrow();
       });
 
@@ -179,7 +179,7 @@ describe('ChatValidationService', () => {
         const options = { thinkingEnabled: true };
 
         expect(() =>
-          service.validateThinking(baseRequest, configWithThinking, options),
+          service.validateThinking(configWithThinking, options),
         ).not.toThrow();
       });
     });
@@ -193,7 +193,7 @@ describe('ChatValidationService', () => {
         const options = { thinkingEnabled: true };
 
         try {
-          service.validateThinking(baseRequest, configWithoutThinking, options);
+          service.validateThinking(configWithoutThinking, options);
           fail('Expected HttpException');
         } catch (error) {
           expect(error).toBeInstanceOf(HttpException);
@@ -215,7 +215,7 @@ describe('ChatValidationService', () => {
         const options = { thinkingEnabled: true };
 
         expect(() =>
-          service.validateThinking(baseRequest, configNoThinking, options),
+          service.validateThinking(configNoThinking, options),
         ).toThrow(
           expect.objectContaining({
             response: expect.objectContaining({
@@ -224,6 +224,76 @@ describe('ChatValidationService', () => {
           }),
         );
       });
+
+      it('should throw THINKING_NOT_SUPPORTED for openai implicit string effort without capability', () => {
+        const configOpenAi: ResolvedProviderConfig = {
+          ...resolvedConfig,
+          providerType: 'openai',
+          capabilities: { streaming: true, thinking: false },
+        };
+
+        expect(() =>
+          service.validateThinking(configOpenAi, { thinkingBudget: 'high' }),
+        ).toThrow(
+          expect.objectContaining({
+            response: expect.objectContaining({
+              code: ApiErrorCode.THINKING_NOT_SUPPORTED,
+            }),
+          }),
+        );
+      });
+
+      it('should pass for openai o3-mini without thinking params', () => {
+        const configOpenAi: ResolvedProviderConfig = {
+          ...resolvedConfig,
+          providerType: 'openai',
+          modelId: 'o3-mini',
+          capabilities: { streaming: true, thinking: false },
+        };
+
+        expect(() => service.validateThinking(configOpenAi, {})).not.toThrow();
+      });
+    });
+  });
+
+  describe('validateOpenAiSurface', () => {
+    it('should pass for anthropic provider', () => {
+      expect(() => service.validateOpenAiSurface(resolvedConfig)).not.toThrow();
+    });
+
+    it('should throw VALIDATION_FAILED for chat-completions on responses-only model', () => {
+      const configOpenAi: ResolvedProviderConfig = {
+        ...resolvedConfig,
+        providerType: 'openai',
+        modelId: 'o3-mini',
+        openAiApiSurface: 'chat-completions',
+      };
+
+      try {
+        service.validateOpenAiSurface(configOpenAi);
+        fail('Expected HttpException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const ex = error as HttpException;
+        expect(ex.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+        expect(ex.getResponse()).toEqual(
+          expect.objectContaining({
+            code: ApiErrorCode.VALIDATION_FAILED,
+            details: [{ field: 'provider.apiSurface' }],
+          }),
+        );
+      }
+    });
+
+    it('should pass for openai auto surface with responses-only model', () => {
+      const configOpenAi: ResolvedProviderConfig = {
+        ...resolvedConfig,
+        providerType: 'openai',
+        modelId: 'o3-mini',
+        openAiApiSurface: 'auto',
+      };
+
+      expect(() => service.validateOpenAiSurface(configOpenAi)).not.toThrow();
     });
   });
 

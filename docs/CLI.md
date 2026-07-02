@@ -42,7 +42,7 @@ Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya, zarządzania
 | `model:add`, `model:list`, `model:remove`, `model:edit` | **wdrożone** |
 | `client:add`, `client:list`, `client:edit`, `client:remove` | **wdrożone** |
 | `key:generate` | **wdrożone** |
-| Testy jednostkowe CLI (`npm run test:cli`) | **wdrożone** (10 zestawów / 42 przypadki) |
+| Testy jednostkowe CLI (`npm run test:cli`) | **wdrożone** (13 zestawów / 53 przypadki) |
 
 ## Uruchomienie
 
@@ -232,7 +232,7 @@ Większość komend CRUD wymaga pełnej konfiguracji (nie boilerplate). Zachowan
 
 ## Komendy — providery
 
-Operacje na **`providerInstance`** — kluczach mapy `providers` w YAML (np. `anthropic`, `google-office`). Wiele instancji tego samego typu adaptera (`type: anthropic` | `type: google`) jest dozwolone.
+Operacje na **`providerInstance`** — kluczach mapy `providers` w YAML (np. `anthropic-primary`, `openai-main`, `google-office`). Wiele instancji tego samego typu adaptera (`type: anthropic` | `type: google` | `type: openai` | `type: openai-compatible`) jest dozwolone.
 
 ### `gateway provider:list`
 
@@ -260,6 +260,8 @@ Testy używają stałych modeli SDK (nie aliasów z YAML):
 |--------------|------------------|
 | `anthropic` | `claude-sonnet-4-5-20250929` |
 | `google` | `gemini-2.5-flash` |
+| `openai` | `gpt-4o-mini` (wymaga `baseUrlRef` w env) |
+| `openai-compatible` | `gpt-4o-mini` (wymaga `baseUrlRef`; klucz API opcjonalny) |
 
 Wymaga pełnej konfiguracji oraz uzupełnionego `.env` (`loadWithEnvCheck()`). Brakujące zmienne → exit `1`. Przy teście wszystkich instancji brak klucza dla jednej instancji kończy się statusem Failed dla tej pozycji (bez natychmiastowego exit).
 
@@ -268,8 +270,9 @@ Wymaga pełnej konfiguracji oraz uzupełnionego `.env` (`loadWithEnvCheck()`). B
 Interaktywne dodanie nowej instancji providera:
 
 - ID instancji (unikalne, np. `google-office`)
-- Typ adaptera (`PROVIDER_TYPES`: `anthropic`, `google`)
-- Klucz API (zapis do `.env` pod `deriveApiKeyRef(instanceId)` → np. `GOOGLE_OFFICE_API_KEY`; synchronizacja legacy env)
+- Typ adaptera (`PROVIDER_TYPES`: `anthropic`, `google`, `openai`, `openai-compatible`)
+- Dla typów OpenAI: opcjonalny klucz API, **wymagany** `baseUrlRef` + URL bazowy (domyślnie `https://api.openai.com/v1` lub `http://localhost:11434/v1`)
+- Dla pozostałych typów: klucz API (zapis do `.env` pod `deriveApiKeyRef(instanceId)`; synchronizacja legacy env)
 - Flaga `enabled`
 
 Jeśli brak modeli powiązanych z nową instancją → **obowiązkowy** pod-flow dodania co najmniej jednego modelu (`ModelManagerService.addModelForProvider`) w tej samej sesji.
@@ -438,7 +441,7 @@ Kierunek zależności: **config → cli**, **cache/should-include-redis-stack �
 | `ProviderManagerService` | add / remove / edit instancji providera |
 | `ModelManagerService` | add / remove / edit aliasów modeli |
 | `ClientManagerService` | add / remove / edit klientów |
-| `ProviderTestService` | Lekkie testy SDK Anthropic / Google |
+| `ProviderTestService` | Lekkie testy SDK Anthropic / Google / OpenAI |
 | `KeyGeneratorService` | Klucze master `gw_mk_*`, klient `gw_<slug>_*` |
 | `CliGatewayValidatorService` | `validateGatewayConfig()` + opcjonalnie `validateEnv()` (format legacy kluczy) |
 | `ProviderPromptService` | Krok 2/5 — ID instancji, `apiKeyRef`, walidacja formatu klucza |

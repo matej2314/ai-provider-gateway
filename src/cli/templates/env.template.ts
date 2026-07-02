@@ -6,6 +6,8 @@ export interface ProviderCli {
   apiKeyRef: string;
   apiKey: string;
   type?: GatewayProviderType;
+  baseUrlRef?: string;
+  baseUrl?: string;
 }
 
 export interface ClientCli {
@@ -61,6 +63,9 @@ export function generateEnvTemplate(
 
   input.providers.forEach((provider) => {
     env[provider.apiKeyRef] = provider.apiKey;
+    if (provider.baseUrlRef) {
+      env[provider.baseUrlRef] = provider.baseUrl ?? '';
+    }
   });
 
   applyLegacyProviderApiKeyEnv(env, input.providers);

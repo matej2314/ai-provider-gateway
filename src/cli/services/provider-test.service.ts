@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
 import { CliLogger } from '../utils/cli-logger.util';
 
 @Injectable()
@@ -35,6 +36,23 @@ export class ProviderTestService {
     } catch (err) {
       if (err instanceof Error) {
         CliLogger.error(`Google test failed: ${err.message}`);
+      }
+      return false;
+    }
+  }
+
+  async testOpenAi(apiKey: string, baseUrl: string): Promise<boolean> {
+    try {
+      const client = new OpenAI({ apiKey, baseURL: baseUrl });
+      await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 5,
+        messages: [{ role: 'user', content: 'Hi' }],
+      });
+      return true;
+    } catch (err) {
+      if (err instanceof Error) {
+        CliLogger.error(`OpenAI test failed: ${err.message}`);
       }
       return false;
     }

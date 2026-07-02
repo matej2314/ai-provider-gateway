@@ -24,6 +24,14 @@ describe('default-model-policy.util', () => {
     expect(getMaxOutputTokensBound('gemini-2.5-flash', 'google')).toBe(1024);
   });
 
+  it('detects openai reasoning models for thinking capabilities', () => {
+    const policy = buildDefaultModelPolicy('o3-mini', 'openai');
+    expect(policy.params?.defaults?.thinkingEnabled).toBe(false);
+    expect(policy.params?.bounds?.maxOutputTokens?.max).toBe(
+      MAX_OUTPUT_TOKENS_SCHEMA_MAX,
+    );
+  });
+
   it('produces config that passes GatewayConfigSchema', () => {
     const policy = buildDefaultModelPolicy(
       'claude-sonnet-4-5-20250929',

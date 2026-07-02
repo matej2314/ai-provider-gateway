@@ -12,11 +12,12 @@ Aktualnie wspierani **adaptery runtime** (`src/providers/`):
 
 - **Anthropic** (`@anthropic-ai/sdk`) — z pełnym wsparciem **extended thinking** (reasoning models)
 - **Google Gemini** (`@google/genai`) — z pełnym wsparciem **ThinkingConfig** (Gemini 3.0+)
-- **OpenAI** (`type: openai`) — **planowany** adapter SDK; fasada HTTP `/api/v1/openai` jest już wdrożona — patrz [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)
+- **OpenAI** (`type: openai`) — Chat Completions + Responses API (`select-api-surface.ts`); wymaga `baseUrlRef` w YAML
+- **OpenAI-compatible** (`type: openai-compatible`) — Chat Completions (np. Ollama, lokalne endpointy); wymaga `baseUrlRef`, klucz API opcjonalny
 
 > **Uwaga — dwa „OpenAI” w projekcie:**  
 > 1. **Fasada** — `/api/v1/openai/*`, `src/integrations/openai/` — kompatybilność kontraktu HTTP (np. Cursor).  
-> 2. **Adapter runtime** — `type: openai`, `src/providers/` — wywołanie api.openai.com (planowany).  
+> 2. **Adapter runtime** — `type: openai` / `openai-compatible`, `src/providers/` — wywołanie SDK po `baseUrlRef` + `apiKeyRef`.  
 > Fasada **nie wymaga** adaptera OpenAI; adapter **nie wymaga** fasady. Szczegóły: [`docs/dictionary.md`](docs/dictionary.md).
 
 ## Dokumentacja
@@ -33,7 +34,7 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 | Architektura                | [`docs/architektura.md`](docs/architektura.md)                                             |
 | Struktura katalogów         | [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md)               |
 | Fasada OpenAI (Cursor IDE)  | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md)                  |
-| Adapter OpenAI (runtime)  | [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md) *(planowany)*          |
+| Adapter OpenAI (runtime)  | [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)                          |
 | Architektura fasad IDE      | [`docs/integracje.md`](docs/integracje.md)                                                  |
 | Gateway CLI                 | [`docs/CLI.md`](docs/CLI.md)                                                                |
 | Testy (jednostkowe, CLI, E2E, integracyjne) | [`docs/testy.md`](docs/testy.md)                                             |
@@ -66,7 +67,7 @@ Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 
 **Fasada** (`/api/v1/openai/*`, `/api/v1/anthropic/*`) to **warstwa HTTP** — implementuje kształt kontraktu, który stał się standardem branżowym dla narzędzi (OpenAI Chat Completions API, Anthropic Messages API). Służy kompatybilności klientów (Cursor, Claude Code), **nie** oznacza integracji z api.openai.com ani z API Anthropic po stronie gatewaya.
 
-**Provider runtime** (`src/providers/`) to **adaptery SDK** wywoływane po konfiguracji — każdy alias modelu w `gateway.config.yaml` wskazuje `providerInstance` i vendorowy `modelId`. Za aliasem może stać dowolny włączony typ providera (obecnie Anthropic, Google); **nie musi** to być ten sam vendor co kształt HTTP fasady.
+**Provider runtime** (`src/providers/`) to **adaptery SDK** wywoływane po konfiguracji — każdy alias modelu w `gateway.config.yaml` wskazuje `providerInstance` i vendorowy `modelId`. Za aliasem może stać dowolny włączony typ providera (Anthropic, Google, OpenAI, OpenAI-compatible); **nie musi** to być ten sam vendor co kształt HTTP fasady.
 
 | Fasada | Kontrakt HTTP dla klienta | Gwarancja backendu LLM |
 |--------|---------------------------|-------------------------|
@@ -91,7 +92,7 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 
 - **Advanced generation params**: nucleus sampling (`topP`), stop sequences, frequency/presence penalties, deterministic seed
 - **Structured outputs**: JSON mode z opcjonalnym JSON Schema (w adapterach runtime — zależy od aliasu i `providerInstance` w YAML, nie od powierzchni HTTP / fasady)
-- **Extended thinking mode**: wsparcie reasoning models (Anthropic Claude Opus/Sonnet 4.5+, Google Gemini 3.0+) z parametrami `thinkingEnabled` i `thinkingBudget` — zwiększa jakość odpowiedzi dla złożonych zadań (2-10x koszt)
+- **Extended thinking mode**: wsparcie reasoning models (Anthropic Claude Opus/Sonnet 4.5+, Google Gemini 3.0+, OpenAI Responses API) z parametrami `thinkingEnabled` i `thinkingBudget` — zwiększa jakość odpowiedzi dla złożonych zadań (2-10x koszt)
 - **Extended usage tracking**: prompt cache tokens (Anthropic — 90% discount na cached tokens), `usageDetails` w response
 - **Tool calling / Function calling**: definicje narzędzi w `tooling`, wyniki w `toolCalls`, wsparcie dla `tool` role w messages
 - **Metadata propagation**: tracking użytkownika (`userId`), custom metadata dla analytics
@@ -99,7 +100,7 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 - **Smart rate limiting**: per-client RPS/burst/concurrent streams (Redis backend)
 - **Response caching**: opcjonalny cache dla `POST /api/v1/chat` (Redis backend)
 - **Resilient execution**: retry z exponential backoff, timeout per model, opcjonalny fallback chain
-- **Multi-provider (runtime)**: adaptery SDK w `src/providers/` — Anthropic, Google Gemini; adapter OpenAI planowany (`docs/provider-openai-runtime.md`)
+- **Multi-provider (runtime)**: adaptery SDK w `src/providers/` — Anthropic, Google Gemini, OpenAI, OpenAI-compatible — [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)
 - **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
 - **Models catalog**: natywny `GET /api/v1/models` + fasady — wspólny `GatewayModelsCatalogService`, ten sam zestaw aliasów z YAML
 - **Production-ready**: Pino logging, Sentry observability, graceful shutdown, readiness probes
@@ -131,7 +132,7 @@ npm run cli config:validate
 # alternatywa: npm run config:validate
 ```
 
-Przy starcie każda **włączona** instancja providera w YAML musi mieć niepusty klucz w env pod nazwą wskazaną przez **`apiKeyRef`** (np. `ANTHROPIC_PRIMARY_API_KEY`). Wizard generuje nazwy `{INSTANCE_ID}_API_KEY` i dodatkowo synchronizuje legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` w `.env`. Opcjonalne legacy zmienne mają walidację formatu (`sk-ant-`, `AIza` / `AQ.`) — szczegóły: [`docs/konfiguracja.md`](docs/konfiguracja.md).
+Przy starcie każda **włączona** instancja providera w YAML musi mieć niepusty klucz w env pod nazwą wskazaną przez **`apiKeyRef`** (np. `ANTHROPIC_PRIMARY_API_KEY`) — **wyjątek:** typy `openai` / `openai-compatible` dopuszczają pusty klucz (np. lokalny Ollama), ale wymagają **`baseUrlRef`**. Wizard generuje nazwy `{INSTANCE_ID}_API_KEY` i dodatkowo synchronizuje legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` w `.env`. Opcjonalne legacy zmienne mają walidację formatu (`sk-ant-`, `AIza` / `AQ.`) — szczegóły: [`docs/konfiguracja.md`](docs/konfiguracja.md).
 
 **Uwaga:** Przed pierwszym uruchomieniem uzupełnij `.env` (klucze providerów + `MASTER_KEY` / `GATEWAY_KEY_*`) albo uruchom `npm run cli config:init`. Bez poprawnego YAML i env start aplikacji kończy się błędem walidacji.
 
@@ -198,7 +199,7 @@ curl -i -X POST "http://localhost:3000/api/v1/chat" ^
   -d "{\"modelAlias\":\"chat-reasoning\",\"messages\":[{\"role\":\"user\",\"content\":\"Solve this step by step: What is 234 * 567?\"}],\"params\":{\"thinkingEnabled\":true,\"thinkingBudget\":\"medium\"}}"
 ```
 
-Odpowiedź zawiera opcjonalne pole **`thinkingContent`** z rozumowaniem modelu. Wspierane dla **Anthropic Claude Opus/Sonnet 4.5+** i **Google Gemini 3.0+**. Wymaga `capabilities.thinking: true` + `allowOverrides: [thinkingEnabled, thinkingBudget]` w YAML. **Uwaga:** 2-10x większe koszty i latencja — szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md).
+Odpowiedź zawiera opcjonalne pole **`thinkingContent`** z rozumowaniem modelu. Wspierane dla **Anthropic Claude Opus/Sonnet 4.5+**, **Google Gemini 3.0+** oraz **OpenAI** (Responses API). Wymaga `capabilities.thinking: true` + `allowOverrides: [thinkingEnabled, thinkingBudget]` w YAML. **Uwaga:** 2-10x większe koszty i latencja — szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md).
 
 ## Auth i limity
 
@@ -227,7 +228,7 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 | Orkiestracja czatu         | [`ChatService`](src/chat/chat.service.ts)                                                                                                       |
 | Katalog aliasów modeli     | [`GatewayModelsCatalogService`](src/models/services/gateway-models-catalog.service.ts) — natywny `GET /models` + fasady przez mappery          |
 | Wywołania providerów + SSE | [`ChatProviderCallService`](src/chat/services/chat-provider-call.service.ts)                                                                    |
-| Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`)                                                   |
+| Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`, `openai/` — Chat Completions + Responses) |
 | Błędy / `requestId`        | [`GlobalExceptionFilter`](src/common/filters/http-exception.filter.ts), [`RequestIdMiddleware`](src/common/middleware/request-id.middleware.ts) |
 
 Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md).
@@ -235,6 +236,8 @@ Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalog
 ## Testy
 
 Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
+
+Aktualne liczniki: `npm test` — **86** zestawów / **1225** przypadków; `npm run test:cli` — **13** / **53**; `npm run test:e2e` — **10** / **106**.
 
 Uruchomienie:
 

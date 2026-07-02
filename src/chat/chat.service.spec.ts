@@ -107,6 +107,7 @@ describe('ChatService', () => {
     mockValidation = {
       validateTooling: jest.fn(),
       validateThinking: jest.fn(),
+      validateOpenAiSurface: jest.fn(),
       validateForStreaming: jest.fn().mockReturnValue(resolvedConfig),
     };
 
@@ -209,9 +210,11 @@ describe('ChatService', () => {
         resolvedConfig,
       );
       expect(mockValidation.validateThinking).toHaveBeenCalledWith(
-        baseRequest,
         resolvedConfig,
         expectedOptions,
+      );
+      expect(mockValidation.validateOpenAiSurface).toHaveBeenCalledWith(
+        resolvedConfig,
       );
       expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
         'gw_key_123',
@@ -284,7 +287,6 @@ describe('ChatService', () => {
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
       expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalled();
       expect(mockValidation.validateThinking).toHaveBeenCalledWith(
-        baseRequest,
         resolvedConfig,
         expectedOptions,
       );
@@ -460,6 +462,7 @@ describe('ChatService', () => {
         undefined,
         expectedOptions,
         resolvedConfig.providerType,
+        undefined,
       );
     });
 
@@ -521,6 +524,7 @@ describe('ChatService', () => {
         'fallback-model',
         expectedOptions,
         resolvedConfig.providerType,
+        undefined,
       );
     });
 
@@ -620,7 +624,6 @@ describe('ChatService', () => {
         'req-123',
       );
       expect(mockValidation.validateThinking).toHaveBeenCalledWith(
-        baseRequest,
         resolvedConfig,
         expectedOptions,
       );
@@ -697,6 +700,7 @@ describe('ChatService', () => {
           promptCacheHitTokens: 100,
           promptCacheCreationTokens: 50,
         },
+        undefined,
         undefined,
       );
     });
@@ -799,6 +803,7 @@ describe('ChatService', () => {
         resolvedConfig.providerType,
         undefined,
         'fallback-model',
+        undefined,
       );
     });
 

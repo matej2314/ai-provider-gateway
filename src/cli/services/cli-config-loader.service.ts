@@ -6,6 +6,8 @@ import {
   GatewayConfigSchema,
   GatewayConfig,
 } from '../../config/gateway-config.schema';
+import { isApiKeyRequiredForProviderType } from '../../config/provider-api-key.validation';
+import { isOpenAiProviderType } from '../../config/provider-types';
 
 @Injectable()
 export class CliConfigLoaderService {
@@ -92,11 +94,21 @@ export class CliConfigLoaderService {
     }
 
     for (const [_id, provider] of Object.entries(config.providers)) {
+      if (provider.enabled === false) continue;
+
       if (
-        provider.enabled !== false &&
+        isApiKeyRequiredForProviderType(provider.type) &&
         !process.env[provider.apiKeyRef]?.trim()
       ) {
         missing.push(provider.apiKeyRef);
+      }
+
+      if (
+        isOpenAiProviderType(provider.type) &&
+        provider.baseUrlRef &&
+        !process.env[provider.baseUrlRef]?.trim()
+      ) {
+        missing.push(provider.baseUrlRef);
       }
     }
     for (const [_id, client] of Object.entries(config.clients)) {

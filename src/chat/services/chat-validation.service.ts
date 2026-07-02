@@ -3,9 +3,15 @@ import { ApiErrorCode } from '../../common/errors/api-error.code';
 import { LoggingService } from '../../logging/logging.service';
 import { ProviderRegistryService } from '../../providers/provider-registry.service';
 import { isToolingRequest } from '../helpers/tooling-request';
+import { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
+import { isOpenAiProviderType } from '../../config/provider-types';
+import {
+  formatOpenAiSurfaceCompatMessage,
+  isOpenAiChatCompletionsIncompatible,
+} from '../../providers/openai/validate-openai-surface-compat';
+import { isOpenAiReasoningRequested } from '../../providers/openai/mappers/openai-thinking-provider.mapper';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
-import { ProviderCallOptions } from 'src/providers/interfaces/ai-provider.interface';
 
 @Injectable()
 export class ChatValidationService {
@@ -13,6 +19,26 @@ export class ChatValidationService {
     private readonly registry: ProviderRegistryService,
     private readonly loggingService: LoggingService,
   ) {}
+
+  validateOpenAiSurface(resolved: ResolvedProviderConfig): void {
+    if (!isOpenAiProviderType(resolved.providerType)) return;
+
+    if (
+      isOpenAiChatCompletionsIncompatible(
+        resolved.modelId,
+        resolved.openAiApiSurface,
+      )
+    ) {
+      throw new HttpException(
+        {
+          code: ApiErrorCode.VALIDATION_FAILED,
+          message: formatOpenAiSurfaceCompatMessage(resolved.modelId),
+          details: [{ field: 'provider.apiSurface' }],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
 
   validateTooling(
     requestBody: ChatRequestDto,
@@ -33,13 +59,15 @@ export class ChatValidationService {
   }
 
   validateThinking(
-    requestBody: ChatRequestDto,
     resolved: ResolvedProviderConfig,
     options: ProviderCallOptions,
   ): void {
-    const effectiveThinkingEnabled = options.thinkingEnabled === true;
-
-    if (effectiveThinkingEnabled && !resolved.capabilities?.thinking) {
+    const reasoningRequested =
+      resolved.providerType === 'openai'
+        ? isOpenAiReasoningRequested(options)
+        : options.thinkingEnabled === true;
+    
+    if (reasoningRequested && !resolved.capabilities?.thinking) {
       throw new HttpException(
         {
           code: ApiErrorCode.THINKING_NOT_SUPPORTED,
@@ -47,7 +75,7 @@ export class ChatValidationService {
           details: [],
         },
         HttpStatus.BAD_REQUEST,
-      );
+      )
     }
   }
 

@@ -93,7 +93,8 @@ export interface ProviderCallOptions {
   presencePenalty?: number;
   seed?: number;
   responseFormat?: {
-    type: 'text' | 'json_object';
+    type: 'text' | 'json_object' | 'json_schema';
+    jsonSchemaName?: string;
     jsonSchema?: Record<string, unknown>;
   };
   thinkingEnabled?: boolean;

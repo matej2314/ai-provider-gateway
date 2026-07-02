@@ -1908,6 +1908,8 @@
             "enum": [
               "anthropic",
               "google",
+              "openai",
+              "openai-compatible",
               "gateway"
             ],
             "type": "string",

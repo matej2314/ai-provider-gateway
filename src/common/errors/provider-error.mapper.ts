@@ -13,6 +13,8 @@ export type MappedProviderError = {
   payload: ApiErrorPayload;
 };
 
+export { mapOpenAiSdkError } from '../../providers/openai/mappers/openai-error.mapper';
+
 function payloadOf(message: string, code: ApiErrorCode): ApiErrorPayload {
   return { code, message, details: [] };
 }

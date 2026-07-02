@@ -20,6 +20,9 @@ export interface CliAiProvider {
   type: GatewayProviderType;
   apiKeyRef: string;
   apiKey: string;
+  baseUrlRef?: string;
+  baseUrl?: string;
+  apiSurface?: 'chat-completions' | 'responses' | 'auto';
 }
 
 export interface GatewayClient {

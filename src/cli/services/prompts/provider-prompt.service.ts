@@ -4,11 +4,18 @@ import chalk from 'chalk';
 import { CliLogger } from '../../utils/cli-logger.util';
 import { PROVIDER_TYPES } from 'src/config/provider-types';
 import type { GatewayProviderType } from 'src/config/provider-types';
+import { isOpenAiProviderType } from 'src/config/provider-types';
 import type { CliAiProvider } from '../cli.services.types';
 import { validateProviderApiKey } from '../../utils/api-key-validation.util';
 import {
+  defaultBaseUrlForOpenAiProviderType,
+  normalizeCliProviderBaseUrl,
+  validateCliProviderBaseUrl,
+} from '../../utils/provider-base-url.cli.util';
+import {
   defaultProviderInstanceId,
   deriveApiKeyRef,
+  deriveBaseUrlRef,
 } from '../../utils/provider-id.util';
 
 type ProviderPromptResult = CliAiProvider;
@@ -60,23 +67,59 @@ export class ProviderPromptService {
       ]);
       const id = instanceId.trim();
       const apiKeyRef = deriveApiKeyRef(id);
+      const baseUrlRef = isOpenAiProviderType(providerType)
+        ? deriveBaseUrlRef(id)
+        : undefined;
 
-      const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
-        {
-          type: 'password',
-          name: 'apiKey',
-          message: `Enter API Key for ${providerType}:`,
-          mask: '*',
-          validate: (input: string) =>
-            validateProviderApiKey(providerType, String(input)),
-        },
-      ]);
+      let apiKey = '';
+      if (isOpenAiProviderType(providerType)) {
+        const { optionalKey } = await inquirer.prompt<{ optionalKey: string }>(
+          [
+            {
+              type: 'password',
+              name: 'optionalKey',
+              message: `API key for ${providerType} (optional, env: ${apiKeyRef}):`,
+              mask: '*',
+              validate: (input: string) =>
+                validateProviderApiKey(providerType, String(input)),
+            },
+          ],
+        );
+        apiKey = String(optionalKey).trim();
+      } else {
+        const { requiredKey } = await inquirer.prompt<{ requiredKey: string }>([
+          {
+            type: 'password',
+            name: 'requiredKey',
+            message: `Enter API Key for ${providerType}:`,
+            mask: '*',
+            validate: (input: string) =>
+              validateProviderApiKey(providerType, String(input)),
+          },
+        ]);
+        apiKey = String(requiredKey).trim();
+      }
+
+      let baseUrl = '';
+      if (isOpenAiProviderType(providerType) && baseUrlRef) {
+        const { url } = await inquirer.prompt<{ url: string }>([
+          {
+            type: 'input',
+            name: 'url',
+            message: `Base URL (env: ${baseUrlRef}):`,
+            default: defaultBaseUrlForOpenAiProviderType(providerType),
+            validate: (input: string) => validateCliProviderBaseUrl(input),
+          },
+        ]);
+        baseUrl = normalizeCliProviderBaseUrl(url);
+      }
 
       providers.push({
         id,
         type: providerType,
         apiKeyRef,
-        apiKey: String(apiKey).trim(),
+        apiKey,
+        ...(baseUrlRef && { baseUrlRef, baseUrl }),
       });
     }
 

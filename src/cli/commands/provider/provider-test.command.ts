@@ -3,7 +3,9 @@ import { CliConfigLoaderService } from 'src/cli/services/cli-config-loader.servi
 import { ProviderTestService } from 'src/cli/services/provider-test.service';
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
 import chalk from 'chalk';
-import { GatewayConfig } from 'src/config/configuration';
+import { GatewayConfig } from 'src/config/gateway-config.schema';
+import { isApiKeyRequiredForProviderType } from 'src/config/provider-api-key.validation';
+import { isOpenAiProviderType } from 'src/config/provider-types';
 
 interface ProviderTestOptions {
   provider?: string;
@@ -14,8 +16,7 @@ interface ProviderTestOptions {
   description: 'Test connection to AI providers.',
   arguments: '[instanceId]',
   argsDescription: {
-    provider:
-      'Specific provider to test (anthropic,google). Test all if omitted.',
+    provider: 'Specific provider instance ID. Test all if omitted.',
   },
 })
 export class ProviderTestCommand extends CommandRunner {
@@ -70,7 +71,7 @@ export class ProviderTestCommand extends CommandRunner {
     description: 'Specific provider to test',
   })
   parseProvider(val: string): string {
-    return val.toLowerCase();
+    return val;
   }
 
   private async testSingleProvider(
@@ -86,8 +87,9 @@ export class ProviderTestCommand extends CommandRunner {
     CliLogger.section(`Testing provider: ${instanceId}`);
     const spinner = CliLogger.spinner(`Connecting to ${instanceId}...`);
 
-    const apiKey = process.env[provider.apiKeyRef];
-    if (!apiKey) {
+    const apiKey = process.env[provider.apiKeyRef] ?? '';
+
+    if (isApiKeyRequiredForProviderType(provider.type) && !apiKey.trim()) {
       spinner.fail('API key not found.');
       CliLogger.error(
         `Please ensure ${provider.apiKeyRef} is set in your .env file.`,
@@ -95,24 +97,13 @@ export class ProviderTestCommand extends CommandRunner {
       process.exit(1);
     }
 
-    let success = false;
-    if (provider.type === 'anthropic') {
-      success = await this.tester.testAnthropic(apiKey);
-    } else if (provider.type === 'google') {
-      success = await this.tester.testGoogle(apiKey);
-    } else {
-      spinner.fail(`Unknown provider type: ${provider.apiKeyRef}`);
+    const success = await this.runProviderTest(provider, apiKey, spinner);
+    if (!success) {
       process.exit(1);
     }
 
-    if (success) {
-      spinner.succeed(`${instanceId} connection successful!`);
-      CliLogger.blank();
-    } else {
-      spinner.fail(`${instanceId} connection failed.`);
-      CliLogger.blank();
-      process.exit(1);
-    }
+    spinner.succeed(`${instanceId} connection successful!`);
+    CliLogger.blank();
   }
 
   private async testAllProviders(config: GatewayConfig): Promise<void> {
@@ -122,28 +113,25 @@ export class ProviderTestCommand extends CommandRunner {
 
     for (const [name, provider] of Object.entries(config.providers)) {
       const spinner = CliLogger.spinner(`Testing ${name}...`);
+      const apiKey = process.env[provider.apiKeyRef] ?? '';
 
-      const apiKey = process.env[provider.apiKeyRef];
-
-      if (!apiKey) {
+      if (isApiKeyRequiredForProviderType(provider.type) && !apiKey.trim()) {
         spinner.fail(`${name} API key not found.`);
         results.push({ name, success: false });
         continue;
       }
-      let success = false;
 
-      switch (provider.type) {
-        case 'anthropic':
-          success = await this.tester.testAnthropic(apiKey);
-          break;
-        case 'google':
-          success = await this.tester.testGoogle(apiKey);
-          break;
-        default:
-          spinner.fail(`Unknown provider type: ${String(provider.type)}`);
-          results.push({ name, success: false });
-          continue;
+      if (
+        isOpenAiProviderType(provider.type) &&
+        provider.baseUrlRef &&
+        !process.env[provider.baseUrlRef]?.trim()
+      ) {
+        spinner.fail(`${name} base URL not found.`);
+        results.push({ name, success: false });
+        continue;
       }
+
+      const success = await this.runProviderTest(provider, apiKey, spinner);
       if (success) {
         spinner.succeed(`${name} - OK`);
       } else {
@@ -163,5 +151,35 @@ export class ProviderTestCommand extends CommandRunner {
       CliLogger.blank();
       process.exit(1);
     }
+  }
+
+  private async runProviderTest(
+    provider: GatewayConfig['providers'][string],
+    apiKey: string,
+    spinner: ReturnType<typeof CliLogger.spinner>,
+  ): Promise<boolean> {
+    if (provider.type === 'anthropic') {
+      return this.tester.testAnthropic(apiKey);
+    }
+
+    if (provider.type === 'google') {
+      return this.tester.testGoogle(apiKey);
+    }
+
+    if (isOpenAiProviderType(provider.type)) {
+      const baseUrlRef = provider.baseUrlRef;
+      const baseUrl = baseUrlRef ? process.env[baseUrlRef] : undefined;
+      if (!baseUrl?.trim()) {
+        spinner.fail('Base URL not found.');
+        CliLogger.error(
+          `Please ensure ${baseUrlRef} is set in your .env file.`,
+        );
+        return false;
+      }
+      return this.tester.testOpenAi(apiKey, baseUrl.trim());
+    }
+
+    spinner.fail(`Unknown provider type: ${String(provider.type)}`);
+    return false;
   }
 }

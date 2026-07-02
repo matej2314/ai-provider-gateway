@@ -98,6 +98,7 @@ export class ConfigGeneratorService {
     exampleEnv.providers = exampleEnv.providers.map((provider) => ({
       ...provider,
       apiKey: '',
+      ...(provider.baseUrlRef && { baseUrl: '' }),
     }));
     exampleEnv.clients = exampleEnv.clients.map((client) => ({
       ...client,

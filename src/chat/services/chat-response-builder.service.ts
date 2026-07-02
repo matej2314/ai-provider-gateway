@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { mapStopReasonToFinishReason } from '../helpers/map-provider-finish-reason';
-import { buildGenerationWarnings } from '../helpers/generation-warnings';
+import {
+  buildGenerationWarnings,
+  GenerationWarningsContext,
+} from '../helpers/generation-warnings';
 import type { SseEvent } from '../sse/sse-event.type';
 import type {
   ProviderChatResponse,
@@ -62,10 +65,11 @@ export class ChatResponseBuilderService {
     effectiveModelAlias?: string,
     options?: ProviderCallOptions,
     providerType?: GatewayProviderType,
+    warningsContext?: GenerationWarningsContext,
   ): ChatResponseData {
     const warnings =
       options && providerType
-        ? buildGenerationWarnings(options, providerType)
+        ? buildGenerationWarnings(options, providerType, warningsContext)
         : [];
 
     return {
@@ -111,10 +115,11 @@ export class ChatResponseBuilderService {
     providerType?: GatewayProviderType,
     usageDetails?: ProviderUsageDetails,
     effectiveModelAlias?: string,
+    warningsContext?: GenerationWarningsContext,
   ): SseEvent {
     const warnings =
       options && providerType
-        ? buildGenerationWarnings(options, providerType)
+        ? buildGenerationWarnings(options, providerType, warningsContext)
         : [];
 
     return {

@@ -28,6 +28,7 @@ flowchart TB
   subgraph external [Zewnętrzne systemy]
     anthropic[(Anthropic API)]
     google[(Google Gemini API)]
+    openai[(OpenAI / compatible API)]
   end
 
   app --> http
@@ -43,6 +44,7 @@ flowchart TB
   http --> config
   providers --> anthropic
   providers --> google
+  providers --> openai
 ```
 
 ## Moduły (bounded areas — rdzeń funkcjonalny)
@@ -53,7 +55,7 @@ flowchart TB
 | **Models** (`src/models`) | Katalog aliasów: `GET /api/v1/models`, `GET /api/v1/models/:modelAlias`. **`GatewayModelsCatalogService`**: odczyt `gateway.config.yaml` (bez SDK). Eksport serwisu dla fasad OpenAI/Anthropic (mappery `openai-models.mapper.ts`, `anthropic-models.mapper.ts`). |
 | **Integrations** (`src/integrations`) | Fasady OpenAI i Anthropic Messages — mapowanie na `ChatService` (czat) i `GatewayModelsCatalogService` (models). Anthropic: `anthropic-usage.mapper.ts` (usage JSON ↔ stream), `anthropic-stream.mapper.ts` (thinking w fazie `done`). Szczegóły: `integracje.md`, `integracja-anthropic-messages.md`. |
 | **Cache** (`src/cache`) | Globalny moduł dynamiczny: rejestr backendów (`noop` zawsze, `redis` warunkowo), `ResponseCacheService` — cache wyłącznie dla **`POST /api/v1/chat`**. Odczyt wpisów walidowany schematem Zod `CachedChatResponseSchema` (`schemas/cached-chat-response.schema.ts`); niepoprawny kształt → usunięcie klucza i cache MISS. **`RedisConnectionService`** (`adapters/redis-cache/`) to współdzielona infrastruktura Redis (cache + rate limit); aktywacja: `isRedisRequiredFromEnv()` w `should-include-redis-stack.ts`. Konfiguracja env: `docs/konfiguracja.md`. |
-| **Providers** (`src/providers`) | Fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr po **`providerInstance`** (`ProviderRegistryService`). Mapery tool calling: `anthropic-tools.mapper.ts`, `google-tools.mapper.ts`. Ukrywa SDK i szczegóły HTTP providerów. |
+| **Providers** (`src/providers`) | Fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr po **`providerInstance`** (`ProviderRegistryService`). Typy: `anthropic`, `google`, `openai`, `openai-compatible`. Mapery: `anthropic-tools.mapper.ts`, `anthropic-thinking.mapper.ts`, `google-tools.mapper.ts`, `openai/*-provider.mapper.ts` (Chat Completions + Responses API, routing `select-api-surface.ts`). Ukrywa SDK i szczegóły HTTP providerów. |
 | **Config** (`src/config` + `ConfigModule.forRoot` w `AppModule`) | Walidacja env + konfiguracja aplikacji (w tym ścieżki do plików konfiguracyjnych modeli/polityk). Loader `configuration.ts` składa obiekt **`AppConfiguration`** (`app-configuration.types.ts`); odczyt w runtime przez **`getAppConfig` / `getAppConfigOrThrow`** (`typed-config.ts`). Brak osobnego Nest feature module. Fail‑fast przy starcie. |
 | **Health** (`src/health`) | Liveness (`GET /api/v1/health`) i readiness (`GET /api/v1/health/ready` — `checks.config`, `checks.redis`, `checks.cache`). **`checks.redis`**: probe współdzielonej infrastruktury Redis (`RedisConnectionService.ping()`), tylko gdy `isRedisRequiredFromConfig()`; pola `required`, `consumers`. **`checks.cache`**: stan feature cache; przy backendzie `redis` dostępność wynika z `checks.redis`. Walidacja konfiguracji przy **starcie** procesu. |
 | **Rate limit** (`src/rate-limit`) | Jedyna warstwa limitów gateway: smart limiting per klucz klienta (Redis przez wspólny `RedisConnectionService`) — token bucket (RPS/burst), równoległe streamy (`SmartRateLimitGuard`, `SmartRateLimiterService`); cooldown po 429 od providera — `prepareRequestForExecution` (check) i `ChatErrorHandlerService` (set). Limity: opcjonalnie `clients[].rateLimit` w YAML, inaczej env; przełącznik `RATE_LIMIT_SMART_ENABLED`. Bez `@nestjs/throttler`. |
@@ -122,7 +124,8 @@ Kontrakt HTTP **nie** przyjmuje roli `system` w `messages[]` (walidacja DTO). Tr
 W warstwie fabryki providera `system` z portu jest mapowany na natywne pole SDK:
 
 - **Anthropic** (`@anthropic-ai/sdk`) — `messages.create({ system })`.
-- **Google Gemini** (`@google/genai` 1.52+) — `config.systemInstruction` przekazywane do `ai.models.generateContent({ config })` / stream. Fabryka mapuje rolę `assistant` na `model` (wymóg SDK Gemini). Szczegóły mapowania: `spec/SPEC-PROVIDERS.md`.
+- **Google Gemini** (`@google/genai` 1.52+) — `config.systemInstruction` przekazywane do `ai.models.generateContent({ config })` / stream. Fabryka mapuje rolę `assistant` na `model` (wymóg SDK Gemini).
+- **OpenAI** (`openai` 6.x) — Chat Completions lub Responses API w zależności od `apiSurface` i modelu (`select-api-surface.ts`); `baseUrl` z env (`baseUrlRef`). Szczegóły mapowania: `spec/SPEC-PROVIDERS.md`, `provider-openai-runtime.md`.
 
 Szerszy kontekst warstw promptu: `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` (tam, gdzie dotyczy plików promptu).
 
