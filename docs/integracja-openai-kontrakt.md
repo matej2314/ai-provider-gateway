@@ -71,6 +71,7 @@ Lista dostępnych ID: `GET /api/v1/openai/models`.
 | `presence_penalty` | Opcjonalnie (-2–2), mapowane na `params.presencePenalty` (adaptery `anthropic`/`google` ignorują) |
 | `seed` | Opcjonalnie (integer), mapowane na `params.seed` (Anthropic ignoruje) |
 | `response_format` | Opcjonalnie (`{ type: "text" \| "json_object" }`), mapowane na `params.responseFormat.type` (bez `jsonSchema` z body OpenAI — tylko `type`) |
+| `reasoning_effort` | Opcjonalnie (`none` \| `minimal` \| `low` \| `medium` \| `high` \| `xhigh`), mapowane na `params.thinkingEnabled` / `params.thinkingBudget` (`openai-request.mapper.ts`); wymaga `capabilities.thinking: true` na aliasie; efekt przy aliasie na `type: openai` (Responses API) |
 
 ## Odpowiedź (`chat.completion`)
 

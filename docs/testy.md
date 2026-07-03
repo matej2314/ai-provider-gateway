@@ -1,6 +1,6 @@
 # Testy — AI Provider Gateway
 
-Wersja dokumentu: **1.8** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
+Wersja dokumentu: **1.9** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
 
 ## Przegląd
 
@@ -16,9 +16,9 @@ Wersja dokumentu: **1.8** (zsynchronizowana z `package.json`, `test/` i `src/**/
 
 | Skrypt | Zestawy | Przypadki |
 |--------|---------|-----------|
-| `npm test` | 86 | 1225 |
+| `npm test` | 83 | 1211 |
 | `npm run test:cli` | 13 | 53 |
-| `npm run test:e2e` | 10 | 106 |
+| `npm run test:e2e` | 10 | 104 |
 
 Integracyjne wymagają Docker (Redis) i `.env.test` — patrz `test/integration/README.md`.
 
@@ -43,7 +43,7 @@ Konfiguracja: sekcja `"jest"` w `package.json` (`testRegex: .*\.spec\.ts$`, `roo
 | **Czat** | `chat.service.spec.ts`, `chat.controller.spec.ts`, `chat-stream.controller.spec.ts`, `services/chat-cache-guard.service.spec.ts`, `chat-validation.service.spec.ts`, `chat-error-handler.service.spec.ts`, `chat-provider-call.service.spec.ts`, `chat-response-builder.service.spec.ts`, `validation/chat-ingress.validator.spec.ts`, `helpers/*.spec.ts` (m.in. `map-provider-finish-reason`, `provider-input`, `generation-warnings`, `cache-policy`, `tooling-request`, `retry-policy`), `sse/sse.serializer.spec.ts` |
 | **Models** | `models/controllers/models.controller.spec.ts`, `models/services/gateway-models-catalog.service.spec.ts` |
 | **Config** | `config-validator.spec.ts`, `provider-api-key.validation.spec.ts` |
-| **Providery** | `provider-registry.service.spec.ts`, `factories/create-*-provider*.spec.ts`, `openai/**/*.spec.ts` (adapters, mappers, `select-api-surface`, `validate-openai-surface-compat`), `anthropic/anthropic-*.mapper.spec.ts`, `google/google-tools.mapper.spec.ts` |
+| **Providery** | `provider-registry.service.spec.ts`, `factories/create-*-provider*.spec.ts`, `openai/**/*.spec.ts` (adapters `chat-completions` / `responses`, mappers, `openai-api-surface.models.ts`, `create-openai-provider.core.spec.ts`), `anthropic/anthropic-*.mapper.spec.ts`, `google/google-tools.mapper.spec.ts` |
 | **Cache** | `cache-registry.service.spec.ts`, `response-cache.service.spec.ts`, `should-include-redis-stack.spec.ts`, adaptery `noop` / `redis` |
 | **Rate limit** | `smart-rate-limiter.service.spec.ts` |
 | **Guardy** | `gateway-key.guard.spec.ts`, `openai-bearer-auth.guard.spec.ts`, `anthropic-api-key.guard.spec.ts` |
@@ -120,7 +120,7 @@ Osobny runner — **nie** wchodzi w `npm test`, `npm run test:cli` ani `npm run 
 | Wymaganie | Opis |
 |-----------|------|
 | Docker | `npm run test:integration:redis:up` — Redis na hoście **6380**, DB **15** |
-| Env | `.env.test` (wzorzec: `.env.test.example`) — `INTEGRATION_ANTHROPIC_API_KEY` / `INTEGRATION_GOOGLE_API_KEY`, opcjonalnie `INTEGRATION_OPENAI_API_KEY` + `INTEGRATION_OPENAI_BASE_URL`, `MASTER_KEY`, `INTEGRATION_GATEWAY_KEY` |
+| Env | `.env.test` (wzorzec: `.env.test.example`) — `INTEGRATION_ANTHROPIC_API_KEY` / `INTEGRATION_GOOGLE_API_KEY`, opcjonalnie `INTEGRATION_OPENAI_API_KEY` + `INTEGRATION_OPENAI_BASE_URL`, `INTEGRATION_OLLAMA_BASE_URL`, `MASTER_KEY`, `INTEGRATION_GATEWAY_KEY` |
 
 **Co jest prawdziwe vs mock** (skrót):
 
@@ -128,7 +128,24 @@ Osobny runner — **nie** wchodzi w `npm test`, `npm run test:cli` ani `npm run 
 |-----------|------|
 | Redis, fabryki providerów, registry, bootstrap | Graf gateway (`integration-mock-configuration.ts`), `ConfigService`, `LoggingService` |
 
-Pliki spec: m.in. `gateway-chat-live.integration-spec.ts`, `gateway-chat-openai-live.integration-spec.ts`, `gateway-chat-openai-stream-live.integration-spec.ts`, `openai-provider-harness-smoke.integration-spec.ts`, `openai-facade-openai-provider-live.integration-spec.ts`, `openai-facade-live.integration-spec.ts` (backend Anthropic), `harness-smoke.integration-spec.ts`.
+Pliki spec (`test/integration/*.integration-spec.ts`, **14** zestawów):
+
+| Plik | Zakres |
+|------|--------|
+| `gateway-chat-live.integration-spec.ts` | Natywny czat (live SDK) |
+| `gateway-chat-stream-live.integration-spec.ts` | Natywny SSE (live) |
+| `gateway-chat-alias.integration-spec.ts` | Routing aliasów |
+| `gateway-chat-cache-redis.integration-spec.ts` | Cache + Redis |
+| `gateway-chat-cache-tooling.integration-spec.ts` | Cache + tooling |
+| `gateway-chat-openai-live.integration-spec.ts` | Natywny czat z adapterem OpenAI |
+| `gateway-chat-openai-stream-live.integration-spec.ts` | Natywny stream z adapterem OpenAI |
+| `openai-provider-harness-smoke.integration-spec.ts` | Smoke harness providera OpenAI |
+| `openai-facade-live.integration-spec.ts` | Fasada OpenAI (backend Anthropic) |
+| `openai-facade-stream-live.integration-spec.ts` | Fasada OpenAI stream |
+| `openai-facade-openai-provider-live.integration-spec.ts` | Fasada OpenAI + adapter OpenAI |
+| `anthropic-facade-live.integration-spec.ts` | Fasada Anthropic (JSON) |
+| `anthropic-facade-stream-live.integration-spec.ts` | Fasada Anthropic stream |
+| `harness-smoke.integration-spec.ts` | Smoke harness (ogólny) |
 
 Szczegóły setupu: **`test/integration/README.md`**.
 
@@ -138,7 +155,7 @@ Szczegóły setupu: **`test/integration/README.md`**.
 - **Realny** Redis (connection mock; cache E2E używa mock backendu).
 - Pełny łańcuch `configuration.ts` z plikiem YAML na dysku (mock w setup).
 - Health endpoints — pokrycie jednostkowe w `src/health/`.
-- Natywny extended thinking w E2E (pokrycie jednostkowe + fasada Anthropic extended).
+- Natywny extended thinking z **live** OpenAI API (pokrycie: jednostkowe `responses.adapter.spec.ts`, mock E2E `gateway-chat-openai.e2e-spec.ts`, integracyjne `*openai*integration-spec.ts` przy ustawionych kluczach).
 - Pole `warnings` w fasadach OpenAI / Anthropic (tylko natywny czat).
 
 ## CI / lokalnie

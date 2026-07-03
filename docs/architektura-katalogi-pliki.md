@@ -63,10 +63,24 @@ ai-provider-gateway/
 │   │   ├── anthropic-facade-extended.e2e-spec.ts
 │   │   ├── helpers/
 │   │   └── setup/
-│   └── integration/                  # live SDK + Redis (Docker); README.md
+│   └── integration/                  # live SDK + Redis (Docker); README.md — 14 plików *.integration-spec.ts
 │       ├── docker-compose.redis.yml
 │       ├── fixtures/
 │       ├── helpers/
+│       ├── gateway-chat-live.integration-spec.ts
+│       ├── gateway-chat-stream-live.integration-spec.ts
+│       ├── gateway-chat-alias.integration-spec.ts
+│       ├── gateway-chat-cache-redis.integration-spec.ts
+│       ├── gateway-chat-cache-tooling.integration-spec.ts
+│       ├── gateway-chat-openai-live.integration-spec.ts
+│       ├── gateway-chat-openai-stream-live.integration-spec.ts
+│       ├── openai-provider-harness-smoke.integration-spec.ts
+│       ├── openai-facade-live.integration-spec.ts
+│       ├── openai-facade-stream-live.integration-spec.ts
+│       ├── openai-facade-openai-provider-live.integration-spec.ts
+│       ├── anthropic-facade-live.integration-spec.ts
+│       ├── anthropic-facade-stream-live.integration-spec.ts
+│       ├── harness-smoke.integration-spec.ts
 │       └── setup/
 │
 ├── src/
@@ -186,11 +200,20 @@ ai-provider-gateway/
 │   │   │   │   ├── responses.adapter.ts
 │   │   │   │   └── responses.adapter.spec.ts
 │   │   │   ├── mappers/
-│   │   │   │   ├── openai-*-provider.mapper.ts
-│   │   │   │   └── openai-error.mapper.ts
-│   │   │   ├── select-api-surface.ts
-│   │   │   ├── validate-openai-surface-compat.ts
+│   │   │   │   ├── openai-params-provider.mapper.ts
+│   │   │   │   ├── openai-messages-provider.mapper.ts
+│   │   │   │   ├── openai-stream-provider.mapper.ts
+│   │   │   │   ├── openai-responses-provider.mapper.ts
+│   │   │   │   ├── openai-responses-input-provider.mapper.ts
+│   │   │   │   ├── openai-responses-stream-provider.mapper.ts
+│   │   │   │   ├── openai-responses-thinking-provider.mapper.ts
+│   │   │   │   ├── openai-thinking-provider.mapper.ts
+│   │   │   │   ├── openai-tools-provider.mapper.ts
+│   │   │   │   ├── openai-map-gateway-metadata.ts
+│   │   │   │   ├── openai-error.mapper.ts
+│   │   │   │   └── *.spec.ts (obok mapperów)
 │   │   │   ├── openai-api-surface.models.ts
+│   │   │   ├── openai-api-surface.models.spec.ts
 │   │   │   └── openai-provider.types.ts
 │   │   ├── types/
 │   │   │   └── tooling-types.ts
@@ -504,7 +527,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | Katalog | Odpowiedzialność |
 |---------|------------------|
 | **`src/chat/`** | HTTP czat + SSE. **`ChatService`**: wspólne `prepareRequestForExecution` (ingress, cooldown check), orkiestracja (`executeChat` z cache / `executeStream` bez cache), `ResilientExecutor`. Serwisy pomocnicze: **`ChatProviderCallService`**, **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCacheGuardService`**, **`ChatErrorHandlerService`**. |
-| **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Typy: `anthropic`, `google`, `openai`, `openai-compatible`. Mapery: `anthropic-tools.mapper.ts`, `anthropic-thinking.mapper.ts`, `google-tools.mapper.ts`, `openai/` (adapters Chat Completions + Responses, routing `select-api-surface.ts`). Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API / `baseUrlRef`. |
+| **`src/providers/`** | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Typy: `anthropic`, `google`, `openai`, `openai-compatible`. Mapery: `anthropic-tools.mapper.ts`, `anthropic-thinking.mapper.ts`, `google-tools.mapper.ts`, `openai/` (adapters Chat Completions + Responses; routing w `create-openai-provider.core.ts`: `openai` → Responses, `openai-compatible` → Chat Completions). Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API / `baseUrlRef`. |
 | **`src/integrations/`** | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Fasada Anthropic: reverse map `finishReason` przez `anthropic-stop-reason.mapper.ts`; usage JSON/stream — `anthropic-usage.mapper.ts`. Szczegóły: `integracje.md`. |
 | **`src/config/`** | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `buildAppConfiguration` → **`AppConfiguration`**, `getAppConfig` / `getAppConfigOrThrow` (`typed-config.ts`), `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`. |
 | **`src/common/resilience/`** | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`. |
@@ -559,7 +582,7 @@ Pełna dokumentacja komend: **`CLI.md`**.
 
 **Wdrożone w kodzie** (porównuj z `openapi.json` i `src/`):
 
-- **Konfiguracja:** przykładowy `gateway.config.yaml` w repo; pełna konfiguracja operacyjna przez wizard **`gateway config:init`**. Runtime providerów: fabryki per typ + bootstrap per **`providerInstance`** (Anthropic, Google) + tool mappers.
+- **Konfiguracja:** przykładowy `gateway.config.yaml` w repo (instancje `anthropic`, `google`, `openai`, `ollama-local`; aliasy m.in. `gpt-cheap`, `ollama-local-chat`); pełna konfiguracja operacyjna przez wizard **`gateway config:init`**. Runtime providerów: fabryki per typ + bootstrap per **`providerInstance`** (Anthropic, Google, OpenAI, openai-compatible) + tool/thinking mappers.
 - Czat standard + SSE, `params`, retry/fallback/`effectiveModelAlias` (`ResilientExecutor`).
 - Error envelope (`GlobalExceptionFilter`), kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
@@ -570,6 +593,6 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule` i `ModelsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` oraz natywny `/api/v1/models` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — adapter OpenAI: `provider-openai-runtime.md`.
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
-**Pozostałość v1:** tryb non-interactive CLI; E2E health; natywny extended thinking w E2E (pokrycie jednostkowe + fasada Anthropic extended). Integracyjne wymagają Docker + `.env.test`.
+**Pozostałość v1:** tryb non-interactive CLI; E2E health; pełny extended thinking E2E z **live** OpenAI (pokrycie jednostkowe adaptera `responses.adapter.ts`, mock E2E w `gateway-chat-openai.e2e-spec.ts`, fasada Anthropic extended). Integracyjne wymagają Docker + `.env.test`.
 
 Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.

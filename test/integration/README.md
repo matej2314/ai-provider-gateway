@@ -9,7 +9,7 @@ Osobny runner: `npm run test:integration` — nie uruchamiaj przez `npm test` an
 
 ## Setup lokalny
 
-1. `cp .env.test.example .env.test` — uzupełnij `INTEGRATION_ANTHROPIC_API_KEY`, `INTEGRATION_GATEWAY_KEY`, `MASTER_KEY`
+1. `cp .env.test.example .env.test` — uzupełnij `INTEGRATION_ANTHROPIC_API_KEY` i/lub `INTEGRATION_GOOGLE_API_KEY`, `INTEGRATION_GATEWAY_KEY`, `MASTER_KEY`; opcjonalnie `INTEGRATION_OPENAI_API_KEY`, `INTEGRATION_OPENAI_BASE_URL`, `INTEGRATION_OLLAMA_BASE_URL`
 2. `npm run test:integration:redis:up` — Redis na hoście **6380**, DB **15**
 3. `npm run test:integration`
 4. (Opcjonalnie) `npm run test:integration:redis:down`

@@ -142,7 +142,7 @@ Przy `CACHE_ENABLED=false` i `RATE_LIMIT_SMART_ENABLED=true` readiness **sprawdz
 
 **Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji i rozwiązywanie env — `src/config/configuration.ts` → obiekt **`AppConfiguration`** (`app-configuration.types.ts`). Serwisy runtime odczytują klucze przez **`getAppConfig` / `getAppConfigOrThrow`** (`typed-config.ts`) zamiast surowych stringów `config.get('...')`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
 
-**W repozytorium** może być przykładowy `gateway.config.yaml`. Wizard **`config:init`** generuje pełną konfigurację operacyjną. Poniższy przykład ilustruje typowy wynik wizarda.
+**W repozytorium** może być przykładowy `gateway.config.yaml` (w tym commit: instancje `anthropic`, `google`, `openai`, `ollama-local` — wizard domyślnie tworzy `{type}-primary`, np. `anthropic-primary`). Wizard **`config:init`** generuje pełną konfigurację operacyjną. Poniższy przykład ilustruje typowy wynik wizarda.
 
 ### Schemat (zgodny z walidatorem Zod)
 
@@ -291,8 +291,8 @@ Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (
 | ---------------------------------- | ---------------------------------------------------------------- | ------------------------------- |
 | **`anthropic`**                    | `create-anthropic-provider.ts`                                   | `chat-default`, `claude-sonnet` (przy `anthropic-primary`) |
 | **`google`**                       | `create-google-provider.ts`                                      | `gemini-flash` (przy `google-primary`)                  |
-| **`openai`**                       | `create-openai-provider.ts` — Chat Completions + Responses API   | np. `gpt-4o-alias` (przy `openai-main`)                 |
-| **`openai-compatible`**            | `create-openai-compatible-provider-instance.ts` — tylko Chat Completions | np. `ollama-local` (przy `ollama-local`)          |
+| **`openai`**                       | `create-openai-provider.ts` — **zawsze** Responses API (`create-openai-provider.core.ts`) | `gpt-cheap` (przy `openai` w przykładowym YAML repo) |
+| **`openai-compatible`**            | `create-openai-compatible-provider-instance.ts` — **zawsze** Chat Completions | `ollama-local-chat` (przy `ollama-local`)          |
 
 **OpenAI w projekcie:** istnieją **dwie ortogonalne warstwy** — fasada HTTP `/api/v1/openai` (kształt kontraktu dla Cursor) oraz **adapter runtime** `type: openai` / `openai-compatible` (wywołanie SDK po `baseUrlRef` + `apiKeyRef`). Fasada mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`; adapter runtime przekazuje je do SDK gdy alias wskazuje instancję OpenAI. Szczegóły adaptera: [`provider-openai-runtime.md`](provider-openai-runtime.md), [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md).
 
@@ -301,8 +301,10 @@ Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (
 | Pole | Typy | Znaczenie |
 |------|------|-----------|
 | `baseUrlRef` | `openai`, `openai-compatible` | **Wymagane** — nazwa zmiennej env z bazowym URL API (np. `OPENAI_BASE_URL`, `OLLAMA_BASE_URL`) |
-| `apiSurface` | `openai` | Opcjonalne: `auto` (domyślnie), `chat-completions`, `responses` — routing między Chat Completions a Responses API (`select-api-surface.ts`) |
-| `apiSurface` | `openai-compatible` | Domyślnie `chat-completions`; `auto` i `responses` są **zabronione** (walidacja Zod) |
+| `apiSurface` | `openai` | **Zabronione** — `type: openai` zawsze używa Responses API (`GatewayConfigSchema` odrzuca pole) |
+| `apiSurface` | `openai-compatible` | Opcjonalne: wyłącznie `chat-completions` lub pominięte (domyślnie Chat Completions) |
+
+**Routing API (implementacja):** `create-openai-provider.core.ts` — `type: openai` → adapter `responses.adapter.ts`; `type: openai-compatible` → `chat-completions.adapter.ts`. Brak dynamicznego wyboru surface per model ani pola `apiSurface: auto` / `responses`.
 
 **Klucz API:** dla typów OpenAI `apiKeyRef` jest opcjonalny przy starcie (pusty klucz dozwolony — np. lokalny Ollama). Gdy zmienna jest ustawiona, walidacja formatu odbywa się w CLI (`api-key-validation.util.ts`).
 
@@ -310,12 +312,11 @@ Przykład wpisu providera OpenAI:
 
 ```yaml
 providers:
-  openai-main:
+  openai:
     type: openai
     enabled: true
     apiKeyRef: OPENAI_API_KEY
     baseUrlRef: OPENAI_BASE_URL
-    # apiSurface: auto
 
   ollama-local:
     type: openai-compatible
@@ -339,7 +340,8 @@ OLLAMA_BASE_URL=http://localhost:11434/v1
 | ----------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Anthropic**                 | Ustaw **`temperature` albo `topP` albo `topK`** w defaults (logicznie jeden tryb losowości) | Adapter wysyła do SDK **jeden** parametr losowości — priorytet: **`topK` > `topP` > `temperature`** (`resolveAnthropicSamplingParams`). Przykład repo: default `temperature: 0.4`, **bez** `topP` / `topK` w defaults. |
 | **Google Gemini**             | Można **`temperature` i `topP` razem**                                                      | Przykład repo: `temperature: 0.4`, `topP: 0.95`.                                                                                                                                                                       |
-| **OpenAI** (adapter) | Można **`temperature` i `topP` razem** (jak upstream OpenAI) | Routing surface: `apiSurface` w YAML + `select-api-surface.ts` |
+| **OpenAI** (adapter `type: openai`) | Można **`temperature` i `topP` razem** (jak upstream) | Zawsze Responses API — `create-openai-provider.core.ts` |
+| **OpenAI-compatible** | Jak Chat Completions upstream | Zawsze Chat Completions |
 
 **Override z body (`params.topP` / `params.topK` itd.):** merge YAML ← body może ustawić wiele parametrów losowości w `ProviderCallOptions`, ale adapter Anthropic wysyła do SDK **tylko jeden** — priorytet **`topK` > `topP` > `temperature`**. Np. defaults `temperature` + body `topP` → do SDK trafi `top_p`, nie `temperature`.
 

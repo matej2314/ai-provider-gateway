@@ -1,6 +1,6 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **1.4**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat + **models**, fasada OpenAI, fasada Anthropic) oraz health. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
+Wersja dokumentu: **1.5**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat + **models**, fasada OpenAI, fasada Anthropic) oraz health. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
 
 ## Źródła prawdy (kolejność)
 
@@ -259,15 +259,18 @@ Wewnętrznie fasady wywołują ten sam **`ChatService`** co `POST /chat`. Pole *
 
 ## Extended Thinking Mode
 
-Gateway wspiera "extended thinking" dla modeli z głębokim rozumowaniem (reasoning) — **Anthropic Claude**, **Google Gemini 3.0+**. OpenAI wymaga nowego API **`/v1/responses`** (obecnie nieobsługiwane w gateway).
+Gateway wspiera extended thinking / reasoning dla modeli z głębokim rozumowaniem — **Anthropic Claude**, **Google Gemini 3.0+** oraz **OpenAI** (adapter `type: openai` przez Responses API w `responses.adapter.ts`).
 
 ### Provider support matrix
 
-| Provider | API | Wspierane modele | Status w Gateway | Thinking content w response |
-|----------|-----|------------------|------------------|---------------------------|
-| **Anthropic** | `thinking` parameter + `output_config.effort` | Claude Opus 4.6+, Sonnet 4.5+ | ✅ **Pełne wsparcie** | ✅ Thinking blocks |
-| **Google Gemini** | `ThinkingConfig` | Gemini 3.0+ | ✅ **Pełne wsparcie** | ✅ Thoughts (gdy `includeThoughts=true`) |
-| **OpenAI** | `/v1/responses` (NOWE API) | gpt-5.1+, gpt-5-pro, gpt-5.5 | ⚠️ **Nieobsługiwane** (wymaga impl. nowego endpoint) | ❌ Brak |
+| Provider | API | Wspierane modele (przykłady) | Status w Gateway | Thinking content w response |
+|----------|-----|------------------------------|------------------|---------------------------|
+| **Anthropic** | `thinking` + `output_config.effort` | Claude Opus/Sonnet 4.5+ | ✅ Pełne wsparcie | ✅ `thinkingContent` (JSON / SSE `done`) |
+| **Google Gemini** | `ThinkingConfig` | Gemini 3.0+ (`capabilities.thinking: true`) | ✅ Pełne wsparcie | ✅ `thinkingContent` gdy `includeThoughts: true` |
+| **OpenAI** | Responses API (`/v1/responses`) | Modele obsługiwane przez Responses (np. `gpt-5*`, `o*`) przy `type: openai` | ✅ Pełne wsparcie (adapter runtime) | ✅ `thinkingContent` (reasoning summary) |
+| **OpenAI-compatible** | Chat Completions | Zależy od backendu (np. Ollama) | ❌ Brak mapowania thinking w adapterze | ❌ |
+
+**Uwaga:** Fasada OpenAI (`POST /api/v1/openai/chat/completions`) mapuje `reasoning_effort` na `params.thinkingEnabled` / `params.thinkingBudget` (`openai-request.mapper.ts`). Efekt zależy od aliasu w YAML — działa, gdy alias wskazuje `providerInstance` z `type: openai` i ma `capabilities.thinking: true`.
 
 ### Włączanie thinking mode
 
@@ -276,7 +279,7 @@ Gateway wspiera "extended thinking" dla modeli z głębokim rozumowaniem (reason
 ```json
 POST /api/v1/chat
 {
-  "modelAlias": "chat-reasoning",
+  "modelAlias": "claude-sonnet",
   "messages": [{ "role": "user", "content": "Solve this complex problem..." }],
   "params": {
     "thinkingEnabled": true,
@@ -285,30 +288,29 @@ POST /api/v1/chat
 }
 ```
 
-**OpenAI-compatible facade (parametr akceptowany, ale NIE działa):**
+**Fasada OpenAI** (`reasoning_effort` → `params.thinking*`):
 
 ```json
 POST /api/v1/openai/chat/completions
 {
-  "model": "gpt-5.1",
+  "model": "gpt-cheap",
   "messages": [{ "role": "user", "content": "..." }],
   "reasoning_effort": "high"
 }
 ```
 
-⚠️ **UWAGA:** Parametr `reasoning_effort` jest **akceptowany dla kompatybilności API**, ale **NIE działa** (wymaga implementacji `/v1/responses` endpoint — poza zakresem gateway).
+Wymaga aliasu z `capabilities.thinking: true` i `providerInstance` typu `openai`. Numeryczny `thinkingBudget` w natywnym API dla OpenAI może wygenerować ostrzeżenie `PARAM_IGNORED_BY_PROVIDER` (effort mapowany ze stringa) — patrz `generation-warnings.ts`.
 
-**Anthropic-compatible facade:**
+**Fasada Anthropic:**
 
 ```json
 POST /api/v1/anthropic/messages
 {
-  "model": "claude-opus-4-8",
+  "model": "claude-sonnet",
   "messages": [{ "role": "user", "content": "..." }],
   "thinking": {
     "type": "enabled",
-    "budget_tokens": 5000,
-    "display": "summarized"
+    "budget_tokens": 5000
   },
   "output_config": {
     "effort": "high"
@@ -321,21 +323,21 @@ POST /api/v1/anthropic/messages
 **Gateway unified params:**
 - **`thinkingEnabled`** (boolean): Włącza thinking mode
 - **`thinkingBudget`** (string | number): Budżet/intensywność thinking:
-  - **String:** `"none"` | `"minimal"` | `"low"` | `"medium"` | `"high"` | `"xhigh"` | `"max"`
+  - **String:** `"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"`
   - **Number:** Integer token budget (min 1024, provider-specific)
 
 **Vendor-specific mapping:**
 
-| Gateway param | Anthropic API | Google Gemini API | OpenAI (unsupported) |
-|---------------|---------------|-------------------|----------------------|
-| `thinkingEnabled: true` | `thinking: { type: 'enabled' \| 'adaptive' }` | `thinkingConfig: { includeThoughts: true }` | `/v1/responses` (nie impl.) |
-| `thinkingBudget: number` | `thinking.budget_tokens` (min 1024) | `thinkingConfig.thinkingBudget` | N/A |
+| Gateway param | Anthropic API | Google Gemini API | OpenAI (`type: openai`, Responses) |
+|---------------|---------------|-------------------|-------------------------------------|
+| `thinkingEnabled: true` | `thinking: { type: 'enabled' \| 'adaptive' }` | `thinkingConfig: { includeThoughts: true }` | `reasoning.effort` + `reasoning.summary: auto` |
+| `thinkingBudget: number` | `thinking.budget_tokens` (min 1024) | `thinkingConfig.thinkingBudget` | Walidacja surface; numery mogą dać warning — preferuj string effort |
 | `thinkingBudget: "low"` | `output_config.effort: "low"` | `thinkingConfig.thinkingLevel: "LOW"` | `reasoning.effort: "low"` |
 | `thinkingBudget: "high"` | `output_config.effort: "high"` | `thinkingConfig.thinkingLevel: "HIGH"` | `reasoning.effort: "high"` |
 
 ### Response
 
-Gdy model używa thinking mode, response zawiera dodatkowe pole:
+Gdy model używa thinking mode, response może zawierać pole **`thinkingContent`**:
 
 ```json
 {
@@ -343,7 +345,7 @@ Gdy model używa thinking mode, response zawiera dodatkowe pole:
   "output": {
     "text": "Based on my analysis..."
   },
-  "thinkingContent": "Let me break this down step by step... [Anthropic/Gemini thoughts]",
+  "thinkingContent": "Let me break this down step by step...",
   "usage": {
     "inputTokens": 150,
     "outputTokens": 2500
@@ -352,73 +354,42 @@ Gdy model używa thinking mode, response zawiera dodatkowe pole:
 ```
 
 **Provider-specific notes:**
-- **Anthropic (natywny czat):** pole `thinkingContent` w JSON; w streamie gateway — w evencie `done` (nie w deltach).
-- **Anthropic (fasada):** JSON — blok `{ type: 'thinking', thinking: string }` w `content[]`. Stream — bloki `content_block` z `thinking_delta` w fazie `done` (`anthropic-stream.mapper.ts`); kolejność w streamie: tekst (deltami) → thinking → tool_use.
-- **Google Gemini:** Thoughts zwracane gdy `includeThoughts: true` (struktura do weryfikacji w runtime)
-- **OpenAI:** Nieobsługiwane w fasadzie Chat Completions (wymaga `/v1/responses` API)
+- **Anthropic (natywny czat):** `thinkingContent` w JSON; w streamie — w evencie `done` (nie w deltach tekstu).
+- **Anthropic (fasada):** JSON — blok `{ type: 'thinking', thinking: string }` w `content[]`. Stream — `thinking_delta` w fazie `done`.
+- **Google Gemini:** Thoughts gdy `includeThoughts: true` (Gemini 3.0+).
+- **OpenAI (`type: openai`):** Reasoning summary z Responses API → `thinkingContent`; w streamie — `getThinkingContent()` na `StreamResult` (`responses.adapter.ts`).
 
 ### Konfiguracja aliasu
 
-**Anthropic (pełne wsparcie):**
+Przykład z repozytorium (`gateway.config.yaml`):
 
 ```yaml
 models:
-  chat-reasoning-anthropic:
-    providerInstance: anthropic-default
-    modelId: claude-opus-4-8
+  gpt-cheap:
+    providerInstance: openai
+    modelId: gpt-5.4-nano
     capabilities:
-      thinking: true  # Wymagane dla thinking mode
+      streaming: true
+      tools: true
+      thinking: true
     policy:
       params:
         defaults:
-          maxOutputTokens: 8192  # Wyższy default dla thinking mode
-          thinkingEnabled: false  # Opt-in (wysokie koszty)
+          maxOutputTokens: 1024
         allowOverrides:
-          - temperature
           - maxOutputTokens
           - thinkingEnabled
           - thinkingBudget
 ```
 
-**Google Gemini 3.0+ (pełne wsparcie):**
-
-```yaml
-models:
-  chat-reasoning-gemini:
-    providerInstance: google-default
-    modelId: gemini-3.0-flash
-    capabilities:
-      thinking: true  # Wymagane dla thinking mode
-    policy:
-      params:
-        defaults:
-          maxOutputTokens: 8192  # Wyższy default dla thinking mode
-          thinkingEnabled: false  # Opt-in (wysokie koszty)
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-          - thinkingEnabled
-          - thinkingBudget
-```
-
-**OpenAI (nieobsługiwane):**
-
-```yaml
-models:
-  chat-reasoning-openai:
-    providerInstance: openai-default
-    modelId: gpt-5.1
-    capabilities:
-      thinking: false  # ⚠️ NIE wspierane (wymaga /v1/responses API)
-    # reasoning_effort w facade jest akceptowany ale nie działa
-```
+Alias Anthropic z thinking (np. `claude-sonnet` w repo) wymaga `capabilities.thinking: true` oraz wpisów `thinkingEnabled` / `thinkingBudget` w `allowOverrides`.
 
 **Uwagi:**
-- Thinking mode **znacząco zwiększa** latencję i koszty (2-10x więcej tokenów)
-- Domyślnie **wyłączone** — wymagane `capabilities.thinking: true` + `allowOverrides` w config YAML
-- **Gemini 3.0+ ONLY** — wcześniejsze modele (2.5, 2.0, 1.5) zwracają błąd przy `thinkingConfig`
-- **Cross-validation:** gdy `thinkingBudget` jest numerem, wymagane jest `maxOutputTokens >= thinkingBudget + 512` (hint: token budget dla głównej odpowiedzi)
-- Thinking content **nie jest streamowany** w real-time (zwracany w `done` event dla SSE)
+- Thinking mode **znacząco zwiększa** latencję i koszty (2-10x więcej tokenów).
+- Domyślnie **wyłączone** (`thinkingEnabled: false` w YAML defaults) — wymagane `capabilities.thinking: true` + `allowOverrides`.
+- **Gemini 3.0+ ONLY** dla `thinkingConfig` — wcześniejsze modele Gemini zwracają błąd przy thinking.
+- **Cross-validation:** gdy `thinkingBudget` jest numerem, wymagane `maxOutputTokens >= thinkingBudget + 512`.
+- Thinking content **nie jest streamowany** w real-time w natywnym SSE (zwracany w `done`); adapter OpenAI Responses zbiera reasoning w trakcie streamu i udostępnia w `getThinkingContent()`.
 
 ---
 

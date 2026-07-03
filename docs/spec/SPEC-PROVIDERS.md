@@ -83,7 +83,7 @@ F-3. Adapter mapuje parametry z kontraktu gateway do pól SDK (`ProviderCallOpti
 
 **Anthropic — jeden parametr losowości:** adapter wysyła do SDK wyłącznie jeden z `top_k`, `top_p`, `temperature` — priorytet: **`topK` > `topP` > `temperature`** (`resolveAnthropicSamplingParams` w `create-anthropic-provider.ts`). Operator konfiguruje `policy.params.defaults` zgodnie z zamierzonym trybem (np. tylko `temperature`).
 
-**OpenAI — adapter:** **wdrożony** (`create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts`). Routing Chat Completions vs Responses API: `select-api-surface.ts`. Parametry: `temperature`, `topP`, `maxOutputTokens`, `stop`, penalties, `seed`, `responseFormat`; thinking przez Responses API (`reasoning.effort`). Wymaga `baseUrlRef` w YAML. Szczegóły: [`provider-openai-runtime.md`](../provider-openai-runtime.md).
+**OpenAI — adapter:** **wdrożony** (`create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts`, `create-openai-provider.core.ts`). Routing: `type: openai` → Responses API; `type: openai-compatible` → Chat Completions. Parametry: `temperature`, `topP`, `maxOutputTokens`, `stop` (Chat Completions), penalties, `seed`, `responseFormat`; thinking przez Responses API (`reasoning.effort`). Wymaga `baseUrlRef` w YAML. Szczegóły: [`provider-openai-runtime.md`](../provider-openai-runtime.md).
 
 F-4. Adapter mapuje błędy SDK na błędy gateway:
 
@@ -168,7 +168,7 @@ Dla rdzenia MVP wystarczy `chats.create` (obsługuje historię i system instruct
 
 Szczegóły warstwy runtime (rola, status, konfiguracja YAML): [`provider-openai-runtime.md`](../provider-openai-runtime.md).
 
-Fabryki **`create-openai-provider.ts`** i **`create-openai-compatible-provider-instance.ts`** implementują port `AIProvider`. Routing między Chat Completions a Responses API: `select-api-surface.ts` (modele `o*`, `gpt-5*`, reasoning w body → Responses).
+Fabryki **`create-openai-provider.ts`** i **`create-openai-compatible-provider-instance.ts`** implementują port `AIProvider` przez wspólną logikę **`create-openai-provider.core.ts`**. Routing: **`type: openai`** → Responses API (`responses.adapter.ts`); **`type: openai-compatible`** → Chat Completions (`chat-completions.adapter.ts`). Parametry thinking (`thinkingEnabled`, string `thinkingBudget`) na ścieżce Responses mapowane na `reasoning.effort`.
 
 | Port providera | Pole SDK (Chat Completions) | Pole SDK (Responses API) |
 |----------------|----------------------------|--------------------------|
@@ -183,5 +183,5 @@ Fabryki **`create-openai-provider.ts`** i **`create-openai-compatible-provider-i
 | `options.thinkingEnabled` + effort | — | `reasoning.effort` + `reasoning.summary: auto` |
 | `systemFingerprint` (odpowiedź) | `system_fingerprint` | — |
 
-Typ **`openai-compatible`**: zawsze Chat Completions; wymaga `baseUrlRef`; `apiSurface: responses` i `auto` zabronione w walidacji Zod.
+Typ **`openai-compatible`**: zawsze Chat Completions; wymaga `baseUrlRef`; opcjonalne `apiSurface: chat-completions` lub pominięte — inne wartości zabronione w walidacji Zod. Typ **`openai`**: zawsze Responses API; pole `apiSurface` w YAML jest zabronione.
 

@@ -18,7 +18,7 @@
 
 Adapter implementuje port **`AIProvider`** — ten sam kontrakt co `create-anthropic-provider.ts` i `create-google-provider.ts`. Nie rejestruje tras HTTP i nie obsługuje autoryzacji klientów IDE.
 
-Routing między Chat Completions a Responses API odbywa się w `src/providers/openai/select-api-surface.ts` (nie w fasadzie HTTP).
+Routing między Chat Completions a Responses API odbywa się w `create-openai-provider.core.ts` według **`type`** wpisu w YAML (nie w fasadzie HTTP): `openai` → Responses API, `openai-compatible` → Chat Completions.
 
 ## Kiedy adapter jest używany
 
@@ -36,7 +36,7 @@ Routing między Chat Completions a Responses API odbywa się w `src/providers/op
 | `create-openai-provider.core.ts` | Wdrożone |
 | Mapery `*-provider.mapper.ts` | Wdrożone |
 | Adaptery `chat-completions` / `responses` | Wdrożone |
-| Routing `select-api-surface.ts` | Wdrożone |
+| Routing `create-openai-provider.core.ts` | Wdrożone |
 | Testy jednostkowe fabryk i mapperów | Wdrożone |
 | Fasada `/api/v1/openai` mapująca `params.*` | Wdrożona |
 | `provider:test` dla typu OpenAI (CLI) | Wdrożone |
@@ -61,7 +61,7 @@ Szczegóły procesu dodania typu: [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS
 
 ### Responses API
 
-Używane gdy `apiSurface` wymusza `responses`, model jest responses-only (`o*`, `gpt-5*`), lub reasoning jest aktywny (`thinkingEnabled` / string `thinkingBudget`).
+Używane **zawsze** dla instancji `type: openai` (`create-openai-provider.core.ts` → `createResponsesAdapter`). Parametry thinking (`thinkingEnabled`, string `thinkingBudget`) mapowane na `reasoning.effort` + `reasoning.summary: auto`.
 
 | Parametr gateway | Pole SDK |
 |------------------|----------|
@@ -78,24 +78,31 @@ Macierz wsparcia względem innych adapterów: [`dictionary.md`](dictionary.md) (
 
 ```yaml
 providers:
-  openai-main:
+  openai:
     type: openai
     enabled: true
     apiKeyRef: OPENAI_API_KEY
     baseUrlRef: OPENAI_BASE_URL
-    # apiSurface: auto   # domyślnie auto dla openai
+    # type: openai zawsze używa Responses API — pole apiSurface jest zabronione (walidacja Zod)
 
   ollama-local:
     type: openai-compatible
     enabled: true
     apiKeyRef: OLLAMA_API_KEY
     baseUrlRef: OLLAMA_BASE_URL
-    # apiSurface domyślnie chat-completions
+    # apiSurface: chat-completions  # opcjonalne; jedyna dozwolona wartość
 
 models:
-  gpt-4o-alias:
-    providerInstance: openai-main
-    modelId: gpt-4o
+  gpt-cheap:
+    providerInstance: openai
+    modelId: gpt-5.4-nano
+    capabilities:
+      streaming: true
+      tools: true
+      thinking: true
+  ollama-local-chat:
+    providerInstance: ollama-local
+    modelId: llama3.1:8b
 ```
 
 W `.env`:

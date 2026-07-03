@@ -1551,6 +1551,11 @@
               }
             ],
             "example": "medium"
+          },
+          "parallelToolCalls": {
+            "type": "boolean",
+            "description": "Whether the model may call multiple tools in parallel (OpenAI Responses API).",
+            "example": true
           }
         }
       },
@@ -2364,8 +2369,7 @@
             ],
             "type": "string",
             "description": "Reasoning effor for OpenAI reasoning models.Gateway not support this parameter yet.",
-            "example": "medium",
-            "deprecated": true
+            "example": "medium"
           }
         },
         "required": [
