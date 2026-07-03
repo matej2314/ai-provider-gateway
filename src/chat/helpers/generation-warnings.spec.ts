@@ -45,6 +45,7 @@ describe('buildGenerationWarnings', () => {
       expect.objectContaining({
         code: 'PARAM_IGNORED_BY_PROVIDER',
         field: 'params.topK',
+        message: expect.stringMatching(/OpenAI Responses API/i),
       }),
     ]);
   });
@@ -83,33 +84,16 @@ describe('buildGenerationWarnings', () => {
     ]);
   });
 
-  it('should warn responses-unsupported params only when Responses API is selected', () => {
-    const context = {
-      modelId: 'o3-mini',
-      openAiApiSurface: 'auto' as const,
-    };
+  it('should warn responses-unsupported params for openai', () => {
     const warnings = buildGenerationWarnings(
       { frequencyPenalty: 0.1, stop: ['END'] },
       'openai',
-      context,
     );
     expect(warnings.map((w) => w.field)).toEqual(
       expect.arrayContaining(['params.frequencyPenalty', 'params.stop']),
     );
   });
 
-  it('should not warn responses-unsupported params on chat-completions path', () => {
-    const warnings = buildGenerationWarnings(
-      { frequencyPenalty: 0.1, stop: ['END'] },
-      'openai',
-      { modelId: 'gpt-4o', openAiApiSurface: 'auto' },
-    );
-    expect(warnings.some((w) => w.field === 'params.frequencyPenalty')).toBe(
-      false,
-    );
-    expect(warnings.some((w) => w.field === 'params.stop')).toBe(false);
-  });
-  // [DODANE] — Faza 4
   it('should warn reasoning params for openai-compatible', () => {
     const warnings = buildGenerationWarnings(
       { thinkingEnabled: true },

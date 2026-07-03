@@ -1,18 +1,11 @@
 import type { ChatWarningDto } from '../dto/chat-warning.dto';
 import type { ProviderCallOptions } from 'src/providers/interfaces/ai-provider.interface';
 import type { GatewayProviderType } from 'src/config/provider-types';
-import type { OpenAiApiSurface } from 'src/providers/openai/openai-provider.types';
-import { selectApiSurface } from 'src/providers/openai/select-api-surface';
 import {
   isOpenAiReasoningRequested,
   openAiNumericThinkingBudgetIgnored,
   openAiNumericThinkingBudgetWithoutEnable,
 } from 'src/providers/openai/mappers/openai-thinking-provider.mapper';
-
-export interface GenerationWarningsContext {
-  modelId: string;
-  openAiApiSurface: OpenAiApiSurface;
-}
 
 const OPENAI_RESPONSES_UNSUPPORTED_PARAMS = [
   ['params.frequencyPenalty', 'frequencyPenalty'] as const,
@@ -21,42 +14,9 @@ const OPENAI_RESPONSES_UNSUPPORTED_PARAMS = [
   ['params.stop', 'stop'] as const,
 ];
 
-function willUseOpenaiResponsesApi(
-  options: ProviderCallOptions,
-  context?: GenerationWarningsContext,
-): boolean {
-  if (!context) return false;
-
-  return (
-    selectApiSurface(
-      'openai',
-      {
-        apiKey: '',
-        baseUrl: '',
-        apiSurface: context.openAiApiSurface,
-      },
-      context.modelId,
-      options,
-      { messages: [] },
-    ) === 'responses'
-  );
-}
-
-export function toGenerationWarningsContext(resolved: {
-  modelId: string;
-  openAiApiSurface?: OpenAiApiSurface;
-}): GenerationWarningsContext | undefined {
-  if (!resolved.openAiApiSurface) return undefined;
-  return {
-    modelId: resolved.modelId,
-    openAiApiSurface: resolved.openAiApiSurface,
-  };
-}
-
 export function buildGenerationWarnings(
   options: ProviderCallOptions,
   providerType: GatewayProviderType,
-  context?: GenerationWarningsContext,
 ): ChatWarningDto[] {
   const warnings: ChatWarningDto[] = [];
 
@@ -94,7 +54,7 @@ export function buildGenerationWarnings(
     warnings.push({
       code: 'PARAM_IGNORED_BY_PROVIDER',
       message:
-        'Parameter topK has limited support on OpenAI chat/completions and may be ignored.',
+        'Parameter topK is not supported by OpenAI Responses API and was ignored.',
       field: 'params.topK',
     });
   }
@@ -144,10 +104,7 @@ export function buildGenerationWarnings(
     });
   }
 
-  if (
-    providerType === 'openai' &&
-    willUseOpenaiResponsesApi(options, context)
-  ) {
+  if (providerType === 'openai') {
     for (const [field, paramName] of OPENAI_RESPONSES_UNSUPPORTED_PARAMS) {
       const param = options[paramName];
       if (param !== undefined) {

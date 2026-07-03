@@ -1,7 +1,6 @@
 import type { AIProvider } from '../interfaces/ai-provider.interface';
 import type { LoggingService } from 'src/logging/logging.service';
 import type { GatewayProviderType } from 'src/config/provider-types';
-import type { OpenAiApiSurface } from '../openai/openai-provider.types';
 
 export type ApiKeyProviderFactoryFn = (
   apiKey: string,
@@ -15,7 +14,7 @@ export interface ProviderFactoryContext {
   apiKey: string;
   baseUrlRef?: string;
   baseUrl?: string;
-  apiSurface?: OpenAiApiSurface;
+  apiSurface?: 'chat-completions';
 }
 
 export type ProviderFactoryFn = (

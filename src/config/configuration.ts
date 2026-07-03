@@ -14,12 +14,10 @@ import {
 } from './gateway-config.schema';
 
 import { isOpenAiProviderType } from './provider-types';
-import { resolveApiSurfaceDefault } from 'src/providers/openai/resolve-api-surface-default';
 import {
   assertEnabledProviderBaseUrlPresent,
   resolveBaseUrlFromEnv,
 } from './provider-base-url.validation';
-import type { OpenAiApiSurface } from 'src/providers/openai/openai-provider.types';
 
 import type {
   ResolvedSystemPrompts,
@@ -55,7 +53,7 @@ export interface ProviderInstanceRuntime {
   apiKey: string;
   baseUrlRef?: string;
   baseUrl?: string;
-  apiSurface?: OpenAiApiSurface;
+  apiSurface?: 'chat-completions';
 }
 
 const MASTER_PROMPT = 'src/config/system-prompt/MASTER_SYSTEM_PROMPT.md';
@@ -240,7 +238,9 @@ export function buildAppConfiguration(
         ...base,
         baseUrlRef: row.baseUrlRef,
         baseUrl: resolveBaseUrlFromEnv(row.baseUrlRef, rawEnv),
-        apiSurface: resolveApiSurfaceDefault(row.type, row.apiSurface),
+        ...(row.type === 'openai-compatible' && {
+          apiSurface: row.apiSurface ?? 'chat-completions',
+        }),
       };
     } else {
       providersByInstance[instanceId] = base;

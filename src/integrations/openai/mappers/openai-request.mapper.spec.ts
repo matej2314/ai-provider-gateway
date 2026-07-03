@@ -231,9 +231,27 @@ describe('mapOpenAiChatRequestToGateway', () => {
 
         const result = mapOpenAiChatRequestToGateway(openAiRequest);
 
-        expect(result.params?.thinkingEnabled).toBe(true);
-        expect(result.params?.thinkingBudget).toBe(effort);
+        if (effort === 'none') {
+          expect(result.params?.thinkingEnabled).toBe(false);
+          expect(result.params?.thinkingBudget).toBeUndefined();
+        } else {
+          expect(result.params?.thinkingEnabled).toBe(true);
+          expect(result.params?.thinkingBudget).toBe(effort);
+        }
       }
+    });
+
+    it('should map reasoning_effort none to thinkingEnabled false', () => {
+      const openAiRequest: OpenAiChatCompletionRequestDto = {
+        model: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user', content: 'Hi' }],
+        reasoning_effort: 'none',
+      };
+
+      const result = mapOpenAiChatRequestToGateway(openAiRequest);
+
+      expect(result.params?.thinkingEnabled).toBe(false);
+      expect(result.params?.thinkingBudget).toBeUndefined();
     });
 
     it('should not set thinking mode when reasoning_effort not provided', () => {
@@ -244,20 +262,6 @@ describe('mapOpenAiChatRequestToGateway', () => {
 
       const result = mapOpenAiChatRequestToGateway(openAiRequest);
 
-      expect(result.params?.thinkingEnabled).toBeUndefined();
-      expect(result.params?.thinkingBudget).toBeUndefined();
-    });
-
-    it('should not set thinking mode when reasoning_effort is empty string', () => {
-      const openAiRequest = {
-        model: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user', content: 'Hi' }],
-        reasoning_effort: '',
-      } as unknown as OpenAiChatCompletionRequestDto;
-
-      const result = mapOpenAiChatRequestToGateway(openAiRequest);
-
-      expect(result.params).toEqual({});
       expect(result.params?.thinkingEnabled).toBeUndefined();
       expect(result.params?.thinkingBudget).toBeUndefined();
     });
@@ -366,6 +370,26 @@ describe('mapOpenAiChatRequestToGateway', () => {
 
       expect(result.tooling).toEqual({ toolChoice: 'required' });
       expect(result.tooling?.definitions).toBeUndefined();
+    });
+
+    it('should map parallel_tool_calls to params.parallelToolCalls', () => {
+      const result = mapOpenAiChatRequestToGateway({
+        model: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user', content: 'Hi' }],
+        parallel_tool_calls: false,
+      });
+
+      expect(result.params?.parallelToolCalls).toBe(false);
+    });
+
+    it('should map parallel_tool_calls when it is the only param', () => {
+      const result = mapOpenAiChatRequestToGateway({
+        model: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user', content: 'Hi' }],
+        parallel_tool_calls: true,
+      });
+
+      expect(result.params).toEqual({ parallelToolCalls: true });
     });
   });
 

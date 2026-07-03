@@ -122,5 +122,8 @@ export function mapCallOptionsToResponsesParams(
     }),
     ...(options.topP !== undefined && { top_p: options.topP }),
     ...(textFormat && { text: textFormat }),
+    ...(options.parallelToolCalls !== undefined && {
+      parallel_tool_calls: options.parallelToolCalls,
+    }),
   };
 }

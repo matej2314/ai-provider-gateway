@@ -22,7 +22,7 @@ export interface CliAiProvider {
   apiKey: string;
   baseUrlRef?: string;
   baseUrl?: string;
-  apiSurface?: 'chat-completions' | 'responses' | 'auto';
+  apiSurface?: 'chat-completions';
 }
 
 export interface GatewayClient {

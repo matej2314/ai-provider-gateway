@@ -13,7 +13,6 @@ describe('createOpenAiProviderCore', () => {
   const baseConfig = {
     apiKey: 'sk-test',
     baseUrl: 'https://api.openai.com/v1',
-    apiSurface: 'auto' as const,
   };
 
   const chatComplete = jest.fn();
@@ -40,7 +39,6 @@ describe('createOpenAiProviderCore', () => {
         {
           apiKey: 'x',
           baseUrl: 'https://api.openai.com/v1',
-          apiSurface: 'auto',
         },
         logger,
       ),
@@ -57,27 +55,27 @@ describe('createOpenAiProviderCore', () => {
     );
   });
 
-  describe('api surface routing', () => {
+  describe('provider type routing', () => {
     const input = { messages: [{ role: 'user' as const, content: 'Hi' }] };
 
-    it('routes gpt-4o to chat-completions adapter', async () => {
+    it('routes type openai always to responses adapter', async () => {
       const provider = createOpenAiProviderCore('openai', baseConfig, logger);
       await provider.complete(input, 'gpt-4o');
-      expect(chatComplete).toHaveBeenCalled();
-      expect(responsesComplete).not.toHaveBeenCalled();
-    });
-
-    it('routes thinkingEnabled to responses adapter', async () => {
-      const provider = createOpenAiProviderCore('openai', baseConfig, logger);
-      await provider.complete(input, 'gpt-4o', { thinkingEnabled: true });
       expect(responsesComplete).toHaveBeenCalled();
       expect(chatComplete).not.toHaveBeenCalled();
+    });
+
+    it('routes type openai stream to responses adapter', () => {
+      const provider = createOpenAiProviderCore('openai', baseConfig, logger);
+      provider.stream?.(input, 'o3-mini');
+      expect(responsesStream).toHaveBeenCalled();
+      expect(chatStream).not.toHaveBeenCalled();
     });
 
     it('routes openai-compatible always to chat-completions adapter', async () => {
       const provider = createOpenAiProviderCore(
         'openai-compatible',
-        { ...baseConfig, apiSurface: 'chat-completions' },
+        baseConfig,
         logger,
       );
       await provider.complete(input, 'llama3.2', { thinkingEnabled: true });
@@ -85,11 +83,33 @@ describe('createOpenAiProviderCore', () => {
       expect(responsesComplete).not.toHaveBeenCalled();
     });
 
-    it('routes stream the same way as complete', () => {
-      const provider = createOpenAiProviderCore('openai', baseConfig, logger);
-      provider.stream?.(input, 'o3-mini');
-      expect(responsesStream).toHaveBeenCalled();
-      expect(chatStream).not.toHaveBeenCalled();
+    it('routes openai-compatible stream to chat-completions adapter', () => {
+      const provider = createOpenAiProviderCore(
+        'openai-compatible',
+        baseConfig,
+        logger,
+      );
+      provider.stream?.(input, 'llama3.2');
+      expect(chatStream).toHaveBeenCalled();
+      expect(responsesStream).not.toHaveBeenCalled();
+    });
+
+    it('passes includeStreamUsage false for openai chat-completions adapter', () => {
+      createOpenAiProviderCore('openai', baseConfig, logger);
+      expect(createChatCompletionsAdapter).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        { includeStreamUsage: false },
+      );
+    });
+
+    it('passes includeStreamUsage true for openai-compatible chat-completions adapter', () => {
+      createOpenAiProviderCore('openai-compatible', baseConfig, logger);
+      expect(createChatCompletionsAdapter).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        { includeStreamUsage: true },
+      );
     });
   });
 });

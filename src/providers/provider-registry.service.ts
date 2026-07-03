@@ -14,14 +14,13 @@ import {
   GatewayParamsConfig,
 } from '../config/configuration';
 import { isOpenAiProviderType } from '../config/provider-types';
-import { resolveApiSurfaceDefault } from './openai/resolve-api-surface-default';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { UnsupportedProviderException } from '../common/exceptions/unsupported-provider.exception';
 import { LoggingService } from '../logging/logging.service';
+
 import { RETRY_POLICY_DEFAULTS } from '../common/retry-policy-defaults';
 import type { ProviderToolCall } from './interfaces/ai-provider.interface';
 import type { GatewayProviderType } from '../config/provider-types';
-import type { OpenAiApiSurface } from './openai/openai-provider.types';
 
 export interface RegisteredProviderInstance {
   instanceId: string;
@@ -46,7 +45,6 @@ export interface ResolvedProviderConfig {
   params?: GatewayParamsConfig;
   toolCalls?: ProviderToolCall[];
   providerType: GatewayProviderType;
-  openAiApiSurface?: OpenAiApiSurface;
 }
 
 @Injectable()
@@ -201,10 +199,8 @@ export class ProviderRegistryService {
       policy,
       params: modelConfig.policy?.params ?? undefined,
       ...(isOpenAiProviderType(providerEntry.type) && {
-        openAiApiSurface: resolveApiSurfaceDefault(
-          providerEntry.type,
-          providerInstanceConfig.apiSurface,
-        ),
+        openAiApiSurface:
+          providerEntry.type === 'openai' ? 'responses' : 'chat-completions',
       }),
     };
   }

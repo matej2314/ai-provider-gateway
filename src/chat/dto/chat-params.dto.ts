@@ -171,4 +171,13 @@ export class ChatParamsDto {
     | 'xhigh'
     | 'max'
     | number;
+
+  @ApiPropertyOptional({
+    description:
+      'Whether the model may call multiple tools in parallel (OpenAI Responses API).',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  parallelToolCalls?: boolean;
 }

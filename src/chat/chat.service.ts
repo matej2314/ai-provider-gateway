@@ -19,7 +19,6 @@ import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
 import { validateChatIngress } from './validation/chat-ingress.validator';
-import { toGenerationWarningsContext } from './helpers/generation-warnings';
 import type { ChatIngressProfile } from './validation/chat-ingress.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
 
@@ -66,8 +65,6 @@ export class ChatService {
     );
 
     this.validationService.validateThinking(primaryResolved, options);
-
-    this.validationService.validateOpenAiSurface(primaryResolved);
 
     if (gatewayKey) {
       await this.cacheGuardService.checkRateLimit(
@@ -168,7 +165,6 @@ export class ChatService {
         didFallback ? usedAlias : undefined,
         options,
         resolved.providerType,
-        toGenerationWarningsContext(resolved),
       );
 
       const latency = Date.now() - startedAt;
@@ -292,7 +288,6 @@ export class ChatService {
         resolved.providerType,
         usageDetails,
         didFallback ? usedAlias : undefined,
-        toGenerationWarningsContext(resolved),
       );
       emit(doneEvent);
 

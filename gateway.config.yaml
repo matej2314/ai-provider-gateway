@@ -14,7 +14,7 @@ providers:
     type: openai
     apiKeyRef: OPENAI_API_KEY
     baseUrlRef: OPENAI_BASE_URL
-    enabled: false
+    enabled: true
 
 # Configuration for gateway clients
 
@@ -146,7 +146,7 @@ models:
 
   gpt-cheap:
     providerInstance: openai
-    modelId: gpt-4o-mini
+    modelId: gpt-5.4-nano
     capabilities:
       streaming: true
       tools: true

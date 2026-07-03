@@ -670,7 +670,6 @@ describe('ProviderRegistryService', () => {
               apiKeyRef: 'OPENAI_API_KEY',
               baseUrlRef: 'OPENAI_BASE_URL',
               enabled: true,
-              apiSurface: 'auto',
             },
             [OLLAMA_INSTANCE]: {
               type: 'openai-compatible',
@@ -706,9 +705,9 @@ describe('ProviderRegistryService', () => {
       );
     });
 
-    it('should expose openAiApiSurface for OpenAI provider instances', () => {
+    it('should expose responses openAiApiSurface for OpenAI provider instances', () => {
       const result = service.resolve(OPENAI_ALIAS);
-      expect(result.openAiApiSurface).toBe('auto');
+      expect(result.openAiApiSurface).toBe('responses');
     });
 
     it('should expose chat-completions apiSurface for openai-compatible', () => {

@@ -23,7 +23,7 @@ describe('createOpenAiCompatibleProviderInstance', () => {
     ).toThrow(/Expected type "openai-compatible"/);
   });
 
-  it('throws when baseUrl or apiSurface missing', () => {
+  it('throws when baseUrl missing', () => {
     expect(() =>
       createOpenAiCompatibleProviderInstance(
         {
@@ -34,7 +34,7 @@ describe('createOpenAiCompatibleProviderInstance', () => {
         },
         createMockLoggingService() as never,
       ),
-    ).toThrow(/Missing baseUrl or apiSurface/);
+    ).toThrow(/Missing baseUrl/);
   });
 
   it('delegates to createOpenAiProviderCore', () => {
@@ -45,7 +45,6 @@ describe('createOpenAiCompatibleProviderInstance', () => {
         apiKeyRef: 'OLLAMA_API_KEY',
         apiKey: '',
         baseUrl: 'http://localhost:11434/v1',
-        apiSurface: 'chat-completions',
       },
       createMockLoggingService() as never,
     );
@@ -54,7 +53,6 @@ describe('createOpenAiCompatibleProviderInstance', () => {
       expect.objectContaining({
         apiKey: '',
         baseUrl: 'http://localhost:11434/v1',
-        apiSurface: 'chat-completions',
       }),
       expect.anything(),
     );

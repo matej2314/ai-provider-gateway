@@ -4,7 +4,6 @@ import {
   assertOpenAiProviderType,
   type GatewayProviderType,
 } from '../../config/provider-types';
-import { selectApiSurface } from '../openai/select-api-surface';
 import { createChatCompletionsAdapter } from '../openai/adapters/chat-completions.adapter';
 import { createResponsesAdapter } from '../openai/adapters/responses.adapter';
 import type { AIProvider } from '../interfaces/ai-provider.interface';
@@ -29,39 +28,19 @@ export function createOpenAiProviderCore(
   });
 
   const chatCompletions = createChatCompletionsAdapter(client, logger, {
-    includeStreamUsage: providerType === 'openai',
+    includeStreamUsage: providerType === 'openai-compatible',
   });
   const responses = createResponsesAdapter(client, logger);
 
-  logger.info('OpenAI provider core created.', {
-    baseUrl: config.baseUrl,
-    apiSurface: config.apiSurface,
-  });
-
   return {
     async complete(input, modelId, options) {
-      const surface = selectApiSurface(
-        providerType,
-        config,
-        modelId,
-        options ?? {},
-        input,
-      );
-
-      if (surface === 'responses') {
+      if (providerType === 'openai') {
         return responses.complete(input, modelId, options);
       }
       return chatCompletions.complete(input, modelId, options);
     },
     stream(input, modelId, options) {
-      const surface = selectApiSurface(
-        providerType,
-        config,
-        modelId,
-        options ?? {},
-        input,
-      );
-      if (surface === 'responses') {
+      if (providerType === 'openai') {
         return responses.stream(input, modelId, options);
       }
       return chatCompletions.stream(input, modelId, options);

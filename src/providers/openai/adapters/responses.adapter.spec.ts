@@ -51,6 +51,75 @@ describe('createResponsesAdapter', () => {
     expect(result.thinkingContent).toBe('Reasoning summary');
   });
 
+  it('complete passes metadata to responses.create when provided', async () => {
+    const client = createMockClient();
+    (client.responses.create as jest.Mock).mockResolvedValue({
+      model: 'gpt-4o',
+      output_text: 'OK',
+      output: [],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    });
+
+    const adapter = createResponsesAdapter(client, logger as never);
+    await adapter.complete(
+      {
+        messages: [{ role: 'user', content: 'Hi' }],
+        metadata: { userId: '123', sessionId: 'abc' },
+      },
+      'gpt-4o',
+    );
+
+    expect(client.responses.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: { userId: '123', sessionId: 'abc' },
+      }),
+    );
+  });
+
+  it('complete omits metadata when not provided or empty', async () => {
+    const client = createMockClient();
+    (client.responses.create as jest.Mock).mockResolvedValue({
+      model: 'gpt-4o',
+      output_text: 'OK',
+      output: [],
+    });
+
+    const adapter = createResponsesAdapter(client, logger as never);
+    await adapter.complete(
+      { messages: [{ role: 'user', content: 'Hi' }], metadata: {} },
+      'gpt-4o',
+    );
+
+    expect(client.responses.create).toHaveBeenCalledWith(
+      expect.not.objectContaining({ metadata: expect.anything() }),
+    );
+  });
+
+  it('complete passes parallel_tool_calls to responses.create', async () => {
+    const client = createMockClient();
+    (client.responses.create as jest.Mock).mockResolvedValue({
+      model: 'gpt-4o',
+      output_text: 'OK',
+      output: [],
+    });
+
+    const adapter = createResponsesAdapter(client, logger as never);
+    await adapter.complete(
+      {
+        messages: [{ role: 'user', content: 'Hi' }],
+        tools: [{ name: 'get_weather', parameters: { type: 'object' } }],
+      },
+      'gpt-4o',
+      { parallelToolCalls: false },
+    );
+
+    expect(client.responses.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parallel_tool_calls: false,
+      }),
+    );
+  });
+
   it('maps SDK errors to HttpException', async () => {
     const client = createMockClient();
     (client.responses.create as jest.Mock).mockRejectedValue(

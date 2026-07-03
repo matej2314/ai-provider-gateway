@@ -107,6 +107,7 @@ export interface ProviderCallOptions {
     | 'xhigh'
     | 'max'
     | number;
+  parallelToolCalls?: boolean;
 }
 
 export interface AIProvider {

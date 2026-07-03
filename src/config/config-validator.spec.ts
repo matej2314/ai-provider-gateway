@@ -201,6 +201,41 @@ describe('validateGatewayConfig', () => {
     const result = validateGatewayConfig({ configPath, env });
 
     expect(result.success).toBe(false);
-    expect(result.errors.join('\n')).toMatch(/apiSurface "auto"/i);
+    expect(result.errors.join('\n')).toMatch(/chat-completions/i);
+  });
+
+  it('fails when openai provider uses apiSurface', () => {
+    const configPath = writeTempConfig(
+      tempDir,
+      minimalValidConfig({
+        providers: {
+          'openai-main': {
+            type: 'openai',
+            apiKeyRef: 'OPENAI_API_KEY',
+            baseUrlRef: 'OPENAI_BASE_URL',
+            apiSurface: 'chat-completions',
+            enabled: true,
+          },
+        },
+        models: {
+          'gpt-alias': {
+            providerInstance: 'openai-main',
+            modelId: 'gpt-4o',
+            capabilities: { streaming: true, tools: true },
+            policy: openAiModelPolicy,
+          },
+        },
+      }),
+    );
+    const env = {
+      MASTER_KEY: 'gw_mk_test',
+      OPENAI_API_KEY: 'sk-test',
+      OPENAI_BASE_URL: 'https://api.openai.com/v1',
+    };
+
+    const result = validateGatewayConfig({ configPath, env });
+
+    expect(result.success).toBe(false);
+    expect(result.errors.join('\n')).toMatch(/apiSurface is not supported for type "openai"/i);
   });
 });

@@ -151,7 +151,7 @@ function buildResolvedConfig(
     },
     params: createDefaultParams(),
     ...(providerType === 'openai' && {
-      openAiApiSurface: options.openAiApiSurface ?? 'auto',
+      openAiApiSurface: options.openAiApiSurface ?? 'responses',
     }),
   };
 }
@@ -198,7 +198,7 @@ export function createE2eOpenAiProviderRegistry(
     providerName: E2E_OPENAI_PROVIDER_INSTANCE,
     modelId: 'gpt-4o',
     providerType: 'openai',
-    openAiApiSurface: 'auto',
+    openAiApiSurface: 'responses',
     ...options,
   });
 }

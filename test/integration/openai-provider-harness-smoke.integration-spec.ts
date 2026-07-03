@@ -32,7 +32,7 @@ describeOpenAiLive('OpenAI provider harness smoke (integration)', () => {
 
     expect(resolved.providerName).toBe(INTEGRATION_OPENAI_PROVIDER_INSTANCE);
     expect(resolved.modelId).toBe('gpt-4o-mini');
-    expect(resolved.openAiApiSurface).toBe('auto');
+    expect(resolved.openAiApiSurface).toBe('responses');
     expect(resolved.provider).toBeDefined();
     expect(typeof resolved.provider.complete).toBe('function');
     expect(typeof resolved.provider.stream).toBe('function');
@@ -46,9 +46,11 @@ describeOpenAiLive('OpenAI provider harness smoke (integration)', () => {
 
     expect(response.body).toMatchObject({
       status: 'ready',
-      checks: expect.objectContaining({
+      checks: {
         config: { status: 'healthy' },
-      }),
+        redis: expect.objectContaining({ status: 'healthy', required: false }),
+        cache: expect.objectContaining({ status: 'healthy' }),
+      },
     });
   });
 });

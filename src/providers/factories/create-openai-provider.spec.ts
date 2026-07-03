@@ -23,7 +23,7 @@ describe('createOpenAiProvider', () => {
     ).toThrow(/Expected type "openai"/);
   });
 
-  it('throws when baseUrl or apiSurface missing', () => {
+  it('throws when baseUrl missing', () => {
     expect(() =>
       createOpenAiProvider(
         {
@@ -34,7 +34,7 @@ describe('createOpenAiProvider', () => {
         },
         createMockLoggingService() as never,
       ),
-    ).toThrow(/Missing baseUrl or apiSurface/);
+    ).toThrow(/Missing baseUrl/);
   });
 
   it('delegates to createOpenAiProviderCore', () => {
@@ -45,7 +45,6 @@ describe('createOpenAiProvider', () => {
         apiKeyRef: 'OPENAI_API_KEY',
         apiKey: 'sk-test',
         baseUrl: 'https://api.openai.com/v1',
-        apiSurface: 'auto',
       },
       createMockLoggingService() as never,
     );
@@ -54,7 +53,6 @@ describe('createOpenAiProvider', () => {
       expect.objectContaining({
         apiKey: 'sk-test',
         baseUrl: 'https://api.openai.com/v1',
-        apiSurface: 'auto',
       }),
       expect.anything(),
     );

@@ -184,7 +184,6 @@ export class OpenAiChatCompletionRequestDto {
       'Gateway not support this parameter yet.',
     enum: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'],
     example: 'medium',
-    deprecated: true,
   })
   @IsOptional()
   @IsString()

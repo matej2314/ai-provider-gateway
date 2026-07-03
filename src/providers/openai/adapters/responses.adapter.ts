@@ -30,6 +30,7 @@ import {
   mapToolChoiceToResponses,
   mapToolsToResponses,
 } from '../mappers/openai-tools-provider.mapper';
+import { mapGatewayMetadataToOpenAi } from '../mappers/openai-map-gateway-metadata';
 
 function buildResponsesCreateParams(
   input: ProviderChatInput,
@@ -43,6 +44,10 @@ function buildResponsesCreateParams(
     input: mapTurnsToResponsesInput(input.messages),
     ...mapCallOptionsToResponsesParams(options),
     ...(reasoning && { reasoning }),
+    ...(input.metadata &&
+      Object.keys(input.metadata).length > 0 && {
+        metadata: mapGatewayMetadataToOpenAi(input.metadata),
+      }),
   };
 
   return input.tools?.length
@@ -178,4 +183,3 @@ export function createResponsesAdapter(client: OpenAI, logger: LoggingService) {
     },
   };
 }
- 

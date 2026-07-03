@@ -77,7 +77,6 @@ function buildOpenAiIntegrationConfigOptions(
         apiKey,
         baseUrlRef: INTEGRATION_OPENAI_BASE_URL_REF,
         baseUrl,
-        apiSurface: 'auto',
       },
     },
     resolvedSystemPrompts: INTEGRATION_RESOLVED_PROMPTS,

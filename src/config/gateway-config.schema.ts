@@ -4,11 +4,7 @@ import { GATEWAY_CLIENT_TYPES } from './configuration.types';
 
 export const EXPECTED_SCHEMA_VERSION = 1;
 
-export const OpenAiApiSurfaceSchema = z.enum([
-  'chat-completions',
-  'responses',
-  'auto',
-]);
+export const OpenAiCompatibleApiSurfaceSchema = z.enum(['chat-completions']);
 
 export const GatewayConfigSchema = z
   .object({
@@ -22,7 +18,7 @@ export const GatewayConfigSchema = z
           apiKeyRef: z.string(),
           enabled: z.boolean().optional().default(false),
           baseUrlRef: z.string().optional(),
-          apiSurface: OpenAiApiSurfaceSchema.optional(),
+          apiSurface: OpenAiCompatibleApiSurfaceSchema.optional(),
         }),
       )
       .superRefine((providers, ctx) => {
@@ -48,21 +44,22 @@ export const GatewayConfigSchema = z
             }
           }
 
-          if (row.type === 'openai-compatible' && row.apiSurface === 'auto') {
+          if (row.type === 'openai' && row.apiSurface !== undefined) {
             ctx.addIssue({
               code: 'custom',
-              message: `apiSurface "auto" is only allowed for type "openai"`,
+              message: `apiSurface is not supported for type "openai" (always uses Responses API). Remove apiSurface from provider "${instanceId}".`,
               path: ['providers', instanceId, 'apiSurface'],
             });
           }
 
           if (
             row.type === 'openai-compatible' &&
-            row.apiSurface === 'responses'
+            row.apiSurface !== undefined &&
+            row.apiSurface !== 'chat-completions'
           ) {
             ctx.addIssue({
               code: 'custom',
-              message: `apiSurface "responses" is only allowed for type "openai"`,
+              message: `apiSurface for openai-compatible must be "chat-completions" or omitted.`,
               path: ['providers', instanceId, 'apiSurface'],
             });
           }

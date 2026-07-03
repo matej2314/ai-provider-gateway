@@ -50,6 +50,7 @@ export function resolveProviderCallOptions(
   const responseFormat = bodyParams?.responseFormat;
   let thinkingEnabled = defaults.thinkingEnabled;
   const thinkingBudget = bodyParams?.thinkingBudget;
+  const parallelToolCalls = bodyParams?.parallelToolCalls;
 
   if (bodyParams?.temperature !== undefined) {
     temperature = bodyParams.temperature;
@@ -180,5 +181,6 @@ export function resolveProviderCallOptions(
     ...(responseFormat !== undefined ? { responseFormat } : {}),
     ...(thinkingEnabled !== undefined ? { thinkingEnabled } : {}),
     ...(thinkingBudget !== undefined ? { thinkingBudget } : {}),
+    ...(parallelToolCalls !== undefined ? { parallelToolCalls } : {}),
   };
 }

@@ -7,9 +7,9 @@ export const createOpenAiProvider: ProviderFactoryFn = (config, logger) => {
       `[createOpenAiProvider] Expected type "openai", got ${config.type}`,
     );
   }
-  if (!config.baseUrl || config.apiSurface === undefined) {
+  if (!config.baseUrl) {
     throw new Error(
-      `[createOpenAiProvider] Missing baseUrl or apiSurface for instance ${config.instanceId}`,
+      `[createOpenAiProvider] Missing baseUrl for instance ${config.instanceId}`,
     );
   }
   return createOpenAiProviderCore(
@@ -17,7 +17,6 @@ export const createOpenAiProvider: ProviderFactoryFn = (config, logger) => {
     {
       apiKey: config.apiKey,
       baseUrl: config.baseUrl,
-      apiSurface: config.apiSurface,
     },
     logger,
   );

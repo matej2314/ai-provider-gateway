@@ -41,7 +41,9 @@ function buildFactoryContext(
     ...base,
     baseUrlRef: row.baseUrlRef,
     baseUrl: runtime.baseUrl,
-    apiSurface: runtime.apiSurface,
+    ...(row.type === 'openai-compatible' && {
+      apiSurface: runtime.apiSurface,
+    }),
   };
 }
 

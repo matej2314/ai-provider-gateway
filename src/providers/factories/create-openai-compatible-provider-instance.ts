@@ -11,9 +11,9 @@ export const createOpenAiCompatibleProviderInstance: ProviderFactoryFn = (
     );
   }
 
-  if (!config.baseUrl || config.apiSurface === undefined) {
+  if (!config.baseUrl) {
     throw new Error(
-      `[createOpenAiCompatibleProviderInstance] Missing baseUrl or apiSurface for instance ${config.instanceId}`,
+      `[createOpenAiCompatibleProviderInstance] Missing baseUrl for instance ${config.instanceId}`,
     );
   }
 
@@ -22,7 +22,6 @@ export const createOpenAiCompatibleProviderInstance: ProviderFactoryFn = (
     {
       apiKey: config.apiKey,
       baseUrl: config.baseUrl,
-      apiSurface: config.apiSurface,
     },
     logger,
   );

@@ -103,5 +103,13 @@ describe('openai-params-provider.mapper', () => {
         },
       });
     });
+
+    it('maps parallel_tool_calls', () => {
+      expect(
+        mapCallOptionsToResponsesParams({ parallelToolCalls: false }),
+      ).toEqual({
+        parallel_tool_calls: false,
+      });
+    });
   });
 });

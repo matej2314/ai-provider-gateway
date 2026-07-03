@@ -122,7 +122,6 @@ describe('Gateway Chat API — OpenAI provider (E2E)', () => {
         {
           providerRegistry: createE2eOpenAiProviderRegistry({
             modelId: 'o3-mini',
-            openAiApiSurface: 'auto',
             capabilities: { thinking: true },
           }),
         },
@@ -167,47 +166,6 @@ describe('Gateway Chat API — OpenAI provider (E2E)', () => {
               }),
             ]),
           );
-        },
-      );
-    });
-  });
-
-  describe('Validation — validateOpenAiSurface', () => {
-    it('should reject chat-completions surface with responses-only model', async () => {
-      await withE2eApp(
-        {
-          providerRegistry: createE2eOpenAiProviderRegistry({
-            modelId: 'o3-mini',
-            openAiApiSurface: 'chat-completions',
-          }),
-        },
-        async ({ app }) => {
-          const response = await request(app.getHttpServer())
-            .post(E2E_ROUTES.chat)
-            .set('x-gateway-key', E2E_GATEWAY_KEY)
-            .send(validBody)
-            .expect(400);
-
-          expect(response.body.code).toBe(ApiErrorCode.VALIDATION_FAILED);
-          expect(response.body.message).toMatch(/Responses API/i);
-        },
-      );
-    });
-
-    it('should allow auto surface with responses-only model', async () => {
-      await withE2eApp(
-        {
-          providerRegistry: createE2eOpenAiProviderRegistry({
-            modelId: 'o3-mini',
-            openAiApiSurface: 'auto',
-          }),
-        },
-        async ({ app }) => {
-          await request(app.getHttpServer())
-            .post(E2E_ROUTES.chat)
-            .set('x-gateway-key', E2E_GATEWAY_KEY)
-            .send(validBody)
-            .expect(E2E_POST_SUCCESS_STATUS);
         },
       );
     });

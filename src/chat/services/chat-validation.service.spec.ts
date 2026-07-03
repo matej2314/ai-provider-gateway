@@ -256,47 +256,6 @@ describe('ChatValidationService', () => {
     });
   });
 
-  describe('validateOpenAiSurface', () => {
-    it('should pass for anthropic provider', () => {
-      expect(() => service.validateOpenAiSurface(resolvedConfig)).not.toThrow();
-    });
-
-    it('should throw VALIDATION_FAILED for chat-completions on responses-only model', () => {
-      const configOpenAi: ResolvedProviderConfig = {
-        ...resolvedConfig,
-        providerType: 'openai',
-        modelId: 'o3-mini',
-        openAiApiSurface: 'chat-completions',
-      };
-
-      try {
-        service.validateOpenAiSurface(configOpenAi);
-        fail('Expected HttpException');
-      } catch (error) {
-        expect(error).toBeInstanceOf(HttpException);
-        const ex = error as HttpException;
-        expect(ex.getStatus()).toBe(HttpStatus.BAD_REQUEST);
-        expect(ex.getResponse()).toEqual(
-          expect.objectContaining({
-            code: ApiErrorCode.VALIDATION_FAILED,
-            details: [{ field: 'provider.apiSurface' }],
-          }),
-        );
-      }
-    });
-
-    it('should pass for openai auto surface with responses-only model', () => {
-      const configOpenAi: ResolvedProviderConfig = {
-        ...resolvedConfig,
-        providerType: 'openai',
-        modelId: 'o3-mini',
-        openAiApiSurface: 'auto',
-      };
-
-      expect(() => service.validateOpenAiSurface(configOpenAi)).not.toThrow();
-    });
-  });
-
   describe('validateForStreaming', () => {
     describe('Happy path', () => {
       it('should return resolved config when streaming is supported and adapter exists', () => {
