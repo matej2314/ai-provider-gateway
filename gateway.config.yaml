@@ -20,6 +20,11 @@ providers:
     apiKeyRef: OLLAMA_API_KEY
     baseUrlRef: OLLAMA_BASE_URL
     enabled: true
+  deepseek:
+    type: openai-compatible
+    apiKeyRef: DEEPSEEK_API_KEY
+    baseUrlRef: DEEPSEEK_BASE_URL
+    enabled: true
 
 # Configuration for gateway clients
 
@@ -185,6 +190,38 @@ models:
         defaults:
           maxOutputTokens: 1024
           temperature: 0.4
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+          - topP
+          - stop
+          - frequencyPenalty
+          - presencePenalty
+          - seed
+          - responseFormat
+        bounds:
+          temperature: { min: 0, max: 2 }
+          maxOutputTokens: { min: 1, max: 8192 }
+          topP: { min: 0, max: 1 }
+          frequencyPenalty: { min: -2, max: 2 }
+          presencePenalty: { min: -2, max: 2 }
+
+  deepseek-chat:
+    providerInstance: deepseek
+    modelId: deepseek-v4-flash
+    capabilities:
+      streaming: true
+      tools: true
+      thinking: false
+    policy:
+      timeoutMs: 60000
+      retry:
+        maxAttempts: 3
+        onStatus: [429, 500, 502, 503, 504]
+      params:
+        defaults:
+          temperature: 0.7
+          maxOutputTokens: 2048
         allowOverrides:
           - temperature
           - maxOutputTokens
