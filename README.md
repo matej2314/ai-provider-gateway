@@ -84,7 +84,7 @@ Szczegóły: [`docs/integracje.md`](docs/integracje.md), [`docs/dictionary.md`](
 - OpenAI fasada: `Authorization: Bearer <klucz_klienta_gateway>` — Base URL: `.../api/v1/openai`
 - Anthropic fasada: `x-api-key` lub Bearer `<klucz_klienta_gateway>` — Base URL: `.../api/v1/anthropic`
 
-Klucze providerów (`.env`, `apiKeyRef` w YAML) są używane **wyłącznie** w warstwie `src/providers/` przy wywołaniu SDK.
+Klucze providerów (`.env`, `apiKeyRef` w YAML — np. `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `OLLAMA_API_KEY`, `DEEPSEEK_API_KEY`) są używane **wyłącznie** w warstwie `src/providers/` przy wywołaniu SDK.
 
 ## Features
 
@@ -237,7 +237,7 @@ Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalog
 
 Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
 
-Aktualne liczniki: `npm test` — **86** zestawów / **1225** przypadków; `npm run test:cli` — **13** / **53**; `npm run test:e2e` — **10** / **106**.
+Aktualne liczniki: `npm test` — **83** zestawy / **1211** przypadków; `npm run test:cli` — **13** / **53**; `npm run test:e2e` — **10** / **104**.
 
 Uruchomienie:
 

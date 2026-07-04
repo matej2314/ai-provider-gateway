@@ -120,7 +120,7 @@ Osobny runner — **nie** wchodzi w `npm test`, `npm run test:cli` ani `npm run 
 | Wymaganie | Opis |
 |-----------|------|
 | Docker | `npm run test:integration:redis:up` — Redis na hoście **6380**, DB **15** |
-| Env | `.env.test` (wzorzec: `.env.test.example`) — `INTEGRATION_ANTHROPIC_API_KEY` / `INTEGRATION_GOOGLE_API_KEY`, opcjonalnie `INTEGRATION_OPENAI_API_KEY` + `INTEGRATION_OPENAI_BASE_URL`, `INTEGRATION_OLLAMA_BASE_URL`, `MASTER_KEY`, `INTEGRATION_GATEWAY_KEY` |
+| Env | `.env.test` (wzorzec: `.env.test.example`) — `INTEGRATION_ANTHROPIC_API_KEY` / `INTEGRATION_GOOGLE_API_KEY`, opcjonalnie `INTEGRATION_OPENAI_API_KEY` + `INTEGRATION_OPENAI_BASE_URL`, `INTEGRATION_OLLAMA_API_KEY` + `INTEGRATION_OLLAMA_BASE_URL`, `INTEGRATION_DEEPSEEK_API_KEY` + `INTEGRATION_DEEPSEEK_BASE_URL`, `MASTER_KEY`, `INTEGRATION_GATEWAY_KEY` |
 
 **Co jest prawdziwe vs mock** (skrót):
 

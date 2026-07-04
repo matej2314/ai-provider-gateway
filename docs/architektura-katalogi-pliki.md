@@ -63,10 +63,16 @@ ai-provider-gateway/
 │   │   ├── anthropic-facade-extended.e2e-spec.ts
 │   │   ├── helpers/
 │   │   └── setup/
-│   └── integration/                  # live SDK + Redis (Docker); README.md — 14 plików *.integration-spec.ts
+│   └── integration/                  # live SDK + Redis (Docker); README.md — 15 plików *.integration-spec.ts
 │       ├── docker-compose.redis.yml
 │       ├── fixtures/
 │       ├── helpers/
+│       │   ├── create-integration-app.ts
+│       │   ├── create-openai-integration-app.ts
+│       │   ├── create-openai-compatible-integration-app.ts
+│       │   ├── require-integration-env.ts
+│       │   ├── integration-constants.ts
+│       │   └── ... (inne helpery)
 │       ├── gateway-chat-live.integration-spec.ts
 │       ├── gateway-chat-stream-live.integration-spec.ts
 │       ├── gateway-chat-alias.integration-spec.ts
@@ -74,6 +80,7 @@ ai-provider-gateway/
 │       ├── gateway-chat-cache-tooling.integration-spec.ts
 │       ├── gateway-chat-openai-live.integration-spec.ts
 │       ├── gateway-chat-openai-stream-live.integration-spec.ts
+│       ├── gateway-openai-compatible.integration-spec.ts
 │       ├── openai-provider-harness-smoke.integration-spec.ts
 │       ├── openai-facade-live.integration-spec.ts
 │       ├── openai-facade-stream-live.integration-spec.ts

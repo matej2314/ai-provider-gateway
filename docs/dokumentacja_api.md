@@ -361,13 +361,13 @@ Gdy model używa thinking mode, response może zawierać pole **`thinkingContent
 
 ### Konfiguracja aliasu
 
-Przykład z repozytorium (`gateway.config.yaml`):
+Przykład Anthropic (z repozytorium `gateway.config.yaml`):
 
 ```yaml
 models:
-  gpt-cheap:
-    providerInstance: openai
-    modelId: gpt-5.4-nano
+  claude-sonnet:
+    providerInstance: anthropic
+    modelId: claude-sonnet-4-5-20250929
     capabilities:
       streaming: true
       tools: true
@@ -375,12 +375,19 @@ models:
     policy:
       params:
         defaults:
+          temperature: 0.4
           maxOutputTokens: 1024
+          thinkingEnabled: false
         allowOverrides:
+          - temperature
           - maxOutputTokens
+          - topP
+          - stop
           - thinkingEnabled
           - thinkingBudget
 ```
+
+**Uwaga**: alias `gpt-cheap` w przykładowym YAML repo ma obecnie `thinking: false` (adapter `type: openai` wspiera thinking przez Responses API, ale wymaga explicite `capabilities.thinking: true` w konfiguracji).
 
 Alias Anthropic z thinking (np. `claude-sonnet` w repo) wymaga `capabilities.thinking: true` oraz wpisów `thinkingEnabled` / `thinkingBudget` w `allowOverrides`.
 

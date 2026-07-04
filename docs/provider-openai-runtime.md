@@ -99,10 +99,14 @@ models:
     capabilities:
       streaming: true
       tools: true
-      thinking: true
+      thinking: false  # Responses API wspiera thinking, ale wymaga capabilities.thinking: true
   ollama-local-chat:
     providerInstance: ollama-local
     modelId: llama3.1:8b
+    capabilities:
+      streaming: true
+      tools: false
+      thinking: false
 ```
 
 W `.env`:
