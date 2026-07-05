@@ -30,12 +30,29 @@ describe('openai-params-provider.mapper', () => {
   });
 
   describe('mapCallOptionsToChatCompletionParams', () => {
+    it('disables thinking by default for chat-completions (DeepSeek V4 compat)', () => {
+      expect(mapCallOptionsToChatCompletionParams('deepseek-v4-flash')).toEqual({
+        thinking: { type: 'disabled' },
+      });
+    });
+
+    it('enables thinking when thinkingEnabled is true', () => {
+      expect(
+        mapCallOptionsToChatCompletionParams('deepseek-v4-flash', {
+          thinkingEnabled: true,
+        }),
+      ).toEqual({
+        thinking: { type: 'enabled' },
+      });
+    });
+
     it('maps json_object response format', () => {
       expect(
         mapCallOptionsToChatCompletionParams('gpt-4o', {
           responseFormat: { type: 'json_object' },
         }),
       ).toEqual({
+        thinking: { type: 'disabled' },
         response_format: { type: 'json_object' },
       });
     });
@@ -49,6 +66,7 @@ describe('openai-params-provider.mapper', () => {
           },
         }),
       ).toEqual({
+        thinking: { type: 'disabled' },
         response_format: {
           type: 'json_schema',
           json_schema: {
@@ -65,7 +83,10 @@ describe('openai-params-provider.mapper', () => {
         maxOutputTokens: 256,
       });
 
-      expect(params).toEqual({ max_completion_tokens: 256 });
+      expect(params).toEqual({
+        thinking: { type: 'disabled' },
+        max_completion_tokens: 256,
+      });
       expect(params).not.toHaveProperty('max_tokens');
     });
   });

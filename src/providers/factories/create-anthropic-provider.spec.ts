@@ -2,6 +2,7 @@ import { createAnthropicProvider } from './create-anthropic-provider';
 import { LoggingService } from '../../logging/logging.service';
 import Anthropic from '@anthropic-ai/sdk';
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
+import { asProviderApiKey } from '../../common/types';
 import type {
   ProviderChatInput,
   ProviderCallOptions,
@@ -31,13 +32,13 @@ describe('createAnthropicProvider', () => {
   describe('anthropic factory', () => {
     it('should throw when apiKey empty', () => {
       expect(() =>
-        createAnthropicProvider('', mockLogger as LoggingService),
+        createAnthropicProvider(asProviderApiKey(''), mockLogger as LoggingService),
       ).toThrow('[createAnthropicProvider] API key is required.');
     });
 
     it('should create provider with valid apiKey', () => {
       const provider = createAnthropicProvider(
-        'test-key',
+        asProviderApiKey('test-key'),
         mockLogger as LoggingService,
       );
 
@@ -50,7 +51,7 @@ describe('createAnthropicProvider', () => {
     });
 
     it('should create Anthropic client with apiKey', () => {
-      createAnthropicProvider('my-api-key', mockLogger as LoggingService);
+      createAnthropicProvider(asProviderApiKey('my-api-key'), mockLogger as LoggingService);
 
       expect(Anthropic).toHaveBeenCalledWith({ apiKey: 'my-api-key' });
     });
@@ -62,7 +63,7 @@ describe('createAnthropicProvider', () => {
 
     beforeEach(() => {
       provider = createAnthropicProvider(
-        'test-key',
+        asProviderApiKey('test-key'),
         mockLogger as LoggingService,
       );
       input = {
@@ -422,7 +423,7 @@ describe('createAnthropicProvider', () => {
 
     beforeEach(() => {
       provider = createAnthropicProvider(
-        'test-key',
+        asProviderApiKey('test-key'),
         mockLogger as LoggingService,
       );
       input = {

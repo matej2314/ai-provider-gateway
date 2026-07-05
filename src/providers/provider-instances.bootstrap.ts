@@ -17,6 +17,7 @@ import { isApiKeyRequiredForProviderType } from '../config/provider-api-key.vali
 import { isOpenAiProviderType } from '../config/provider-types';
 import type { GatewayProviderInstanceConfig } from '../config/gateway-config.schema';
 import type { ProviderInstanceRuntime } from '../config/configuration';
+import { asProviderApiKey } from '../common/types';
 
 const FACTORIES: Partial<Record<GatewayProviderType, ProviderFactoryFn>> = {
   anthropic: adaptApiKeyProviderFactory(createAnthropicProvider),
@@ -34,7 +35,7 @@ function buildFactoryContext(
     instanceId,
     type: row.type,
     apiKeyRef: row.apiKeyRef,
-    apiKey: (runtime.apiKey ?? '').trim(),
+    apiKey: asProviderApiKey((runtime.apiKey ?? '').trim()),
   };
   if (!isOpenAiProviderType(row.type)) return base;
   return {
@@ -69,9 +70,9 @@ export class ProviderInstancesBootstrap implements OnApplicationBootstrap {
         );
       }
 
-      const apiKey = (runtime?.apiKey ?? '').trim();
+      const apiKeyRaw = (runtime?.apiKey ?? '').trim();
 
-      if (isApiKeyRequiredForProviderType(row.type) && !apiKey) {
+      if (isApiKeyRequiredForProviderType(row.type) && !apiKeyRaw) {
         throw new Error(
           `[ProviderInstancesBootstrap] Missing API key for instance ${instanceId}`,
         );

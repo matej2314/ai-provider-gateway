@@ -7,6 +7,7 @@ import {
   TEST_API_KEY_REF,
   TEST_PROVIDER_INSTANCE,
 } from '../../../src/common/mocks/test-constants';
+import { asEnvRef, asProviderApiKey } from '../../../src/common/types';
 import type { GatewayConfig } from '../../../src/config/configuration';
 
 const gatewayConfig = createTestGatewayConfig();
@@ -20,8 +21,8 @@ function defaultConfiguration() {
     providers: {
       [TEST_PROVIDER_INSTANCE]: {
         type: 'anthropic' as const,
-        apiKeyRef: TEST_API_KEY_REF,
-        apiKey: 'sk-test-api-key',
+        apiKeyRef: asEnvRef(TEST_API_KEY_REF),
+        apiKey: asProviderApiKey('sk-test-api-key'),
       },
     },
     resolvedSystemPrompts: createTestResolvedSystemPrompts(),

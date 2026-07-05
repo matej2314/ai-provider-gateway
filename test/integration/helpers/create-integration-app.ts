@@ -8,17 +8,17 @@ import {
   createMockConfigService,
   type MockConfigServiceOptions,
 } from '../../../src/common/mocks/createMockConfigService';
+import { asEnvRef, asGatewayKey, asProviderApiKey } from '../../../src/common/types';
 import { createE2eLoggingServiceMock } from '../../e2e/helpers/e2e-infra-mocks';
 import {
   INTEGRATION_ANTHROPIC_API_KEY_REF,
   INTEGRATION_GATEWAY_CLIENT_ID,
   INTEGRATION_GATEWAY_KEY_REF,
   INTEGRATION_MASTER_KEY_REF,
-  INTEGRATION_MODEL_ALIAS,
-  INTEGRATION_MODEL_ID,
   INTEGRATION_PROVIDER_INSTANCE,
   INTEGRATION_RESOLVED_PROMPTS,
-  getIntegrationGatewayKey,
+  buildIntegrationGatewayKeyAllowList,
+  getIntegrationMasterKey,
   readIntegrationEnv,
 } from './integration-constants';
 import { requireVendorApiKey } from './require-integration-env';
@@ -43,8 +43,8 @@ function buildIntegrationConfigOptions(
     options.cacheEnabled ?? process.env.CACHE_ENABLED === 'true';
   const rateLimitEnabled =
     options.rateLimitEnabled ?? process.env.RATE_LIMIT_SMART_ENABLED === 'true';
-  const gatewayKey = getIntegrationGatewayKey();
-  const masterKey = readIntegrationEnv(INTEGRATION_MASTER_KEY_REF);
+  const allowList = buildIntegrationGatewayKeyAllowList();
+  const masterKeyRaw = readIntegrationEnv(INTEGRATION_MASTER_KEY_REF);
   const apiKey = requireVendorApiKey() ?? '';
 
   return {
@@ -54,13 +54,13 @@ function buildIntegrationConfigOptions(
         [INTEGRATION_GATEWAY_CLIENT_ID]: {
           name: 'Integration IDE Client',
           type: 'ide',
-          gatewayKeyRef: INTEGRATION_GATEWAY_KEY_REF,
+          gatewayKeyRef: asEnvRef(INTEGRATION_GATEWAY_KEY_REF),
         },
       },
       providers: {
         [INTEGRATION_PROVIDER_INSTANCE]: {
           type: 'anthropic',
-          apiKeyRef: INTEGRATION_ANTHROPIC_API_KEY_REF,
+          apiKeyRef: asEnvRef(INTEGRATION_ANTHROPIC_API_KEY_REF),
           enabled: true,
         },
       },
@@ -71,14 +71,14 @@ function buildIntegrationConfigOptions(
       ),
     },
     gatewayKey: {
-      allowList: [gatewayKey, masterKey].filter(Boolean),
-      masterKey,
+      allowList,
+      masterKey: masterKeyRaw ? getIntegrationMasterKey() : asGatewayKey(''),
     },
     providers: {
       [INTEGRATION_PROVIDER_INSTANCE]: {
         type: 'anthropic',
-        apiKeyRef: INTEGRATION_ANTHROPIC_API_KEY_REF,
-        apiKey,
+        apiKeyRef: asEnvRef(INTEGRATION_ANTHROPIC_API_KEY_REF),
+        apiKey: asProviderApiKey(apiKey),
       },
     },
     resolvedSystemPrompts: INTEGRATION_RESOLVED_PROMPTS,

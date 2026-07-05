@@ -3,14 +3,16 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { validateGatewayConfig } from './config-validator';
+import { asEnvRef } from '../common/types';
 
-function writeTempConfig(
-  dir: string,
-  config: Record<string, unknown>,
-): string {
+function writeTempConfig(dir: string, config: Record<string, unknown>): string {
   const configPath = join(dir, 'gateway.config.yaml');
   writeFileSync(configPath, yaml.dump(config), 'utf-8');
   return configPath;
+}
+
+function expectEnvRef(actual: unknown, envVarName: string): void {
+  expect(actual).toBe(asEnvRef(envVarName));
 }
 
 function minimalValidConfig(overrides: Record<string, unknown> = {}) {
@@ -66,6 +68,12 @@ describe('validateGatewayConfig', () => {
 
     expect(result.success).toBe(true);
     expect(result.errors.join('\n')).not.toContain('strictProviderKeys');
+    expect(result.effectiveConfig).toBeDefined();
+    expectEnvRef(result.effectiveConfig!.masterKeyRef, 'MASTER_KEY');
+    expectEnvRef(
+      result.effectiveConfig!.providers['anthropic-primary'].apiKeyRef,
+      'ANTHROPIC_PRIMARY_API_KEY',
+    );
   });
 
   it('fails when key is only under legacy ANTHROPIC_API_KEY name', () => {
@@ -236,6 +244,80 @@ describe('validateGatewayConfig', () => {
     const result = validateGatewayConfig({ configPath, env });
 
     expect(result.success).toBe(false);
-    expect(result.errors.join('\n')).toMatch(/apiSurface is not supported for type "openai"/i);
+    expect(result.errors.join('\n')).toMatch(
+      /apiSurface is not supported for type "openai"/i,
+    );
+  });
+
+  describe('branded types in effectiveConfig (Faza 1.6)', () => {
+    it('returns EnvRef for masterKeyRef and provider apiKeyRef', () => {
+      const configPath = writeTempConfig(tempDir, minimalValidConfig());
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        ANTHROPIC_PRIMARY_API_KEY: 'sk-ant-test-key',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(true);
+      expectEnvRef(result.effectiveConfig!.masterKeyRef, 'MASTER_KEY');
+      expectEnvRef(
+        result.effectiveConfig!.providers['anthropic-primary'].apiKeyRef,
+        'ANTHROPIC_PRIMARY_API_KEY',
+      );
+    });
+
+    it('returns EnvRef for client gatewayKeyRef and openai baseUrlRef', () => {
+      const configPath = writeTempConfig(
+        tempDir,
+        minimalValidConfig({
+          clients: {
+            'web-app': {
+              name: 'Web App',
+              type: 'webapp',
+              gatewayKeyRef: 'CLIENT_GW_KEY_REF',
+            },
+          },
+          providers: {
+            'openai-main': {
+              type: 'openai',
+              apiKeyRef: 'OPENAI_API_KEY',
+              baseUrlRef: 'OPENAI_BASE_URL',
+              enabled: true,
+            },
+          },
+          models: {
+            'gpt-alias': {
+              providerInstance: 'openai-main',
+              modelId: 'gpt-4o',
+              capabilities: { streaming: true, tools: true },
+              policy: openAiModelPolicy,
+            },
+          },
+        }),
+      );
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        OPENAI_API_KEY: 'sk-test',
+        OPENAI_BASE_URL: 'https://api.openai.com/v1',
+        CLIENT_GW_KEY_REF: 'gw_client_key',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(true);
+      expectEnvRef(
+        result.effectiveConfig!.clients['web-app'].gatewayKeyRef,
+        'CLIENT_GW_KEY_REF',
+      );
+      expectEnvRef(
+        result.effectiveConfig!.providers['openai-main'].baseUrlRef,
+        'OPENAI_BASE_URL',
+      );
+      expectEnvRef(
+        result.effectiveConfig!.providers['openai-main'].apiKeyRef,
+        'OPENAI_API_KEY',
+      );
+    });
   });
 });

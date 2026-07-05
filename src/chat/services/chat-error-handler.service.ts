@@ -1,6 +1,7 @@
 import { Injectable, HttpException } from '@nestjs/common';
 import { LoggingService } from '../../logging/logging.service';
 import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
+import type { GatewayKey } from '../../common/types';
 
 @Injectable()
 export class ChatErrorHandlerService {
@@ -10,7 +11,7 @@ export class ChatErrorHandlerService {
     log: LoggingService,
     error: unknown,
     providerName: string,
-    gatewayKey?: string,
+    gatewayKey?: GatewayKey,
   ): Promise<void> {
     if (
       gatewayKey &&

@@ -21,10 +21,10 @@ import { ChatService } from './chat.service';
 import { GatewayKeyAndSmartRateLimit } from '../common/decorators/gateway-key-and-smart-rate-limit.decorator';
 import { StreamCleanupInterceptor } from '../common/interceptors/stream-cleanup.interceptor';
 import { ApiGatewayChatErrorResponses } from '../common/decorators/api-gateway-error-responses.decorator';
-import { readGatewayKeyHeader } from '../common/readGatewayKeyHeader';
 import { SseMetaPayloadDto } from './dto/sse-meta-payload.dto';
 import { ApiRequestIdHeader } from '../common/decorators/api-request-id-header.decorator';
 import { CHAT_STREAM_API_DESCRIPTION } from './dto/sse-stream-description';
+import { requireClientGatewayKey } from '../common/requireClientGatewayKey';
 
 @ApiTags('Chat')
 @ApiSecurity('GatewayKeyAuth')
@@ -74,7 +74,7 @@ export class ChatStreamController {
     @Body() requestBody: ChatRequestDto,
     @Res() res: Response,
   ) {
-    const gatewayKey = readGatewayKeyHeader(req);
+    const gatewayKey = requireClientGatewayKey(req);
     this.chatService.validateForStreaming(requestBody.modelAlias);
     res.status(200);
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');

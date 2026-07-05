@@ -24,8 +24,8 @@ Ten dokument utrwala wspólny język między użytkownikami projektu, integrator
 | **Effective model alias** (`effectiveModelAlias`) | Alias faktycznie użyty do wywołania providera. | Obecny w odpowiedzi JSON / SSE `meta` tylko gdy żądany alias różni się od użytego (sukces na fallbacku). Pole `model` = żądany `modelAlias`. |
 | **Standard** | Tryb odpowiedzi: pełna odpowiedź JSON. | `POST /api/v1/chat`. |
 | **Streaming** | Tryb odpowiedzi: SSE. | `POST /api/v1/chat/stream` — patrz `openapi.json`, `dokumentacja_api.md`. |
-| **Request ID** | Identyfikator korelacyjny żądania. | `RequestIdMiddleware`: nagłówek żądania `x-request-id` (echo) lub `req_<uuid>`; to samo ID w body (`requestId`), w envelope błędów oraz w nagłówku odpowiedzi **`x-request-id`** (`src/common/middleware/request-id.middleware.ts`). |
-| **Conversation ID** (`conversationId`) | Opcjonalny identyfikator w body czatu w formacie `conv_<uuid>`. W **request** włącza `gen_ai.conversation.id` w Sentry; w **response** zawsze echo lub `conv_<uuid>`. Historia = `messages[]` od klienta. Patrz `conversation-tracking.md`. |
+| **Request ID** | Identyfikator korelacyjny żądania. | `RequestIdMiddleware`: nagłówek żądania `x-request-id` (echo) lub `req_<uuid>`; to samo ID w body (`requestId`), w envelope błędów oraz w nagłówku odpowiedzi **`x-request-id`** (`src/common/middleware/request-id.middleware.ts`). **Typ TS (Faza 0):** `RequestId` = `Brand<string, 'RequestId'>` — `src/common/types/branded.types.ts`; generowane ID: `createRequestId`; echo nagłówka klienta (dowolny string): `asRequestId`. Migracja runtime: Faza 2. |
+| **Conversation ID** (`conversationId`) | Opcjonalny identyfikator w body czatu w formacie `conv_<uuid>`. W **request** włącza `gen_ai.conversation.id` w Sentry; w **response** zawsze echo lub `conv_<uuid>`. Historia = `messages[]` od klienta. Patrz `conversation-tracking.md`. | **Typ TS (Faza 0):** `ConversationId` = `Brand<string, 'ConversationId'>`; walidacja: `createConversationId` / `isConversationId`, wzorzec `CONVERSATION_ID_PATTERN` (zgodny z `ChatRequestDto`). Migracja runtime: Faza 2. |
 | **Policy** | Zestaw limitów i zasad (`timeoutMs`, `retry`, `params`). | Per alias w YAML; `timeout`/`retry` w `ResilientExecutor`, `params` w `resolveProviderCallOptions`. |
 | **Resilient executor** | Warstwa retry + fallback + timeout wokół wywołania adaptera. | `src/common/resilience/resilient-executor.ts`; `runOnce` deleguje do `ChatProviderCallService` (`ChatModule`). |
 | **Response cache** | Opcjonalna warstwa zapisu/odczytu odpowiedzi **`POST /api/v1/chat`** (backend `noop` lub `redis`). | Lookup/zapis w `ChatService`; **pomijany** dla żądań z toolingiem (`isToolingRequest`). Odczyt cache tylko gdy provider i alias są włączone w YAML. Odczyt walidowany **`CachedChatResponseSchema`** (Zod) — niepoprawny wpis usuwany. Streaming bez cache. |
@@ -188,4 +188,19 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 **Stan implementacji:** envelope **`ErrorEnvelope`** (`openapi.json`); `GlobalExceptionFilter` zachowuje `code` z payloadu. Enum: `src/common/errors/api-error.code.ts` (w tym **`RATE_LIMITED`** i **`PROVIDER_RATE_LIMITED`**). **`requestId`**: `RequestIdMiddleware` + ewentualne nadpisanie z payloadu wyjątku w filtrze; nagłówek odpowiedzi **`x-request-id`** ustawiany w middleware razem z `req.requestId`.
 
 Powiązane: `openapi.json`, `architektura_api.md`, `dokumentacja_api.md`, `anty-patterny.md`.
+
+## Brand types (TypeScript)
+
+Od **Fazy 0** planu brand types projekt udostępnia infrastrukturę nominalnych typów na stringach (i w przyszłych fazach — innych prymitywach), aby zapobiec pomyleniu semantycznie różnych wartości.
+
+| Element | Lokalizacja |
+|---------|-------------|
+| Typ bazowy `Brand<K, T>`, `brand` / `unbrand` | `src/common/types/branded.types.ts` |
+| Guardy walidowane (`create*`, `is*`) | `src/common/types/branded.guards.ts` |
+| Barrel export | `src/common/types/index.ts` |
+| Przewodnik | **`brand-types.md`** |
+
+**Typy wdrożone w Fazie 0:** `RequestId`, `ConversationId`. Kolejne fazy planu (`brand-types-plan.md`): m.in. `GatewayKey`, `ProviderApiKey`, `ModelAlias`, `ModelId`.
+
+**Zasada granicy API:** pola JSON w DTO pozostają `string`; konwersja do brand type następuje w serwisach / mapperach po walidacji. Szczegóły: `brand-types.md`.
 

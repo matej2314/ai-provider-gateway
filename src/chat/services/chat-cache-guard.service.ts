@@ -11,6 +11,7 @@ import { getAppConfigOrThrow } from '../../config/typed-config';
 import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import type { CachedChatResponse } from '../../cache/response-cache.service';
+import type { GatewayKey } from '../../common/types';
 
 @Injectable()
 export class ChatCacheGuardService {
@@ -29,7 +30,7 @@ export class ChatCacheGuardService {
   }
 
   async checkRateLimit(
-    gatewayKey: string,
+    gatewayKey: GatewayKey,
     providerName: string,
     requestId: string,
   ): Promise<void> {

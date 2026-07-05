@@ -12,6 +12,7 @@ import * as inquirer from 'inquirer';
 import type { CliRateLimit } from './cli.services.types';
 import { KeyGeneratorService } from './key-generator.service';
 import { buildClientRateLimitConfig } from '../utils/client-rate-limit.util';
+import { asEnvRef } from 'src/common/types';
 
 @Injectable()
 export class ClientManagerService {
@@ -142,7 +143,7 @@ export class ClientManagerService {
     config.clients[clientId] = {
       name: clientAnswers.name.trim(),
       type: clientAnswers.type,
-      gatewayKeyRef,
+      gatewayKeyRef: asEnvRef(gatewayKeyRef),
       ...(rateLimit && {
         rateLimit: buildClientRateLimitConfig(rateLimit),
       }),

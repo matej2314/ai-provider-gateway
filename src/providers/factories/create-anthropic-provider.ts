@@ -23,6 +23,7 @@ import {
   mapThinkingToAnthropic,
   resolveAnthropicOutputConfig,
 } from '../anthropic/anthropic-thinking.mapper';
+import type { ProviderApiKey } from 'src/common/types/branded.types';
 
 type AnthropicMessage = Anthropic.Message;
 
@@ -59,7 +60,7 @@ async function resolveStreamFinalMessage(
 }
 
 export function createAnthropicProvider(
-  apiKey: string,
+  apiKey: ProviderApiKey,
   loggingService: LoggingService,
 ): AIProvider {
   if (!apiKey) {

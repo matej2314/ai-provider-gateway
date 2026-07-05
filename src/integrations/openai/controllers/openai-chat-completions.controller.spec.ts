@@ -144,26 +144,31 @@ describe('OpenAiChatCompletionsController', () => {
     );
   });
 
-  it('should use empty gatewayKey when missing on non-streaming request', async () => {
-    const req = { requestId: 'req_1' } as Request;
+  it('should throw 401 when gateway key is missing on non-streaming request', async () => {
+    const req = {
+      requestId: 'req_1',
+      header: jest.fn().mockReturnValue(undefined),
+      headers: {},
+    } as Request;
     const { res } = mockResponse();
-    executeChatMock.mockResolvedValue({
-      id: 'gw_1',
-      output: { text: 'ok' },
+
+    await expect(
+      controller.completions(
+        req,
+        { model: 'gpt-4', messages: baseMessages },
+        res,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        statusCode: 401,
+        code: ApiErrorCode.GATEWAY_KEY_MISSING,
+        message: 'Missing client gateway key.',
+        requestId: 'req_1',
+      },
+      status: HttpStatus.UNAUTHORIZED,
     });
 
-    await controller.completions(
-      req,
-      { model: 'gpt-4', messages: baseMessages },
-      res,
-    );
-
-    expect(executeChatMock).toHaveBeenCalledWith(
-      expect.anything(),
-      'req_1',
-      '',
-      'facade-openai',
-    );
+    expect(executeChatMock).not.toHaveBeenCalled();
   });
 
   describe('streaming', () => {

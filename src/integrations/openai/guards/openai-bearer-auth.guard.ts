@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { getAppConfig } from '../../../config/typed-config';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import { asGatewayKey } from '../../../common/types';
 import type { Request } from 'express';
 
 function readAuthorizationHeader(req: Request): string | undefined {
@@ -66,7 +67,9 @@ export class OpenAiBearerAuthGuard implements CanActivate {
       });
     }
 
-    if (!allowList.includes(token)) {
+    const brandedKey = asGatewayKey(token);
+
+    if (!allowList.includes(brandedKey)) {
       throw new ForbiddenException({
         statusCode: 403,
         code: ApiErrorCode.GATEWAY_KEY_INVALID,
@@ -75,7 +78,7 @@ export class OpenAiBearerAuthGuard implements CanActivate {
         details: [],
       });
     }
-    req.gatewayKey = token;
+    req.gatewayKey = brandedKey;
     return true;
   }
 }

@@ -1,6 +1,7 @@
 import { createOpenAiCompatibleProviderInstance } from './create-openai-compatible-provider-instance';
 import { createOpenAiProviderCore } from './create-openai-provider.core';
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
+import { asEnvRef, asProviderApiKey } from '../../common/types';
 
 jest.mock('./create-openai-provider.core');
 
@@ -15,8 +16,8 @@ describe('createOpenAiCompatibleProviderInstance', () => {
         {
           instanceId: 'x',
           type: 'openai',
-          apiKeyRef: 'K',
-          apiKey: 'k',
+          apiKeyRef: asEnvRef('K'),
+          apiKey: asProviderApiKey('k'),
         },
         createMockLoggingService() as never,
       ),
@@ -29,8 +30,8 @@ describe('createOpenAiCompatibleProviderInstance', () => {
         {
           instanceId: 'ollama-local',
           type: 'openai-compatible',
-          apiKeyRef: 'OLLAMA_API_KEY',
-          apiKey: '',
+          apiKeyRef: asEnvRef('OLLAMA_API_KEY'),
+          apiKey: asProviderApiKey(''),
         },
         createMockLoggingService() as never,
       ),
@@ -42,8 +43,8 @@ describe('createOpenAiCompatibleProviderInstance', () => {
       {
         instanceId: 'ollama-local',
         type: 'openai-compatible',
-        apiKeyRef: 'OLLAMA_API_KEY',
-        apiKey: '',
+        apiKeyRef: asEnvRef('OLLAMA_API_KEY'),
+        apiKey: asProviderApiKey(''),
         baseUrl: 'http://localhost:11434/v1',
       },
       createMockLoggingService() as never,

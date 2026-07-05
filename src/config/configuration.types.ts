@@ -1,3 +1,5 @@
+import type { GatewayKey, EnvRef } from '../common/types';
+
 export type ResolvedSystemPrompts = {
   master: string;
   main?: string;
@@ -19,8 +21,8 @@ export type ResolvedGatewayClient = {
   instanceId: string;
   name: string;
   type: GatewayClientType;
-  gatewayKeyRef: string;
-  gatewayKey: string;
+  gatewayKeyRef: EnvRef;
+  gatewayKey: GatewayKey;
   rateLimit?: {
     rps: number;
     burst: number;
@@ -29,7 +31,7 @@ export type ResolvedGatewayClient = {
 };
 
 export type GatewayKeyRuntimeConfig = {
-  allowList: string[];
-  masterKey: string;
+  allowList: GatewayKey[];
+  masterKey: GatewayKey;
   clients: ResolvedGatewayClient[];
 };

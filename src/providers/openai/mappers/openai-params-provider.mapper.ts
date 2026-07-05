@@ -1,11 +1,17 @@
 import { prefersMaxCompletionTokens } from '../openai-api-surface.models';
+import {
+  mapThinkingToChatCompletion,
+  type ChatCompletionThinkingParam,
+} from './openai-thinking-provider.mapper';
 import type OpenAI from 'openai';
 import type { ProviderCallOptions } from '../../../providers/interfaces/ai-provider.interface';
 
 export type OpenAiSharedChatCompletionParams = Omit<
   Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>,
   'model' | 'messages' | 'stream'
->;
+> & {
+  thinking?: ChatCompletionThinkingParam;
+};
 
 export type OpenAiSharedResponsesParams = Omit<
   Partial<OpenAI.Responses.ResponseCreateParamsNonStreaming>,
@@ -78,13 +84,16 @@ export function mapCallOptionsToChatCompletionParams(
   modelId: string,
   options?: ProviderCallOptions,
 ): OpenAiSharedChatCompletionParams {
-  if (!options) return {};
+  if (!options) {
+    return { thinking: mapThinkingToChatCompletion(undefined) };
+  }
 
   const responseFormat = options.responseFormat
     ? mapResponseFormatToChatCompletion(options.responseFormat)
     : undefined;
 
   return {
+    thinking: mapThinkingToChatCompletion(options),
     ...(options.temperature !== undefined && {
       temperature: options.temperature,
     }),

@@ -1,3 +1,7 @@
+import {
+  asGatewayKey,
+  type GatewayKey,
+} from '../../../src/common/types';
 import type { ResolvedSystemPrompts } from '../../../src/config/configuration.types';
 
 export const INTEGRATION_MASTER_KEY_REF = 'MASTER_KEY';
@@ -36,6 +40,19 @@ export function readIntegrationEnv(key: string, fallback = ''): string {
   return (process.env[key] ?? fallback).trim();
 }
 
-export function getIntegrationGatewayKey(): string {
-  return readIntegrationEnv(INTEGRATION_GATEWAY_KEY_REF);
+export function getIntegrationGatewayKey(): GatewayKey {
+  return asGatewayKey(readIntegrationEnv(INTEGRATION_GATEWAY_KEY_REF));
+}
+
+export function getIntegrationMasterKey(): GatewayKey {
+  return asGatewayKey(readIntegrationEnv(INTEGRATION_MASTER_KEY_REF));
+}
+
+export function buildIntegrationGatewayKeyAllowList(): GatewayKey[] {
+  return [
+    readIntegrationEnv(INTEGRATION_GATEWAY_KEY_REF),
+    readIntegrationEnv(INTEGRATION_MASTER_KEY_REF),
+  ]
+    .filter(Boolean)
+    .map(asGatewayKey);
 }

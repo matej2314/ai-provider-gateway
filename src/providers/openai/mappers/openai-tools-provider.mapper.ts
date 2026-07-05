@@ -92,6 +92,7 @@ export function parseOpenAiCompletionWithTools(
   const choice = response.choices[0];
   const message = choice?.message;
   const text = message?.content ?? '';
+  const reasoningContent = readOpenAiReasoningContent(message);
   const toolCalls = message?.tool_calls?.length
     ? mapOpenAiToolCalls(message.tool_calls)
     : undefined;
@@ -99,6 +100,7 @@ export function parseOpenAiCompletionWithTools(
   return {
     text,
     ...(toolCalls?.length && { toolCalls }),
+    ...(reasoningContent && { thinkingContent: reasoningContent }),
     stopReason: mapOpenAiFinishReason(choice?.finish_reason),
     model: response.model,
     usage: response.usage
@@ -109,6 +111,18 @@ export function parseOpenAiCompletionWithTools(
       : undefined,
     systemFingerprint: response.system_fingerprint ?? undefined,
   };
+}
+
+function readOpenAiReasoningContent(
+  message: OpenAI.Chat.Completions.ChatCompletionMessage | undefined,
+): string | undefined {
+  if (!message || typeof message !== 'object') return undefined;
+
+  const reasoning = (message as { reasoning_content?: unknown })
+    .reasoning_content;
+  return typeof reasoning === 'string' && reasoning.trim()
+    ? reasoning
+    : undefined;
 }
 
 function mapOpenAiToolCalls(

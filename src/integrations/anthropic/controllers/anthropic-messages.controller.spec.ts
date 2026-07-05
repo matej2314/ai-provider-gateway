@@ -129,26 +129,31 @@ describe('AnthropicMessagesController', () => {
     );
   });
 
-  it('should use empty gatewayKey when missing', async () => {
-    const req = { requestId: 'req_1' } as Request;
+  it('should throw 401 when gateway key is missing', async () => {
+    const req = {
+      requestId: 'req_1',
+      header: jest.fn().mockReturnValue(undefined),
+      headers: {},
+    } as Request;
     const { res } = mockResponse();
-    executeChatMock.mockResolvedValue({
-      id: 'gw_1',
-      output: { text: 'ok' },
+
+    await expect(
+      controller.createMessage(req, res, {
+        model: 'claude-3',
+        max_tokens: 1,
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'x' }] }],
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        statusCode: 401,
+        code: ApiErrorCode.GATEWAY_KEY_MISSING,
+        message: 'Missing client gateway key.',
+        requestId: 'req_1',
+      },
+      status: HttpStatus.UNAUTHORIZED,
     });
 
-    await controller.createMessage(req, res, {
-      model: 'claude-3',
-      max_tokens: 1,
-      messages: [{ role: 'user', content: [{ type: 'text', text: 'x' }] }],
-    });
-
-    expect(executeChatMock).toHaveBeenCalledWith(
-      expect.anything(),
-      'req_1',
-      '',
-      'facade-anthropic',
-    );
+    expect(executeChatMock).not.toHaveBeenCalled();
   });
 
   describe('streaming', () => {

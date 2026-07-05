@@ -1,14 +1,21 @@
 import type { AppConfiguration } from '../../../src/config/app-configuration.types';
 import type { GatewayConfig } from '../../../src/config/configuration';
+import type { GatewayKeyRuntimeConfig } from '../../../src/config/configuration.types';
+import {
+  asEnvRef,
+  asGatewayKey,
+  asProviderApiKey,
+} from '../../../src/common/types';
 import {
   INTEGRATION_ANTHROPIC_API_KEY_REF,
   INTEGRATION_GATEWAY_CLIENT_ID,
   INTEGRATION_GATEWAY_KEY_REF,
   INTEGRATION_MASTER_KEY_REF,
-  INTEGRATION_MODEL_ALIAS,
-  INTEGRATION_MODEL_ID,
   INTEGRATION_PROVIDER_INSTANCE,
   INTEGRATION_RESOLVED_PROMPTS,
+  buildIntegrationGatewayKeyAllowList,
+  getIntegrationGatewayKey,
+  getIntegrationMasterKey,
   readIntegrationEnv,
 } from '../helpers/integration-constants';
 import { requireVendorApiKey } from '../helpers/require-integration-env';
@@ -16,41 +23,38 @@ import { buildIntegrationGatewayModels } from '../helpers/integration-gateway-co
 
 const integrationGatewayConfig: GatewayConfig = {
   schemaVersion: 1,
-  masterKeyRef: INTEGRATION_MASTER_KEY_REF,
+  masterKeyRef: asEnvRef(INTEGRATION_MASTER_KEY_REF),
   clients: {
     [INTEGRATION_GATEWAY_CLIENT_ID]: {
       name: 'Integration IDE Client',
       type: 'ide',
-      gatewayKeyRef: INTEGRATION_GATEWAY_KEY_REF,
+      gatewayKeyRef: asEnvRef(INTEGRATION_GATEWAY_KEY_REF),
     },
   },
   providers: {
     [INTEGRATION_PROVIDER_INSTANCE]: {
       type: 'anthropic',
-      apiKeyRef: INTEGRATION_ANTHROPIC_API_KEY_REF,
+      apiKeyRef: asEnvRef(INTEGRATION_ANTHROPIC_API_KEY_REF),
       enabled: true,
     },
   },
   models: buildIntegrationGatewayModels(),
 };
 
-function buildGatewayKeyRuntime() {
-  const masterKey = readIntegrationEnv(INTEGRATION_MASTER_KEY_REF);
-  const gatewayKey = readIntegrationEnv(INTEGRATION_GATEWAY_KEY_REF);
-  const allowList = new Set<string>();
-  if (masterKey) allowList.add(masterKey);
-  if (gatewayKey) allowList.add(gatewayKey);
+function buildGatewayKeyRuntime(): GatewayKeyRuntimeConfig {
+  const allowList = buildIntegrationGatewayKeyAllowList();
+  const masterKeyRaw = readIntegrationEnv(INTEGRATION_MASTER_KEY_REF);
 
   return {
-    allowList: [...allowList],
-    masterKey,
+    allowList,
+    masterKey: masterKeyRaw ? getIntegrationMasterKey() : asGatewayKey(''),
     clients: [
       {
         instanceId: INTEGRATION_GATEWAY_CLIENT_ID,
         name: 'Integration IDE Client',
         type: 'ide' as const,
-        gatewayKeyRef: INTEGRATION_GATEWAY_KEY_REF,
-        gatewayKey,
+        gatewayKeyRef: asEnvRef(INTEGRATION_GATEWAY_KEY_REF),
+        gatewayKey: getIntegrationGatewayKey(),
       },
     ],
   };
@@ -61,8 +65,8 @@ function buildProvidersRuntime() {
   return {
     [INTEGRATION_PROVIDER_INSTANCE]: {
       type: 'anthropic' as const,
-      apiKeyRef: INTEGRATION_ANTHROPIC_API_KEY_REF,
-      apiKey,
+      apiKeyRef: asEnvRef(INTEGRATION_ANTHROPIC_API_KEY_REF),
+      apiKey: asProviderApiKey(apiKey),
     },
   };
 }

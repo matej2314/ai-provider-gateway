@@ -1,23 +1,32 @@
 import { z } from 'zod';
 import { isOpenAiProviderType, PROVIDER_TYPES } from './provider-types';
 import { GATEWAY_CLIENT_TYPES } from './configuration.types';
+import { asEnvRef } from '../common/types';
 
 export const EXPECTED_SCHEMA_VERSION = 1;
 
 export const OpenAiCompatibleApiSurfaceSchema = z.enum(['chat-completions']);
 
+export const EnvRefSchema = z.string().min(1).transform(asEnvRef);
+
+export const optionalEnvRefSchema = z
+  .string()
+  .min(1)
+  .optional()
+  .transform((value) => (value === undefined ? undefined : asEnvRef(value)));
+
 export const GatewayConfigSchema = z
   .object({
     schemaVersion: z.number().int().min(1),
-    masterKeyRef: z.string().min(1),
+    masterKeyRef: EnvRefSchema,
     providers: z
       .record(
         z.string(),
         z.object({
           type: z.enum(PROVIDER_TYPES),
-          apiKeyRef: z.string(),
+          apiKeyRef: EnvRefSchema,
           enabled: z.boolean().optional().default(false),
-          baseUrlRef: z.string().optional(),
+          baseUrlRef: optionalEnvRefSchema,
           apiSurface: OpenAiCompatibleApiSurfaceSchema.optional(),
         }),
       )
@@ -71,7 +80,7 @@ export const GatewayConfigSchema = z
         z.object({
           name: z.string().min(1),
           type: z.enum(GATEWAY_CLIENT_TYPES),
-          gatewayKeyRef: z.string().min(1),
+          gatewayKeyRef: EnvRefSchema,
           rateLimit: z
             .object({
               rps: z.number().int().min(1),

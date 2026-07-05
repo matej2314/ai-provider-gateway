@@ -12,6 +12,7 @@ import { Request } from 'express';
 import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.service';
 import { readClientGatewayKey } from '../common/readClientGatewayKey';
 import { ApiErrorCode } from '../common/errors/api-error.code';
+import { type GatewayKey } from '../common/types';
 
 @Injectable()
 export class SmartRateLimitGuard implements CanActivate {
@@ -20,7 +21,7 @@ export class SmartRateLimitGuard implements CanActivate {
     private readonly config: ConfigService,
   ) {}
 
-  private requireGatewayKey(req: Request): string {
+  private requireGatewayKey(req: Request): GatewayKey {
     const gatewayKey = readClientGatewayKey(req);
 
     if (!gatewayKey) {

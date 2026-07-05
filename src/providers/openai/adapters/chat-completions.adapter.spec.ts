@@ -45,6 +45,7 @@ describe('createChatCompletionsAdapter', () => {
       expect.objectContaining({
         model: 'gpt-4o',
         messages: [{ role: 'user', content: 'Hi' }],
+        thinking: { type: 'disabled' },
       }),
     );
     expect(result.text).toBe('Hello');

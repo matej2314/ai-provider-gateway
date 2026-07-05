@@ -7,6 +7,7 @@ import type {
   ProviderCallOptions,
 } from '../interfaces/ai-provider.interface';
 import { mapToolChoiceToGemini } from '../google/google-tools.mapper';
+import { asProviderApiKey } from '../../common/types';
 
 jest.mock('@google/genai');
 
@@ -32,13 +33,13 @@ describe('createGoogleProvider', () => {
   describe('google factory', () => {
     it('should throw when apiKey is empty', () => {
       expect(() =>
-        createGoogleProvider('', mockLogger as LoggingService),
+        createGoogleProvider(asProviderApiKey(''), mockLogger as LoggingService),
       ).toThrow('[createGoogleProvider] API key is required.');
     });
 
     it('should create provider with valid apiKey', () => {
       const provider = createGoogleProvider(
-        'test-key',
+        asProviderApiKey('test-key'),
         mockLogger as LoggingService,
       );
 
@@ -51,7 +52,7 @@ describe('createGoogleProvider', () => {
     });
 
     it('should create GoogleGenAI client with apiKey', () => {
-      createGoogleProvider('my-api-key', mockLogger as LoggingService);
+      createGoogleProvider(asProviderApiKey('my-api-key'), mockLogger as LoggingService);
 
       expect(GoogleGenAI).toHaveBeenCalledWith({ apiKey: 'my-api-key' });
     });
@@ -62,7 +63,7 @@ describe('createGoogleProvider', () => {
     let input: ProviderChatInput;
 
     beforeEach(() => {
-      provider = createGoogleProvider('test-key', mockLogger as LoggingService);
+      provider = createGoogleProvider(asProviderApiKey('test-key'), mockLogger as LoggingService);
       input = {
         messages: [{ role: 'user', content: 'Hello' }],
         system: 'You are helpful',
@@ -551,7 +552,7 @@ describe('createGoogleProvider', () => {
     let input: ProviderChatInput;
 
     beforeEach(() => {
-      provider = createGoogleProvider('test-key', mockLogger as LoggingService);
+      provider = createGoogleProvider(asProviderApiKey('test-key'), mockLogger as LoggingService);
       input = {
         messages: [{ role: 'user', content: 'Hello' }],
       };

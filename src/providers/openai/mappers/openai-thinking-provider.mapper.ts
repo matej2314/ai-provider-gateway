@@ -74,3 +74,16 @@ export function mapThinkingToResponsesReasoning(
     summary: 'auto',
   };
 }
+
+/** DeepSeek V4+ chat-completions: thinking is on by default and can consume the output token budget. */
+export type ChatCompletionThinkingParam = {
+  type: 'enabled' | 'disabled';
+};
+
+export function mapThinkingToChatCompletion(
+  options?: ProviderCallOptions,
+): ChatCompletionThinkingParam {
+  return {
+    type: isOpenAiReasoningRequested(options) ? 'enabled' : 'disabled',
+  };
+}

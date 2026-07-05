@@ -22,6 +22,7 @@ import {
   validateCliProviderBaseUrl,
 } from '../utils/provider-base-url.cli.util';
 import { syncLegacyProviderApiKeysInEnv } from '../utils/legacy-provider-env.util';
+import { asEnvRef } from 'src/common/types';
 
 @Injectable()
 export class ProviderManagerService {
@@ -116,9 +117,9 @@ export class ProviderManagerService {
 
     config.providers[id] = {
       type,
-      apiKeyRef,
+      apiKeyRef: asEnvRef(apiKeyRef),
       enabled,
-      ...(baseUrlRef && { baseUrlRef }),
+      baseUrlRef: baseUrlRef ? asEnvRef(baseUrlRef) : undefined,
     };
 
     if (!this.hasModelsForInstance(config, id)) {

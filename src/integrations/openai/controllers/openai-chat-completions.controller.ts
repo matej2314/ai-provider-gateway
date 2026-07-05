@@ -18,6 +18,7 @@ import {
 import { ChatService } from '../../../chat/chat.service';
 import { SmartRateLimiterService } from '../../../rate-limit/smart-rate-limiter.service';
 import { OpenAiAuth } from '../decorators/openai-auth.decorator';
+import { requireClientGatewayKey } from '../../../common/requireClientGatewayKey';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { OpenAiChatCompletionRequestDto } from '../dtos/openai-chat-completion-request.dto';
 import { mapOpenAiChatRequestToGateway } from '../mappers/openai-request.mapper';
@@ -36,6 +37,7 @@ import { OPENAI_INTEGRATION_PATH } from '../../../integrations/integrations.cons
 import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-header.decorator';
 import { ApiOpenAiErrorResponses } from '../../../common/decorators/api-openai-error-response.decorator';
 import { OpenAiChatCompletionResponseDto } from '../dtos/openai-chat-completion-response.dto';
+import type { GatewayKey } from '../../../common/types';
 
 @ApiTags('OpenAI API')
 @ApiSecurity('BearerAuth')
@@ -51,7 +53,7 @@ export class OpenAiChatCompletionsController {
     req: Request,
     res: Response,
     body: OpenAiChatCompletionRequestDto,
-    gatewayKey: string,
+    gatewayKey: GatewayKey,
   ) {
     this.chatService.validateForStreaming(body.model);
 
@@ -147,7 +149,7 @@ export class OpenAiChatCompletionsController {
     @Body() body: OpenAiChatCompletionRequestDto,
     @Res({ passthrough: false }) res: Response,
   ) {
-    const gatewayKey = req.gatewayKey ?? '';
+    const gatewayKey = requireClientGatewayKey(req);
 
     if (body.stream === true) {
       await this.handleStream(req, res, body, gatewayKey);

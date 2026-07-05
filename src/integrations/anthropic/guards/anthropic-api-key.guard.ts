@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { getAppConfig } from '../../../config/typed-config';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { readBearerToken } from '../../../integrations/openai/guards/openai-bearer-auth.guard';
+import { asGatewayKey } from '../../../common/types';
 import type { Request } from 'express';
 
 export function readAnthropicApiKey(req: Request): string | undefined {
@@ -51,7 +52,9 @@ export class AnthropicApiKeyGuard implements CanActivate {
       });
     }
 
-    if (!allowList.includes(key)) {
+    const brandedKey = asGatewayKey(key);
+
+    if (!allowList.includes(brandedKey)) {
       throw new ForbiddenException({
         statusCode: 403,
         code: ApiErrorCode.GATEWAY_KEY_INVALID,
@@ -60,7 +63,7 @@ export class AnthropicApiKeyGuard implements CanActivate {
         details: [],
       });
     }
-    req.gatewayKey = key;
+    req.gatewayKey = brandedKey;
     return true;
   }
 }

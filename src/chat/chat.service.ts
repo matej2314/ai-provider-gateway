@@ -21,6 +21,7 @@ import { ChatResponseBuilderService } from './services/chat-response-builder.ser
 import { validateChatIngress } from './validation/chat-ingress.validator';
 import type { ChatIngressProfile } from './validation/chat-ingress.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
+import type { GatewayKey } from '../common/types';
 
 @Injectable()
 export class ChatService {
@@ -44,7 +45,7 @@ export class ChatService {
     requestBody: ChatRequestDto,
     requestId: string,
     ingressProfile: ChatIngressProfile,
-    gatewayKey: string,
+    gatewayKey: GatewayKey,
   ): Promise<ChatExecutionPrep> {
     validateChatIngress(requestBody, ingressProfile);
 
@@ -85,7 +86,7 @@ export class ChatService {
   async executeChat(
     requestBody: ChatRequestDto,
     requestId: string,
-    gatewayKey: string,
+    gatewayKey: GatewayKey,
     ingressProfile: ChatIngressProfile,
   ) {
     
@@ -207,7 +208,7 @@ export class ChatService {
     requestId: string,
     emit: (event: SseEvent) => void,
     ingressProfile: ChatIngressProfile,
-    gatewayKey: string,
+    gatewayKey: GatewayKey,
   ): Promise<void> {
     // validateChatIngress(requestBody, ingressProfile);
 

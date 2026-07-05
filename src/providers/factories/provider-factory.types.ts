@@ -1,18 +1,19 @@
 import type { AIProvider } from '../interfaces/ai-provider.interface';
-import type { LoggingService } from 'src/logging/logging.service';
-import type { GatewayProviderType } from 'src/config/provider-types';
+import type { LoggingService } from '../../logging/logging.service';
+import type { GatewayProviderType } from '../../config/provider-types';
+import type { ProviderApiKey, EnvRef } from '../../common/types/branded.types';
 
 export type ApiKeyProviderFactoryFn = (
-  apiKey: string,
+  apiKey: ProviderApiKey,
   logger: LoggingService,
 ) => AIProvider;
 
 export interface ProviderFactoryContext {
   instanceId: string;
   type: GatewayProviderType;
-  apiKeyRef: string;
-  apiKey: string;
-  baseUrlRef?: string;
+  apiKeyRef: EnvRef;
+  apiKey: ProviderApiKey;
+  baseUrlRef?: EnvRef;
   baseUrl?: string;
   apiSurface?: 'chat-completions';
 }

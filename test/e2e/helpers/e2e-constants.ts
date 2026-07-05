@@ -1,8 +1,11 @@
 import { API_GLOBAL_PREFIX } from '../../../src/setup.app';
 import { TEST_GATEWAY_KEY } from '../../../src/common/mocks/test-constants';
+import { asGatewayKey, type GatewayKey } from '../../../src/common/types';
 
-export const E2E_GATEWAY_KEY = TEST_GATEWAY_KEY;
-export const E2E_INVALID_GATEWAY_KEY = 'invalid_gateway_key';
+export const E2E_GATEWAY_KEY: GatewayKey = asGatewayKey(TEST_GATEWAY_KEY);
+export const E2E_INVALID_GATEWAY_KEY: GatewayKey = asGatewayKey(
+  'invalid_gateway_key',
+);
 export const E2E_API_PREFIX = `/${API_GLOBAL_PREFIX}`;
 
 export const E2E_OPENAI_MODEL_ALIAS = 'gpt-4o';

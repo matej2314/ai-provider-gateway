@@ -8,6 +8,7 @@ import {
   TEST_GATEWAY_KEY,
   TEST_PROVIDER_INSTANCE,
 } from './test-constants';
+import { asGatewayKey, asProviderApiKey } from '../types';
 import type { AppConfiguration } from '../../config/app-configuration.types';
 import type { ProviderInstanceRuntime } from '../../config/configuration';
 import type { GatewayConfig } from '../../config/configuration';
@@ -109,8 +110,11 @@ export function createTestGatewayKeyRuntimeConfig(
   overrides: TestGatewayKeyRuntimeOptions = {},
 ): GatewayKeyRuntimeConfig {
   return {
-    allowList: [TEST_GATEWAY_KEY, 'gw_valid_key_123'],
-    masterKey: 'master-test-key',
+    allowList: [
+      asGatewayKey(TEST_GATEWAY_KEY),
+      asGatewayKey('gw_valid_key_123'),
+    ],
+    masterKey: asGatewayKey('master-test-key'),
     clients: [],
     ...overrides,
   };
@@ -159,7 +163,7 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
           [TEST_PROVIDER_INSTANCE]: {
             type: 'anthropic' as const,
             apiKeyRef: TEST_API_KEY_REF,
-            apiKey: 'sk-test-api-key',
+            apiKey: asProviderApiKey('sk-test-api-key'),
           },
           ...options.providers,
         };

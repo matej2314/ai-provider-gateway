@@ -18,6 +18,7 @@ import {
   parseGeminiResponseWithTools,
   extractGeminiThinkingContent,
 } from '../google/google-tools.mapper';
+import type { ProviderApiKey } from 'src/common/types/branded.types';
 
 function mapStopSequences(
   stop: ProviderCallOptions['stop'],
@@ -80,7 +81,7 @@ function mapThinkingBudgetToGeminiLevel(budget: string): ThinkingLevel {
 }
 
 export function createGoogleProvider(
-  apiKey: string,
+  apiKey: ProviderApiKey,
   loggingService: LoggingService,
 ): AIProvider {
   if (!apiKey) {

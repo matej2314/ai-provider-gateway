@@ -1,5 +1,10 @@
 import { readGatewayKeyHeader } from './readGatewayKeyHeader';
+import { asGatewayKey, type GatewayKey } from './types';
 import type { Request } from 'express';
+
+function expectGatewayKey(result: GatewayKey | undefined, plain: string): void {
+  expect(result).toBe(asGatewayKey(plain));
+}
 
 describe('readGatewayKeyHeader', () => {
   describe('Happy path - string header', () => {
@@ -12,7 +17,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_test_key_123');
+      expectGatewayKey(result, 'gw_test_key_123');
     });
 
     it('should trim whitespace from gateway key', () => {
@@ -24,7 +29,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_test_key_123');
+      expectGatewayKey(result, 'gw_test_key_123');
     });
 
     it('should read from headers object when header() method returns undefined', () => {
@@ -35,7 +40,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_fallback_key');
+      expectGatewayKey(result, 'gw_fallback_key');
     });
   });
 
@@ -50,7 +55,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_first_key');
+      expectGatewayKey(result, 'gw_first_key');
     });
 
     it('should trim first array value', () => {
@@ -63,7 +68,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_key_with_spaces');
+      expectGatewayKey(result, 'gw_key_with_spaces');
     });
 
     it('should handle empty first array element', () => {
@@ -76,7 +81,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('');
+      expect(result).toBeUndefined();
     });
   });
 
@@ -116,7 +121,7 @@ describe('readGatewayKeyHeader', () => {
   });
 
   describe('Edge case - empty/whitespace values', () => {
-    it('should return empty string when header is empty', () => {
+    it('should return undefined when header is empty', () => {
       const req = {
         header: (name: string) => (name === 'x-gateway-key' ? '' : undefined),
         headers: { 'x-gateway-key': '' },
@@ -124,10 +129,10 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('');
+      expect(result).toBeUndefined();
     });
 
-    it('should return empty string when header is whitespace only', () => {
+    it('should return undefined when header is whitespace only', () => {
       const req = {
         header: (name: string) =>
           name === 'x-gateway-key' ? '   ' : undefined,
@@ -136,10 +141,10 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('');
+      expect(result).toBeUndefined();
     });
 
-    it('should trim and return empty when whitespace with tabs/newlines', () => {
+    it('should return undefined when whitespace with tabs/newlines', () => {
       const req = {
         header: (name: string) =>
           name === 'x-gateway-key' ? '\t\n  \r' : undefined,
@@ -148,7 +153,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('');
+      expect(result).toBeUndefined();
     });
   });
 
@@ -162,7 +167,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_test-key_123');
+      expectGatewayKey(result, 'gw_test-key_123');
     });
 
     it('should preserve alphanumeric and special chars', () => {
@@ -174,7 +179,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_AbC123-xyz.789');
+      expectGatewayKey(result, 'gw_AbC123-xyz.789');
     });
 
     it('should handle base64-like keys', () => {
@@ -186,7 +191,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_dGVzdC9rZXk+PQ==');
+      expectGatewayKey(result, 'gw_dGVzdC9rZXk+PQ==');
     });
   });
 
@@ -205,7 +210,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_production_key_abc123');
+      expectGatewayKey(result, 'gw_production_key_abc123');
     });
 
     it('should handle case-insensitive header lookup via header()', () => {
@@ -220,7 +225,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_key_123');
+      expectGatewayKey(result, 'gw_key_123');
     });
 
     it('should prioritize header() method over headers object', () => {
@@ -232,7 +237,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('from_header_method');
+      expectGatewayKey(result, 'from_header_method');
     });
 
     it('should handle proxy/load balancer array headers', () => {
@@ -246,7 +251,7 @@ describe('readGatewayKeyHeader', () => {
 
       const result = readGatewayKeyHeader(req);
 
-      expect(result).toBe('gw_primary');
+      expectGatewayKey(result, 'gw_primary');
     });
   });
 });

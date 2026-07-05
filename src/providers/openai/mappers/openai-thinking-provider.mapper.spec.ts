@@ -1,5 +1,6 @@
 import {
   isOpenAiReasoningRequested,
+  mapThinkingToChatCompletion,
   mapThinkingToResponsesReasoning,
   openAiNumericThinkingBudgetIgnored,
 } from './openai-thinking-provider.mapper';
@@ -73,5 +74,17 @@ describe('mapThinkingToResponsesReasoning', () => {
         thinkingBudget: 1024,
       }),
     ).toEqual({ effort: 'medium', summary: 'auto' });
+  });
+});
+
+describe('mapThinkingToChatCompletion', () => {
+  it('disables thinking by default', () => {
+    expect(mapThinkingToChatCompletion()).toEqual({ type: 'disabled' });
+  });
+
+  it('enables thinking when requested', () => {
+    expect(
+      mapThinkingToChatCompletion({ thinkingEnabled: true }),
+    ).toEqual({ type: 'enabled' });
   });
 });

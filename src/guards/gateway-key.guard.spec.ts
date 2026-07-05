@@ -15,7 +15,10 @@ import {
   type MockConfigServiceOptions,
 } from '../common/mocks/createMockConfigService';
 import { TEST_GATEWAY_KEY } from '../common/mocks/test-constants';
+import { asGatewayKey, type GatewayKey } from '../common/types';
 import type { Request } from 'express';
+
+// Compile-time brand checks: gateway-key.guard.branded-types.test-d.ts
 
 describe('GatewayKeyGuard', () => {
   let guard: GatewayKeyGuard;
@@ -48,7 +51,7 @@ describe('GatewayKeyGuard', () => {
       expect(result).toBe(true);
     });
 
-    it('should set gatewayKey on request', () => {
+    it('should set branded GatewayKey on request', () => {
       const mockRequest = createMockExpressRequest({
         gatewayKey: undefined,
         requestId: 'req-123',
@@ -66,7 +69,8 @@ describe('GatewayKeyGuard', () => {
 
       guard.canActivate(context);
 
-      expect(mockRequest.gatewayKey).toBe('gw_valid_key_123');
+      const key: GatewayKey | undefined = mockRequest.gatewayKey;
+      expect(key).toBe(asGatewayKey('gw_valid_key_123'));
     });
 
     it('should allow when key has whitespace (trimmed)', () => {
@@ -88,7 +92,7 @@ describe('GatewayKeyGuard', () => {
 
       try {
         guard.canActivate(context);
-      } catch (e) {
+      } catch (e: any) {
         expect(e.getResponse()).toMatchObject({
           statusCode: 401,
           code: ApiErrorCode.GATEWAY_KEY_MISSING,
@@ -113,7 +117,7 @@ describe('GatewayKeyGuard', () => {
   describe('Edge case - invalid key', () => {
     it('should throw ForbiddenException when key not in allowList', async () => {
       await initGuard({
-        gatewayKey: { allowList: ['gw_valid_key'], clients: [] },
+        gatewayKey: { allowList: [asGatewayKey('gw_valid_key')], clients: [] },
       });
 
       const context = createMockContext({ 'x-gateway-key': 'gw_invalid_key' });
@@ -122,7 +126,7 @@ describe('GatewayKeyGuard', () => {
 
       try {
         guard.canActivate(context);
-      } catch (e) {
+      } catch (e: any) {
         expect(e.getResponse()).toMatchObject({
           statusCode: 403,
           code: ApiErrorCode.GATEWAY_KEY_INVALID,
@@ -133,7 +137,7 @@ describe('GatewayKeyGuard', () => {
 
     it('should be case-sensitive', async () => {
       await initGuard({
-        gatewayKey: { allowList: ['gw_Key_123'], clients: [] },
+        gatewayKey: { allowList: [asGatewayKey('gw_Key_123')], clients: [] },
       });
 
       const context = createMockContext({ 'x-gateway-key': TEST_GATEWAY_KEY });
@@ -156,7 +160,7 @@ describe('GatewayKeyGuard', () => {
 
       try {
         guard.canActivate(context);
-      } catch (e) {
+      } catch (e: any) {
         expect(e.getResponse()).toMatchObject({
           statusCode: 500,
           code: ApiErrorCode.GATEWAY_KEY_NOT_CONFIGURED,
@@ -179,7 +183,11 @@ describe('GatewayKeyGuard', () => {
     it('should allow any key from allowList', async () => {
       await initGuard({
         gatewayKey: {
-          allowList: ['gw_key_1', 'gw_key_2', 'gw_key_3'],
+          allowList: [
+            asGatewayKey('gw_key_1'),
+            asGatewayKey('gw_key_2'),
+            asGatewayKey('gw_key_3'),
+          ],
           clients: [],
         },
       });
@@ -199,7 +207,7 @@ describe('GatewayKeyGuard', () => {
   describe('Edge case - requestId propagation', () => {
     it('should include requestId in error response', async () => {
       await initGuard({
-        gatewayKey: { allowList: ['gw_valid'], clients: [] },
+        gatewayKey: { allowList: [asGatewayKey('gw_valid')], clients: [] },
       });
 
       const context = createMockContext(
@@ -209,7 +217,7 @@ describe('GatewayKeyGuard', () => {
 
       try {
         guard.canActivate(context);
-      } catch (e) {
+      } catch (e: any) {
         expect(e.getResponse()).toMatchObject({
           requestId: 'req-456',
         });

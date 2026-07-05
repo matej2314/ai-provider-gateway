@@ -35,7 +35,9 @@ import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
 
 import { ANTHROPIC_INTEGRATION_PATH } from '../../../integrations/integrations.constants';
 import { ANTHROPIC_STREAM_API_DESCRIPTION } from '../helpers/anthropic-stream-api-description';
+import { requireClientGatewayKey } from '../../../common/requireClientGatewayKey';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import type { GatewayKey } from '../../../common/types';
 
 @ApiTags('Anthropic API')
 @ApiSecurity('ApiKeyAuth')
@@ -88,7 +90,7 @@ export class AnthropicMessagesController {
     @Res({ passthrough: false }) res: Response,
     @Body() body: AnthropicMessagesRequestDto,
   ) {
-    const gatewayKey = req.gatewayKey ?? '';
+    const gatewayKey = requireClientGatewayKey(req);
 
     if (body.stream === true) {
       await this.handleStream(req, res, body, gatewayKey);
@@ -109,7 +111,7 @@ export class AnthropicMessagesController {
     req: Request,
     res: Response,
     body: AnthropicMessagesRequestDto,
-    gatewayKey: string,
+    gatewayKey: GatewayKey,
   ) {
     this.chatService.validateForStreaming(body.model);
 

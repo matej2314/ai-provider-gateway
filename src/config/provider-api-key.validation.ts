@@ -4,12 +4,13 @@ import {
   isOpenAiProviderType,
   type GatewayProviderType,
 } from './provider-types';
+import type { EnvRef } from '../common/types';
 
 export type RawGatewayConfig = z.infer<typeof GatewayConfigSchema>;
 
 export interface MissingProviderApiKey {
   instanceId: string;
-  apiKeyRef: string;
+  apiKeyRef: EnvRef;
 }
 
 export function isApiKeyRequiredForProviderType(

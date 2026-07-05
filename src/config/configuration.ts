@@ -44,6 +44,7 @@ import {
   type ValidatedEnvironment,
 } from './env.validation';
 import { assertEnabledProviderApiKeysPresent } from './provider-api-key.validation';
+import { asGatewayKey, type GatewayKey} from '../common/types';
 
 export { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
 
@@ -80,19 +81,19 @@ function buildGatewayKeyRuntime(
 
   const clients: ResolvedGatewayClient[] = [];
   for (const [instanceId, row] of Object.entries(config.clients)) {
-    const gatewayKey = (env[row.gatewayKeyRef] ?? '').trim();
+    const gatewayKeyRaw = (env[row.gatewayKeyRef] ?? '').trim();
     clients.push({
       instanceId,
       name: row.name,
       type: row.type,
       gatewayKeyRef: row.gatewayKeyRef,
-      gatewayKey,
+      gatewayKey: asGatewayKey(gatewayKeyRaw),
       rateLimit: row.rateLimit,
     });
   }
 
-  const allow = new Set<string>();
-  allow.add(masterRaw);
+  const allow = new Set<GatewayKey>();
+  allow.add(asGatewayKey(masterRaw));
   for (const client of clients) {
     if (client.gatewayKey) allow.add(client.gatewayKey);
   }
@@ -102,7 +103,7 @@ function buildGatewayKeyRuntime(
   );
   return {
     allowList: [...allow],
-    masterKey: masterRaw,
+    masterKey: asGatewayKey(masterRaw),
     clients,
   };
 }

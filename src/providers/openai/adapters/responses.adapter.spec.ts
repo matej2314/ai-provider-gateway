@@ -191,7 +191,7 @@ describe('createResponsesAdapter', () => {
     await expect(stream.getUsageMetadata()).resolves.toEqual({
       inputTokens: 1,
       outputTokens: 2,
-      model: 'o3-mini',
+      model: 'gpt-5.4-mini',
     });
   });
 

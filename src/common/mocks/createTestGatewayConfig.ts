@@ -1,4 +1,5 @@
 import type { GatewayConfig } from '../../config/configuration';
+import { asEnvRef } from '../types';
 import {
   TEST_API_KEY_REF,
   TEST_MASTER_KEY_REF,
@@ -23,13 +24,14 @@ export type CreateTestGatewayConfigOptions = {
 function defaultGatewayConfig(): GatewayConfig {
   return {
     schemaVersion: 1,
-    masterKeyRef: TEST_MASTER_KEY_REF,
+    masterKeyRef: asEnvRef(TEST_MASTER_KEY_REF),
     clients: {},
     providers: {
       [TEST_PROVIDER_INSTANCE]: {
         type: 'anthropic',
-        apiKeyRef: TEST_API_KEY_REF,
+        apiKeyRef: asEnvRef(TEST_API_KEY_REF),
         enabled: true,
+        baseUrlRef: undefined,
       },
     },
     models: {
@@ -70,7 +72,9 @@ export function createTestGatewayConfig(
 
   return {
     schemaVersion: options.schemaVersion ?? base.schemaVersion,
-    masterKeyRef: options.masterKeyRef ?? base.masterKeyRef,
+    masterKeyRef: options.masterKeyRef
+      ? asEnvRef(options.masterKeyRef)
+      : base.masterKeyRef,
     clients,
     providers,
     models,

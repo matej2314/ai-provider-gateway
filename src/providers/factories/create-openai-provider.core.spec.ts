@@ -3,6 +3,7 @@ import { createOpenAiProviderCore } from './create-openai-provider.core';
 import { createChatCompletionsAdapter } from '../openai/adapters/chat-completions.adapter';
 import { createResponsesAdapter } from '../openai/adapters/responses.adapter';
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
+import { asProviderApiKey } from '../../common/types';
 
 jest.mock('openai');
 jest.mock('../openai/adapters/chat-completions.adapter');
@@ -11,7 +12,7 @@ jest.mock('../openai/adapters/responses.adapter');
 describe('createOpenAiProviderCore', () => {
   const logger = createMockLoggingService() as never;
   const baseConfig = {
-    apiKey: 'sk-test',
+    apiKey: asProviderApiKey('sk-test'),
     baseUrl: 'https://api.openai.com/v1',
   };
 
@@ -37,7 +38,7 @@ describe('createOpenAiProviderCore', () => {
       createOpenAiProviderCore(
         'anthropic',
         {
-          apiKey: 'x',
+          apiKey: asProviderApiKey('x'),
           baseUrl: 'https://api.openai.com/v1',
         },
         logger,

@@ -10,6 +10,7 @@ import { createMockExpressRequest } from '../common/mocks/http-mocks';
 import { TEST_MODEL_ALIAS } from '../common/mocks/test-constants';
 import { GatewayKeyGuard } from '../guards/gateway-key.guard';
 import { SmartRateLimitGuard } from '../guards/smart-rate-limit-guard';
+import { asGatewayKey } from '../common/types';
 
 describe('ChatController', () => {
   let controller: ChatController;
@@ -45,6 +46,7 @@ describe('ChatController', () => {
     it('should call chatService.executeChat with correct params', async () => {
       const mockRequest = createMockExpressRequest({
         requestId: 'req-123',
+        gatewayKey: asGatewayKey('gw_key_123'),
         header: jest.fn().mockReturnValue('gw_key_123'),
         headers: { 'x-gateway-key': 'gw_key_123' },
       });

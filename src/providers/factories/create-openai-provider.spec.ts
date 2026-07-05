@@ -1,7 +1,7 @@
 import { createOpenAiProvider } from './create-openai-provider';
 import { createOpenAiProviderCore } from './create-openai-provider.core';
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
-
+import { asEnvRef, asProviderApiKey } from '../../common/types';
 jest.mock('./create-openai-provider.core');
 
 describe('createOpenAiProvider', () => {
@@ -15,8 +15,8 @@ describe('createOpenAiProvider', () => {
         {
           instanceId: 'x',
           type: 'anthropic',
-          apiKeyRef: 'K',
-          apiKey: 'k',
+          apiKeyRef: asEnvRef('K'),
+          apiKey: asProviderApiKey('k'),
         },
         createMockLoggingService() as never,
       ),
@@ -29,8 +29,8 @@ describe('createOpenAiProvider', () => {
         {
           instanceId: 'openai-main',
           type: 'openai',
-          apiKeyRef: 'OPENAI_API_KEY',
-          apiKey: '',
+          apiKeyRef: asEnvRef('OPENAI_API_KEY'),
+          apiKey: asProviderApiKey(''),
         },
         createMockLoggingService() as never,
       ),
@@ -42,8 +42,8 @@ describe('createOpenAiProvider', () => {
       {
         instanceId: 'openai-main',
         type: 'openai',
-        apiKeyRef: 'OPENAI_API_KEY',
-        apiKey: 'sk-test',
+        apiKeyRef: asEnvRef('OPENAI_API_KEY'),
+        apiKey: asProviderApiKey('sk-test'),
         baseUrl: 'https://api.openai.com/v1',
       },
       createMockLoggingService() as never,

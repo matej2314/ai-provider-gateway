@@ -13,9 +13,15 @@ import {
   type MockConfigServiceOptions,
 } from '../../../src/common/mocks/createMockConfigService';
 import {
+  TEST_API_KEY_REF,
+  TEST_PROVIDER_INSTANCE,
+} from '../../../src/common/mocks/test-constants';
+import { asEnvRef, asProviderApiKey } from '../../../src/common/types';
+import {
   createE2eProviderRegistry,
   type E2eProviderRegistryMock,
 } from './e2e-provider-registry';
+import { E2E_GATEWAY_KEY } from './e2e-constants';
 import {
   createE2eLoggingServiceMock,
   createE2eProviderBootstrapMock,
@@ -34,15 +40,36 @@ export type E2eAppContext = {
   providerRegistry: E2eProviderRegistryMock;
 };
 
+function createDefaultE2eConfigOptions(): MockConfigServiceOptions {
+  return {
+    cache: { enabled: false, backend: 'noop' },
+    redis: null,
+    gatewayKey: {
+      allowList: [E2E_GATEWAY_KEY],
+      masterKey: E2E_GATEWAY_KEY,
+    },
+    providers: {
+      [TEST_PROVIDER_INSTANCE]: {
+        type: 'anthropic',
+        apiKeyRef: asEnvRef(TEST_API_KEY_REF),
+        apiKey: asProviderApiKey('sk-test-api-key'),
+      },
+    },
+    extra: {
+      RATE_LIMIT_SMART_ENABLED: false,
+    },
+  };
+}
+
 export async function createE2eApp(
   options: CreateE2eAppOptions = {},
 ): Promise<E2eAppContext> {
+  const defaultConfig = createDefaultE2eConfigOptions();
   const configOptions: MockConfigServiceOptions = {
-    cache: { enabled: false, backend: 'noop' },
-    redis: null,
+    ...defaultConfig,
     ...options.config,
     extra: {
-      RATE_LIMIT_SMART_ENABLED: false,
+      ...defaultConfig.extra,
       ...options.config?.extra,
     },
   };
