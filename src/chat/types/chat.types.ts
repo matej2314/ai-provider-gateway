@@ -5,14 +5,15 @@
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { LoggingService } from '../../logging/logging.service';
+import type {RequestId, ConversationId, GatewayKey} from '../../common/types/branded.types';
 
 /**
  * Common parameters passed to service methods
  */
 export interface ChatExecutionContext {
   requestBody: ChatRequestDto;
-  requestId: string;
-  gatewayKey: string;
+  requestId: RequestId;
+  gatewayKey: GatewayKey;
   modelAlias: string;
   log: LoggingService;
 }
@@ -23,7 +24,7 @@ export interface ChatExecutionContext {
 export interface ProviderCallContext {
   requestBody: ChatRequestDto;
   alias: string;
-  requestId: string;
+  requestId: RequestId;
   options: ProviderCallOptions;
 }
 

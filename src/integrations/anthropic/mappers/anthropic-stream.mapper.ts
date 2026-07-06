@@ -1,9 +1,10 @@
 import type { SseEvent } from 'src/chat/sse/sse-event.type';
 import { mapGatewayFinishReasonToAnthropicStopReason } from './anthropic-stop-reason.mapper';
 import { mapSseDoneUsageToAnthropic } from './anthropic-usage.mapper';
+import { type MessageId, asMessageId } from 'src/common/types/branded.types';
 
 export type AnthropicStreamState = {
-  messageId: string;
+  messageId: MessageId;
   model: string;
   messageSent: boolean;
   textBlockStarted: boolean;
@@ -16,7 +17,7 @@ export function createAnthropicStreamState(
   model: string,
 ): AnthropicStreamState {
   return {
-    messageId: '',
+    messageId: asMessageId(''),
     model,
     messageSent: false,
     textBlockStarted: false,
@@ -69,7 +70,7 @@ export function mapSseEventToAnthropic(
 ): string[] {
   switch (event.name) {
     case 'meta': {
-      state.messageId = `msg_${event.data.id.replace(/^gw_/, '')}`;
+      state.messageId = asMessageId(`msg_${event.data.id.replace(/^gw_/, '')}`);
       const lines: string[] = [];
       if (!state.messageSent) {
         lines.push(

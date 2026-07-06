@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { isOpenAiProviderType, PROVIDER_TYPES } from './provider-types';
 import { GATEWAY_CLIENT_TYPES } from './configuration.types';
 import { asEnvRef } from '../common/types';
+import { asProviderInstanceId } from 'src/common/types/branded.types';
 
 export const EXPECTED_SCHEMA_VERSION = 1;
 
@@ -94,7 +95,7 @@ export const GatewayConfigSchema = z
     models: z.record(
       z.string(),
       z.object({
-        providerInstance: z.string(),
+        providerInstance: z.string().transform(asProviderInstanceId),
         modelId: z.string(),
         fallback: z.string().min(1).optional(),
         capabilities: z

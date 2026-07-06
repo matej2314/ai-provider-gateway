@@ -5,8 +5,10 @@ import { ProviderRegistryService } from '../../providers/provider-registry.servi
 import { isToolingRequest } from '../helpers/tooling-request';
 import { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import { isOpenAiReasoningRequested } from '../../providers/openai/mappers/openai-thinking-provider.mapper';
+import { asProviderInstanceId } from '../../common/types/branded.types';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
+
 
 @Injectable()
 export class ChatValidationService {
@@ -64,7 +66,7 @@ export class ChatValidationService {
 
     if (!resolved.capabilities?.streaming) {
       log.warn('Streaming not supported for this model', {
-        provider: resolved.providerName,
+        provider: asProviderInstanceId(resolved.providerName),
         code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
       });
       throw new HttpException(
@@ -79,7 +81,7 @@ export class ChatValidationService {
 
     if (!resolved.provider.stream) {
       log.warn('Streaming adapter not implemented for this provider', {
-        provider: resolved.providerName,
+        provider: asProviderInstanceId(resolved.providerName),
         code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
       });
       throw new HttpException(

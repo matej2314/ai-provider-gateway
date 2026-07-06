@@ -45,6 +45,7 @@ import {
 } from './env.validation';
 import { assertEnabledProviderApiKeysPresent } from './provider-api-key.validation';
 import { asGatewayKey, type GatewayKey} from '../common/types';
+import { asProviderInstanceId } from 'src/common/types/branded.types';
 
 export { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
 
@@ -83,7 +84,7 @@ function buildGatewayKeyRuntime(
   for (const [instanceId, row] of Object.entries(config.clients)) {
     const gatewayKeyRaw = (env[row.gatewayKeyRef] ?? '').trim();
     clients.push({
-      instanceId,
+      instanceId: asProviderInstanceId(instanceId),
       name: row.name,
       type: row.type,
       gatewayKeyRef: row.gatewayKeyRef,

@@ -17,7 +17,7 @@ import { isApiKeyRequiredForProviderType } from '../config/provider-api-key.vali
 import { isOpenAiProviderType } from '../config/provider-types';
 import type { GatewayProviderInstanceConfig } from '../config/gateway-config.schema';
 import type { ProviderInstanceRuntime } from '../config/configuration';
-import { asProviderApiKey } from '../common/types';
+import { asProviderApiKey, asProviderInstanceId } from '../common/types';
 
 const FACTORIES: Partial<Record<GatewayProviderType, ProviderFactoryFn>> = {
   anthropic: adaptApiKeyProviderFactory(createAnthropicProvider),
@@ -62,7 +62,8 @@ export class ProviderInstancesBootstrap implements OnApplicationBootstrap {
     for (const [instanceId, row] of Object.entries(gateway.providers)) {
       if (row.enabled === false) continue;
 
-      const runtime = byInstance[instanceId];
+      const brandedInstanceId = asProviderInstanceId(instanceId);
+      const runtime = byInstance[brandedInstanceId];
 
       if (!runtime) {
         throw new Error(

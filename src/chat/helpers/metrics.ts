@@ -11,6 +11,11 @@ import type {
   LlmCallMessage,
   LlmCallContext,
 } from '../../metrics/interfaces/metrics-backend.interface';
+import {
+  asToolCallId,
+  type RequestId,
+  type ProviderInstanceId,
+} from '../../common/types/branded.types';
 
 const TOOL_CONTENT_METRICS_MAX = 200;
 
@@ -26,7 +31,9 @@ export function toMetricsMessages(
       metricsMessages.push({
         role: 'tool',
         content: message.content.slice(0, TOOL_CONTENT_METRICS_MAX),
-        ...(isChatToolMessage(message) && { toolCallId: message.toolCallId }),
+        ...(isChatToolMessage(message) && {
+          toolCallId: asToolCallId(message.toolCallId),
+        }),
       });
     } else if (isChatAssistantMessage(message)) {
       metricsMessages.push({
@@ -46,10 +53,10 @@ export function toMetricsMessages(
 
 export function buildLlmMetricsContext(
   requestBody: ChatRequestDto,
-  provider: string,
+  provider: ProviderInstanceId,
   modelAlias: string,
   modelId: string,
-  requestId: string,
+  requestId: RequestId,
 ): LlmCallContext {
   return {
     provider,

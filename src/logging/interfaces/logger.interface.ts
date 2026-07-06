@@ -1,7 +1,9 @@
+import type { RequestId, ProviderInstanceId} from '../../common/types/branded.types';
+
 export interface LogContext {
-  requestId?: string;
+  requestId?: RequestId;
   module?: string;
-  provider?: string;
+  provider?: ProviderInstanceId;
   modelAlias?: string;
   modelId?: string;
   latency?: number;

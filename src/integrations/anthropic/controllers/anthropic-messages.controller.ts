@@ -38,6 +38,7 @@ import { ANTHROPIC_STREAM_API_DESCRIPTION } from '../helpers/anthropic-stream-ap
 import { requireClientGatewayKey } from '../../../common/requireClientGatewayKey';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import type { GatewayKey } from '../../../common/types';
+import { asRequestId } from 'src/common/types/branded.types';
 
 @ApiTags('Anthropic API')
 @ApiSecurity('ApiKeyAuth')
@@ -100,7 +101,7 @@ export class AnthropicMessagesController {
     const gatewayRequest = mapAnthropicRequestToGateway(body);
     const result = (await this.chatService.executeChat(
       gatewayRequest,
-      req.requestId,
+      asRequestId(req.requestId),
       gatewayKey,
       'facade-anthropic',
     )) as ChatResponseDto;
@@ -146,7 +147,7 @@ export class AnthropicMessagesController {
     try {
       await this.chatService.executeStream(
         gatewayRequest,
-        req.requestId,
+        asRequestId(req.requestId),
         (event: SseEvent) => {
           const lines = mapSseEventToAnthropic(event, state);
           for (const line of lines) {

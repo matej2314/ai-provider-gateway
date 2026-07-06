@@ -11,7 +11,8 @@ import { getAppConfigOrThrow } from '../../config/typed-config';
 import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import type { CachedChatResponse } from '../../cache/response-cache.service';
-import type { GatewayKey } from '../../common/types';
+import type { GatewayKey, RequestId } from '../../common/types/branded.types';
+import { asProviderInstanceId } from '../../common/types/branded.types';
 
 @Injectable()
 export class ChatCacheGuardService {
@@ -32,7 +33,7 @@ export class ChatCacheGuardService {
   async checkRateLimit(
     gatewayKey: GatewayKey,
     providerName: string,
-    requestId: string,
+    requestId: RequestId,
   ): Promise<void> {
     const cooldownResult = await this.rateLimiter.checkCooldown(
       gatewayKey,
@@ -41,7 +42,7 @@ export class ChatCacheGuardService {
 
     if (!cooldownResult.allowed) {
       this.logger.warn('Rate limit exceeded', {
-        provider: providerName,
+        provider: asProviderInstanceId(providerName),
         status: 429,
         code: ApiErrorCode.RATE_LIMITED,
       });

@@ -21,7 +21,12 @@ import { ChatResponseBuilderService } from './services/chat-response-builder.ser
 import { validateChatIngress } from './validation/chat-ingress.validator';
 import type { ChatIngressProfile } from './validation/chat-ingress.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
-import type { GatewayKey } from '../common/types';
+import {
+  asRequestId,
+  asProviderInstanceId,
+  type GatewayKey,
+  type RequestId,
+} from '../common/types/branded.types';
 
 @Injectable()
 export class ChatService {
@@ -43,7 +48,7 @@ export class ChatService {
 
   async prepareRequestForExecution(
     requestBody: ChatRequestDto,
-    requestId: string,
+    requestId: RequestId,
     ingressProfile: ChatIngressProfile,
     gatewayKey: GatewayKey,
   ): Promise<ChatExecutionPrep> {
@@ -85,12 +90,10 @@ export class ChatService {
 
   async executeChat(
     requestBody: ChatRequestDto,
-    requestId: string,
+    requestId: RequestId,
     gatewayKey: GatewayKey,
     ingressProfile: ChatIngressProfile,
   ) {
-    
-
     const {
       primaryResolved,
       options,
@@ -177,7 +180,7 @@ export class ChatService {
       );
 
       log.info('Chat completed successfully', {
-        provider: resolved.providerName,
+        provider: asProviderInstanceId(resolved.providerName),
         modelId: resolved.modelId,
         latency,
         tokensUsed:
@@ -205,13 +208,11 @@ export class ChatService {
 
   async executeStream(
     requestBody: ChatRequestDto,
-    requestId: string,
+    requestId: RequestId,
     emit: (event: SseEvent) => void,
     ingressProfile: ChatIngressProfile,
     gatewayKey: GatewayKey,
   ): Promise<void> {
-    // validateChatIngress(requestBody, ingressProfile);
-
     const {
       primaryResolved,
       options,
@@ -295,7 +296,7 @@ export class ChatService {
       const latency = Date.now() - startedAt;
 
       log.info('Chat stream completed', {
-        provider: resolved.providerName,
+        provider: asProviderInstanceId(resolved.providerName),
         modelId: resolved.modelId,
         latency,
         conversationId: responseConversationId,

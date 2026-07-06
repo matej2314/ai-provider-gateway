@@ -1,16 +1,21 @@
 import { isOpenAiProviderType } from './provider-types';
 import type { z } from 'zod';
 import type { GatewayConfigSchema } from './gateway-config.schema';
+import {
+  asProviderInstanceId,
+  type EnvRef,
+  type ProviderInstanceId,
+} from '../common/types/branded.types';
 
 export type RawGatewayConfig = z.infer<typeof GatewayConfigSchema>;
 
 export interface MissingProviderBaseUrl {
-  instanceId: string;
-  baseUrlRef: string;
+  instanceId: ProviderInstanceId;
+  baseUrlRef: EnvRef;
 }
 
 export function resolveBaseUrlFromEnv(
-  baseUrlRef: string | undefined,
+  baseUrlRef: EnvRef | undefined,
   env: NodeJS.ProcessEnv = process.env,
 ): string {
   if (!baseUrlRef?.trim()) return '';
@@ -37,7 +42,10 @@ export function collectMissingBaseUrlErrors(
     if (!row.baseUrlRef?.trim()) continue;
     const resolved = resolveBaseUrlFromEnv(row.baseUrlRef, env);
     if (!resolved) {
-      missing.push({ instanceId, baseUrlRef: row.baseUrlRef });
+      missing.push({
+        instanceId: asProviderInstanceId(instanceId),
+        baseUrlRef: row.baseUrlRef,
+      });
     }
   }
   return missing;

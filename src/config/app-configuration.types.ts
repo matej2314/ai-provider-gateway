@@ -5,6 +5,7 @@ import type {
 } from './configuration.types';
 import type { ProviderInstanceRuntime } from './configuration';
 import type { CACHE_BACKEND_TYPE } from '../cache/interfaces/cache-backend-interface';
+import type { ProviderInstanceId } from '../common/types/branded.types';
 
 export type CacheRuntimeConfig = {
   enabled: boolean;
@@ -33,7 +34,7 @@ export type AppConfiguration = {
   gatewayKey: GatewayKeyRuntimeConfig;
   port: number;
   nodeEnv: string;
-  providers: Record<string, ProviderInstanceRuntime>;
+  providers: Record<ProviderInstanceId, ProviderInstanceRuntime>;
   resolvedSystemPrompts: ResolvedSystemPrompts;
   cache: CacheRuntimeConfig;
   redis: RedisRuntimeConfig;

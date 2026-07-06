@@ -37,6 +37,7 @@ import { OPENAI_INTEGRATION_PATH } from '../../../integrations/integrations.cons
 import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-header.decorator';
 import { ApiOpenAiErrorResponses } from '../../../common/decorators/api-openai-error-response.decorator';
 import { OpenAiChatCompletionResponseDto } from '../dtos/openai-chat-completion-response.dto';
+import { asRequestId } from 'src/common/types/branded.types';
 import type { GatewayKey } from '../../../common/types';
 
 @ApiTags('OpenAI API')
@@ -91,7 +92,7 @@ export class OpenAiChatCompletionsController {
     try {
       await this.chatService.executeStream(
         gatewayRequest,
-        req.requestId,
+        asRequestId(req.requestId),
         (event: SseEvent) => {
           const lines = mapSseEventToOpenAi(event, state);
           for (const line of lines) {
@@ -159,7 +160,7 @@ export class OpenAiChatCompletionsController {
     const gatewayRequest = mapOpenAiChatRequestToGateway(body);
     const result = (await this.chatService.executeChat(
       gatewayRequest,
-      req.requestId,
+      asRequestId(req.requestId),
       gatewayKey,
       'facade-openai',
     )) as ChatResponseDto;

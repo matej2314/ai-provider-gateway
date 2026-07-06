@@ -4,6 +4,7 @@ import { getAppConfigOrThrow } from '../../config/typed-config';
 import type { GatewayConfig } from '../../config/configuration';
 import type { GatewayProviderType } from '../../config/provider-types';
 import type { GatewayModelDto } from '../dto/gateway-model.dto';
+import  { asProviderInstanceId, type ProviderInstanceId } from '../../common/types/branded.types';
 
 @Injectable()
 export class GatewayModelsCatalogService {
@@ -15,7 +16,7 @@ export class GatewayModelsCatalogService {
 
   private resolveProviderType(
     gateway: GatewayConfig,
-    providerInstance: string,
+    providerInstance: ProviderInstanceId,
   ): GatewayProviderType | 'gateway' {
     const row = gateway.providers[providerInstance];
     return row?.type ?? 'gateway';
@@ -26,7 +27,7 @@ export class GatewayModelsCatalogService {
 
     return {
       modelAlias,
-      providerInstance: model.providerInstance,
+      providerInstance: asProviderInstanceId(model.providerInstance),
       providerType: this.resolveProviderType(gateway, model.providerInstance),
       modelId: model.modelId,
       capabilities: model.capabilities,

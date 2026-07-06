@@ -13,6 +13,8 @@ import type {
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { SseEvent } from '../sse/sse-event.type';
 import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
+import type { RequestId, ConversationId } from '../../common/types/branded.types';
+import { asProviderInstanceId } from '../../common/types/branded.types';
 
 export interface CompleteOnceResult {
   response: ProviderChatResponse;
@@ -42,13 +44,13 @@ export interface StreamOnceResult {
 export interface StreamOnceParams {
   requestBody: ChatRequestDto;
   alias: string;
-  requestId: string;
+  requestId: RequestId;
   resolvedPrompts: ResolvedSystemPrompts;
   emit: (event: SseEvent) => void;
   streamMeta: {
     gatewayId: string;
     primaryModelAlias: string;
-    responseConversationId: string;
+    responseConversationId: ConversationId;
     metaEmitted: { value: boolean };
   };
 }
@@ -64,7 +66,7 @@ export class ChatProviderCallService {
   async completeOnce(
     requestBody: ChatRequestDto,
     alias: string,
-    requestId: string,
+    requestId: RequestId,
     resolvedPrompts: ResolvedSystemPrompts,
   ): Promise<CompleteOnceResult> {
     const resolved = this.registry.resolve(alias);
@@ -79,7 +81,7 @@ export class ChatProviderCallService {
     );
     const metricsCtx = buildLlmMetricsContext(
       requestBody,
-      resolved.providerName,
+      asProviderInstanceId(resolved.providerName),
       alias,
       resolved.modelId,
       requestId,
@@ -133,7 +135,7 @@ export class ChatProviderCallService {
 
     const metricsCtx = buildLlmMetricsContext(
       requestBody,
-      resolved.providerName,
+      asProviderInstanceId(resolved.providerName),
       alias,
       resolved.modelId,
       requestId,

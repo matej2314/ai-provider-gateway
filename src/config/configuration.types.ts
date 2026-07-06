@@ -1,4 +1,5 @@
 import type { GatewayKey, EnvRef } from '../common/types';
+import type { ProviderInstanceId } from '../common/types/branded.types';
 
 export type ResolvedSystemPrompts = {
   master: string;
@@ -18,7 +19,7 @@ export const GATEWAY_CLIENT_TYPES = [
 export type GatewayClientType = (typeof GATEWAY_CLIENT_TYPES)[number];
 
 export type ResolvedGatewayClient = {
-  instanceId: string;
+  instanceId: ProviderInstanceId;
   name: string;
   type: GatewayClientType;
   gatewayKeyRef: EnvRef;

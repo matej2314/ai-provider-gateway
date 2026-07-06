@@ -3,6 +3,7 @@ import { ApiErrorCode } from '../errors/api-error.code';
 import { isRetryableHttpError } from './is-retryable-http-error';
 import { assertNoFallbackCycle } from './fallback-chain';
 import { LoggingService } from '../../logging/logging.service';
+import { asRequestId, RequestId } from 'src/common/types/branded.types';
 import type {
   RetryPolicy,
   AttemptResult,
@@ -37,14 +38,16 @@ export class ResilientExecutor {
       maxAttempts,
       retry: options.retry,
       runOnce: options.runOnce,
-      requestId: options.requestId,
+      requestId: options.requestId ? asRequestId(options.requestId) : undefined,
     });
 
     if (primary.ok) {
       this.logger.debug('Primary alias succeeded', {
         alias: options.primaryAlias,
         attempts: primary.attempts,
-        requestId: options.requestId,
+        requestId: options.requestId
+          ? asRequestId(options.requestId)
+          : undefined,
       });
       return {
         value: primary.value!,
@@ -58,7 +61,7 @@ export class ResilientExecutor {
       alias: options.primaryAlias,
       attempts: primary.attempts,
       error: this.extractErrorMessage(primary.error),
-      requestId: options.requestId,
+      requestId: options.requestId ? asRequestId(options.requestId) : undefined,
     });
 
     if (!options.fallbackAlias) {
@@ -68,7 +71,7 @@ export class ResilientExecutor {
     this.logger.info('Attempting fallback alias', {
       primaryAlias: options.primaryAlias,
       fallbackAlias: options.fallbackAlias,
-      requestId: options.requestId,
+      requestId: options.requestId ? asRequestId(options.requestId) : undefined,
     });
 
     const fallback = await this.tryAlias<T>({
@@ -76,7 +79,7 @@ export class ResilientExecutor {
       maxAttempts,
       retry: options.retry,
       runOnce: options.runOnce,
-      requestId: options.requestId,
+      requestId: options.requestId ? asRequestId(options.requestId) : undefined,
     });
 
     if (fallback.ok) {
@@ -84,7 +87,7 @@ export class ResilientExecutor {
         primaryAlias: options.primaryAlias,
         effectiveModelAlias: fallback.usedAlias,
         attempts: primary.attempts + fallback.attempts,
-        requestId: options.requestId,
+        requestId: options.requestId ? asRequestId(options.requestId) : undefined,
       });
       return {
         value: fallback.value!,
@@ -105,7 +108,7 @@ export class ResilientExecutor {
         primaryAlias: options.primaryAlias,
         fallbackAlias: options.fallbackAlias,
         attempts: primary.attempts + fallback.attempts,
-        requestId: options.requestId,
+        requestId: options.requestId ? asRequestId(options.requestId) : undefined,
       },
     );
     throw this.toExhaustedException(primary.error, fallback.error, options);
@@ -116,7 +119,7 @@ export class ResilientExecutor {
     maxAttempts: number;
     retry: RetryPolicy;
     runOnce: (alias: string, attemptNo: number) => Promise<T>;
-    requestId?: string;
+    requestId?: RequestId;
   }): Promise<AttemptResult<T>> {
     let lastError: unknown;
 

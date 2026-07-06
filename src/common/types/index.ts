@@ -6,6 +6,7 @@ export {
   asGatewayKey,
   asProviderApiKey,
   asEnvRef,
+  asProviderInstanceId,
   type Brand,
   type UnBrand,
   type RequestId,
@@ -13,6 +14,7 @@ export {
   type GatewayKey,
   type ProviderApiKey,
   type EnvRef,
+  type ProviderInstanceId,
 } from './branded.types';
 
 export {

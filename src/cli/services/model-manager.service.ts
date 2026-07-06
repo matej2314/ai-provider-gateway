@@ -16,6 +16,7 @@ import {
   getMaxOutputTokensBound,
 } from '../utils/default-model-policy.util';
 import type { GatewayProviderType } from 'src/config/provider-types';
+import { asProviderInstanceId } from '../../common/types/branded.types';
 import boxen from 'boxen';
 import chalk from 'chalk';
 import {
@@ -97,7 +98,7 @@ export class ModelManagerService {
       }
 
       config.models[modelAlias] = {
-        providerInstance,
+        providerInstance: asProviderInstanceId(providerInstance),
         modelId: modelId.trim(),
         capabilities: {
           streaming: true,
@@ -246,7 +247,7 @@ export class ModelManagerService {
               CliLogger.info('Cancelled.');
               break;
             }
-            current.providerInstance = providerInstance;
+            current.providerInstance = asProviderInstanceId(providerInstance);
             await this.persistence.persistConfig(config, cwd, {
               skipEffectiveCheck: true,
             });
@@ -259,7 +260,7 @@ export class ModelManagerService {
               `[MODEL_MANAGER] Target instance ${providerInstance} is disabled - model inactive at runtime.`,
             );
           }
-          current.providerInstance = providerInstance;
+          current.providerInstance = asProviderInstanceId(providerInstance);
           break;
         }
         case 'fallback': {

@@ -25,6 +25,7 @@ import { SseMetaPayloadDto } from './dto/sse-meta-payload.dto';
 import { ApiRequestIdHeader } from '../common/decorators/api-request-id-header.decorator';
 import { CHAT_STREAM_API_DESCRIPTION } from './dto/sse-stream-description';
 import { requireClientGatewayKey } from '../common/requireClientGatewayKey';
+import { asRequestId } from 'src/common/types/branded.types';
 
 @ApiTags('Chat')
 @ApiSecurity('GatewayKeyAuth')
@@ -85,7 +86,7 @@ export class ChatStreamController {
     try {
       await this.chatService.executeStream(
         requestBody,
-        req.requestId,
+        asRequestId(req.requestId),
         (event) => {
           res.write(this.sse.serialize(event));
         },

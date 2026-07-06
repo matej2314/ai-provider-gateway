@@ -1,7 +1,7 @@
 import { GatewayProviderType } from 'src/config/provider-types';
 import { GatewayClientType } from 'src/config/configuration.types';
 import { GatewayConfig } from 'src/config/gateway-config.schema';
-import { asEnvRef } from 'src/common/types';
+import { asEnvRef, asProviderInstanceId } from 'src/common/types';
 import { EnvTemplateInput } from './env.template';
 import { buildClientRateLimitConfig } from '../utils/client-rate-limit.util';
 import {
@@ -82,7 +82,7 @@ export function generateGatewayConfigTemplate(
       return [
         model.alias,
         {
-          providerInstance: model.providerInstance,
+          providerInstance: asProviderInstanceId(model.providerInstance),
           modelId: model.modelId,
           capabilities: buildDefaultModelCapabilities(
             model.modelId,

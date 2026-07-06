@@ -1,18 +1,25 @@
+import type {
+  RequestId,
+  ProviderInstanceId,
+  ConversationId,
+  ToolCallId,
+} from '../../common/types/branded.types';
+
 export interface LlmCallMessage {
   role: 'user' | 'assistant' | 'tool';
   content: string;
-  toolCallId?: string;
+  toolCallId?: ToolCallId;
   toolCallsCount?: number;
 }
 
 export type LlmRequestMetadata = Record<string, string | number | boolean>;
 
 export interface LlmCallContext {
-  provider: string;
+  provider: ProviderInstanceId;
   modelAlias: string;
   modelId: string;
-  requestId: string;
-  conversationId?: string;
+  requestId: RequestId;
+  conversationId?: ConversationId;
   messages?: LlmCallMessage[];
   metadata?: LlmRequestMetadata;
 }

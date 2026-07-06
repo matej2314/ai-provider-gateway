@@ -1,7 +1,7 @@
 import { Injectable, HttpException } from '@nestjs/common';
 import { LoggingService } from '../../logging/logging.service';
 import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
-import type { GatewayKey } from '../../common/types';
+import { asProviderInstanceId, type GatewayKey } from '../../common/types/branded.types';
 
 @Injectable()
 export class ChatErrorHandlerService {
@@ -42,7 +42,7 @@ export class ChatErrorHandlerService {
 
     if (error instanceof Error) {
       log.warn('Chat provider call failed', {
-        provider: providerName,
+        provider: asProviderInstanceId(providerName),
         message: error.message,
       });
     }

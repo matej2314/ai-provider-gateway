@@ -5,6 +5,7 @@ import { GatewayToolCallDto } from '../../common/dtos/gateway-tool-call.dto';
 import { ChatUsageDto } from './chat-usage.dto';
 import { ChatWarningDto } from './chat-warning.dto';
 
+
 export class ChatUsageDetailsDto {
   @ApiPropertyOptional({
     description:

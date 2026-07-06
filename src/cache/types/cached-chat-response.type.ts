@@ -1,8 +1,9 @@
 import type { ChatWarningDto } from '../../chat/dto/chat-warning.dto';
+import type { RequestId, ProviderInstanceId, MessageId } from '../../common/types/branded.types';
 
 export interface CachedChatResponse {
   id: string;
-  provider: string;
+  provider: ProviderInstanceId;
   model: string;
   output: {
     type: 'text';
@@ -12,7 +13,7 @@ export interface CachedChatResponse {
     inputTokens: number;
     outputTokens: number;
   };
-  requestId: string;
+  requestId: RequestId;
   cached: true;
   cachedAt: string;
   warnings?: ChatWarningDto[];

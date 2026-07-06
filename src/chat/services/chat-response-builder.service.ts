@@ -12,6 +12,10 @@ import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider
 import { ChatWarningDto } from '../dto/chat-warning.dto';
 import { GatewayProviderType } from '../../config/provider-types';
 import type { GatewayFinishReason } from '../types/gateway-finish-reason.type';
+import type {
+  RequestId,
+  ConversationId,
+} from '../../common/types/branded.types';
 
 export interface ProviderResponse {
   text: string;
@@ -41,8 +45,8 @@ export interface ChatResponseData {
     outputTokens?: number;
     totalTokens?: number;
   };
-  requestId: string;
-  conversationId: string;
+  requestId: RequestId;
+  conversationId: ConversationId;
   toolCalls?: GatewayToolCall[];
   finishReason?: GatewayFinishReason;
   usageDetails?: ProviderUsageDetails;
@@ -57,8 +61,8 @@ export class ChatResponseBuilderService {
     response: ProviderResponse,
     providerName: string,
     modelAlias: string,
-    requestId: string,
-    conversationId: string,
+    requestId: RequestId,
+    conversationId: ConversationId,
     effectiveModelAlias?: string,
     options?: ProviderCallOptions,
     providerType?: GatewayProviderType,

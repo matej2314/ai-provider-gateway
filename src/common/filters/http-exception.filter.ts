@@ -12,6 +12,7 @@ import {
   DEFAULT_HTTP_STATUS_TO_CODE,
 } from '../errors/api-error.code';
 import { LoggingService } from '../../logging/logging.service';
+import { asRequestId } from 'src/common/types/branded.types';
 
 type RequestWithId = Request & { requestId?: string };
 
@@ -74,7 +75,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
               typeof exception === 'string' ? exception : 'Unhandled exception',
             );
       this.loggingService.error(normalizedMessage, err, {
-        requestId,
+        requestId: asRequestId(requestId),
         code,
         status,
         module: 'GlobalExceptionFilter',

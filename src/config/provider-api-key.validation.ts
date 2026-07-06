@@ -5,11 +5,15 @@ import {
   type GatewayProviderType,
 } from './provider-types';
 import type { EnvRef } from '../common/types';
+import {
+  asProviderInstanceId,
+  type ProviderInstanceId,
+} from '../common/types/branded.types';
 
 export type RawGatewayConfig = z.infer<typeof GatewayConfigSchema>;
 
 export interface MissingProviderApiKey {
-  instanceId: string;
+  instanceId: ProviderInstanceId;
   apiKeyRef: EnvRef;
 }
 
@@ -29,7 +33,10 @@ export function collectMissingEnabledProviderApiKeyErrors(
     if (!isApiKeyRequiredForProviderType(row.type)) continue;
     const key = (env[row.apiKeyRef] ?? '').trim();
     if (!key) {
-      missing.push({ instanceId, apiKeyRef: row.apiKeyRef });
+      missing.push({
+        instanceId: asProviderInstanceId(instanceId),
+        apiKeyRef: row.apiKeyRef,
+      });
     }
   }
   return missing;
