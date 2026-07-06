@@ -6,6 +6,7 @@ import { LoggingService } from '../../logging/logging.service';
 import { ApiErrorCode } from '../../common/errors/api-error.code';
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
 import { createMockSmartRateLimiter } from '../../common/mocks/createMockSmartRateLimiter';
+import { TEST_GATEWAY_KEY_BRANDED } from '../../common/mocks/test-constants';
 
 describe('ChatErrorHandlerService', () => {
   let service: ChatErrorHandlerService;
@@ -38,11 +39,11 @@ describe('ChatErrorHandlerService', () => {
           mockLogger as LoggingService,
           error,
           'anthropic',
-          'gw_key_123',
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(mockRateLimiter.setCooldown).toHaveBeenCalledWith(
-          'gw_key_123',
+          TEST_GATEWAY_KEY_BRANDED,
           'anthropic',
         );
         expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -89,7 +90,7 @@ describe('ChatErrorHandlerService', () => {
           mockLogger as LoggingService,
           error,
           'anthropic',
-          'gw_key_123',
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(mockRateLimiter.setCooldown).not.toHaveBeenCalled();
@@ -135,7 +136,7 @@ describe('ChatErrorHandlerService', () => {
           mockLogger as LoggingService,
           error,
           'anthropic',
-          'gw_key_123',
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(mockLogger.warn).not.toHaveBeenCalled();
@@ -222,7 +223,7 @@ describe('ChatErrorHandlerService', () => {
             mockLogger as LoggingService,
             error,
             'anthropic',
-            'gw_key_123',
+            TEST_GATEWAY_KEY_BRANDED,
           ),
         ).rejects.toThrow('Redis down');
       });

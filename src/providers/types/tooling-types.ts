@@ -4,8 +4,10 @@ export type GatewayToolDefinition = {
   parameters: Record<string, unknown>;
 };
 
+import type { ToolCallId } from '../../common/types/branded.types';
+
 export type GatewayToolCall = {
-  id: string;
+  id: ToolCallId;
   name: string;
   arguments: string;
 };

@@ -21,19 +21,26 @@ import { LoggingService } from '../logging/logging.service';
 import { RETRY_POLICY_DEFAULTS } from '../common/retry-policy-defaults';
 import type { ProviderToolCall } from './interfaces/ai-provider.interface';
 import type { GatewayProviderType } from '../config/provider-types';
+import {
+  asModelAlias,
+  asModelId,
+  type ModelId,
+  type ModelAlias,
+  ProviderInstanceId,
+} from '../common/types/branded.types';
 
 export interface RegisteredProviderInstance {
-  instanceId: string;
+  instanceId: ProviderInstanceId;
   type: GatewayProviderType;
   provider: AIProvider;
 }
 
 export interface ResolvedProviderConfig {
   provider: AIProvider;
-  providerName: string;
-  modelId: string;
-  modelAlias: string;
-  fallbackAlias?: string;
+  providerName: ProviderInstanceId;
+  modelId: ModelId;
+  modelAlias: ModelAlias;
+  fallbackAlias?: ModelAlias;
   capabilities: GatewayCapabilitiesConfig;
   policy?: {
     timeoutMs?: number;
@@ -49,7 +56,7 @@ export interface ResolvedProviderConfig {
 
 @Injectable()
 export class ProviderRegistryService {
-  private instances = new Map<string, RegisteredProviderInstance>();
+  private instances = new Map<ProviderInstanceId, RegisteredProviderInstance>();
   private readonly logger: LoggingService;
 
   constructor(
@@ -60,7 +67,7 @@ export class ProviderRegistryService {
   }
 
   registerInstance(
-    instanceId: string,
+    instanceId: ProviderInstanceId,
     type: GatewayProviderType,
     provider: AIProvider,
   ): void {
@@ -156,7 +163,7 @@ export class ProviderRegistryService {
 
     const providerEntry = this.resolveProviderEntry(gatewayConfig, modelConfig);
 
-    let fallbackAlias: string | undefined = undefined;
+    let fallbackAlias: ModelAlias | undefined = undefined;
     if (modelConfig.fallback) {
       if (!gatewayConfig.models[modelConfig.fallback]) {
         this.logger.warn('Fallback alias not found in config:', {
@@ -164,7 +171,7 @@ export class ProviderRegistryService {
           fallback: modelConfig.fallback,
         });
       } else {
-        fallbackAlias = modelConfig.fallback;
+        fallbackAlias = asModelAlias(modelConfig.fallback);
       }
     }
 
@@ -192,8 +199,8 @@ export class ProviderRegistryService {
       provider: providerEntry.provider,
       providerName: providerEntry.instanceId,
       providerType: providerEntry.type,
-      modelId: modelConfig.modelId,
-      modelAlias,
+      modelId: asModelId(modelConfig.modelId),
+      modelAlias: asModelAlias(modelAlias),
       fallbackAlias,
       capabilities: modelConfig.capabilities ?? {},
       policy,

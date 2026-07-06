@@ -1,5 +1,6 @@
 import type OpenAI from 'openai';
 import type { ProviderChatResponse } from 'src/providers/interfaces/ai-provider.interface';
+import { asToolCallId } from '../../../common/types/branded.types';
 
 function extractResponsesToolCalls(
   output: OpenAI.Responses.Response['output'] | undefined,
@@ -12,7 +13,7 @@ function extractResponsesToolCalls(
         item.type === 'function_call',
     )
     .map((item) => ({
-      id: item.call_id,
+      id: asToolCallId(item.call_id),
       name: item.name,
       arguments: item.arguments || '{}',
     }));

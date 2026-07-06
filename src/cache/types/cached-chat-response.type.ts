@@ -1,10 +1,15 @@
 import type { ChatWarningDto } from '../../chat/dto/chat-warning.dto';
-import type { RequestId, ProviderInstanceId, MessageId } from '../../common/types/branded.types';
+import type {
+  RequestId,
+  ResponseId,
+  ProviderInstanceId,
+  ModelAlias,
+} from '../../common/types/branded.types';
 
 export interface CachedChatResponse {
-  id: string;
+  id: ResponseId;
   provider: ProviderInstanceId;
-  model: string;
+  model: ModelAlias;
   output: {
     type: 'text';
     text: string;

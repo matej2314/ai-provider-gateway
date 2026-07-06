@@ -3,6 +3,7 @@ import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import type { ChatMessageDto } from '../../../chat/dto/chat-message.dto';
 import type { GatewayToolCall } from '../../../providers/types/tooling-types';
 import type { OpenAiChatMessageDto } from '../dtos/openai-chat-message.dto';
+import { asToolCallId } from '../../../common/types/branded.types';
 
 export function mapOpenAiToolCalls(raw: unknown[]): GatewayToolCall[] {
   const toolCalls: GatewayToolCall[] = [];
@@ -18,7 +19,7 @@ export function mapOpenAiToolCalls(raw: unknown[]): GatewayToolCall[] {
     if (call.type !== 'function' || !call.id || !call.function?.name) continue;
 
     toolCalls.push({
-      id: call.id,
+      id: asToolCallId(call.id),
       name: call.function.name,
       arguments: call.function.arguments ?? '{}',
     });

@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { asModelAlias } from '../common/types/branded.types';
 import { ProviderRegistryService } from './provider-registry.service';
 import { LoggingService } from '../logging/logging.service';
 import { ApiErrorCode } from '../common/errors/api-error.code';
@@ -28,7 +29,7 @@ import type { AIProvider } from './interfaces/ai-provider.interface';
 
 import type { GatewayConfig } from '../config/configuration';
 
-const RESOLVE_MODEL_ALIAS = 'test-model';
+const RESOLVE_MODEL_ALIAS = asModelAlias('test-model');
 
 const DEFAULT_RESOLVE_MODEL: GatewayConfig['models'][string] = {
   modelId: 'claude-sonnet-4-5',

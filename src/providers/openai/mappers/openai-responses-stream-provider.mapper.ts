@@ -1,5 +1,6 @@
 import type OpenAI from 'openai';
 import type { ProviderToolCall } from 'src/providers/interfaces/ai-provider.interface';
+import { asToolCallId } from '../../../common/types/branded.types';
 
 export function registerResponsesFunctionCallItemId(
   item: OpenAI.Responses.ResponseOutputItem,
@@ -16,7 +17,7 @@ export function extractResponsesStreamToolCallDone(
   callByItemId: ReadonlyMap<string, string>,
 ): ProviderToolCall {
   return {
-    id: callByItemId.get(event.item_id) ?? event.item_id,
+    id: asToolCallId(callByItemId.get(event.item_id) ?? event.item_id),
     name: event.name,
     arguments: event.arguments || '{}',
   };
@@ -28,7 +29,7 @@ export function extractResponsesOutputItemToolCall(
   if (item.type !== 'function_call') return undefined;
 
   return {
-    id: item.call_id,
+    id: asToolCallId(item.call_id),
     name: item.name,
     arguments: item.arguments || '{}',
   };

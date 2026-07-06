@@ -1,5 +1,6 @@
 import type OpenAI from 'openai';
 import type { ProviderToolCall } from '../../../providers/interfaces/ai-provider.interface';
+import { asToolCallId } from '../../../common/types/branded.types';
 
 export type OpenAiStreamToolCallAccumulator = Map<
   number,
@@ -38,7 +39,7 @@ export function finalizeOpenAiStreamToolCalls(
   return [...accumulator.values()]
     .filter((call) => call.id && call.name)
     .map((call) => ({
-      id: call.id!,
+      id: asToolCallId(call.id!),
       name: call.name,
       arguments: call.arguments || '{}',
     }));

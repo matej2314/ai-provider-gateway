@@ -11,29 +11,32 @@ import type { ChatRequestDto } from '../dto/chat-request.dto';
 
 const mockedUuidV4 = uuidv4 as unknown as jest.Mock<string>;
 
+const VALID_CONV_ID = 'conv_123e4567-e89b-12d3-a456-426614174000';
+const VALID_CONV_ID_ALT = 'conv_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+
 describe('getClientConversationId', () => {
   it('should return conversation ID when provided', () => {
     const request: ChatRequestDto = {
       modelAlias: 'test-model',
       messages: [],
-      conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+      conversationId: VALID_CONV_ID,
     };
 
     const result = getClientConversationId(request);
 
-    expect(result).toBe('conv_123e4567-e89b-12d3-a456-426614174000');
+    expect(result).toBe(VALID_CONV_ID);
   });
 
   it('should trim conversation ID', () => {
     const request: ChatRequestDto = {
       modelAlias: 'test-model',
       messages: [],
-      conversationId: '  conv_123e4567-e89b-12d3-a456-426614174000  ',
+      conversationId: `  ${VALID_CONV_ID}  `,
     };
 
     const result = getClientConversationId(request);
 
-    expect(result).toBe('conv_123e4567-e89b-12d3-a456-426614174000');
+    expect(result).toBe(VALID_CONV_ID);
   });
 
   it('should return undefined when conversationId not provided', () => {
@@ -70,6 +73,18 @@ describe('getClientConversationId', () => {
 
     expect(result).toBeUndefined();
   });
+
+  it('should throw when conversationId has invalid format', () => {
+    const request: ChatRequestDto = {
+      modelAlias: 'test-model',
+      messages: [],
+      conversationId: 'conv_invalid-id',
+    };
+
+    expect(() => getClientConversationId(request)).toThrow(
+      'Invalid ConversationId format: conv_invalid-id',
+    );
+  });
 });
 
 describe('getOrCreateConversationIdForResponse', () => {
@@ -81,12 +96,12 @@ describe('getOrCreateConversationIdForResponse', () => {
     const request: ChatRequestDto = {
       modelAlias: 'test-model',
       messages: [],
-      conversationId: 'conv_123e4567-e89b-12d3-a456-426614174000',
+      conversationId: VALID_CONV_ID,
     };
 
     const result = getOrCreateConversationIdForResponse(request);
 
-    expect(result).toBe('conv_123e4567-e89b-12d3-a456-426614174000');
+    expect(result).toBe(VALID_CONV_ID);
     expect(mockedUuidV4).not.toHaveBeenCalled();
   });
 
@@ -100,12 +115,12 @@ describe('getOrCreateConversationIdForResponse', () => {
 
     const result = getOrCreateConversationIdForResponse(request);
 
-    expect(result).toBe('conv_123e4567-e89b-12d3-a456-426614174000');
+    expect(result).toBe(VALID_CONV_ID);
     expect(mockedUuidV4).toHaveBeenCalledTimes(1);
   });
 
   it('should generate new ID when conversationId is empty', () => {
-    mockedUuidV4.mockReturnValue('aaaaaaaa-bbbb-cccc-dddd-111111111111');
+    mockedUuidV4.mockReturnValue('aaaaaaaa-bbbb-4ccc-8ddd-111111111111');
 
     const request: ChatRequestDto = {
       modelAlias: 'test-model',
@@ -115,12 +130,12 @@ describe('getOrCreateConversationIdForResponse', () => {
 
     const result = getOrCreateConversationIdForResponse(request);
 
-    expect(result).toBe('conv_aaaaaaaa-bbbb-cccc-dddd-111111111111');
+    expect(result).toBe('conv_aaaaaaaa-bbbb-4ccc-8ddd-111111111111');
     expect(mockedUuidV4).toHaveBeenCalledTimes(1);
   });
 
   it('should generate new ID when conversationId is whitespace', () => {
-    mockedUuidV4.mockReturnValue('bbbbbbbb-bbbb-bbbb-bbbb-222222222222');
+    mockedUuidV4.mockReturnValue('bbbbbbbb-bbbb-4bbb-8bbb-222222222222');
 
     const request: ChatRequestDto = {
       modelAlias: 'test-model',
@@ -130,15 +145,15 @@ describe('getOrCreateConversationIdForResponse', () => {
 
     const result = getOrCreateConversationIdForResponse(request);
 
-    expect(result).toBe('conv_bbbbbbbb-bbbb-bbbb-bbbb-222222222222');
+    expect(result).toBe('conv_bbbbbbbb-bbbb-4bbb-8bbb-222222222222');
     expect(mockedUuidV4).toHaveBeenCalledTimes(1);
   });
 
   it('should generate unique IDs for multiple calls', () => {
     mockedUuidV4
-      .mockReturnValueOnce('11111111-1111-1111-1111-111111111111')
-      .mockReturnValueOnce('22222222-2222-2222-2222-222222222222')
-      .mockReturnValueOnce('33333333-3333-3333-3333-333333333333');
+      .mockReturnValueOnce('11111111-1111-4111-8111-111111111111')
+      .mockReturnValueOnce('22222222-2222-4222-8222-222222222222')
+      .mockReturnValueOnce('33333333-3333-4333-8333-333333333333');
 
     const request: ChatRequestDto = {
       modelAlias: 'test-model',
@@ -149,9 +164,9 @@ describe('getOrCreateConversationIdForResponse', () => {
     const id2 = getOrCreateConversationIdForResponse(request);
     const id3 = getOrCreateConversationIdForResponse(request);
 
-    expect(id1).toBe('conv_11111111-1111-1111-1111-111111111111');
-    expect(id2).toBe('conv_22222222-2222-2222-2222-222222222222');
-    expect(id3).toBe('conv_33333333-3333-3333-3333-333333333333');
+    expect(id1).toBe('conv_11111111-1111-4111-8111-111111111111');
+    expect(id2).toBe('conv_22222222-2222-4222-8222-222222222222');
+    expect(id3).toBe('conv_33333333-3333-4333-8333-333333333333');
     expect(mockedUuidV4).toHaveBeenCalledTimes(3);
   });
 
@@ -159,12 +174,12 @@ describe('getOrCreateConversationIdForResponse', () => {
     const request: ChatRequestDto = {
       modelAlias: 'test-model',
       messages: [],
-      conversationId: 'conv_aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      conversationId: VALID_CONV_ID_ALT,
     };
 
     const result = getOrCreateConversationIdForResponse(request);
 
-    expect(result).toBe('conv_aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+    expect(result).toBe(VALID_CONV_ID_ALT);
     expect(mockedUuidV4).not.toHaveBeenCalled();
   });
 
@@ -172,12 +187,25 @@ describe('getOrCreateConversationIdForResponse', () => {
     const request: ChatRequestDto = {
       modelAlias: 'test-model',
       messages: [],
-      conversationId: '  conv_123e4567-e89b-12d3-a456-426614174000  ',
+      conversationId: `  ${VALID_CONV_ID}  `,
     };
 
     const result = getOrCreateConversationIdForResponse(request);
 
-    expect(result).toBe('conv_123e4567-e89b-12d3-a456-426614174000');
+    expect(result).toBe(VALID_CONV_ID);
+    expect(mockedUuidV4).not.toHaveBeenCalled();
+  });
+
+  it('should throw when client conversationId has invalid format', () => {
+    const request: ChatRequestDto = {
+      modelAlias: 'test-model',
+      messages: [],
+      conversationId: 'conv_not-a-valid-uuid',
+    };
+
+    expect(() => getOrCreateConversationIdForResponse(request)).toThrow(
+      'Invalid ConversationId format: conv_not-a-valid-uuid',
+    );
     expect(mockedUuidV4).not.toHaveBeenCalled();
   });
 });

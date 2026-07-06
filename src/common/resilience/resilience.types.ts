@@ -1,3 +1,5 @@
+import type { ModelAlias } from '../types/branded.types';
+
 export interface RetryPolicy {
   maxAttempts: number;
   onStatus: number[];
@@ -8,23 +10,23 @@ export interface AttemptResult<T> {
   ok: boolean;
   value?: T;
   error?: unknown;
-  usedAlias: string;
+  usedAlias: ModelAlias;
   attempts: number;
   exhausted?: boolean;
 }
 
 export interface ResilientExecutionResult<T> {
   value: T;
-  usedAlias: string;
+  usedAlias: ModelAlias;
   attempts: number;
   didFallback: boolean;
 }
 
 export interface ResilientExecutionOptions<T> {
-  primaryAlias: string;
-  fallbackAlias?: string;
+  primaryAlias: ModelAlias;
+  fallbackAlias?: ModelAlias;
   retry: RetryPolicy;
-  runOnce: (alias: string, attemptNo: number) => Promise<T>;
-  validateFallbackChain?: (primary: string, fallback?: string) => void;
+  runOnce: (alias: ModelAlias, attemptNo: number) => Promise<T>;
+  validateFallbackChain?: (primary: ModelAlias, fallback?: ModelAlias) => void;
   requestId?: string;
 }

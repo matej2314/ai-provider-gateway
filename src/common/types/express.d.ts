@@ -1,9 +1,9 @@
-import type { GatewayKey } from './branded.types';
+import type { GatewayKey, RequestId } from './branded.types';
 
 declare global {
   namespace Express {
     interface Request {
-      requestId: string;
+      requestId: RequestId;
       gatewayKey?: GatewayKey;
     }
   }

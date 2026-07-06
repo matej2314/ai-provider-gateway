@@ -1,15 +1,10 @@
 import type { GatewayToolCall } from '../../providers/types/tooling-types';
 import type { ChatWarningDto } from '../dto/chat-warning.dto';
 import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
-import type { RequestId, ConversationId } from '../../common/types/branded.types';
+import type { SseMetaPayload } from '../dto/sse-meta-payload.dto';
+import type { ModelAlias } from '../../common/types/branded.types';
 
-export type SseMetaEvent = {
-  id: string;
-  provider: string;
-  model: string;
-  requestId: RequestId;
-  conversationId?: ConversationId;
-};
+export type SseMetaEvent = SseMetaPayload;
 
 export type SseDeltaEvent = {
   text: string;
@@ -36,7 +31,7 @@ export type SseDoneEvent = {
   toolCalls?: GatewayToolCall[];
   finishReason?: SseFinishReason;
   usageDetails?: ProviderUsageDetails;
-  effectiveModelAlias?: string;
+  effectiveModelAlias?: ModelAlias;
   systemFingerprint?: string;
   thinkingContent?: string;
   warnings?: ChatWarningDto[];

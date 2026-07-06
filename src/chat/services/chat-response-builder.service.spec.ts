@@ -1,5 +1,5 @@
 jest.mock('uuid', () => ({
-  v4: jest.fn(() => 'test-uuid-fixed'),
+  v4: jest.fn(() => '123e4567-e89b-12d3-a456-426614174000'),
 }));
 
 import { Test } from '@nestjs/testing';
@@ -7,7 +7,13 @@ import {
   ChatResponseBuilderService,
   type ProviderResponse,
 } from './chat-response-builder.service';
-import { VALID_CONVERSATION_ID } from '../../common/mocks/test-constants';
+import {
+  TEST_CONVERSATION_ID,
+  TEST_MODEL_ALIAS,
+  TEST_MODEL_ALIAS_BRANDED,
+  TEST_REQUEST_ID,
+  TEST_RESPONSE_ID_PREFIX,
+} from '../../common/mocks/test-constants';
 import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
 import type { GatewayToolCall } from '../../providers/types/tooling-types';
 
@@ -34,19 +40,19 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           baseProviderResponse,
           'anthropic',
-          'test-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
         );
 
         expect(result).toEqual({
-          id: 'gw_test-uuid-fixed',
+          id: TEST_RESPONSE_ID_PREFIX,
           provider: 'anthropic',
-          model: 'test-model',
+          model: TEST_MODEL_ALIAS,
           output: { type: 'text', text: 'Hello world' },
           usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-          requestId: 'req-123',
-          conversationId: VALID_CONVERSATION_ID,
+          requestId: TEST_REQUEST_ID,
+          conversationId: TEST_CONVERSATION_ID,
           finishReason: 'stop',
         });
       });
@@ -56,8 +62,8 @@ describe('ChatResponseBuilderService', () => {
           baseProviderResponse,
           'anthropic',
           'primary-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
           'fallback-model',
         );
 
@@ -82,9 +88,9 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           response,
           'anthropic',
-          'test-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
         );
 
         expect(result.toolCalls).toEqual(toolCalls);
@@ -102,9 +108,9 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           response,
           'anthropic',
-          'test-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
         );
 
         expect(result.usageDetails).toEqual({ cacheReadTokens: 5 });
@@ -123,9 +129,9 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           response,
           'anthropic',
-          'test-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
         );
 
         expect(result.finishReason).toBe('length');
@@ -140,9 +146,9 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           response,
           'anthropic',
-          'test-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
         );
 
         expect(result.finishReason).toBe('stop');
@@ -157,9 +163,9 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           response,
           'anthropic',
-          'test-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
         );
 
         expect(result.finishReason).toBe('stop');
@@ -171,9 +177,9 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           baseProviderResponse,
           'anthropic',
-          'test-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
         );
 
         expect(result.effectiveModelAlias).toBeUndefined();
@@ -188,9 +194,9 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           response,
           'anthropic',
-          'test-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
         );
 
         expect(result.toolCalls).toBeUndefined();
@@ -205,9 +211,9 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           response,
           'anthropic',
-          'test-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
         );
 
         expect(result.thinkingContent).toBeUndefined();
@@ -217,9 +223,9 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           baseProviderResponse,
           'anthropic',
-          'test-model',
-          'req-123',
-          VALID_CONVERSATION_ID,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
         );
 
         expect(result.id).toMatch(/^gw_/);
@@ -230,9 +236,9 @@ describe('ChatResponseBuilderService', () => {
       const result = service.buildChatResponse(
         baseProviderResponse,
         'anthropic',
-        'test-model',
-        'req-123',
-        VALID_CONVERSATION_ID,
+        TEST_MODEL_ALIAS_BRANDED,
+        TEST_REQUEST_ID,
+        TEST_CONVERSATION_ID,
         undefined,
         { frequencyPenalty: 0.5 },
         'anthropic',
@@ -252,9 +258,9 @@ describe('ChatResponseBuilderService', () => {
       const result = service.buildChatResponse(
         baseProviderResponse,
         'anthropic',
-        'test-model',
-        'req-123',
-        VALID_CONVERSATION_ID,
+        TEST_MODEL_ALIAS_BRANDED,
+        TEST_REQUEST_ID,
+        TEST_CONVERSATION_ID,
         undefined,
         { frequencyPenalty: 0.5 },
         undefined,

@@ -10,7 +10,7 @@ import {
 import { ChatService } from './chat.service';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { GatewayKeyAndSmartRateLimit } from '../common/decorators/gateway-key-and-smart-rate-limit.decorator';
-import { ChatResponseDto } from './dto/chat-response.dto';
+import { ChatResponseDto, toChatResponseDto, toChatResponseDtoFromCache } from './dto/chat-response.dto';
 import { ApiGatewayChatErrorResponses } from '../common/decorators/api-gateway-error-responses.decorator';
 import { ApiRequestIdHeader } from '../common/decorators/api-request-id-header.decorator';
 import { requireClientGatewayKey } from '../common/requireClientGatewayKey';
@@ -35,11 +35,17 @@ export class ChatController {
   @ApiRequestIdHeader()
   async chat(@Req() req: Request, @Body() requestBody: ChatRequestDto) {
     const gatewayKey = requireClientGatewayKey(req);
-    return this.chatService.executeChat(
+    const result = await this.chatService.executeChat(
       requestBody,
       asRequestId(req.requestId),
       gatewayKey,
       'native',
     );
+
+    if ('cached' in result && result.cached) {
+      return toChatResponseDtoFromCache(result, result.conversationId);
+    }
+
+    return toChatResponseDto(result);
   }
 }

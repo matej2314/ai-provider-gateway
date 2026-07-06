@@ -26,6 +26,7 @@ import {
   extractResponsesReasoningSummaryText,
 } from '../mappers/openai-responses-thinking-provider.mapper';
 import { mapThinkingToResponsesReasoning } from '../mappers/openai-thinking-provider.mapper';
+import { asToolCallId } from '../../../common/types/branded.types';
 import {
   mapToolChoiceToResponses,
   mapToolsToResponses,
@@ -163,7 +164,7 @@ export function createResponsesAdapter(client: OpenAI, logger: LoggingService) {
         getFinalToolCalls: async () => {
           if (accumulatedToolCalls.size === 0) return undefined;
           return [...accumulatedToolCalls.entries()].map(([id, call]) => ({
-            id,
+            id: asToolCallId(id),
             name: call.name,
             arguments: call.args || '{}',
           }));

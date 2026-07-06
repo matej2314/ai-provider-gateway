@@ -4,12 +4,13 @@ import {
 } from './openai-messages.mapper';
 import { BadRequestException } from '@nestjs/common';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import { TEST_TOOL_CALL_ID } from '../../../common/mocks/test-constants';
 
 describe('mapOpenAiToolCalls', () => {
   it('should map valid tool call', () => {
     const raw = [
       {
-        id: 'call_123',
+        id: TEST_TOOL_CALL_ID,
         type: 'function',
         function: { name: 'get_weather', arguments: '{"location":"NYC"}' },
       },
@@ -19,7 +20,7 @@ describe('mapOpenAiToolCalls', () => {
 
     expect(result).toEqual([
       {
-        id: 'call_123',
+        id: TEST_TOOL_CALL_ID,
         name: 'get_weather',
         arguments: '{"location":"NYC"}',
       },
@@ -29,7 +30,7 @@ describe('mapOpenAiToolCalls', () => {
   it('should map tool call with missing arguments (default to empty object)', () => {
     const raw = [
       {
-        id: 'call_123',
+        id: TEST_TOOL_CALL_ID,
         type: 'function',
         function: { name: 'get_weather' },
       },
@@ -38,14 +39,14 @@ describe('mapOpenAiToolCalls', () => {
     const result = mapOpenAiToolCalls(raw);
 
     expect(result).toEqual([
-      { id: 'call_123', name: 'get_weather', arguments: '{}' },
+      { id: TEST_TOOL_CALL_ID, name: 'get_weather', arguments: '{}' },
     ]);
   });
 
   it('should skip non-function type tool calls', () => {
     const raw = [
       {
-        id: 'call_123',
+        id: TEST_TOOL_CALL_ID,
         type: 'invalid',
         function: { name: 'test', arguments: '{}' },
       },
@@ -72,7 +73,7 @@ describe('mapOpenAiToolCalls', () => {
   it('should skip tool calls without function name', () => {
     const raw = [
       {
-        id: 'call_123',
+        id: TEST_TOOL_CALL_ID,
         type: 'function',
         function: { arguments: '{}' },
       },
@@ -195,7 +196,7 @@ describe('mapOpenAiMessagesToGateway', () => {
           content: 'Let me check the weather',
           tool_calls: [
             {
-              id: 'call_123',
+              id: TEST_TOOL_CALL_ID,
               type: 'function',
               function: { name: 'get_weather', arguments: '{"loc":"NYC"}' },
             },
@@ -379,7 +380,7 @@ describe('mapOpenAiMessagesToGateway', () => {
           content: 'Let me check',
           tool_calls: [
             {
-              id: 'call_123',
+              id: TEST_TOOL_CALL_ID,
               type: 'function',
               function: { name: 'get_weather', arguments: '{}' },
             },

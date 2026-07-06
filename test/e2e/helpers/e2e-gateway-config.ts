@@ -2,9 +2,11 @@ import { createTestGatewayConfig } from '../../../src/common/mocks/createTestGat
 import {
   TEST_API_KEY_REF,
   TEST_PROVIDER_INSTANCE,
+  TEST_PROVIDER_INSTANCE_BRANDED,
   TEST_MODEL_ALIAS,
   TEST_MASTER_KEY_REF,
 } from '../../../src/common/mocks/test-constants';
+import { asEnvRef, asProviderInstanceId } from '../../../src/common/types';
 import type { MockConfigServiceOptions } from 'src/common/mocks/createMockConfigService';
 
 export const E2E_SECOND_MODEL_ALIAS = 'fast-chat';
@@ -32,24 +34,24 @@ export function createE2eDualModelGatewayConfig(): MockConfigServiceOptions {
       providers: {
         [TEST_PROVIDER_INSTANCE]: {
           type: 'anthropic',
-          apiKeyRef: TEST_API_KEY_REF,
+          apiKeyRef: asEnvRef(TEST_API_KEY_REF),
           enabled: true,
         },
         [E2E_SECOND_PROVIDER_INSTANCE]: {
           type: 'google',
-          apiKeyRef: 'GOOGLE_API_KEY_TEST',
+          apiKeyRef: asEnvRef('GOOGLE_API_KEY_TEST'),
           enabled: true,
         },
       },
       models: {
         [TEST_MODEL_ALIAS]: {
-          providerInstance: TEST_PROVIDER_INSTANCE,
+          providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
           modelId: E2E_PRIMARY_MODEL_ID,
           capabilities: { tools: true, streaming: true },
           policy: EMPTY_POLICY,
         },
         [E2E_SECOND_MODEL_ALIAS]: {
-          providerInstance: E2E_SECOND_PROVIDER_INSTANCE,
+          providerInstance: asProviderInstanceId(E2E_SECOND_PROVIDER_INSTANCE),
           modelId: E2E_SECOND_MODEL_ID,
           capabilities: { tools: false, streaming: true },
           policy: EMPTY_POLICY,

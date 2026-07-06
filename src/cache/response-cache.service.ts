@@ -10,13 +10,7 @@ import type { CacheBackend } from './interfaces/cache-backend-interface';
 import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
 import type { ChatResponseData } from '../chat/services/chat-response-builder.service';
 import type { CachedChatResponse } from './types/cached-chat-response.type';
-import {
-  asProviderInstanceId,
-  asConversationId,
-  type RequestId,
-  type ProviderInstanceId,
-  type MessageId,
-} from '../common/types/branded.types';
+import { asProviderInstanceId } from '../common/types/branded.types';
 
 export type { CachedChatResponse } from './types/cached-chat-response.type';
 

@@ -3,7 +3,7 @@ import { ApiErrorCode } from '../errors/api-error.code';
 import { isRetryableHttpError } from './is-retryable-http-error';
 import { assertNoFallbackCycle } from './fallback-chain';
 import { LoggingService } from '../../logging/logging.service';
-import { asRequestId, RequestId } from 'src/common/types/branded.types';
+import { asRequestId, type ModelAlias, type RequestId } from 'src/common/types/branded.types';
 import type {
   RetryPolicy,
   AttemptResult,
@@ -115,10 +115,10 @@ export class ResilientExecutor {
   }
 
   private async tryAlias<T>(options: {
-    alias: string;
+    alias: ModelAlias;
     maxAttempts: number;
     retry: RetryPolicy;
-    runOnce: (alias: string, attemptNo: number) => Promise<T>;
+    runOnce: (alias: ModelAlias, attemptNo: number) => Promise<T>;
     requestId?: RequestId;
   }): Promise<AttemptResult<T>> {
     let lastError: unknown;

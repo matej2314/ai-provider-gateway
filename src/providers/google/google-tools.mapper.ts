@@ -15,6 +15,7 @@ import type {
   ProviderAssistantTurn,
 } from 'src/providers/interfaces/ai-provider.interface';
 import type { GatewayToolChoice } from 'src/providers/types/tooling-types';
+import { asToolCallId } from '../../common/types/branded.types';
 
 interface GeminiResponseWithTools {
   text?: string;
@@ -166,7 +167,7 @@ export function parseGeminiResponseWithTools(
   for (const functionCall of response.functionCalls ?? []) {
     if (!functionCall.name) continue;
     toolCalls.push({
-      id: functionCall.id ?? `call_${functionCall.name}`,
+      id: asToolCallId(functionCall.id ?? `call_${functionCall.name}`),
       name: functionCall.name,
       arguments: JSON.stringify(functionCall.args ?? {}),
     });

@@ -4,7 +4,12 @@ import { getAppConfigOrThrow } from '../../config/typed-config';
 import type { GatewayConfig } from '../../config/configuration';
 import type { GatewayProviderType } from '../../config/provider-types';
 import type { GatewayModelDto } from '../dto/gateway-model.dto';
-import  { asProviderInstanceId, type ProviderInstanceId } from '../../common/types/branded.types';
+import {
+  asProviderInstanceId,
+  asModelAlias,
+  type ProviderInstanceId,
+  type ModelAlias,
+} from '../../common/types/branded.types';
 
 @Injectable()
 export class GatewayModelsCatalogService {
@@ -22,7 +27,10 @@ export class GatewayModelsCatalogService {
     return row?.type ?? 'gateway';
   }
 
-  private toDto(gateway: GatewayConfig, modelAlias: string): GatewayModelDto {
+  private toDto(
+    gateway: GatewayConfig,
+    modelAlias: ModelAlias,
+  ): GatewayModelDto {
     const model = gateway.models[modelAlias];
 
     return {
@@ -40,7 +48,7 @@ export class GatewayModelsCatalogService {
     const models: GatewayModelDto[] = [];
 
     for (const alias of Object.keys(gateway.models)) {
-      models.push(this.toDto(gateway, alias));
+      models.push(this.toDto(gateway, asModelAlias(alias)));
     }
     return models;
   }
@@ -49,6 +57,6 @@ export class GatewayModelsCatalogService {
     const gateway = this.getGatewayConfig();
     if (!gateway.models[modelAlias]) return null;
 
-    return this.toDto(gateway, modelAlias);
+    return this.toDto(gateway, asModelAlias(modelAlias));
   }
 }

@@ -9,13 +9,18 @@ import type {
 } from '../../providers/interfaces/ai-provider.interface';
 import type { GatewayToolCall } from '../../providers/types/tooling-types';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
-import { ChatWarningDto } from '../dto/chat-warning.dto';
 import { GatewayProviderType } from '../../config/provider-types';
-import type { GatewayFinishReason } from '../types/gateway-finish-reason.type';
-import type {
-  RequestId,
-  ConversationId,
+import type { ChatResponseData } from '../dto/chat-response.dto';
+import {
+  asProviderInstanceId,
+  asModelAlias,
+  asResponseId,
+  type RequestId,
+  type ConversationId,
+  type ModelAlias,
 } from '../../common/types/branded.types';
+
+export type { ChatResponseData } from '../dto/chat-response.dto';
 
 export interface ProviderResponse {
   text: string;
@@ -31,39 +36,15 @@ export interface ProviderResponse {
   thinkingContent?: string;
 }
 
-export interface ChatResponseData {
-  id: string;
-  provider: string;
-  model: string;
-  effectiveModelAlias?: string;
-  output: {
-    type: 'text';
-    text: string;
-  };
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-    totalTokens?: number;
-  };
-  requestId: RequestId;
-  conversationId: ConversationId;
-  toolCalls?: GatewayToolCall[];
-  finishReason?: GatewayFinishReason;
-  usageDetails?: ProviderUsageDetails;
-  systemFingerprint?: ProviderChatResponse['systemFingerprint'];
-  thinkingContent?: ProviderChatResponse['thinkingContent'];
-  warnings?: ChatWarningDto[];
-}
-
 @Injectable()
 export class ChatResponseBuilderService {
   buildChatResponse(
     response: ProviderResponse,
     providerName: string,
-    modelAlias: string,
+    modelAlias: ModelAlias,
     requestId: RequestId,
     conversationId: ConversationId,
-    effectiveModelAlias?: string,
+    effectiveModelAlias?: ModelAlias,
     options?: ProviderCallOptions,
     providerType?: GatewayProviderType,
   ): ChatResponseData {
@@ -73,9 +54,9 @@ export class ChatResponseBuilderService {
         : [];
 
     return {
-      id: `gw_${uuidv4()}`,
-      provider: providerName,
-      model: modelAlias,
+      id: asResponseId(`gw_${uuidv4()}`),
+      provider: asProviderInstanceId(providerName),
+      model: asModelAlias(modelAlias),
       ...(effectiveModelAlias && { effectiveModelAlias }),
       output: {
         type: 'text',
@@ -114,7 +95,7 @@ export class ChatResponseBuilderService {
     options?: ProviderCallOptions,
     providerType?: GatewayProviderType,
     usageDetails?: ProviderUsageDetails,
-    effectiveModelAlias?: string,
+    effectiveModelAlias?: ModelAlias,
   ): SseEvent {
     const warnings =
       options && providerType

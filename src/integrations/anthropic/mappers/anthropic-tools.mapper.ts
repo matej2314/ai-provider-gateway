@@ -7,6 +7,7 @@ import type {
   GatewayToolChoice,
 } from '../../../providers/types/tooling-types';
 import type { AnthropicContentBlockDto } from '../dtos/anthropic-content-block.dto';
+import { asToolCallId } from '../../../common/types/branded.types';
 
 type AnthropicTool = {
   name: string;
@@ -76,7 +77,7 @@ export function mapAnthropicContentBlockToGateway(
       textContent += block.text;
     } else if (block.type === 'tool_use' && block.id && block.name) {
       toolCalls.push({
-        id: block.id,
+        id: asToolCallId(block.id),
         name: block.name,
         arguments: JSON.stringify(block.input ?? {}),
       });

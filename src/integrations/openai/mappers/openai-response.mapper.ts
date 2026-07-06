@@ -4,6 +4,7 @@ import type {
 } from '../dtos/openai-chat-completion-response.dto';
 import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
 import type { GatewayToolCall } from 'src/providers/types/tooling-types';
+import { fromGatewayToolCallDto } from '../../../common/dtos/gateway-tool-call.dto';
 
 function mapGatewayToolCallsToOpenAi(
   toolCalls: GatewayToolCall[],
@@ -69,7 +70,9 @@ export function mapChatResponseToOpenAi(
           content:
             hasToolCalls && !result.output.text ? null : result.output.text,
           ...(hasToolCalls && {
-            tool_calls: mapGatewayToolCallsToOpenAi(result.toolCalls!),
+            tool_calls: mapGatewayToolCallsToOpenAi(
+              result.toolCalls!.map(fromGatewayToolCallDto),
+            ),
           }),
         },
         finish_reason: mapFinishReasontoOpenAI(result.finishReason),

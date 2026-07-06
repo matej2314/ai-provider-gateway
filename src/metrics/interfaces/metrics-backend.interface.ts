@@ -3,6 +3,8 @@ import type {
   ProviderInstanceId,
   ConversationId,
   ToolCallId,
+  ModelAlias,
+  ModelId,
 } from '../../common/types/branded.types';
 
 export interface LlmCallMessage {
@@ -16,8 +18,8 @@ export type LlmRequestMetadata = Record<string, string | number | boolean>;
 
 export interface LlmCallContext {
   provider: ProviderInstanceId;
-  modelAlias: string;
-  modelId: string;
+  modelAlias: ModelAlias;
+  modelId: ModelId;
   requestId: RequestId;
   conversationId?: ConversationId;
   messages?: LlmCallMessage[];
@@ -35,7 +37,9 @@ export interface LlmCallObservation {
 }
 
 export interface llmStreamSpanController {
+  withActiveSpan<T>(fn: () => T): T;
   end(observation: LlmCallObservation): void;
+  fail(observation?: LlmCallObservation): void;
 }
 
 export interface MetricsBackend {

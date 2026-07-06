@@ -15,6 +15,8 @@ import {
   asToolCallId,
   type RequestId,
   type ProviderInstanceId,
+  type ModelAlias,
+  type ModelId,
 } from '../../common/types/branded.types';
 
 const TOOL_CONTENT_METRICS_MAX = 200;
@@ -54,8 +56,8 @@ export function toMetricsMessages(
 export function buildLlmMetricsContext(
   requestBody: ChatRequestDto,
   provider: ProviderInstanceId,
-  modelAlias: string,
-  modelId: string,
+  modelAlias: ModelAlias,
+  modelId: ModelId,
   requestId: RequestId,
 ): LlmCallContext {
   return {

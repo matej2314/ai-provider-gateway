@@ -57,7 +57,7 @@ export class PinoLoggerAdapter implements LoggerBackend {
                 singleLine: false,
                 translateTime: 'SYS:standard',
                 ignore: 'pid,hostname, appVersion',
-                hideObject: true,
+                hideObject: false,
                 customColors:
                   'error:red,warn:yellow,info:green,debug:blue,trace:magenta',
                 messageFormat: '{if module} [{module}] {end}{msg}',

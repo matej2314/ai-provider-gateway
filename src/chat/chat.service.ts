@@ -24,8 +24,11 @@ import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
 import {
   asRequestId,
   asProviderInstanceId,
+  asModelAlias,
+  asResponseId,
   type GatewayKey,
   type RequestId,
+  type ModelAlias,
 } from '../common/types/branded.types';
 
 @Injectable()
@@ -120,13 +123,16 @@ export class ChatService {
 
       if (cachedResponse) {
         log.info('Chat cache hit');
-        return cachedResponse;
+        return {
+          ...cachedResponse,
+          conversationId: responseConversationId,
+        };
       }
     }
 
     const startedAt = Date.now();
 
-    const runOnce = async (alias: string, _attemptNo: number) => {
+    const runOnce = async (alias: ModelAlias, _attemptNo: number) => {
       const { response, resolved } =
         await this.providerCallService.completeOnce(
           requestBody,
@@ -139,7 +145,7 @@ export class ChatService {
 
     try {
       const result = await this.resilientExecutor.executeWithRetryAndFallback({
-        primaryAlias: requestBody.modelAlias,
+        primaryAlias: asModelAlias(requestBody.modelAlias),
         fallbackAlias: isToolingRequest(requestBody)
           ? undefined
           : primaryResolved.fallbackAlias,
@@ -163,7 +169,7 @@ export class ChatService {
           thinkingContent: response.thinkingContent,
         },
         resolved.providerName,
-        requestBody.modelAlias,
+        asModelAlias(requestBody.modelAlias),
         requestId,
         responseConversationId,
         didFallback ? usedAlias : undefined,
@@ -232,10 +238,10 @@ export class ChatService {
     });
 
     const startedAt = Date.now();
-    const id = `gw_${uuidv4()}`;
+    const id = asResponseId(`gw_${uuidv4()}`);
     const metaEmitted = { value: false };
 
-    const runOnce = async (alias: string, _attemptNo: number) => {
+    const runOnce = async (alias: ModelAlias, _attemptNo: number) => {
       const streamResult = await this.providerCallService.streamOnce({
         requestBody,
         alias,
@@ -244,7 +250,7 @@ export class ChatService {
         emit,
         streamMeta: {
           gatewayId: id,
-          primaryModelAlias: requestBody.modelAlias,
+          primaryModelAlias: asModelAlias(requestBody.modelAlias),
           responseConversationId,
           metaEmitted,
         },
@@ -259,7 +265,7 @@ export class ChatService {
 
     try {
       const result = await this.resilientExecutor.executeWithRetryAndFallback({
-        primaryAlias: requestBody.modelAlias,
+        primaryAlias: asModelAlias(requestBody.modelAlias),
         fallbackAlias: isToolingRequest(requestBody)
           ? undefined
           : primaryResolved.fallbackAlias,

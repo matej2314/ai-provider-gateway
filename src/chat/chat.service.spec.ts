@@ -1,5 +1,5 @@
 jest.mock('uuid', () => ({
-  v4: jest.fn(() => 'test-uuid'),
+  v4: jest.fn(() => '123e4567-e89b-12d3-a456-426614174000'),
 }));
 
 import { Test } from '@nestjs/testing';
@@ -24,9 +24,14 @@ import { createMockResilientExecutor } from '../common/mocks/createMockResilient
 import { createMockProviderRegistryService } from '../common/mocks/createMockProviderRegistryService';
 import { createMockDefaultResolvedConfig } from '../common/mocks/createMockResolvedProviderConfig';
 import { createMockConfigService } from '../common/mocks/createMockConfigService';
+import { asGatewayKey } from '../common/types/branded.types';
 import {
-  VALID_CONVERSATION_ID,
+  TEST_CONVERSATION_ID,
+  TEST_GATEWAY_KEY_BRANDED,
   TEST_MODEL_ALIAS,
+  TEST_REQUEST_ID,
+  TEST_RESPONSE_ID_PREFIX,
+  VALID_CONVERSATION_ID,
 } from '../common/mocks/test-constants';
 import type { ResolvedProviderConfig } from '../providers/provider-registry.service';
 
@@ -124,7 +129,7 @@ describe('ChatService', () => {
           conversationId: string,
           effectiveModelAlias?: string,
         ) => ({
-          id: 'gw_test-uuid',
+          id: TEST_RESPONSE_ID_PREFIX,
           provider: providerName,
           model: modelAlias,
           ...(effectiveModelAlias && { effectiveModelAlias }),
@@ -199,9 +204,9 @@ describe('ChatService', () => {
 
       const prep = await service.prepareRequestForExecution(
         baseRequest,
-        'req-123',
+        TEST_REQUEST_ID,
         'native',
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
       );
 
       expect(mockValidation.validateTooling).toHaveBeenCalledWith(
@@ -213,9 +218,9 @@ describe('ChatService', () => {
         expectedOptions,
       );
       expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
         'anthropic',
-        'req-123',
+        TEST_REQUEST_ID,
       );
       expect(prep.primaryResolved).toBe(resolvedConfig);
       expect(prep.options).toEqual(expectedOptions);
@@ -230,9 +235,9 @@ describe('ChatService', () => {
       await expect(
         service.prepareRequestForExecution(
           baseRequest,
-          'req-123',
+          TEST_REQUEST_ID,
           'native',
-          'gw_key_123',
+          TEST_GATEWAY_KEY_BRANDED,
         ),
       ).rejects.toBe(rateLimitError);
     });
@@ -240,9 +245,9 @@ describe('ChatService', () => {
     it('should skip cooldown when gatewayKey is empty', async () => {
       await service.prepareRequestForExecution(
         baseRequest,
-        'req-123',
+        TEST_REQUEST_ID,
         'native',
-        '',
+        asGatewayKey(''),
       );
 
       expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
@@ -266,8 +271,8 @@ describe('ChatService', () => {
 
       const result = await service.executeChat(
         baseRequest,
-        'req-123',
-        'gw_key_123',
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
         'native',
       );
 
@@ -276,9 +281,9 @@ describe('ChatService', () => {
         resolvedConfig,
       );
       expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
         'anthropic',
-        'req-123',
+        TEST_REQUEST_ID,
       );
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
       expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalled();
@@ -287,7 +292,7 @@ describe('ChatService', () => {
         expectedOptions,
       );
       expect(result.output.text).toBe('Hello!');
-      expect(result.id).toBe('gw_test-uuid');
+      expect(result.id).toBe(TEST_RESPONSE_ID_PREFIX);
     });
 
     it('should return cached response without calling executor', async () => {
@@ -301,13 +306,16 @@ describe('ChatService', () => {
 
       const result = await service.executeChat(
         baseRequest,
-        'req-123',
-        'gw_key_123',
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
         'native',
       );
 
       expect(mockCacheGuard.getCachedIfAllowed).toHaveBeenCalled();
-      expect(result).toBe(cachedResponse);
+      expect(result).toEqual({
+        ...cachedResponse,
+        conversationId: VALID_CONVERSATION_ID,
+      });
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith('Chat cache hit');
     });
@@ -319,7 +327,7 @@ describe('ChatService', () => {
       );
 
       await expect(
-        service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native'),
+        service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native'),
       ).rejects.toBe(rateLimitError);
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
     });
@@ -335,8 +343,8 @@ describe('ChatService', () => {
 
       await service.executeChat(
         toolingRequest,
-        'req-123',
-        'gw_key_123',
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
         'native',
       );
 
@@ -358,8 +366,8 @@ describe('ChatService', () => {
             ...baseRequest,
             tooling: { definitions: [{ name: 'test', parameters: {} }] },
           },
-          'req-123',
-          'gw_key_123',
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
           'native',
         ),
       ).rejects.toBe(validationError);
@@ -372,7 +380,7 @@ describe('ChatService', () => {
       });
 
       await expect(
-        service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native'),
+        service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native'),
       ).rejects.toBe(validationError);
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
     });
@@ -386,8 +394,8 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           oversizedRequest,
-          'req-123',
-          'gw_key_123',
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
           'native',
         ),
       ).rejects.toMatchObject({
@@ -407,8 +415,8 @@ describe('ChatService', () => {
 
       await service.executeChat(
         largeRequest,
-        'req-123',
-        'gw_key_123',
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
         'facade-openai',
       );
 
@@ -424,8 +432,8 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           longContentRequest,
-          'req-123',
-          'gw_key_123',
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
           'native',
         ),
       ).rejects.toMatchObject({
@@ -447,14 +455,14 @@ describe('ChatService', () => {
         request.params,
       );
 
-      await service.executeChat(request, 'req-123', 'gw_key_123', 'native');
+      await service.executeChat(request, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native');
 
       expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
         expect.any(Object),
         'anthropic',
         TEST_MODEL_ALIAS,
-        'req-123',
-        VALID_CONVERSATION_ID,
+        TEST_REQUEST_ID,
+        TEST_CONVERSATION_ID,
         undefined,
         expectedOptions,
         resolvedConfig.providerType,
@@ -464,7 +472,7 @@ describe('ChatService', () => {
     it('should delegate cache write after successful execution', async () => {
       mockExecutorChatSuccess({ text: 'Fresh answer' });
 
-      await service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native');
+      await service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native');
 
       expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
@@ -478,7 +486,7 @@ describe('ChatService', () => {
     it('should skip rate limit and cache when gatewayKey is empty', async () => {
       mockExecutorChatSuccess();
 
-      await service.executeChat(baseRequest, 'req-123', '', 'native');
+      await service.executeChat(baseRequest, TEST_REQUEST_ID, asGatewayKey(''), 'native');
 
       expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
       expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
@@ -508,13 +516,13 @@ describe('ChatService', () => {
         baseRequest.params,
       );
 
-      await service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native');
+      await service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native');
 
       expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
         expect.objectContaining({ text: 'Fallback response' }),
         'anthropic',
         TEST_MODEL_ALIAS,
-        'req-123',
+        TEST_REQUEST_ID,
         expect.any(String),
         'fallback-model',
         expectedOptions,
@@ -533,8 +541,8 @@ describe('ChatService', () => {
 
       await service.executeChat(
         toolingRequest,
-        'req-123',
-        'gw_key_123',
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
         'native',
       );
 
@@ -554,7 +562,7 @@ describe('ChatService', () => {
       (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
       mockExecutorChatSuccess();
 
-      await service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native');
+      await service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native');
 
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -571,14 +579,14 @@ describe('ChatService', () => {
       );
 
       await expect(
-        service.executeChat(baseRequest, 'req-123', 'gw_key_123', 'native'),
+        service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native'),
       ).rejects.toBe(error);
 
       expect(mockErrorHandler.handleProviderError).toHaveBeenCalledWith(
         expect.anything(),
         error,
         'anthropic',
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
       );
     });
   });
@@ -600,12 +608,12 @@ describe('ChatService', () => {
 
       await service.executeStream(
         baseRequest,
-        'req-123',
+        TEST_REQUEST_ID,
         (event) => {
           emitted.push(event);
         },
         'native',
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
       );
 
       expect(mockValidation.validateTooling).toHaveBeenCalledWith(
@@ -613,9 +621,9 @@ describe('ChatService', () => {
         resolvedConfig,
       );
       expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
         'anthropic',
-        'req-123',
+        TEST_REQUEST_ID,
       );
       expect(mockValidation.validateThinking).toHaveBeenCalledWith(
         resolvedConfig,
@@ -624,7 +632,7 @@ describe('ChatService', () => {
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
           primaryAlias: TEST_MODEL_ALIAS,
-          requestId: 'req-123',
+          requestId: TEST_REQUEST_ID,
         }),
       );
       expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalled();
@@ -643,10 +651,10 @@ describe('ChatService', () => {
       await expect(
         service.executeStream(
           oversizedRequest,
-          'req-123',
+          TEST_REQUEST_ID,
           jest.fn(),
           'native',
-          'gw_key_123',
+          TEST_GATEWAY_KEY_BRANDED,
         ),
       ).rejects.toMatchObject({
         response: expect.objectContaining({
@@ -676,10 +684,10 @@ describe('ChatService', () => {
 
       await service.executeStream(
         baseRequest,
-        'req-123',
+        TEST_REQUEST_ID,
         jest.fn(),
         'native',
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
       );
 
       expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalledWith(
@@ -707,10 +715,10 @@ describe('ChatService', () => {
       await expect(
         service.executeStream(
           baseRequest,
-          'req-123',
+          TEST_REQUEST_ID,
           jest.fn(),
           'native',
-          'gw_key_123',
+          TEST_GATEWAY_KEY_BRANDED,
         ),
       ).rejects.toBe(validationError);
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
@@ -725,10 +733,10 @@ describe('ChatService', () => {
       await expect(
         service.executeStream(
           baseRequest,
-          'req-123',
+          TEST_REQUEST_ID,
           jest.fn(),
           'native',
-          'gw_key_123',
+          TEST_GATEWAY_KEY_BRANDED,
         ),
       ).rejects.toBe(rateLimitError);
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
@@ -745,10 +753,10 @@ describe('ChatService', () => {
 
       await service.executeStream(
         toolingRequest,
-        'req-123',
+        TEST_REQUEST_ID,
         jest.fn(),
         'native',
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
       );
 
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
@@ -780,10 +788,10 @@ describe('ChatService', () => {
 
       await service.executeStream(
         baseRequest,
-        'req-123',
+        TEST_REQUEST_ID,
         jest.fn(),
         'native',
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
       );
 
       expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalledWith(
@@ -809,10 +817,10 @@ describe('ChatService', () => {
 
       await service.executeStream(
         baseRequest,
-        'req-123',
+        TEST_REQUEST_ID,
         jest.fn(),
         'native',
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
       );
 
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
@@ -832,10 +840,10 @@ describe('ChatService', () => {
       await expect(
         service.executeStream(
           baseRequest,
-          'req-123',
+          TEST_REQUEST_ID,
           jest.fn(),
           'native',
-          'gw_key_123',
+          TEST_GATEWAY_KEY_BRANDED,
         ),
       ).rejects.toBe(error);
 
@@ -843,7 +851,7 @@ describe('ChatService', () => {
         expect.anything(),
         error,
         'anthropic',
-        'gw_key_123',
+        TEST_GATEWAY_KEY_BRANDED,
       );
     });
   });

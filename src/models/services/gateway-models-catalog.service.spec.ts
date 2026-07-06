@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { asModelAlias } from '../../common/types/branded.types';
 import { ConfigService } from '@nestjs/config';
 import { GatewayModelsCatalogService } from './gateway-models-catalog.service';
 import { createMockConfigService } from '../../common/mocks/createMockConfigService';
@@ -76,8 +77,8 @@ describe('GatewayModelsCatalogService', () => {
   it('getOne should return null for unknown alias (case-sensitive)', () => {
     configService.get.mockReturnValue(gatewayConfig);
 
-    expect(service.getOne('gemini-2.5-flash')?.providerType).toBe('google');
-    expect(service.getOne('GEMINI-2.5-FLASH')).toBeNull();
+    expect(service.getOne(asModelAlias('gemini-2.5-flash'))?.providerType).toBe('google');
+    expect(service.getOne(asModelAlias('GEMINI-2.5-FLASH'))).toBeNull();
     expect(service.getOne('')).toBeNull();
   });
 });

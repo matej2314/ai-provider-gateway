@@ -83,6 +83,64 @@ function clearRequestMetadataContext(): void {
   Sentry.setContext('request_metadata', null);
 }
 
+function clearLlmScopeContext(context: LlmCallContext): void {
+  if (context.conversationId) {
+    Sentry.setConversationId(null);
+  }
+
+  if (context.metadata) {
+    clearRequestMetadataContext();
+  }
+}
+
+function applyObservationToSpan(
+  span: Span,
+  context: LlmCallContext,
+  observation?: LlmCallObservation,
+): void {
+  if (!observation) {
+    return;
+  }
+
+  if (observation.responseModel) {
+    span.setAttribute('gen_ai.response.model', observation.responseModel);
+  }
+
+  applyGenAiMessagesToSpan(span, context, {
+    outputText: observation.outputText,
+  });
+
+  const input = observation.usage?.inputTokens;
+  const output = observation.usage?.outputTokens;
+  if (input != null) {
+    span.setAttribute('gen_ai.usage.input_tokens', input);
+  }
+
+  if (output != null) {
+    span.setAttribute('gen_ai.usage.output_tokens', output);
+  }
+  if (input != null && output != null) {
+    span.setAttribute('gen_ai.usage.total_tokens', input + output);
+  }
+  if (observation.costUsd != null) {
+    span.setAttribute('gen_ai.cost.usd', observation.costUsd);
+  }
+}
+
+function buildGenAiChatSpanAttributes(
+  context: LlmCallContext,
+  options?: { streaming?: boolean },
+): Record<string, string | boolean> {
+  return {
+    'gen_ai.operation.name': 'chat',
+    'gen_ai.request.model': context.modelId,
+    'gen_ai.provider.name': toGenAiProviderName(context.provider),
+    requestId: context.requestId,
+    modelAlias: context.modelAlias,
+    ...(options?.streaming && { 'gen_ai.response.streaming': true }),
+  };
+}
+
 @Injectable()
 export class SentryAiMetricsAdapter implements MetricsBackend {
   async observeLlmCall<T>(
@@ -99,17 +157,11 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
     }
 
     try {
-      return Sentry.startSpan(
+      return await Sentry.startSpan(
         {
           op: 'gen_ai.chat',
           name: `chat ${context.modelId}`,
-          attributes: {
-            'gen_ai.operation.name': 'chat',
-            'gen_ai.request.model': context.modelId,
-            'gen_ai.provider.name': toGenAiProviderName(context.provider),
-            requestId: context.requestId,
-            modelAlias: context.modelAlias,
-          },
+          attributes: buildGenAiChatSpanAttributes(context),
         },
         async (span) => {
           applyGenAiMessagesToSpan(span, context);
@@ -119,42 +171,14 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
 
           const result = await fn();
           const obs = mapResult?.(result);
-          if (!obs) return result;
-
-          if (obs.responseModel) {
-            span.setAttribute('gen_ai.response.model', obs.responseModel);
-          }
-
-          applyGenAiMessagesToSpan(span, context, {
-            outputText: obs.outputText,
-          });
-
-          const input = obs.usage?.inputTokens;
-          const output = obs.usage?.outputTokens;
-          if (input != null) {
-            span.setAttribute('gen_ai.usage.input_tokens', input);
-          }
-
-          if (output != null) {
-            span.setAttribute('gen_ai.usage.output_tokens', output);
-          }
-          if (input != null && output != null) {
-            span.setAttribute('gen_ai.usage.total_tokens', input + output);
-          }
-          if (obs.costUsd != null) {
-            span.setAttribute('gen_ai.cost.total_tokens', obs.costUsd);
+          if (obs) {
+            applyObservationToSpan(span, context, obs);
           }
           return result;
         },
       );
     } finally {
-      if (context.conversationId) {
-        Sentry.setConversationId(null);
-      }
-
-      if (context.metadata) {
-        clearRequestMetadataContext();
-      }
+      clearLlmScopeContext(context);
     }
   }
 
@@ -170,13 +194,7 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
     const span = Sentry.startInactiveSpan({
       op: 'gen_ai.chat',
       name: `chat ${context.modelId}`,
-      attributes: {
-        'gen_ai.operation.name': 'chat',
-        'gen_ai.request.model': context.modelId,
-        'gen_ai.provider.name': toGenAiProviderName(context.provider),
-        requestId: context.requestId,
-        modelAlias: context.modelAlias,
-      },
+      attributes: buildGenAiChatSpanAttributes(context, { streaming: true }),
     });
 
     applyGenAiMessagesToSpan(span, context);
@@ -184,41 +202,21 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
       applyGenAiConversationIdToSpan(span, context.conversationId);
     }
 
+    let finalized = false;
+    const finalize = (observation?: LlmCallObservation): void => {
+      if (finalized) {
+        return;
+      }
+      finalized = true;
+      applyObservationToSpan(span, context, observation);
+      span.end();
+      clearLlmScopeContext(context);
+    };
+
     return {
-      end: (observation: LlmCallObservation) => {
-        if (observation.responseModel) {
-          span.setAttribute('gen_ai.response.model', observation.responseModel);
-        }
-
-        applyGenAiMessagesToSpan(span, context, {
-          outputText: observation.outputText,
-        });
-
-        const input = observation.usage?.inputTokens;
-        const output = observation.usage?.outputTokens;
-        if (input != null) {
-          span.setAttribute('gen_ai.usage.input_tokens', input);
-        }
-
-        if (output != null) {
-          span.setAttribute('gen_ai.usage.output_tokens', output);
-        }
-        if (input != null && output != null) {
-          span.setAttribute('gen_ai.usage.total_tokens', input + output);
-        }
-        if (observation.costUsd != null) {
-          span.setAttribute('gen_ai.cost.total_tokens', observation.costUsd);
-        }
-        span.end();
-
-        if (context.conversationId) {
-          Sentry.setConversationId(null);
-        }
-
-        if (context.metadata) {
-          clearRequestMetadataContext();
-        }
-      },
+      withActiveSpan: <T>(fn: () => T): T => Sentry.withActiveSpan(span, fn),
+      end: (observation: LlmCallObservation) => finalize(observation),
+      fail: (observation?: LlmCallObservation) => finalize(observation),
     };
   }
 }

@@ -2,6 +2,13 @@ import { Test } from '@nestjs/testing';
 import { MetricsService } from './metrics.service';
 import { METRICS_BACKEND } from './metrics.tokens';
 import type { MetricsBackend } from './interfaces/metrics-backend.interface';
+import {
+  TEST_CONVERSATION_ID,
+  TEST_MODEL_ALIAS_BRANDED,
+  TEST_MODEL_ID,
+  TEST_PROVIDER_INSTANCE_BRANDED,
+  TEST_REQUEST_ID,
+} from '../common/mocks/test-constants';
 
 describe('MetricsService', () => {
   let service: MetricsService;
@@ -26,11 +33,11 @@ describe('MetricsService', () => {
   describe('observeLlmCall', () => {
     it('should delegate to backend', async () => {
       const context = {
-        provider: 'openai',
-        modelAlias: 'test-model',
-        modelId: 'gpt-4',
-        requestId: 'req-123',
-        conversationId: 'conv-123',
+        provider: TEST_PROVIDER_INSTANCE_BRANDED,
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        modelId: TEST_MODEL_ID,
+        requestId: TEST_REQUEST_ID,
+        conversationId: TEST_CONVERSATION_ID,
       };
       const fn = jest.fn().mockResolvedValue('result');
 
@@ -48,10 +55,10 @@ describe('MetricsService', () => {
 
     it('should pass mapResult function', async () => {
       const context = {
-        provider: 'openai',
-        modelAlias: 'test-model',
-        modelId: 'gpt-4',
-        requestId: 'req-123',
+        provider: TEST_PROVIDER_INSTANCE_BRANDED,
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        modelId: TEST_MODEL_ID,
+        requestId: TEST_REQUEST_ID,
       };
       const fn = jest.fn().mockResolvedValue({ data: 'ok' });
       const mapResult = jest
@@ -73,10 +80,10 @@ describe('MetricsService', () => {
 
     it('should propagate errors from fn', async () => {
       const context = {
-        provider: 'openai',
-        modelAlias: 'test-model',
-        modelId: 'gpt-4',
-        requestId: 'req-123',
+        provider: TEST_PROVIDER_INSTANCE_BRANDED,
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        modelId: TEST_MODEL_ID,
+        requestId: TEST_REQUEST_ID,
       };
       const error = new Error('Test error');
       const fn = jest.fn().mockRejectedValue(error);
@@ -92,14 +99,16 @@ describe('MetricsService', () => {
   describe('observeLlmStream', () => {
     it('should delegate to backend', () => {
       const context = {
-        provider: 'openai',
-        modelAlias: 'test-model',
-        modelId: 'gpt-4',
-        requestId: 'req-123',
-        conversationId: 'conv-123',
+        provider: TEST_PROVIDER_INSTANCE_BRANDED,
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        modelId: TEST_MODEL_ID,
+        requestId: TEST_REQUEST_ID,
+        conversationId: TEST_CONVERSATION_ID,
       };
       const mockController = {
+        withActiveSpan: <T>(fn: () => T) => fn(),
         end: jest.fn(),
+        fail: jest.fn(),
       };
 
       (mockBackend.observeLlmStream as jest.Mock).mockReturnValue(
@@ -114,14 +123,17 @@ describe('MetricsService', () => {
 
     it('should return span controller', () => {
       const context = {
-        provider: 'openai',
-        modelAlias: 'test-model',
-        modelId: 'gpt-4',
-        requestId: 'req-123',
+        provider: TEST_PROVIDER_INSTANCE_BRANDED,
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        modelId: TEST_MODEL_ID,
+        requestId: TEST_REQUEST_ID,
       };
       const endMock = jest.fn();
+      const failMock = jest.fn();
       const mockController = {
+        withActiveSpan: <T>(fn: () => T) => fn(),
         end: endMock,
+        fail: failMock,
       };
 
       (mockBackend.observeLlmStream as jest.Mock).mockReturnValue(

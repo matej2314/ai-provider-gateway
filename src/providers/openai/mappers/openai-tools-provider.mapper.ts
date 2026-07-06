@@ -4,6 +4,7 @@ import type {
   ProviderToolDefinition,
 } from 'src/providers/interfaces/ai-provider.interface';
 import type { GatewayToolChoice } from '../../types/tooling-types';
+import { asToolCallId } from '../../../common/types/branded.types';
 
 type ChatCompletionTool = OpenAI.Chat.Completions.ChatCompletionTool;
 type ChatCompletionMessageToolCall =
@@ -131,7 +132,7 @@ function mapOpenAiToolCalls(
   return raw
     .filter((call) => call.type === 'function')
     .map((call) => ({
-      id: call.id,
+      id: asToolCallId(call.id),
       name: call.function.name,
       arguments: call.function.arguments ?? '{}',
     }));

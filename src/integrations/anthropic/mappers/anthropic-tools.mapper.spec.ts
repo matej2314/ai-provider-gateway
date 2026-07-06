@@ -5,6 +5,8 @@ import {
 } from './anthropic-tools.mapper';
 import { BadRequestException } from '@nestjs/common';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import { TEST_TOOL_CALL_ID } from '../../../common/mocks/test-constants';
+import { asToolCallId } from '../../../common/types/branded.types';
 
 const TEST_TOOL = {
   name: 'get_weather',
@@ -273,7 +275,7 @@ describe('mapAnthropicContentBlockToGateway', () => {
           content: '',
           toolCalls: [
             {
-              id: 'toolu_123',
+              id: asToolCallId('toolu_123'),
               name: 'get_weather',
               arguments: '{"location":"SF"}',
             },

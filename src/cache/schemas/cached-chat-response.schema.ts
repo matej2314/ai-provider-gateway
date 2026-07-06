@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import type { CachedChatResponse } from '../types/cached-chat-response.type';
 import {
+  asModelAlias,
   asProviderInstanceId,
   asRequestId,
+  asResponseId,
 } from 'src/common/types/branded.types';
 
 const ChatWarningSchema = z.object({
@@ -12,9 +14,9 @@ const ChatWarningSchema = z.object({
 });
 
 export const CachedChatResponseSchema = z.object({
-  id: z.string(),
+  id: z.string().transform(asResponseId),
   provider: z.string().transform(asProviderInstanceId),
-  model: z.string(),
+  model: z.string().transform(asModelAlias),
   output: z.object({
     type: z.literal('text'),
     text: z.string(),

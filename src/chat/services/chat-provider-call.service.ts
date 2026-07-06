@@ -13,19 +13,27 @@ import type {
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { SseEvent } from '../sse/sse-event.type';
 import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
-import type { RequestId, ConversationId } from '../../common/types/branded.types';
-import { asProviderInstanceId } from '../../common/types/branded.types';
+import {
+  asProviderInstanceId,
+  type RequestId,
+  type ConversationId,
+  type ModelAlias,
+  type ModelId,
+  type ResponseId,
+  ProviderInstanceId,
+  asModelId,
+} from '../../common/types/branded.types';
 
 export interface CompleteOnceResult {
   response: ProviderChatResponse;
-  providerName: string;
-  modelId: string;
+  providerName: ProviderInstanceId;
+  modelId: ModelId;
   resolved: ResolvedProviderConfig;
 }
 
 export interface StreamOnceResult {
-  providerName: string;
-  modelId: string;
+  providerName: ProviderInstanceId;
+  modelId: ModelId;
   assembledText: string;
   usageMetadata:
     | {
@@ -43,13 +51,13 @@ export interface StreamOnceResult {
 
 export interface StreamOnceParams {
   requestBody: ChatRequestDto;
-  alias: string;
+  alias: ModelAlias;
   requestId: RequestId;
   resolvedPrompts: ResolvedSystemPrompts;
   emit: (event: SseEvent) => void;
   streamMeta: {
-    gatewayId: string;
-    primaryModelAlias: string;
+    gatewayId: ResponseId;
+    primaryModelAlias: ModelAlias;
     responseConversationId: ConversationId;
     metaEmitted: { value: boolean };
   };
@@ -65,7 +73,7 @@ export class ChatProviderCallService {
   // runOnce from executeChat
   async completeOnce(
     requestBody: ChatRequestDto,
-    alias: string,
+    alias: ModelAlias,
     requestId: RequestId,
     resolvedPrompts: ResolvedSystemPrompts,
   ): Promise<CompleteOnceResult> {
@@ -109,8 +117,8 @@ export class ChatProviderCallService {
 
     return {
       response,
-      providerName: resolved.providerName,
-      modelId: resolved.modelId,
+      providerName: asProviderInstanceId(resolved.providerName),
+      modelId: asModelId(resolved.modelId),
       resolved,
     };
   }
@@ -142,76 +150,87 @@ export class ChatProviderCallService {
     );
 
     const spanController = this.metricsService.observeLlmStream(metricsCtx);
-    const streamResult = resolved.provider.stream!(
-      providerInput,
-      resolved.modelId,
-      aliasOptions,
-    );
-
-    if (!streamMeta.metaEmitted.value) {
-      emit({
-        name: 'meta',
-        data: {
-          id: streamMeta.gatewayId,
-          provider: resolved.providerName,
-          model: streamMeta.primaryModelAlias,
-          ...(alias !== streamMeta.primaryModelAlias && {
-            effectiveModelAlias: alias,
-          }),
-          requestId,
-          conversationId: streamMeta.responseConversationId,
-        },
-      });
-      streamMeta.metaEmitted.value = true;
-    }
-
     let assembledText = '';
 
-    for await (const textChunk of streamResult.textStream) {
-      assembledText += textChunk;
-      emit({ name: 'delta', data: { text: textChunk } });
+    try {
+      const streamResult = spanController.withActiveSpan(() =>
+        resolved.provider.stream!(
+          providerInput,
+          resolved.modelId,
+          aliasOptions,
+        ),
+      );
+
+      if (!streamMeta.metaEmitted.value) {
+        emit({
+          name: 'meta',
+          data: {
+            id: streamMeta.gatewayId,
+            provider: asProviderInstanceId(resolved.providerName),
+            model: streamMeta.primaryModelAlias,
+            ...(alias !== streamMeta.primaryModelAlias && {
+              effectiveModelAlias: alias,
+            }),
+            requestId,
+            conversationId: streamMeta.responseConversationId,
+          },
+        });
+        streamMeta.metaEmitted.value = true;
+      }
+
+      for await (const textChunk of streamResult.textStream) {
+        assembledText += textChunk;
+        emit({ name: 'delta', data: { text: textChunk } });
+      }
+
+      const toolCalls = streamResult.getFinalToolCalls
+        ? await streamResult.getFinalToolCalls()
+        : undefined;
+      const stopReason = streamResult.getStopReason
+        ? await streamResult.getStopReason()
+        : undefined;
+
+      const usageMetadata = await streamResult.getUsageMetadata();
+
+      spanController.end({
+        responseModel: usageMetadata?.model,
+        outputText: assembledText || undefined,
+        usage: usageMetadata
+          ? {
+              inputTokens: usageMetadata.inputTokens,
+              outputTokens: usageMetadata.outputTokens,
+            }
+          : undefined,
+      });
+
+      const systemFingerprint = streamResult.getSystemFingerprint
+        ? await streamResult.getSystemFingerprint()
+        : undefined;
+
+      const thinkingContent = streamResult.getThinkingContent
+        ? await streamResult.getThinkingContent()
+        : undefined;
+
+      const usageDetails = streamResult.getUsageDetails
+        ? await streamResult.getUsageDetails()
+        : undefined;
+
+      return {
+        providerName: asProviderInstanceId(resolved.providerName),
+        modelId: asModelId(resolved.modelId),
+        assembledText: assembledText || '',
+        usageMetadata: usageMetadata,
+        ...(toolCalls?.length && { toolCalls }),
+        ...(stopReason && { stopReason }),
+        ...(systemFingerprint && { systemFingerprint }),
+        ...(thinkingContent && { thinkingContent }),
+        ...(usageDetails ? { usageDetails } : {}),
+      };
+    } catch (error) {
+      spanController.fail({
+        outputText: assembledText || undefined,
+      });
+      throw error;
     }
-
-    const toolCalls = streamResult.getFinalToolCalls
-      ? await streamResult.getFinalToolCalls()
-      : undefined;
-    const stopReason = streamResult.getStopReason
-      ? await streamResult.getStopReason()
-      : undefined;
-
-    const usageMetadata = await streamResult.getUsageMetadata();
-    spanController.end({
-      outputText: assembledText || undefined,
-      usage: usageMetadata
-        ? {
-            inputTokens: usageMetadata.inputTokens,
-            outputTokens: usageMetadata.outputTokens,
-          }
-        : undefined,
-    });
-
-    const systemFingerprint = streamResult.getSystemFingerprint
-      ? await streamResult.getSystemFingerprint()
-      : undefined;
-
-    const thinkingContent = streamResult.getThinkingContent
-      ? await streamResult.getThinkingContent()
-      : undefined;
-
-    const usageDetails = streamResult.getUsageDetails
-      ? await streamResult.getUsageDetails()
-      : undefined;
-
-    return {
-      providerName: resolved.providerName,
-      modelId: resolved.modelId,
-      assembledText: assembledText || '',
-      usageMetadata: usageMetadata,
-      ...(toolCalls?.length && { toolCalls }),
-      ...(stopReason && { stopReason }),
-      ...(systemFingerprint && { systemFingerprint }),
-      ...(thinkingContent && { thinkingContent }),
-      ...(usageDetails ? { usageDetails } : {}),
-    };
   }
 }

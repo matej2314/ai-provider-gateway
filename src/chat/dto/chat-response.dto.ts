@@ -1,10 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 import { ChatOutputTextDto } from './chat-output-text.dto';
-import { GatewayToolCallDto } from '../../common/dtos/gateway-tool-call.dto';
+import {
+  GatewayToolCallDto,
+  toGatewayToolCallDto,
+} from '../../common/dtos/gateway-tool-call.dto';
 import { ChatUsageDto } from './chat-usage.dto';
 import { ChatWarningDto } from './chat-warning.dto';
-
+import type { GatewayToolCall } from '../../providers/types/tooling-types';
+import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
+import type { GatewayFinishReason } from '../types/gateway-finish-reason.type';
+import type { CachedChatResponse } from '../../cache/types/cached-chat-response.type';
+import type {
+  ResponseId,
+  RequestId,
+  ConversationId,
+  ModelAlias,
+  ProviderInstanceId,
+} from '../../common/types/branded.types';
 
 export class ChatUsageDetailsDto {
   @ApiPropertyOptional({
@@ -20,6 +33,36 @@ export class ChatUsageDetailsDto {
   promptCacheCreationTokens?: number;
 }
 
+/**
+ * Internal chat response (domain layer — branded identifiers).
+ */
+export interface ChatResponseData {
+  id: ResponseId;
+  provider: ProviderInstanceId;
+  model: ModelAlias;
+  effectiveModelAlias?: ModelAlias;
+  output: {
+    type: 'text';
+    text: string;
+  };
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  };
+  requestId: RequestId;
+  conversationId: ConversationId;
+  toolCalls?: GatewayToolCall[];
+  finishReason?: GatewayFinishReason;
+  usageDetails?: ProviderUsageDetails;
+  systemFingerprint?: string;
+  thinkingContent?: string;
+  warnings?: ChatWarningDto[];
+}
+
+/**
+ * HTTP/OpenAPI representation of chat response (API boundary — plain strings).
+ */
 export class ChatResponseDto {
   @ApiProperty({
     example: 'gw_01HZZZZZZZZZZZZZZZZZZZZZZ',
@@ -134,4 +177,51 @@ export class ChatResponseDto {
   })
   @IsOptional()
   warnings?: ChatWarningDto[];
+}
+
+/** Cached response enriched with conversation context for API mapping. */
+export type CachedChatResponseWithConversation = CachedChatResponse & {
+  conversationId: ConversationId;
+};
+
+export function toChatResponseDto(data: ChatResponseData): ChatResponseDto {
+  return {
+    id: data.id,
+    provider: data.provider,
+    model: data.model,
+    ...(data.effectiveModelAlias && {
+      effectiveModelAlias: data.effectiveModelAlias,
+    }),
+    ...(data.toolCalls?.length && {
+      toolCalls: data.toolCalls.map(toGatewayToolCallDto),
+    }),
+    ...(data.finishReason && { finishReason: data.finishReason }),
+    output: data.output,
+    ...(data.usage && { usage: data.usage }),
+    requestId: data.requestId,
+    conversationId: data.conversationId,
+    ...(data.usageDetails && { usageDetails: data.usageDetails }),
+    ...(data.systemFingerprint && { systemFingerprint: data.systemFingerprint }),
+    ...(data.thinkingContent && { thinkingContent: data.thinkingContent }),
+    ...(data.warnings?.length && { warnings: data.warnings }),
+  };
+}
+
+/** Maps cached internal response to API DTO (implicit unbrand). */
+export function toChatResponseDtoFromCache(
+  data: CachedChatResponse,
+  conversationId: ConversationId,
+): ChatResponseDto {
+  return {
+    id: data.id,
+    provider: data.provider,
+    model: data.model,
+    output: data.output,
+    ...(data.usage && { usage: data.usage }),
+    requestId: data.requestId,
+    conversationId,
+    cached: true,
+    cachedAt: data.cachedAt,
+    ...(data.warnings?.length && { warnings: data.warnings }),
+  };
 }

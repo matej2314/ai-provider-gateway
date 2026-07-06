@@ -11,6 +11,7 @@ import { extractAnthropicThinkingContent } from './anthropic-thinking.mapper';
 import { parseJsonObject } from '../helpers/parse-json-object';
 import type { GatewayToolChoice } from '../types/tooling-types';
 import type { ProviderToolCall } from '../interfaces/ai-provider.interface';
+import { asToolCallId } from '../../common/types/branded.types';
 
 type Message = Anthropic.Message;
 type MessageParam = Anthropic.MessageParam;
@@ -113,7 +114,7 @@ export function parseAnthropicResponseWithTools(
       text += block.text;
     } else if (block.type === 'tool_use') {
       toolCalls.push({
-        id: block.id,
+        id: asToolCallId(block.id),
         name: block.name,
         arguments: stringifyToolInput(block.input),
       });

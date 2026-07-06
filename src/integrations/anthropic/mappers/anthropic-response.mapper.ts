@@ -7,6 +7,7 @@ import type {
   AnthropicContentBlock,
 } from '../dtos/anthropic-messages-response.dto';
 import type { GatewayToolCall } from '../../../providers/types/tooling-types';
+import { fromGatewayToolCallDto } from '../../../common/dtos/gateway-tool-call.dto';
 
 function mapGatewayToolCallsToAnthropic(
   toolCalls: GatewayToolCall[],
@@ -45,7 +46,11 @@ export function mapGatewayResponseToAnthropicFormat(
   }
 
   if (result.toolCalls?.length) {
-    content.push(...mapGatewayToolCallsToAnthropic(result.toolCalls));
+    content.push(
+      ...mapGatewayToolCallsToAnthropic(
+        result.toolCalls.map(fromGatewayToolCallDto),
+      ),
+    );
   }
 
   return {

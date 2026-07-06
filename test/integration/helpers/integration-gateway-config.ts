@@ -6,6 +6,7 @@ import {
   INTEGRATION_SECOND_MODEL_ALIAS,
   INTEGRATION_SECOND_MODEL_ID,
 } from './integration-constants';
+import { asProviderInstanceId } from '../../../src/common/types';
 import type { CreateTestGatewayConfigOptions } from 'src/common/mocks/createTestGatewayConfig';
 
 export function buildIntegrationGatewayModels(
@@ -15,7 +16,7 @@ export function buildIntegrationGatewayModels(
 ) {
   return {
     [INTEGRATION_MODEL_ALIAS]: {
-      providerInstance: INTEGRATION_PROVIDER_INSTANCE,
+      providerInstance: asProviderInstanceId(INTEGRATION_PROVIDER_INSTANCE),
       modelId: INTEGRATION_MODEL_ID,
       capabilities: { tools: toolsEnabled ?? false, streaming: true },
       policy: {
@@ -31,7 +32,9 @@ export function buildIntegrationGatewayModels(
     ...(dualModel
       ? {
           [INTEGRATION_SECOND_MODEL_ALIAS]: {
-            providerInstance: INTEGRATION_PROVIDER_INSTANCE,
+            providerInstance: asProviderInstanceId(
+              INTEGRATION_PROVIDER_INSTANCE,
+            ),
             modelId: INTEGRATION_SECOND_MODEL_ID,
             capabilities: { tools: false, streaming: true },
             policy: {

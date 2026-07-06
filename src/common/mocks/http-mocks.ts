@@ -1,11 +1,12 @@
 import type { Request, Response } from 'express';
-import { asGatewayKey } from '../types';
+import { asGatewayKey, asRequestId } from '../types';
+
 
 export function createMockExpressRequest(
   overrides?: Partial<Request>,
 ): Partial<Request> {
   return {
-    requestId: 'req_123',
+    requestId: asRequestId('req_123'),
     gatewayKey: asGatewayKey('gw_test_key'),
     header: jest.fn(),
     headers: {},

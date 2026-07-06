@@ -2,7 +2,10 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
 import { ApiErrorCode } from '../../src/common/errors/api-error.code';
-import { TEST_MODEL_ALIAS } from '../../src/common/mocks/test-constants';
+import {
+  TEST_MODEL_ALIAS,
+  TEST_PROVIDER_INSTANCE_BRANDED,
+} from '../../src/common/mocks/test-constants';
 import {
   closeE2eApp,
   createE2eApp,
@@ -412,7 +415,7 @@ describe('Gateway Chat API (E2E)', () => {
                   fallback: fallbackAlias,
                 },
                 [fallbackAlias]: {
-                  providerInstance: 'anthropic-primary',
+                  providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
                   modelId: 'claude-sonnet-4-5',
                   capabilities: { tools: true, streaming: true },
                 },

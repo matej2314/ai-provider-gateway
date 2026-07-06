@@ -12,9 +12,9 @@ import {
   DEFAULT_HTTP_STATUS_TO_CODE,
 } from '../errors/api-error.code';
 import { LoggingService } from '../../logging/logging.service';
-import { asRequestId } from 'src/common/types/branded.types';
+import { asRequestId } from '../../common/types/branded.types';
 
-type RequestWithId = Request & { requestId?: string };
+type RequestWithId = Request & { requestId: string };
 
 @Catch()
 @Injectable()
@@ -53,7 +53,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
         const requestId = body.requestId;
         if (typeof requestId === 'string' && requestId.trim()) {
-          request.requestId = requestId.trim();
+          request.requestId = asRequestId(requestId.trim());
         }
       } else {
         code = this.mapHttpStatusToCode(status);

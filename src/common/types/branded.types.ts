@@ -82,6 +82,18 @@ export type ProviderApiKey = Brand<string, 'ProviderApiKey'>;
  */
 export type EnvRef = Brand<string, 'EnvRef'>;
 
+/**
+ * Model alias from gateway configuration (e.g., "claude-sonnet-4-5", "gemini-flash")
+ * NOT to be confused with vendor modelId!
+ */
+export type ModelAlias = Brand<string, 'ModelAlias'>;
+
+/**
+ * Vendor-specific model identifier (e.g., "claude-sonnet-4-5-20250929")
+ * NOT to be confused with ModelAlias!
+ */
+export type ModelId = Brand<string, 'ModelId'>;
+
 export const asRequestId = (value: string): RequestId => value as RequestId;
 export const asConversationId = (value: string): ConversationId =>
   value as ConversationId;
@@ -97,3 +109,5 @@ export const asJsonSchemaName = (value: string): JsonSchemaName =>
 export const asProviderApiKey = (value: string): ProviderApiKey =>
   value as ProviderApiKey;
 export const asEnvRef = (value: string): EnvRef => value as EnvRef;
+export const asModelAlias = (value: string): ModelAlias => value as ModelAlias;
+export const asModelId = (value: string): ModelId => value as ModelId;

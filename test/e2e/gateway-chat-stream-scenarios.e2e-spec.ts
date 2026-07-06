@@ -1,7 +1,10 @@
 import request from 'supertest';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ApiErrorCode } from '../../src/common/errors/api-error.code';
-import { TEST_MODEL_ALIAS } from '../../src/common/mocks/test-constants';
+import {
+  TEST_MODEL_ALIAS,
+  TEST_PROVIDER_INSTANCE_BRANDED,
+} from '../../src/common/mocks/test-constants';
 import { withE2eApp } from './helpers/create-e2e-app';
 import {
   createE2eFallbackProviderRegistry,
@@ -109,7 +112,7 @@ describe('Gateway Chat Stream Scenarios (E2E)', () => {
               models: {
                 [primaryAlias]: { fallback: fallbackAlias },
                 [fallbackAlias]: {
-                  providerInstance: 'anthropic-primary',
+                  providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
                   modelId: 'claude-sonnet-4-5',
                   capabilities: { tools: true, streaming: true },
                 },

@@ -3,6 +3,7 @@ import type {
   GatewayToolDefinition,
   GatewayToolCall,
 } from '../types/tooling-types';
+import type { ModelId, JsonSchemaName } from '../../common/types/branded.types';
 
 export type UserChatMessage = { role: 'user'; content: string };
 export type AssistantChatMessage = { role: 'assistant'; content: string };
@@ -94,7 +95,7 @@ export interface ProviderCallOptions {
   seed?: number;
   responseFormat?: {
     type: 'text' | 'json_object' | 'json_schema';
-    jsonSchemaName?: string;
+    jsonSchemaName?: JsonSchemaName;
     jsonSchema?: Record<string, unknown>;
   };
   thinkingEnabled?: boolean;
@@ -113,13 +114,13 @@ export interface ProviderCallOptions {
 export interface AIProvider {
   complete(
     input: ProviderChatInput,
-    modelId: string,
+    modelId: ModelId,
     options?: ProviderCallOptions,
   ): Promise<ProviderChatResponse>;
 
   stream?(
     input: ProviderChatInput,
-    modelId: string,
+    modelId: ModelId,
     options?: ProviderCallOptions,
   ): StreamResult;
 }

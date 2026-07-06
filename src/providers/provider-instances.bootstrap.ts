@@ -87,7 +87,7 @@ export class ProviderInstancesBootstrap implements OnApplicationBootstrap {
       }
       const context = buildFactoryContext(instanceId, row, runtime);
       const provider = factory(context, this.loggingService);
-      this.registry.registerInstance(instanceId, row.type, provider);
+      this.registry.registerInstance(asProviderInstanceId(instanceId), row.type, provider);
     }
   }
 }

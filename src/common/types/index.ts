@@ -7,6 +7,8 @@ export {
   asProviderApiKey,
   asEnvRef,
   asProviderInstanceId,
+  asModelAlias,
+  asModelId,
   type Brand,
   type UnBrand,
   type RequestId,
@@ -15,6 +17,8 @@ export {
   type ProviderApiKey,
   type EnvRef,
   type ProviderInstanceId,
+  type ModelAlias,
+  type ModelId,
 } from './branded.types';
 
 export {
