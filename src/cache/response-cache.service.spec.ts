@@ -13,7 +13,18 @@ import type { ProviderCallOptions } from '../providers/interfaces/ai-provider.in
 import { createMockCacheBackend } from '../common/mocks/createMockCacheBackend';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockConfigService } from '../common/mocks/createMockConfigService';
-import { TEST_MODEL_ALIAS } from '../common/mocks/test-constants';
+import {
+  TEST_MODEL_ALIAS,
+  TEST_MODEL_ALIAS_BRANDED,
+  TEST_CACHED_RESPONSE_ID,
+  TEST_CACHED_REQUEST_ID,
+  TEST_CACHED_CONVERSATION_ID,
+  TEST_INPUT_TOKENS,
+  TEST_OUTPUT_TOKENS,
+  TEST_INPUT_TOKENS_SMALL,
+  TEST_OUTPUT_TOKENS_SMALL,
+  TEST_PROVIDER_INSTANCE_BRANDED,
+} from '../common/mocks/test-constants';
 
 describe('ResponseCacheService', () => {
   let service: ResponseCacheService;
@@ -70,12 +81,15 @@ describe('ResponseCacheService', () => {
 
     it('should return parsed response on cache hit', async () => {
       const cached: CachedChatResponse = {
-        id: 'msg-123',
-        provider: 'anthropic',
-        model: 'claude-sonnet-4',
+        id: TEST_CACHED_RESPONSE_ID,
+        provider: TEST_PROVIDER_INSTANCE_BRANDED,
+        model: TEST_MODEL_ALIAS_BRANDED,
         output: { type: 'text', text: 'Hello!' },
-        usage: { inputTokens: 10, outputTokens: 5 },
-        requestId: 'req-123',
+        usage: {
+          inputTokens: TEST_INPUT_TOKENS,
+          outputTokens: TEST_OUTPUT_TOKENS_SMALL,
+        },
+        requestId: TEST_CACHED_REQUEST_ID,
         cached: true,
         cachedAt: new Date().toISOString(),
       };
@@ -212,13 +226,16 @@ describe('ResponseCacheService', () => {
     };
 
     const response: ChatResponseData = {
-      id: 'msg-123',
-      provider: 'anthropic',
-      model: 'claude-sonnet-4',
+      id: TEST_CACHED_RESPONSE_ID,
+      provider: TEST_PROVIDER_INSTANCE_BRANDED,
+      model: TEST_MODEL_ALIAS_BRANDED,
       output: { type: 'text', text: 'Hello!' },
-      usage: { inputTokens: 10, outputTokens: 5 },
-      requestId: 'req-123',
-      conversationId: 'conv-123',
+      usage: {
+        inputTokens: TEST_INPUT_TOKENS,
+        outputTokens: TEST_OUTPUT_TOKENS_SMALL,
+      },
+      requestId: TEST_CACHED_REQUEST_ID,
+      conversationId: TEST_CACHED_CONVERSATION_ID,
     };
 
     it('should generate different cache key for different modelAlias', async () => {
@@ -289,7 +306,7 @@ describe('ResponseCacheService', () => {
 
       const fullResponse: ChatResponseData = {
         ...response,
-        conversationId: 'conv-456',
+        conversationId: TEST_CACHED_CONVERSATION_ID,
         toolCalls: [{ id: 'tc-1', name: 'search', arguments: '{}' }],
         finishReason: 'stop',
         effectiveModelAlias: 'fallback-alias',

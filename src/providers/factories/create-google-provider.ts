@@ -18,7 +18,11 @@ import {
   parseGeminiResponseWithTools,
   extractGeminiThinkingContent,
 } from '../google/google-tools.mapper';
-import type { ProviderApiKey } from 'src/common/types/branded.types';
+import {
+  asInputTokens,
+  asOutputTokens,
+  type ProviderApiKey,
+} from 'src/common/types/branded.types';
 
 function mapStopSequences(
   stop: ProviderCallOptions['stop'],
@@ -167,8 +171,12 @@ export function createGoogleProvider(
           model: response.modelVersion ?? modelId,
           usage: response.usageMetadata
             ? {
-                inputTokens: response.usageMetadata.promptTokenCount ?? 0,
-                outputTokens: response.usageMetadata.candidatesTokenCount ?? 0,
+                inputTokens: asInputTokens(
+                  response.usageMetadata.promptTokenCount ?? 0,
+                ),
+                outputTokens: asOutputTokens(
+                  response.usageMetadata.candidatesTokenCount ?? 0,
+                ),
               }
             : undefined,
           ...(thinkingContent && { thinkingContent }),
@@ -265,8 +273,8 @@ export function createGoogleProvider(
         if (!metadata) return Promise.resolve(undefined);
 
         return Promise.resolve({
-          inputTokens: metadata.promptTokenCount ?? 0,
-          outputTokens: metadata.candidatesTokenCount ?? 0,
+          inputTokens: asInputTokens(metadata.promptTokenCount ?? 0),
+          outputTokens: asOutputTokens(metadata.candidatesTokenCount ?? 0),
           model: lastChunk.modelVersion ?? modelId,
         });
       }

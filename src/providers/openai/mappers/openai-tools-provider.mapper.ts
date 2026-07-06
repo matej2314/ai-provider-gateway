@@ -4,7 +4,7 @@ import type {
   ProviderToolDefinition,
 } from 'src/providers/interfaces/ai-provider.interface';
 import type { GatewayToolChoice } from '../../types/tooling-types';
-import { asToolCallId } from '../../../common/types/branded.types';
+import { asToolCallId, asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
 
 type ChatCompletionTool = OpenAI.Chat.Completions.ChatCompletionTool;
 type ChatCompletionMessageToolCall =
@@ -106,8 +106,8 @@ export function parseOpenAiCompletionWithTools(
     model: response.model,
     usage: response.usage
       ? {
-          inputTokens: response.usage.prompt_tokens ?? 0,
-          outputTokens: response.usage.completion_tokens ?? 0,
+          inputTokens: asInputTokens(response.usage.prompt_tokens ?? 0),
+          outputTokens: asOutputTokens(response.usage.completion_tokens ?? 0),
         }
       : undefined,
     systemFingerprint: response.system_fingerprint ?? undefined,

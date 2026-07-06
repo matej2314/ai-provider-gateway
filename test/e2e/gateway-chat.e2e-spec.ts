@@ -5,7 +5,10 @@ import { ApiErrorCode } from '../../src/common/errors/api-error.code';
 import {
   TEST_MODEL_ALIAS,
   TEST_PROVIDER_INSTANCE_BRANDED,
+  TEST_INPUT_TOKENS,
+  TEST_OUTPUT_TOKENS,
 } from '../../src/common/mocks/test-constants';
+import { expectGatewayUsage } from '../helpers/expect-gateway-usage';
 import {
   closeE2eApp,
   createE2eApp,
@@ -100,6 +103,11 @@ describe('Gateway Chat API (E2E)', () => {
         },
         finishReason: expect.any(String),
         requestId: expect.any(String),
+      });
+
+      expectGatewayUsage(response.body.usage, {
+        inputTokens: TEST_INPUT_TOKENS,
+        outputTokens: TEST_OUTPUT_TOKENS,
       });
 
       expect(providerRegistry.resolveMock).toHaveBeenCalledWith(

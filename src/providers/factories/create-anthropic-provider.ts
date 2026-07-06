@@ -23,7 +23,11 @@ import {
   mapThinkingToAnthropic,
   resolveAnthropicOutputConfig,
 } from '../anthropic/anthropic-thinking.mapper';
-import type { ProviderApiKey } from 'src/common/types/branded.types';
+import {
+  asInputTokens,
+  asOutputTokens,
+  type ProviderApiKey,
+} from 'src/common/types/branded.types';
 
 type AnthropicMessage = Anthropic.Message;
 
@@ -127,8 +131,8 @@ export function createAnthropicProvider(
           text,
           model: response.model,
           usage: {
-            inputTokens: response.usage.input_tokens,
-            outputTokens: response.usage.output_tokens,
+            inputTokens: asInputTokens(response.usage.input_tokens),
+            outputTokens: asOutputTokens(response.usage.output_tokens),
           },
           ...(responseThinkingContent
             ? { thinkingContent: responseThinkingContent }
@@ -203,8 +207,8 @@ export function createAnthropicProvider(
           const finalMessage = await resolveStreamFinalMessage(streamObject);
           if (!finalMessage) return undefined;
           return {
-            inputTokens: finalMessage.usage.input_tokens,
-            outputTokens: finalMessage.usage.output_tokens,
+            inputTokens: asInputTokens(finalMessage.usage.input_tokens),
+            outputTokens: asOutputTokens(finalMessage.usage.output_tokens),
             model: finalMessage.model,
           };
         } catch (error) {

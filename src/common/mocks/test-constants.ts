@@ -6,6 +6,12 @@ import {
   asProviderInstanceId,
   asRequestId,
   asToolCallId,
+  asInputTokens,
+  asOutputTokens,
+  asCostUsd,
+  asPromptCacheHitTokens,
+  asPromptCacheCreationTokens,
+  asResponseId,
 } from '../types/branded.types';
 
 export const VALID_CONVERSATION_ID =
@@ -37,3 +43,15 @@ export const TEST_MODEL_ID = asModelId('claude-sonnet-4-5');
 export const TEST_TOOL_CALL_ID = asToolCallId('call_123');
 
 export const TEST_RESPONSE_ID_PREFIX = `gw_${MOCK_UUID}`;
+
+export const TEST_INPUT_TOKENS = asInputTokens(10);
+export const TEST_OUTPUT_TOKENS = asOutputTokens(20);
+export const TEST_INPUT_TOKENS_SMALL = asInputTokens(5);
+export const TEST_OUTPUT_TOKENS_SMALL = asOutputTokens(5);
+export const TEST_PROMPT_CACHE_HIT_TOKENS = asPromptCacheHitTokens(100);
+export const TEST_PROMPT_CACHE_CREATION_TOKENS = asPromptCacheCreationTokens(50);
+export const TEST_COST_USD = asCostUsd(0.001);
+
+export const TEST_CACHED_RESPONSE_ID = asResponseId('msg-123');
+export const TEST_CACHED_REQUEST_ID = asRequestId('req-123');
+export const TEST_CACHED_CONVERSATION_ID = asConversationId('conv-123');

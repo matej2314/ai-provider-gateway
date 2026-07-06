@@ -17,6 +17,8 @@ import type {
   ConversationId,
   ModelAlias,
   ProviderInstanceId,
+  InputTokens,
+  OutputTokens,
 } from '../../common/types/branded.types';
 
 export class ChatUsageDetailsDto {
@@ -46,8 +48,8 @@ export interface ChatResponseData {
     text: string;
   };
   usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
+    inputTokens?: InputTokens;
+    outputTokens?: OutputTokens;
     totalTokens?: number;
   };
   requestId: RequestId;

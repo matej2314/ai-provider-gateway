@@ -1,6 +1,6 @@
 import type OpenAI from 'openai';
 import type { ProviderChatResponse } from 'src/providers/interfaces/ai-provider.interface';
-import { asToolCallId } from '../../../common/types/branded.types';
+import { asToolCallId, asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
 
 function extractResponsesToolCalls(
   output: OpenAI.Responses.Response['output'] | undefined,
@@ -51,8 +51,8 @@ export function parseOpenAiResponse(
     model: response.model ?? modelId,
     usage: response.usage
       ? {
-          inputTokens: response.usage.input_tokens ?? 0,
-          outputTokens: response.usage.output_tokens ?? 0,
+          inputTokens: asInputTokens(response.usage.input_tokens ?? 0),
+          outputTokens: asOutputTokens(response.usage.output_tokens ?? 0),
         }
       : undefined,
   };

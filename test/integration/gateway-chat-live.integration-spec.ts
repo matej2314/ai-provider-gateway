@@ -11,6 +11,7 @@ import {
   INTEGRATION_ROUTES,
 } from './helpers/integration-constants';
 import type { INestApplication } from '@nestjs/common';
+import { expectGatewayUsage } from '../helpers/expect-gateway-usage';
 
 describe('Gateway chat live (integration)', () => {
   let app: INestApplication;
@@ -57,9 +58,8 @@ describe('Gateway chat live (integration)', () => {
       requestId: expect.any(String),
     });
 
+    expectGatewayUsage(response.body.usage);
     expect(response.body.output.text.length).toBeGreaterThan(0);
-    expect(response.body.usage.inputTokens).toBeGreaterThanOrEqual(0);
-    expect(response.body.usage.outputTokens).toBeGreaterThanOrEqual(0);
     expect(response.body.cached).toBeUndefined();
   });
 

@@ -22,6 +22,10 @@ import {
   type ResponseId,
   ProviderInstanceId,
   asModelId,
+  asInputTokens,
+  asOutputTokens,
+  InputTokens,
+  OutputTokens,
 } from '../../common/types/branded.types';
 
 export interface CompleteOnceResult {
@@ -37,8 +41,8 @@ export interface StreamOnceResult {
   assembledText: string;
   usageMetadata:
     | {
-        inputTokens: number;
-        outputTokens: number;
+        inputTokens: InputTokens;
+        outputTokens: OutputTokens;
         model?: string;
       }
     | undefined;
@@ -108,8 +112,8 @@ export class ChatProviderCallService {
         outputText: res.text,
         usage: res.usage
           ? {
-              inputTokens: res.usage.inputTokens,
-              outputTokens: res.usage.outputTokens,
+              inputTokens: asInputTokens(res.usage.inputTokens),
+              outputTokens: asOutputTokens(res.usage.outputTokens),
             }
           : undefined,
       }),
@@ -197,8 +201,8 @@ export class ChatProviderCallService {
         outputText: assembledText || undefined,
         usage: usageMetadata
           ? {
-              inputTokens: usageMetadata.inputTokens,
-              outputTokens: usageMetadata.outputTokens,
+              inputTokens: asInputTokens(usageMetadata.inputTokens),
+              outputTokens: asOutputTokens(usageMetadata.outputTokens),
             }
           : undefined,
       });
@@ -219,7 +223,11 @@ export class ChatProviderCallService {
         providerName: asProviderInstanceId(resolved.providerName),
         modelId: asModelId(resolved.modelId),
         assembledText: assembledText || '',
-        usageMetadata: usageMetadata,
+        usageMetadata: usageMetadata ? {
+          inputTokens: asInputTokens(usageMetadata.inputTokens),
+          outputTokens: asOutputTokens(usageMetadata.outputTokens),
+          model: usageMetadata.model,
+        } : undefined,
         ...(toolCalls?.length && { toolCalls }),
         ...(stopReason && { stopReason }),
         ...(systemFingerprint && { systemFingerprint }),

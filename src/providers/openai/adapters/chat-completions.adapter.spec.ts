@@ -3,6 +3,7 @@ import { HttpException } from '@nestjs/common';
 import { createChatCompletionsAdapter } from './chat-completions.adapter';
 import { createMockLoggingService } from '../../../common/mocks/createMockLoggingService';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import { asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
 
 function createMockClient() {
   return {
@@ -49,7 +50,10 @@ describe('createChatCompletionsAdapter', () => {
       }),
     );
     expect(result.text).toBe('Hello');
-    expect(result.usage).toEqual({ inputTokens: 3, outputTokens: 2 });
+    expect(result.usage).toEqual({
+      inputTokens: asInputTokens(3),
+      outputTokens: asOutputTokens(2),
+    });
   });
 
   it('maps SDK errors to HttpException', async () => {
@@ -183,8 +187,8 @@ describe('createChatCompletionsAdapter', () => {
       }),
     );
     await expect(stream.getUsageMetadata()).resolves.toEqual({
-      inputTokens: 1,
-      outputTokens: 1,
+      inputTokens: asInputTokens(1),
+      outputTokens: asOutputTokens(1),
       model: 'gpt-4o',
     });
   });

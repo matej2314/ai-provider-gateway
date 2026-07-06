@@ -9,6 +9,7 @@ import type {
   LlmCallMessage,
   LlmRequestMetadata,
 } from '../interfaces/metrics-backend.interface';
+import { ConversationId } from '../../common/types/branded.types';
 
 function toGenAiProviderName(provider: string): string {
   const map: Record<string, string> = {
@@ -70,7 +71,7 @@ function applyGenAiMessagesToSpan(
 /** Multi-turn grouping — only when the client sent conversationId. */
 function applyGenAiConversationIdToSpan(
   span: Span,
-  conversationId: string,
+  conversationId: ConversationId,
 ): void {
   span.setAttribute('gen_ai.conversation.id', conversationId);
 }

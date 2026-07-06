@@ -10,7 +10,7 @@ import type { CacheBackend } from './interfaces/cache-backend-interface';
 import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
 import type { ChatResponseData } from '../chat/services/chat-response-builder.service';
 import type { CachedChatResponse } from './types/cached-chat-response.type';
-import { asProviderInstanceId } from '../common/types/branded.types';
+import { asProviderInstanceId, asInputTokens, asOutputTokens } from '../common/types/branded.types';
 
 export type { CachedChatResponse } from './types/cached-chat-response.type';
 
@@ -124,8 +124,8 @@ export class ResponseCacheService {
       requestId: response.requestId,
       ...(response.usage && {
         usage: {
-          inputTokens: response.usage.inputTokens ?? 0,
-          outputTokens: response.usage.outputTokens ?? 0,
+          inputTokens: asInputTokens(response.usage.inputTokens ?? 0),
+          outputTokens: asOutputTokens(response.usage.outputTokens ?? 0),
         },
       }),
       ...(response.warnings?.length && { warnings: response.warnings }),

@@ -5,6 +5,11 @@ import {
   mapSystemFingerprintToOpenAi,
 } from './openai-response.mapper';
 import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
+import {
+  TEST_INPUT_TOKENS,
+  TEST_OUTPUT_TOKENS,
+} from '../../../common/mocks/test-constants';
+import { asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
 
 describe('openai-response.mapper helpers', () => {
   it('toOpenAiCompletionId should replace gw_ prefix', () => {
@@ -32,7 +37,10 @@ describe('mapChatResponseToOpenAi', () => {
   const baseResponse = {
     id: 'gw_abc123',
     output: { text: 'Hello world' },
-    usage: { inputTokens: 10, outputTokens: 20 },
+    usage: {
+      inputTokens: TEST_INPUT_TOKENS,
+      outputTokens: TEST_OUTPUT_TOKENS,
+    },
   } as ChatResponseDto;
 
   it('should map basic text completion', () => {
@@ -63,7 +71,10 @@ describe('mapChatResponseToOpenAi', () => {
           { id: 'call_1', name: 'get_weather', arguments: '{"city":"NYC"}' },
         ],
         finishReason: 'tool_calls',
-        usage: { inputTokens: 1, outputTokens: 2 },
+        usage: {
+          inputTokens: asInputTokens(1),
+          outputTokens: asOutputTokens(2),
+        },
       } as ChatResponseDto,
       'gpt-4',
     );
@@ -85,7 +96,10 @@ describe('mapChatResponseToOpenAi', () => {
         id: 'gw_1',
         output: { text: '   ' },
         toolCalls: [{ id: 'call_1', name: 'test', arguments: '{}' }],
-        usage: { inputTokens: 1, outputTokens: 2 },
+        usage: {
+          inputTokens: asInputTokens(1),
+          outputTokens: asOutputTokens(2),
+        },
       } as ChatResponseDto,
       'gpt-4',
     );

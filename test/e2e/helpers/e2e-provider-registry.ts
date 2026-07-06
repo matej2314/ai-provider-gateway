@@ -6,11 +6,16 @@ import type {
   StreamResult,
 } from '../../../src/providers/interfaces/ai-provider.interface';
 import {
+  TEST_INPUT_TOKENS,
+  TEST_INPUT_TOKENS_SMALL,
   TEST_MODEL_ALIAS,
+  TEST_OUTPUT_TOKENS,
+  TEST_OUTPUT_TOKENS_SMALL,
   TEST_PROVIDER_INSTANCE,
 } from '../../../src/common/mocks/test-constants';
 import type { GatewayProviderType } from '../../../src/config/provider-types';
 import type { OpenAiApiSurface } from '../../../src/providers/openai/openai-provider.types';
+import { asOutputTokens } from '../../../src/common/types/branded.types';
 import {
   E2E_OPENAI_MODEL_ALIAS,
   E2E_OPENAI_PROVIDER_INSTANCE,
@@ -86,7 +91,10 @@ function createDefaultCompleteResponse(
   return {
     text: 'Mocked response from provider',
     stopReason: 'end_turn',
-    usage: { inputTokens: 10, outputTokens: 20 },
+    usage: {
+      inputTokens: TEST_INPUT_TOKENS,
+      outputTokens: TEST_OUTPUT_TOKENS,
+    },
     ...overrides,
   };
 }
@@ -110,8 +118,8 @@ function createStreamResult(options: E2eStreamResultOptions = {}): StreamResult 
   return {
     textStream: textStream(),
     getUsageMetadata: jest.fn().mockResolvedValue({
-      inputTokens: 5,
-      outputTokens: 10,
+      inputTokens: TEST_INPUT_TOKENS_SMALL,
+      outputTokens: TEST_OUTPUT_TOKENS_SMALL,
     }),
     getStopReason: jest
       .fn()
@@ -226,7 +234,10 @@ export function createE2eFallbackProviderRegistry(options: {
     complete: jest.fn().mockResolvedValue(
       createDefaultCompleteResponse({
         text: options.fallbackText ?? 'Response from fallback',
-        usage: { inputTokens: 10, outputTokens: 15 },
+        usage: {
+          inputTokens: TEST_INPUT_TOKENS,
+          outputTokens: asOutputTokens(15),
+        },
       }),
     ),
     stream: jest.fn().mockReturnValue(createStreamResult({ chunks: ['fallback'] })),

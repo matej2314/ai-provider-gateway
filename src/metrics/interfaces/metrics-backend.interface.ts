@@ -5,6 +5,9 @@ import type {
   ToolCallId,
   ModelAlias,
   ModelId,
+  InputTokens,
+  OutputTokens,
+  CostUsd,
 } from '../../common/types/branded.types';
 
 export interface LlmCallMessage {
@@ -30,10 +33,10 @@ export interface LlmCallObservation {
   responseModel?: string;
   outputText?: string;
   usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
+    inputTokens?: InputTokens;
+    outputTokens?: OutputTokens;
   };
-  costUsd?: number;
+  costUsd?: CostUsd;
 }
 
 export interface llmStreamSpanController {

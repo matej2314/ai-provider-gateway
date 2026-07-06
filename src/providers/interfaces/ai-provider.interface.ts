@@ -3,7 +3,15 @@ import type {
   GatewayToolDefinition,
   GatewayToolCall,
 } from '../types/tooling-types';
-import type { ModelId, JsonSchemaName } from '../../common/types/branded.types';
+import type {
+  ModelId,
+  JsonSchemaName,
+  ToolCallId,
+  InputTokens,
+  OutputTokens,
+  PromptCacheHitTokens,
+  PromptCacheCreationTokens,
+} from '../../common/types/branded.types';
 
 export type UserChatMessage = { role: 'user'; content: string };
 export type AssistantChatMessage = { role: 'assistant'; content: string };
@@ -19,7 +27,7 @@ export type ProviderAssistantTurn = {
 
 export type ProviderToolResultTurn = {
   role: 'tool';
-  toolCallId: string;
+  toolCallId: ToolCallId;
   content: string;
 };
 
@@ -38,8 +46,8 @@ export interface ProviderChatInput {
 }
 
 export interface ProviderUsageDetails {
-  promptCacheHitTokens?: number;
-  promptCacheCreationTokens?: number;
+  promptCacheHitTokens?: PromptCacheHitTokens;
+  promptCacheCreationTokens?: PromptCacheCreationTokens;
 }
 
 export interface ProviderChatResponse {
@@ -59,8 +67,8 @@ export interface ProviderChatResponse {
     | 'insufficient_system_resource';
   model?: string;
   usage?: {
-    inputTokens: number;
-    outputTokens: number;
+    inputTokens: InputTokens;
+    outputTokens: OutputTokens;
   };
   usageDetails?: ProviderUsageDetails;
   systemFingerprint?: string;
@@ -71,8 +79,8 @@ export interface StreamResult {
   textStream: AsyncIterable<string>;
   getUsageMetadata: () => Promise<
     | {
-        inputTokens: number;
-        outputTokens: number;
+        inputTokens: InputTokens;
+        outputTokens: OutputTokens;
         model?: string;
       }
     | undefined

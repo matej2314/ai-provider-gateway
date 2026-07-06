@@ -18,6 +18,8 @@ import {
   type RequestId,
   type ConversationId,
   type ModelAlias,
+  type InputTokens,
+  type OutputTokens,
 } from '../../common/types/branded.types';
 
 export type { ChatResponseData } from '../dto/chat-response.dto';
@@ -25,8 +27,8 @@ export type { ChatResponseData } from '../dto/chat-response.dto';
 export interface ProviderResponse {
   text: string;
   usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
+    inputTokens?: InputTokens;
+    outputTokens?: OutputTokens;
     totalTokens?: number;
   };
   toolCalls?: GatewayToolCall[];
@@ -84,8 +86,8 @@ export class ChatResponseBuilderService {
   buildStreamDoneEvent(
     usageMetadata:
       | {
-          inputTokens: number;
-          outputTokens: number;
+          inputTokens: InputTokens;
+          outputTokens: OutputTokens;
         }
       | undefined,
     toolCalls: GatewayToolCall[] | undefined,

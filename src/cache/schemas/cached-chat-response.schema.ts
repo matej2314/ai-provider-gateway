@@ -5,6 +5,8 @@ import {
   asProviderInstanceId,
   asRequestId,
   asResponseId,
+  asInputTokens,
+  asOutputTokens,
 } from 'src/common/types/branded.types';
 
 const ChatWarningSchema = z.object({
@@ -23,8 +25,8 @@ export const CachedChatResponseSchema = z.object({
   }),
   usage: z
     .object({
-      inputTokens: z.number().int().min(0),
-      outputTokens: z.number().int().min(0),
+      inputTokens: z.number().int().min(0).transform(asInputTokens),
+      outputTokens: z.number().int().min(0).transform(asOutputTokens),
     })
     .optional(),
   requestId: z.string().transform(asRequestId),

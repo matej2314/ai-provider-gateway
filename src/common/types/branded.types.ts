@@ -94,6 +94,39 @@ export type ModelAlias = Brand<string, 'ModelAlias'>;
  */
 export type ModelId = Brand<string, 'ModelId'>;
 
+/**
+ * Number of input tokens
+ */
+export type InputTokens = Brand<number, 'InputTokens'>;
+
+/**
+ * Number of output tokens
+ */
+export type OutputTokens = Brand<number, 'OutputTokens'>;
+
+/**
+ * Thinking budget in tokens (min 1024)
+ */
+export type ThinkingBudgetTokens = Brand<number, 'ThinkingBudgetTokens'>;
+
+/**
+ * Cost in USD
+ */
+export type CostUsd = Brand<number, 'CostUsd'>;
+
+/**
+ * Prompt cache hit tokens (Anthropic)
+ */
+export type PromptCacheHitTokens = Brand<number, 'PromptCacheHitTokens'>;
+
+/**
+ * Prompt cache creation tokens (Anthropic)
+ */
+export type PromptCacheCreationTokens = Brand<
+  number,
+  'PromptCacheCreationTokens'
+>;
+
 export const asRequestId = (value: string): RequestId => value as RequestId;
 export const asConversationId = (value: string): ConversationId =>
   value as ConversationId;
@@ -111,3 +144,15 @@ export const asProviderApiKey = (value: string): ProviderApiKey =>
 export const asEnvRef = (value: string): EnvRef => value as EnvRef;
 export const asModelAlias = (value: string): ModelAlias => value as ModelAlias;
 export const asModelId = (value: string): ModelId => value as ModelId;
+export const asInputTokens = (value: number): InputTokens =>
+  value as InputTokens;
+export const asOutputTokens = (value: number): OutputTokens =>
+  value as OutputTokens;
+export const asThinkingBudgetTokens = (value: number): ThinkingBudgetTokens =>
+  value as ThinkingBudgetTokens;
+export const asCostUsd = (value: number): CostUsd => value as CostUsd;
+export const asPromptCacheHitTokens = (value: number): PromptCacheHitTokens =>
+  value as PromptCacheHitTokens;
+export const asPromptCacheCreationTokens = (
+  value: number,
+): PromptCacheCreationTokens => value as PromptCacheCreationTokens;

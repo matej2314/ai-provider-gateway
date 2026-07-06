@@ -13,6 +13,7 @@ import type {
 } from '../../providers/interfaces/ai-provider.interface';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { ChatMessageDto } from '../dto/chat-message.dto';
+import { asToolCallId, type ToolCallId } from '../../common/types/branded.types';
 
 export function toProviderTurns(
   messages: ChatMessageDto[],
@@ -31,7 +32,7 @@ export function toProviderTurns(
     } else if (isChatToolMessage(message)) {
       turns.push({
         role: 'tool',
-        toolCallId: message.toolCallId,
+        toolCallId: asToolCallId(message.toolCallId),
         content: message.content,
       });
     } else if (message.role === 'tool' && !message.toolCallId) {

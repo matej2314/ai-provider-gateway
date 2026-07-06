@@ -9,6 +9,7 @@ import {
   TEST_PROVIDER_INSTANCE_BRANDED,
   TEST_REQUEST_ID,
 } from '../common/mocks/test-constants';
+import { asInputTokens, asOutputTokens, asCostUsd } from '../common/types/branded.types';
 
 describe('MetricsService', () => {
   let service: MetricsService;
@@ -61,9 +62,13 @@ describe('MetricsService', () => {
         requestId: TEST_REQUEST_ID,
       };
       const fn = jest.fn().mockResolvedValue({ data: 'ok' });
-      const mapResult = jest
-        .fn()
-        .mockReturnValue({ usage: { outputTokens: 100 } });
+      const mapResult = jest.fn().mockReturnValue({
+        usage: {
+          inputTokens: asInputTokens(50),
+          outputTokens: asOutputTokens(100),
+        },
+        costUsd: asCostUsd(0.002),
+      });
 
       (mockBackend.observeLlmCall as jest.Mock).mockResolvedValue({
         data: 'ok',

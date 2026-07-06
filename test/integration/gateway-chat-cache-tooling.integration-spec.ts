@@ -12,6 +12,7 @@ import {
   INTEGRATION_POST_SUCCESS_STATUS,
   INTEGRATION_ROUTES,
 } from './helpers/integration-constants';
+import { expectGatewayUsage } from '../helpers/expect-gateway-usage';
 
 describe('Gateway chat cache tooling bypass (integration)', () => {
   let app: INestApplication;
@@ -65,6 +66,7 @@ describe('Gateway chat cache tooling bypass (integration)', () => {
       .expect(INTEGRATION_POST_SUCCESS_STATUS);
 
     expect(first.body.cached).toBeFalsy();
+    expectGatewayUsage(first.body.usage);
 
     const withTooling = await request(app.getHttpServer())
       .post(INTEGRATION_ROUTES.chat)
@@ -73,6 +75,7 @@ describe('Gateway chat cache tooling bypass (integration)', () => {
       .expect(INTEGRATION_POST_SUCCESS_STATUS);
 
     expect(withTooling.body.cached).toBeUndefined();
+    expectGatewayUsage(withTooling.body.usage);
     expect(completeSpy).toHaveBeenCalledTimes(2);
   });
 });

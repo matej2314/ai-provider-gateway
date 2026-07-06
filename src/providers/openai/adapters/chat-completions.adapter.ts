@@ -23,6 +23,7 @@ import type {
   ProviderChatResponse,
   StreamResult,
 } from '../../interfaces/ai-provider.interface';
+import { asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
 
 export interface ChatCompletionsAdapterOptions {
   includeStreamUsage?: boolean;
@@ -116,8 +117,8 @@ export function createChatCompletionsAdapter(
           const usage = finalChunk?.usage;
           if (!usage) return undefined;
           return {
-            inputTokens: usage.prompt_tokens ?? 0,
-            outputTokens: usage.completion_tokens ?? 0,
+            inputTokens: asInputTokens(usage.prompt_tokens ?? 0),
+            outputTokens: asOutputTokens(usage.completion_tokens ?? 0),
             model: finalChunk?.model ?? modelId,
           };
         },

@@ -1,10 +1,15 @@
-import type { ProviderUsageDetails } from '../../../providers/interfaces/ai-provider.interface';
 import type { AnthropicMessagesUsageDto } from '../dtos/anthropic-messages-response.dto';
 import type { SseDoneEvent } from 'src/chat/sse/sse-event.type';
 
+/** API-boundary usage details (plain numbers from DTOs/SSE). */
+export type GatewayUsageDetails = {
+  promptCacheHitTokens?: number;
+  promptCacheCreationTokens?: number;
+};
+
 export function mapGatewayUsageToAnthropic(
   usage?: { inputTokens?: number; outputTokens?: number },
-  usageDetails?: ProviderUsageDetails,
+  usageDetails?: GatewayUsageDetails,
 ): AnthropicMessagesUsageDto {
   return {
     input_tokens: usage?.inputTokens ?? 0,

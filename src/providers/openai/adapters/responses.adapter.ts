@@ -26,7 +26,7 @@ import {
   extractResponsesReasoningSummaryText,
 } from '../mappers/openai-responses-thinking-provider.mapper';
 import { mapThinkingToResponsesReasoning } from '../mappers/openai-thinking-provider.mapper';
-import { asToolCallId } from '../../../common/types/branded.types';
+import { asToolCallId, asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
 import {
   mapToolChoiceToResponses,
   mapToolsToResponses,
@@ -156,8 +156,8 @@ export function createResponsesAdapter(client: OpenAI, logger: LoggingService) {
           const usage = finalResponse?.usage;
           if (!usage) return undefined;
           return {
-            inputTokens: usage.input_tokens ?? 0,
-            outputTokens: usage.output_tokens ?? 0,
+            inputTokens: asInputTokens(usage.input_tokens ?? 0),
+            outputTokens: asOutputTokens(usage.output_tokens ?? 0),
             model: finalResponse?.model ?? modelId,
           };
         },

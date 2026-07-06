@@ -4,6 +4,8 @@ import type {
   ResponseId,
   ProviderInstanceId,
   ModelAlias,
+  InputTokens,
+  OutputTokens,
 } from '../../common/types/branded.types';
 
 export interface CachedChatResponse {
@@ -15,8 +17,8 @@ export interface CachedChatResponse {
     text: string;
   };
   usage?: {
-    inputTokens: number;
-    outputTokens: number;
+    inputTokens: InputTokens;
+    outputTokens: OutputTokens;
   };
   requestId: RequestId;
   cached: true;

@@ -3,6 +3,7 @@ import { HttpException } from '@nestjs/common';
 import { createResponsesAdapter } from './responses.adapter';
 import { createMockLoggingService } from '../../../common/mocks/createMockLoggingService';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import { asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
 
 function createMockClient() {
   return {
@@ -189,8 +190,8 @@ describe('createResponsesAdapter', () => {
     expect(chunks).toEqual(['Answer']);
     await expect(stream.getThinkingContent?.()).resolves.toBe('Thinking done');
     await expect(stream.getUsageMetadata()).resolves.toEqual({
-      inputTokens: 1,
-      outputTokens: 2,
+      inputTokens: asInputTokens(1),
+      outputTokens: asOutputTokens(2),
       model: 'gpt-5.4-mini',
     });
   });

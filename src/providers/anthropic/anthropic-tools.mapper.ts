@@ -11,7 +11,13 @@ import { extractAnthropicThinkingContent } from './anthropic-thinking.mapper';
 import { parseJsonObject } from '../helpers/parse-json-object';
 import type { GatewayToolChoice } from '../types/tooling-types';
 import type { ProviderToolCall } from '../interfaces/ai-provider.interface';
-import { asToolCallId } from '../../common/types/branded.types';
+import {
+  asToolCallId,
+  asInputTokens,
+  asOutputTokens,
+  asPromptCacheCreationTokens,
+  asPromptCacheHitTokens,
+} from '../../common/types/branded.types';
 
 type Message = Anthropic.Message;
 type MessageParam = Anthropic.MessageParam;
@@ -130,14 +136,18 @@ export function parseAnthropicResponseWithTools(
   if (response.usage.cache_read_input_tokens != null) {
     usageDetails = {
       ...usageDetails,
-      promptCacheHitTokens: response.usage.cache_read_input_tokens,
+      promptCacheHitTokens: asPromptCacheHitTokens(
+        response.usage.cache_read_input_tokens,
+      ),
     };
   }
 
   if (response.usage.cache_creation_input_tokens != null) {
     usageDetails = {
       ...usageDetails,
-      promptCacheCreationTokens: response.usage.cache_creation_input_tokens,
+      promptCacheCreationTokens: asPromptCacheCreationTokens(
+        response.usage.cache_creation_input_tokens,
+      ),
     };
   }
 
@@ -149,8 +159,8 @@ export function parseAnthropicResponseWithTools(
     ...(stopReason ? { stopReason } : {}),
     model: response.model,
     usage: {
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
+      inputTokens: asInputTokens(response.usage.input_tokens),
+      outputTokens: asOutputTokens(response.usage.output_tokens),
     },
     ...(usageDetails ? { usageDetails } : {}),
     ...(thinkingContent ? { thinkingContent } : {}),

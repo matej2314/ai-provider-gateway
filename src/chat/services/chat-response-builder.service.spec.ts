@@ -13,8 +13,16 @@ import {
   TEST_MODEL_ALIAS_BRANDED,
   TEST_REQUEST_ID,
   TEST_RESPONSE_ID_PREFIX,
+  TEST_INPUT_TOKENS,
+  TEST_OUTPUT_TOKENS,
+  TEST_PROMPT_CACHE_HIT_TOKENS,
+  TEST_PROMPT_CACHE_CREATION_TOKENS,
 } from '../../common/mocks/test-constants';
-import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
+import {
+  asInputTokens,
+  asOutputTokens,
+  asPromptCacheHitTokens,
+} from '../../common/types/branded.types';
 import type { GatewayToolCall } from '../../providers/types/tooling-types';
 
 describe('ChatResponseBuilderService', () => {
@@ -32,7 +40,11 @@ describe('ChatResponseBuilderService', () => {
     const baseProviderResponse: ProviderResponse = {
       text: 'Hello world',
       stopReason: 'end_turn',
-      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      usage: {
+        inputTokens: TEST_INPUT_TOKENS,
+        outputTokens: TEST_OUTPUT_TOKENS,
+        totalTokens: 30,
+      },
     };
 
     describe('Happy path', () => {
@@ -50,7 +62,11 @@ describe('ChatResponseBuilderService', () => {
           provider: 'anthropic',
           model: TEST_MODEL_ALIAS,
           output: { type: 'text', text: 'Hello world' },
-          usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+          usage: {
+            inputTokens: TEST_INPUT_TOKENS,
+            outputTokens: TEST_OUTPUT_TOKENS,
+            totalTokens: 30,
+          },
           requestId: TEST_REQUEST_ID,
           conversationId: TEST_CONVERSATION_ID,
           finishReason: 'stop',
@@ -100,7 +116,9 @@ describe('ChatResponseBuilderService', () => {
       it('should include usageDetails, systemFingerprint and thinkingContent', () => {
         const response: ProviderResponse = {
           ...baseProviderResponse,
-          usageDetails: { cacheReadTokens: 5 } as ProviderUsageDetails,
+          usageDetails: {
+            promptCacheHitTokens: asPromptCacheHitTokens(5),
+          },
           systemFingerprint: 'fp_abc123',
           thinkingContent: 'Let me think...',
         };
@@ -113,7 +131,9 @@ describe('ChatResponseBuilderService', () => {
           TEST_CONVERSATION_ID,
         );
 
-        expect(result.usageDetails).toEqual({ cacheReadTokens: 5 });
+        expect(result.usageDetails).toEqual({
+          promptCacheHitTokens: asPromptCacheHitTokens(5),
+        });
         expect(result.systemFingerprint).toBe('fp_abc123');
         expect(result.thinkingContent).toBe('Let me think...');
       });
@@ -271,7 +291,7 @@ describe('ChatResponseBuilderService', () => {
 
     it('should include warnings in stream done event', () => {
       const event = service.buildStreamDoneEvent(
-        { inputTokens: 1, outputTokens: 2 },
+        { inputTokens: asInputTokens(1), outputTokens: asOutputTokens(2) },
         undefined,
         'end_turn',
         undefined,
@@ -293,7 +313,7 @@ describe('ChatResponseBuilderService', () => {
     describe('Happy path', () => {
       it('should build done event with usage and totalTokens', () => {
         const event = service.buildStreamDoneEvent(
-          { inputTokens: 10, outputTokens: 25 },
+          { inputTokens: TEST_INPUT_TOKENS, outputTokens: asOutputTokens(25) },
           undefined,
           'end_turn',
           undefined,
@@ -323,7 +343,10 @@ describe('ChatResponseBuilderService', () => {
         ];
 
         const event = service.buildStreamDoneEvent(
-          { inputTokens: 5, outputTokens: 10 },
+          {
+            inputTokens: asInputTokens(5),
+            outputTokens: asOutputTokens(10),
+          },
           toolCalls,
           'tool_use',
           'fp_stream',
@@ -348,7 +371,7 @@ describe('ChatResponseBuilderService', () => {
 
       it('should include usageDetails and effectiveModelAlias when provided', () => {
         const event = service.buildStreamDoneEvent(
-          { inputTokens: 10, outputTokens: 20 },
+          { inputTokens: TEST_INPUT_TOKENS, outputTokens: TEST_OUTPUT_TOKENS },
           undefined,
           'end_turn',
           undefined,
@@ -356,8 +379,8 @@ describe('ChatResponseBuilderService', () => {
           undefined,
           undefined,
           {
-            promptCacheHitTokens: 100,
-            promptCacheCreationTokens: 50,
+            promptCacheHitTokens: TEST_PROMPT_CACHE_HIT_TOKENS,
+            promptCacheCreationTokens: TEST_PROMPT_CACHE_CREATION_TOKENS,
           },
           'fallback-model',
         );
@@ -401,7 +424,7 @@ describe('ChatResponseBuilderService', () => {
 
       it('should omit toolCalls when array is empty', () => {
         const event = service.buildStreamDoneEvent(
-          { inputTokens: 1, outputTokens: 2 },
+          { inputTokens: asInputTokens(1), outputTokens: asOutputTokens(2) },
           [],
           'end_turn',
           undefined,
@@ -417,7 +440,7 @@ describe('ChatResponseBuilderService', () => {
 
       it('should map max_tokens stopReason to length finishReason', () => {
         const event = service.buildStreamDoneEvent(
-          { inputTokens: 100, outputTokens: 0 },
+          { inputTokens: asInputTokens(100), outputTokens: asOutputTokens(0) },
           undefined,
           'max_tokens',
           undefined,
@@ -433,7 +456,7 @@ describe('ChatResponseBuilderService', () => {
 
       it('should omit systemFingerprint and thinkingContent when falsy', () => {
         const event = service.buildStreamDoneEvent(
-          { inputTokens: 1, outputTokens: 1 },
+          { inputTokens: asInputTokens(1), outputTokens: asOutputTokens(1) },
           undefined,
           'end_turn',
           '',
@@ -470,7 +493,7 @@ describe('ChatResponseBuilderService', () => {
 
       it('should omit effectiveModelAlias and usageDetails when not provided', () => {
         const event = service.buildStreamDoneEvent(
-          { inputTokens: 1, outputTokens: 2 },
+          { inputTokens: asInputTokens(1), outputTokens: asOutputTokens(2) },
           undefined,
           'end_turn',
           undefined,
