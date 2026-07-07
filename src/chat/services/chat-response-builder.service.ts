@@ -20,6 +20,7 @@ import {
   type ModelAlias,
   type InputTokens,
   type OutputTokens,
+  type SystemFingerprint,
 } from '../../common/types/branded.types';
 
 export type { ChatResponseData } from '../dto/chat-response.dto';
@@ -34,7 +35,7 @@ export interface ProviderResponse {
   toolCalls?: GatewayToolCall[];
   stopReason: ProviderChatResponse['stopReason'];
   usageDetails?: ProviderUsageDetails;
-  systemFingerprint?: string;
+  systemFingerprint?: SystemFingerprint;
   thinkingContent?: string;
 }
 
@@ -92,7 +93,7 @@ export class ChatResponseBuilderService {
       | undefined,
     toolCalls: GatewayToolCall[] | undefined,
     stopReason: ProviderChatResponse['stopReason'] | undefined,
-    systemFingerprint: string | undefined,
+    systemFingerprint: SystemFingerprint | undefined,
     thinkingContent: string | undefined,
     options?: ProviderCallOptions,
     providerType?: GatewayProviderType,

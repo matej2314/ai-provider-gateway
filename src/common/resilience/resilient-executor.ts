@@ -4,6 +4,13 @@ import { isRetryableHttpError } from './is-retryable-http-error';
 import { assertNoFallbackCycle } from './fallback-chain';
 import { LoggingService } from '../../logging/logging.service';
 import { asRequestId, type ModelAlias, type RequestId } from 'src/common/types/branded.types';
+import {
+  asAttemptNumber,
+  asMaxAttempts,
+  unbrand,
+  type MaxAttempts,
+  type TimeoutMs,
+} from '../types/branded.types';
 import type {
   RetryPolicy,
   AttemptResult,
@@ -22,7 +29,8 @@ export class ResilientExecutor {
   async executeWithRetryAndFallback<T>(
     options: ResilientExecutionOptions<T>,
   ): Promise<ResilientExecutionResult<T>> {
-    const maxAttempts = options.retry.maxAttempts ?? 3;
+    const maxAttempts =
+      options.retry.maxAttempts ?? asMaxAttempts(3);
 
     if (options.validateFallbackChain) {
       options.validateFallbackChain(
@@ -83,16 +91,19 @@ export class ResilientExecutor {
     });
 
     if (fallback.ok) {
+      const totalAttempts = asAttemptNumber(
+        unbrand(primary.attempts) + unbrand(fallback.attempts),
+      );
       this.logger.warn('Fallback alias succeeded', {
         primaryAlias: options.primaryAlias,
         effectiveModelAlias: fallback.usedAlias,
-        attempts: primary.attempts + fallback.attempts,
+        attempts: totalAttempts,
         requestId: options.requestId ? asRequestId(options.requestId) : undefined,
       });
       return {
         value: fallback.value!,
         usedAlias: fallback.usedAlias,
-        attempts: primary.attempts + fallback.attempts,
+        attempts: totalAttempts,
         didFallback: true,
       };
     }
@@ -107,7 +118,9 @@ export class ResilientExecutor {
       {
         primaryAlias: options.primaryAlias,
         fallbackAlias: options.fallbackAlias,
-        attempts: primary.attempts + fallback.attempts,
+        attempts: asAttemptNumber(
+          unbrand(primary.attempts) + unbrand(fallback.attempts),
+        ),
         requestId: options.requestId ? asRequestId(options.requestId) : undefined,
       },
     );
@@ -116,14 +129,15 @@ export class ResilientExecutor {
 
   private async tryAlias<T>(options: {
     alias: ModelAlias;
-    maxAttempts: number;
+    maxAttempts: MaxAttempts;
     retry: RetryPolicy;
     runOnce: (alias: ModelAlias, attemptNo: number) => Promise<T>;
     requestId?: RequestId;
   }): Promise<AttemptResult<T>> {
     let lastError: unknown;
+    const maxAttempts = unbrand(options.maxAttempts);
 
-    for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const value = await this.runWithTimeout<T>(
           options.retry.timeoutMs,
@@ -134,7 +148,7 @@ export class ResilientExecutor {
           ok: true,
           value,
           usedAlias: options.alias,
-          attempts: attempt,
+          attempts: asAttemptNumber(attempt),
         };
       } catch (e) {
         lastError = e;
@@ -149,11 +163,11 @@ export class ResilientExecutor {
           break;
         }
 
-        if (attempt < options.maxAttempts) {
+        if (attempt < maxAttempts) {
           this.logger.debug('Retryable error, will retry', {
             alias: options.alias,
             attempt,
-            maxAttempts: options.maxAttempts,
+            maxAttempts,
             error: this.extractErrorMessage(e),
             requestId: options.requestId,
           });
@@ -164,13 +178,13 @@ export class ResilientExecutor {
       ok: false,
       error: lastError,
       usedAlias: options.alias,
-      attempts: options.maxAttempts,
+      attempts: asAttemptNumber(maxAttempts),
       exhausted: true,
     };
   }
 
   private async runWithTimeout<T>(
-    timeoutMs: number | undefined,
+    timeoutMs: TimeoutMs | undefined,
     fn: () => Promise<T>,
   ): Promise<T> {
     if (!timeoutMs) {
@@ -228,7 +242,8 @@ export class ResilientExecutor {
                 primaryAlias: options.primaryAlias,
                 fallbackAlias: options.fallbackAlias,
                 totalAttempts:
-                  options.retry.maxAttempts * (options.fallbackAlias ? 2 : 1),
+                  unbrand(options.retry.maxAttempts) *
+                  (options.fallbackAlias ? 2 : 1),
               },
             ],
           },

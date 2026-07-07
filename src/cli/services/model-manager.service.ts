@@ -16,7 +16,7 @@ import {
   getMaxOutputTokensBound,
 } from '../utils/default-model-policy.util';
 import type { GatewayProviderType } from 'src/config/provider-types';
-import { asProviderInstanceId } from '../../common/types/branded.types';
+import { asProviderInstanceId, asMaxAttempts, asTimeoutMs } from '../../common/types/branded.types';
 import boxen from 'boxen';
 import chalk from 'chalk';
 import {
@@ -383,10 +383,10 @@ export class ModelManagerService {
           );
           current.policy = {
             ...base,
-            timeoutMs: policyAnswers.timeoutMs,
+            timeoutMs: asTimeoutMs(policyAnswers.timeoutMs),
             retry: {
               ...base.retry,
-              maxAttempts: policyAnswers.maxAttempts,
+              maxAttempts: asMaxAttempts(policyAnswers.maxAttempts),
               onStatus: base.retry?.onStatus ?? policyDefaults.retry?.onStatus,
             },
             params: {

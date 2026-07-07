@@ -1,5 +1,4 @@
 import {
-  INTEGRATION_ANTHROPIC_API_KEY_REF,
   INTEGRATION_MODEL_ALIAS,
   INTEGRATION_MODEL_ID,
   INTEGRATION_PROVIDER_INSTANCE,
@@ -7,7 +6,22 @@ import {
   INTEGRATION_SECOND_MODEL_ID,
 } from './integration-constants';
 import { asProviderInstanceId } from '../../../src/common/types';
+import {
+  TEST_MAX_ATTEMPTS,
+  TEST_RETRY_ON_STATUS,
+  TEST_TIMEOUT_MS,
+} from '../../../src/common/mocks/test-constants';
 import type { CreateTestGatewayConfigOptions } from 'src/common/mocks/createTestGatewayConfig';
+
+const INTEGRATION_MODEL_POLICY = {
+  timeoutMs: TEST_TIMEOUT_MS,
+  retry: { maxAttempts: TEST_MAX_ATTEMPTS, onStatus: [...TEST_RETRY_ON_STATUS] },
+  params: {
+    defaults: {},
+    allowOverrides: ['maxOutputTokens', 'temperature'],
+    bounds: {},
+  },
+};
 
 export function buildIntegrationGatewayModels(
   extra?: CreateTestGatewayConfigOptions['models'],
@@ -19,15 +33,7 @@ export function buildIntegrationGatewayModels(
       providerInstance: asProviderInstanceId(INTEGRATION_PROVIDER_INSTANCE),
       modelId: INTEGRATION_MODEL_ID,
       capabilities: { tools: toolsEnabled ?? false, streaming: true },
-      policy: {
-        timeoutMs: 30000,
-        retry: { maxAttempts: 3, onStatus: [429, 500, 502, 503, 504] },
-        params: {
-          defaults: {},
-          allowOverrides: ['maxOutputTokens', 'temperature'],
-          bounds: {},
-        },
-      },
+      policy: INTEGRATION_MODEL_POLICY,
     },
     ...(dualModel
       ? {
@@ -37,15 +43,7 @@ export function buildIntegrationGatewayModels(
             ),
             modelId: INTEGRATION_SECOND_MODEL_ID,
             capabilities: { tools: false, streaming: true },
-            policy: {
-              timeoutMs: 30000,
-              retry: { maxAttempts: 3, onStatus: [429, 500, 502, 503, 504] },
-              params: {
-                defaults: {},
-                allowOverrides: ['maxOutputTokens', 'temperature'],
-                bounds: {},
-              },
-            },
+            policy: INTEGRATION_MODEL_POLICY,
           },
         }
       : {}),

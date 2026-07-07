@@ -24,8 +24,10 @@ import type { GatewayProviderType } from '../config/provider-types';
 import {
   asModelAlias,
   asModelId,
+  type MaxAttempts,
   type ModelId,
   type ModelAlias,
+  type TimeoutMs,
   ProviderInstanceId,
 } from '../common/types/branded.types';
 
@@ -43,9 +45,9 @@ export interface ResolvedProviderConfig {
   fallbackAlias?: ModelAlias;
   capabilities: GatewayCapabilitiesConfig;
   policy?: {
-    timeoutMs?: number;
+    timeoutMs?: TimeoutMs;
     retry?: {
-      maxAttempts?: number;
+      maxAttempts?: MaxAttempts;
       onStatus?: number[];
     };
   };

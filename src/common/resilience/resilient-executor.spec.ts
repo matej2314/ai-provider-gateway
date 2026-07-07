@@ -4,7 +4,36 @@ import { ResilientExecutor } from './resilient-executor';
 import { LoggingService } from '../../logging/logging.service';
 import { ApiErrorCode } from '../errors/api-error.code';
 import { createMockLoggingService } from '../mocks/createMockLoggingService';
-import type { ResilientExecutionOptions } from './resilience.types';
+import type { ResilientExecutionOptions, RetryPolicy } from './resilience.types';
+import {
+  asAttemptNumber,
+  asMaxAttempts,
+  asModelAlias,
+  asTimeoutMs,
+  type ModelAlias,
+  type TimeoutMs,
+} from '../types/branded.types';
+
+const alias = (name: string): ModelAlias => asModelAlias(name);
+
+function retryPolicy(
+  maxAttempts: number,
+  onStatus: number[],
+  timeoutMs?: number,
+): RetryPolicy {
+  const policy: RetryPolicy = {
+    maxAttempts: asMaxAttempts(maxAttempts),
+    onStatus,
+  };
+
+  if (timeoutMs === 0) {
+    policy.timeoutMs = 0 as TimeoutMs;
+  } else if (timeoutMs !== undefined) {
+    policy.timeoutMs = asTimeoutMs(timeoutMs);
+  }
+
+  return policy;
+}
 
 function structuredHttpException(
   code: string,
@@ -53,8 +82,8 @@ describe('ResilientExecutor', () => {
     it('should return value on first attempt', async () => {
       const runOnce = jest.fn().mockResolvedValue('success');
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 3, onStatus: [429, 500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(3, [429, 500], 5000),
         runOnce,
       };
 
@@ -62,19 +91,19 @@ describe('ResilientExecutor', () => {
 
       expect(result).toEqual({
         value: 'success',
-        usedAlias: 'primary',
-        attempts: 1,
+        usedAlias: alias('primary'),
+        attempts: asAttemptNumber(1),
         didFallback: false,
       });
       expect(runOnce).toHaveBeenCalledTimes(1);
-      expect(runOnce).toHaveBeenCalledWith('primary', 1);
+      expect(runOnce).toHaveBeenCalledWith(alias('primary'), 1);
     });
 
     it('should log debug on success', async () => {
       const runOnce = jest.fn().mockResolvedValue('data');
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'test-alias',
-        retry: { maxAttempts: 2, onStatus: [], timeoutMs: 1000 },
+        primaryAlias: alias('test-alias'),
+        retry: retryPolicy(2, [], 1000),
         runOnce,
         requestId: 'req-123',
       };
@@ -85,7 +114,7 @@ describe('ResilientExecutor', () => {
         'Primary alias succeeded',
         expect.objectContaining({
           alias: 'test-alias',
-          attempts: 1,
+          attempts: asAttemptNumber(1),
           requestId: 'req-123',
         }),
       );
@@ -102,8 +131,8 @@ describe('ResilientExecutor', () => {
         .mockResolvedValueOnce('success');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 3, onStatus: [429], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(3, [429], 5000),
         runOnce,
       };
 
@@ -111,8 +140,8 @@ describe('ResilientExecutor', () => {
 
       expect(result).toEqual({
         value: 'success',
-        usedAlias: 'primary',
-        attempts: 2,
+        usedAlias: alias('primary'),
+        attempts: asAttemptNumber(2),
         didFallback: false,
       });
       expect(runOnce).toHaveBeenCalledTimes(2);
@@ -126,8 +155,8 @@ describe('ResilientExecutor', () => {
         .mockResolvedValueOnce('success');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 5, onStatus: [500, 502], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(5, [500, 502], 5000),
         runOnce,
       };
 
@@ -144,8 +173,8 @@ describe('ResilientExecutor', () => {
         .mockResolvedValueOnce('success');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 3, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(3, [500], 5000),
         runOnce,
         requestId: 'req-retry',
       };
@@ -173,9 +202,9 @@ describe('ResilientExecutor', () => {
         .mockResolvedValueOnce('fallback-success');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 2, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(2, [500], 5000),
         runOnce,
       };
 
@@ -183,13 +212,13 @@ describe('ResilientExecutor', () => {
 
       expect(result).toEqual({
         value: 'fallback-success',
-        usedAlias: 'fallback',
-        attempts: 3,
+        usedAlias: alias('fallback'),
+        attempts: asAttemptNumber(3),
         didFallback: true,
       });
-      expect(runOnce).toHaveBeenCalledWith('primary', 1);
-      expect(runOnce).toHaveBeenCalledWith('primary', 2);
-      expect(runOnce).toHaveBeenCalledWith('fallback', 1);
+      expect(runOnce).toHaveBeenCalledWith(alias('primary'), 1);
+      expect(runOnce).toHaveBeenCalledWith(alias('primary'), 2);
+      expect(runOnce).toHaveBeenCalledWith(alias('fallback'), 1);
     });
 
     it('should log fallback attempt', async () => {
@@ -199,9 +228,9 @@ describe('ResilientExecutor', () => {
         .mockResolvedValueOnce('ok');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [500], 5000),
         runOnce,
         requestId: 'req-456',
       };
@@ -211,8 +240,8 @@ describe('ResilientExecutor', () => {
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Attempting fallback alias',
         expect.objectContaining({
-          primaryAlias: 'primary',
-          fallbackAlias: 'fallback',
+          primaryAlias: alias('primary'),
+          fallbackAlias: alias('fallback'),
           requestId: 'req-456',
         }),
       );
@@ -225,9 +254,9 @@ describe('ResilientExecutor', () => {
         .mockResolvedValueOnce('ok');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [500], 5000),
         runOnce,
         requestId: 'req-fb-ok',
       };
@@ -237,9 +266,9 @@ describe('ResilientExecutor', () => {
       expect(mockLogger.warn).toHaveBeenCalledWith(
         'Fallback alias succeeded',
         expect.objectContaining({
-          primaryAlias: 'primary',
+          primaryAlias: alias('primary'),
           effectiveModelAlias: 'fallback',
-          attempts: 2,
+          attempts: asAttemptNumber(2),
           requestId: 'req-fb-ok',
         }),
       );
@@ -255,8 +284,8 @@ describe('ResilientExecutor', () => {
         );
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 3, onStatus: [429, 500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(3, [429, 500], 5000),
         runOnce,
       };
 
@@ -273,8 +302,8 @@ describe('ResilientExecutor', () => {
         .mockRejectedValueOnce(new HttpException('Auth failed', 401));
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 5, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(5, [500], 5000),
         runOnce,
       };
 
@@ -290,8 +319,8 @@ describe('ResilientExecutor', () => {
         .mockRejectedValueOnce(new HttpException('Bad request', 400));
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 3, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(3, [500], 5000),
         runOnce,
         requestId: 'req-non-retry',
       };
@@ -317,9 +346,9 @@ describe('ResilientExecutor', () => {
         .mockResolvedValueOnce('fallback-ok');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 3, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(3, [500], 5000),
         runOnce,
       };
 
@@ -327,12 +356,12 @@ describe('ResilientExecutor', () => {
 
       expect(result).toEqual({
         value: 'fallback-ok',
-        usedAlias: 'fallback',
-        attempts: 4,
+        usedAlias: alias('fallback'),
+        attempts: asAttemptNumber(4),
         didFallback: true,
       });
       expect(runOnce).toHaveBeenCalledTimes(2);
-      expect(runOnce).toHaveBeenCalledWith('fallback', 1);
+      expect(runOnce).toHaveBeenCalledWith(alias('fallback'), 1);
     });
 
     it('should log warn when primary is exhausted before fallback', async () => {
@@ -342,9 +371,9 @@ describe('ResilientExecutor', () => {
         .mockResolvedValueOnce('ok');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [500], 5000),
         runOnce,
         requestId: 'req-exhausted',
       };
@@ -355,7 +384,7 @@ describe('ResilientExecutor', () => {
         'Primary alias exhausted',
         expect.objectContaining({
           alias: 'primary',
-          attempts: 1,
+          attempts: asAttemptNumber(1),
           requestId: 'req-exhausted',
         }),
       );
@@ -372,8 +401,8 @@ describe('ResilientExecutor', () => {
       );
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 1, onStatus: [], timeoutMs: 10 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(1, [], 10),
         runOnce,
       };
 
@@ -403,8 +432,8 @@ describe('ResilientExecutor', () => {
       });
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 2, onStatus: [504], timeoutMs: 15 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(2, [504], 15),
         runOnce,
       };
 
@@ -412,8 +441,8 @@ describe('ResilientExecutor', () => {
 
       expect(result).toEqual({
         value: 'recovered',
-        usedAlias: 'primary',
-        attempts: 2,
+        usedAlias: alias('primary'),
+        attempts: asAttemptNumber(2),
         didFallback: false,
       });
       expect(runOnce).toHaveBeenCalledTimes(2);
@@ -428,8 +457,8 @@ describe('ResilientExecutor', () => {
       );
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 1, onStatus: [] },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(1, []),
         runOnce,
       };
 
@@ -447,8 +476,8 @@ describe('ResilientExecutor', () => {
       );
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 1, onStatus: [], timeoutMs: 0 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(1, [], 0),
         runOnce,
       };
 
@@ -465,11 +494,11 @@ describe('ResilientExecutor', () => {
         .mockRejectedValue(new HttpException('Error', 500));
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
+        primaryAlias: alias('primary'),
         retry: {
           onStatus: [500],
-          timeoutMs: 5000,
-        } as ResilientExecutionOptions<string>['retry'],
+          timeoutMs: asTimeoutMs(5000),
+        } as RetryPolicy,
         runOnce,
       };
 
@@ -488,9 +517,9 @@ describe('ResilientExecutor', () => {
         .mockRejectedValue(new HttpException('Error', 500));
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 2, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(2, [500], 5000),
         runOnce,
       };
 
@@ -507,9 +536,9 @@ describe('ResilientExecutor', () => {
         .mockRejectedValue(new HttpException('Error', 500));
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'model-a',
-        fallbackAlias: 'model-b',
-        retry: { maxAttempts: 1, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('model-a'),
+        fallbackAlias: alias('model-b'),
+        retry: retryPolicy(1, [500], 5000),
         runOnce,
       };
 
@@ -524,8 +553,8 @@ describe('ResilientExecutor', () => {
           ),
           details: [
             expect.objectContaining({
-              primaryAlias: 'model-a',
-              fallbackAlias: 'model-b',
+              primaryAlias: alias('model-a'),
+              fallbackAlias: alias('model-b'),
               primaryError: 'Error',
               fallbackError: 'Error',
             }),
@@ -543,9 +572,9 @@ describe('ResilientExecutor', () => {
       const runOnce = jest.fn().mockRejectedValue(primaryError);
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'model-a',
-        fallbackAlias: 'model-b',
-        retry: { maxAttempts: 2, onStatus: [429], timeoutMs: 5000 },
+        primaryAlias: alias('model-a'),
+        fallbackAlias: alias('model-b'),
+        retry: retryPolicy(2, [429], 5000),
         runOnce,
       };
 
@@ -558,8 +587,8 @@ describe('ResilientExecutor', () => {
           message: expect.stringContaining('exhausted'),
           details: [
             {
-              primaryAlias: 'model-a',
-              fallbackAlias: 'model-b',
+              primaryAlias: alias('model-a'),
+              fallbackAlias: alias('model-b'),
               totalAttempts: 4,
             },
           ],
@@ -575,9 +604,9 @@ describe('ResilientExecutor', () => {
       const runOnce = jest.fn().mockRejectedValue(primaryError);
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [503], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [503], 5000),
         runOnce,
       };
 
@@ -597,9 +626,9 @@ describe('ResilientExecutor', () => {
         .mockRejectedValue(new HttpException('Error', 500));
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [500], 5000),
         runOnce,
         requestId: 'req-789',
       };
@@ -612,8 +641,8 @@ describe('ResilientExecutor', () => {
         'Provider exhausted after retries',
         expect.any(Error),
         expect.objectContaining({
-          primaryAlias: 'primary',
-          fallbackAlias: 'fallback',
+          primaryAlias: alias('primary'),
+          fallbackAlias: alias('fallback'),
           requestId: 'req-789',
         }),
       );
@@ -626,9 +655,9 @@ describe('ResilientExecutor', () => {
         .mockRejectedValueOnce('fallback string failure');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [500], 5000),
         runOnce,
       };
 
@@ -640,8 +669,8 @@ describe('ResilientExecutor', () => {
         'Provider exhausted after retries',
         expect.objectContaining({ message: 'primary string failure' }),
         expect.objectContaining({
-          primaryAlias: 'primary',
-          fallbackAlias: 'fallback',
+          primaryAlias: alias('primary'),
+          fallbackAlias: alias('fallback'),
         }),
       );
     });
@@ -654,9 +683,9 @@ describe('ResilientExecutor', () => {
         .mockRejectedValueOnce(fallbackError);
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [500], 5000),
         runOnce,
       };
 
@@ -677,9 +706,9 @@ describe('ResilientExecutor', () => {
       const runOnce = jest.fn();
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'alias1',
-        fallbackAlias: 'alias1',
-        retry: { maxAttempts: 1, onStatus: [], timeoutMs: 5000 },
+        primaryAlias: alias('alias1'),
+        fallbackAlias: alias('alias1'),
+        retry: retryPolicy(1, [], 5000),
         runOnce,
       };
 
@@ -699,16 +728,19 @@ describe('ResilientExecutor', () => {
       const runOnce = jest.fn().mockResolvedValue('ok');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [], 5000),
         runOnce,
         validateFallbackChain: customValidator,
       };
 
       await executor.executeWithRetryAndFallback(options);
 
-      expect(customValidator).toHaveBeenCalledWith('primary', 'fallback');
+      expect(customValidator).toHaveBeenCalledWith(
+        alias('primary'),
+        alias('fallback'),
+      );
     });
 
     it('should skip default cycle validation when custom validator is provided', async () => {
@@ -716,9 +748,9 @@ describe('ResilientExecutor', () => {
       const runOnce = jest.fn().mockResolvedValue('ok');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'same-alias',
-        fallbackAlias: 'same-alias',
-        retry: { maxAttempts: 1, onStatus: [], timeoutMs: 5000 },
+        primaryAlias: alias('same-alias'),
+        fallbackAlias: alias('same-alias'),
+        retry: retryPolicy(1, [], 5000),
         runOnce,
         validateFallbackChain: customValidator,
       };
@@ -726,7 +758,10 @@ describe('ResilientExecutor', () => {
       const result = await executor.executeWithRetryAndFallback(options);
 
       expect(result.value).toBe('ok');
-      expect(customValidator).toHaveBeenCalledWith('same-alias', 'same-alias');
+      expect(customValidator).toHaveBeenCalledWith(
+        alias('same-alias'),
+        alias('same-alias'),
+      );
     });
 
     it('should propagate errors from custom validateFallbackChain', async () => {
@@ -736,9 +771,9 @@ describe('ResilientExecutor', () => {
       const runOnce = jest.fn().mockResolvedValue('ok');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [], 5000),
         runOnce,
         validateFallbackChain: customValidator,
       };
@@ -756,8 +791,8 @@ describe('ResilientExecutor', () => {
       const runOnce = jest.fn().mockRejectedValue(primaryError);
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 2, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(2, [500], 5000),
         runOnce,
       };
 
@@ -770,8 +805,8 @@ describe('ResilientExecutor', () => {
       const runOnce = jest.fn().mockRejectedValue('plain string failure');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 3, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(3, [500], 5000),
         runOnce,
       };
 
@@ -785,8 +820,8 @@ describe('ResilientExecutor', () => {
       const runOnce = jest.fn().mockRejectedValue(null);
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 1, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(1, [500], 5000),
         runOnce,
         requestId: 'req-unknown',
       };
@@ -813,8 +848,8 @@ describe('ResilientExecutor', () => {
         .mockRejectedValueOnce(new HttpException('Stop here', 400));
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 5, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(5, [500], 5000),
         runOnce,
       };
 
@@ -834,9 +869,9 @@ describe('ResilientExecutor', () => {
         .mockResolvedValueOnce('ok');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 2, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(2, [500], 5000),
         runOnce,
       };
 
@@ -849,8 +884,8 @@ describe('ResilientExecutor', () => {
       const runOnce = jest.fn().mockRejectedValue(new Error('Generic error'));
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        retry: { maxAttempts: 3, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(3, [500], 5000),
         runOnce,
       };
 
@@ -868,9 +903,9 @@ describe('ResilientExecutor', () => {
         .mockRejectedValueOnce('fallback down');
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [500], 5000),
         runOnce,
       };
 
@@ -895,9 +930,9 @@ describe('ResilientExecutor', () => {
         .mockRejectedValueOnce(null);
 
       const options: ResilientExecutionOptions<string> = {
-        primaryAlias: 'primary',
-        fallbackAlias: 'fallback',
-        retry: { maxAttempts: 1, onStatus: [500], timeoutMs: 5000 },
+        primaryAlias: alias('primary'),
+        fallbackAlias: alias('fallback'),
+        retry: retryPolicy(1, [500], 5000),
         runOnce,
       };
 

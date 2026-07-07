@@ -1,4 +1,10 @@
 import type { SmartRateLimiterService } from '../../../src/rate-limit/smart-rate-limiter.service';
+import type { GatewayKey } from '../../../src/common/types';
+import { asRateLimitBurst } from '../../../src/common/types';
+import {
+  TEST_MAX_CONCURRENT_STREAMS,
+  TEST_RATE_LIMIT_BURST,
+} from '../../../src/common/mocks/test-constants';
 
 export function createE2eRateLimiterBlocked(): Partial<SmartRateLimiterService> {
   const blocked = {
@@ -9,8 +15,16 @@ export function createE2eRateLimiterBlocked(): Partial<SmartRateLimiterService> 
   };
 
   return {
-    checkRateLimit: jest.fn().mockResolvedValue(blocked),
-    checkConcurrentStreams: jest.fn().mockResolvedValue(blocked),
+    checkRateLimit: jest
+      .fn()
+      .mockImplementation((_gatewayKey: GatewayKey) =>
+        Promise.resolve(blocked),
+      ),
+    checkConcurrentStreams: jest
+      .fn()
+      .mockImplementation((_gatewayKey: GatewayKey) =>
+        Promise.resolve(blocked),
+      ),
     releaseStream: jest.fn().mockResolvedValue(undefined),
     setCooldown: jest.fn().mockResolvedValue(undefined),
     checkCooldown: jest.fn().mockResolvedValue({
@@ -23,17 +37,25 @@ export function createE2eRateLimiterBlocked(): Partial<SmartRateLimiterService> 
 
 export function createE2eSaturatedConcurrentStreamLimiter(): Partial<SmartRateLimiterService> {
   return {
-    checkRateLimit: jest.fn().mockResolvedValue({
-      allowed: true,
-      remaining: 999,
-      resetAt: new Date(),
-    }),
-    checkConcurrentStreams: jest.fn().mockResolvedValue({
-      allowed: false,
-      remaining: 0,
-      resetAt: new Date(),
-      reason: 'Max concurrent streams (3) exceeded for gateway key.',
-    }),
+    checkRateLimit: jest
+      .fn()
+      .mockImplementation((_gatewayKey: GatewayKey) =>
+        Promise.resolve({
+          allowed: true,
+          remaining: 999,
+          resetAt: new Date(),
+        }),
+      ),
+    checkConcurrentStreams: jest
+      .fn()
+      .mockImplementation((_gatewayKey: GatewayKey) =>
+        Promise.resolve({
+          allowed: false,
+          remaining: 0,
+          resetAt: new Date(),
+          reason: `Max concurrent streams (${TEST_MAX_CONCURRENT_STREAMS}) exceeded for gateway key.`,
+        }),
+      ),
     releaseStream: jest.fn().mockResolvedValue(undefined),
     setCooldown: jest.fn().mockResolvedValue(undefined),
     checkCooldown: jest.fn().mockResolvedValue({
@@ -47,35 +69,40 @@ export function createE2eSaturatedConcurrentStreamLimiter(): Partial<SmartRateLi
 export function createE2eBurstRateLimiter(
   allowedRequests: number,
 ): Partial<SmartRateLimiterService> {
+  const burstLimit = asRateLimitBurst(allowedRequests);
   let requestCount = 0;
 
   return {
-    checkRateLimit: jest.fn().mockImplementation(() => {
+    checkRateLimit: jest.fn().mockImplementation((_gatewayKey: GatewayKey) => {
       requestCount += 1;
-      if (requestCount > allowedRequests) {
-        return {
+      if (requestCount > burstLimit) {
+        return Promise.resolve({
           allowed: false,
           remaining: 0,
           resetAt: new Date(),
           reason: 'Rate limit exceeded for gateway key.',
-        };
+        });
       }
-      return {
+      return Promise.resolve({
         allowed: true,
-        remaining: allowedRequests - requestCount,
+        remaining: burstLimit - requestCount,
         resetAt: new Date(),
-      };
+      });
     }),
-    checkConcurrentStreams: jest.fn().mockResolvedValue({
-      allowed: true,
-      remaining: 3,
-      resetAt: new Date(),
-    }),
+    checkConcurrentStreams: jest
+      .fn()
+      .mockImplementation((_gatewayKey: GatewayKey) =>
+        Promise.resolve({
+          allowed: true,
+          remaining: TEST_MAX_CONCURRENT_STREAMS,
+          resetAt: new Date(),
+        }),
+      ),
     releaseStream: jest.fn().mockResolvedValue(undefined),
     setCooldown: jest.fn().mockResolvedValue(undefined),
     checkCooldown: jest.fn().mockResolvedValue({
       allowed: true,
-      remaining: 999,
+      remaining: TEST_RATE_LIMIT_BURST,
       resetAt: new Date(),
     }),
   };

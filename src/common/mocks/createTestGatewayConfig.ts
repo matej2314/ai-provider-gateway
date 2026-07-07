@@ -40,6 +40,7 @@ function defaultGatewayConfig(): GatewayConfig {
         modelId: 'claude-sonnet-4-5',
         capabilities: { tools: true, streaming: true },
         policy: {
+          timeoutMs: undefined,
           retry: {},
           params: {
             defaults: {},

@@ -9,6 +9,13 @@ import {
   TEST_PROVIDER_INSTANCE,
 } from './test-constants';
 import { asGatewayKey, asProviderApiKey } from '../types';
+import {
+  asMaxConcurrentStreams,
+  asRateLimitBurst,
+  asRateLimitRps,
+  asCacheTtlSeconds,
+  asPort,
+} from '../types/branded.types';
 import type { AppConfiguration } from '../../config/app-configuration.types';
 import type { ProviderInstanceRuntime } from '../../config/configuration';
 import type { GatewayConfig } from '../../config/configuration';
@@ -17,7 +24,10 @@ import type {
   GatewayKeyRuntimeConfig,
   ResolvedSystemPrompts,
 } from '../../config/configuration.types';
-import type { CacheRuntimeConfig } from '../../config/app-configuration.types';
+import type {
+  CacheRuntimeConfig,
+  RateLimitRuntimeConfig,
+} from '../../config/app-configuration.types';
 
 type Nullable<T> = T | null | undefined;
 
@@ -136,12 +146,13 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
   flat: ConfigFlat;
   extra: Record<string, unknown>;
 } {
-  const rateLimit = {
-    rps: 10,
-    burst: 20,
-    maxConcurrentStreams: 3,
-    cooldownAfter429: 60,
-    ...options.rateLimit,
+  const rateLimit: RateLimitRuntimeConfig = {
+    rps: asRateLimitRps(options.rateLimit?.rps ?? 10),
+    burst: asRateLimitBurst(options.rateLimit?.burst ?? 20),
+    maxConcurrentStreams: asMaxConcurrentStreams(
+      options.rateLimit?.maxConcurrentStreams ?? 3,
+    ),
+    cooldownAfter429: options.rateLimit?.cooldownAfter429 ?? 60,
   };
 
   const gateway = resolveGateway(options);
@@ -172,23 +183,21 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
     options.cache === null
       ? undefined
       : {
-          enabled: true,
-          backend: 'noop',
-          ttl: 3600,
-          keyPrefix: 'aigw:',
-          ...options.cache,
+          enabled: options.cache?.enabled ?? true,
+          backend: options.cache?.backend ?? 'noop',
+          keyPrefix: options.cache?.keyPrefix ?? 'aigw:',
+          ttl: asCacheTtlSeconds(options.cache?.ttl ?? 3600),
         };
 
   const redis =
     options.redis === null
       ? undefined
       : {
-          host: 'localhost',
-          port: 6379,
-          password: '',
-          db: 0,
-          keyPrefix: 'aigw:',
-          ...options.redis,
+          host: options.redis?.host ?? 'localhost',
+          port: asPort(options.redis?.port ?? 6379),
+          password: options.redis?.password ?? '',
+          db: options.redis?.db ?? 0,
+          keyPrefix: options.redis?.keyPrefix ?? 'aigw:',
         };
 
   const root = {
@@ -198,7 +207,7 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
     providers,
     cache,
     redis,
-    port: options.port ?? 3000,
+    port: asPort(options.port ?? 3000),
     nodeEnv: options.nodeEnv ?? 'test',
     RATE_LIMIT_SMART_ENABLED: options.rateLimitSmartEnabled ?? false,
     rateLimit: {

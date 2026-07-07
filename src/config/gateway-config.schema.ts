@@ -2,7 +2,14 @@ import { z } from 'zod';
 import { isOpenAiProviderType, PROVIDER_TYPES } from './provider-types';
 import { GATEWAY_CLIENT_TYPES } from './configuration.types';
 import { asEnvRef } from '../common/types';
-import { asProviderInstanceId } from 'src/common/types/branded.types';
+import {
+  asMaxAttempts,
+  asMaxConcurrentStreams,
+  asProviderInstanceId,
+  asRateLimitBurst,
+  asRateLimitRps,
+  asTimeoutMs,
+} from 'src/common/types/branded.types';
 
 export const EXPECTED_SCHEMA_VERSION = 1;
 
@@ -84,9 +91,13 @@ export const GatewayConfigSchema = z
           gatewayKeyRef: EnvRefSchema,
           rateLimit: z
             .object({
-              rps: z.number().int().min(1),
-              burst: z.number().int().min(1),
-              maxConcurrentStreams: z.number().int().min(1),
+              rps: z.number().int().min(1).transform(asRateLimitRps),
+              burst: z.number().int().min(1).transform(asRateLimitBurst),
+              maxConcurrentStreams: z
+                .number()
+                .int()
+                .min(1)
+                .transform(asMaxConcurrentStreams),
             })
             .optional(),
         }),
@@ -108,13 +119,28 @@ export const GatewayConfigSchema = z
           .default({}),
         policy: z
           .object({
-            timeoutMs: z.number().int().min(1).optional(),
+            timeoutMs: z
+              .number()
+              .int()
+              .min(1)
+              .optional()
+              .transform((value) =>
+                value === undefined ? undefined : asTimeoutMs(value),
+              ),
             retry: z
               .object({
-                maxAttempts: z.number().int().min(1).max(5).optional(),
+                maxAttempts: z
+                  .number()
+                  .int()
+                  .min(1)
+                  .max(5)
+                  .optional()
+                  .transform((value) =>
+                    value === undefined ? undefined : asMaxAttempts(value),
+                  ),
                 onStatus: z.array(z.number().int().min(1)).optional(),
               })
-              .optional()
+              .partial()
               .default({}),
             params: z
               .object({
@@ -167,6 +193,7 @@ export const GatewayConfigSchema = z
           })
           .optional()
           .default({
+            timeoutMs: undefined,
             retry: {},
             params: {
               defaults: {},

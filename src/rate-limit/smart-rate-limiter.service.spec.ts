@@ -5,7 +5,14 @@ import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-conn
 import { LoggingService } from '../logging/logging.service';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockConfigService } from '../common/mocks/createMockConfigService';
-import { asGatewayKey, asEnvRef } from '../common/types';
+import {
+  asGatewayKey,
+  asEnvRef,
+  asMaxConcurrentStreams,
+  asProviderInstanceId,
+  asRateLimitBurst,
+  asRateLimitRps,
+} from '../common/types';
 import type { ResolvedGatewayClient } from '../config/configuration.types';
 
 describe('SmartRateLimiterService', () => {
@@ -28,9 +35,9 @@ describe('SmartRateLimiterService', () => {
     mockConfig = createMockConfigService({
       gatewayKey: { clients: [] },
       rateLimit: {
-        rps: 10,
-        burst: 20,
-        maxConcurrentStreams: 3,
+        rps: asRateLimitRps(10),
+        burst: asRateLimitBurst(20),
+        maxConcurrentStreams: asMaxConcurrentStreams(3),
         cooldownAfter429: 60,
       },
     });
@@ -65,9 +72,11 @@ describe('SmartRateLimiterService', () => {
     const config = createMockConfigService({
       gatewayKey: { clients },
       rateLimit: {
-        rps: rateLimitOverrides?.rps ?? 10,
-        burst: rateLimitOverrides?.burst ?? 20,
-        maxConcurrentStreams: rateLimitOverrides?.maxConcurrentStreams ?? 3,
+        rps: asRateLimitRps(rateLimitOverrides?.rps ?? 10),
+        burst: asRateLimitBurst(rateLimitOverrides?.burst ?? 20),
+        maxConcurrentStreams: asMaxConcurrentStreams(
+          rateLimitOverrides?.maxConcurrentStreams ?? 3,
+        ),
         cooldownAfter429: 60,
       },
     });
@@ -148,12 +157,16 @@ describe('SmartRateLimiterService', () => {
     const unknownKey = asGatewayKey('gw_unknown_key');
 
     const configuredClient: ResolvedGatewayClient = {
-      instanceId: 'client-web',
+      instanceId: asProviderInstanceId('client-web'),
       name: 'Web Client',
       type: 'webapp',
       gatewayKeyRef: asEnvRef('CLIENT_GW_KEY_ENV'),
       gatewayKey: configuredKey,
-      rateLimit: { rps: 5, burst: 10, maxConcurrentStreams: 2 },
+      rateLimit: {
+        rps: asRateLimitRps(5),
+        burst: asRateLimitBurst(10),
+        maxConcurrentStreams: asMaxConcurrentStreams(2),
+      },
     };
 
     it('uses client-specific limits for configured gateway key', async () => {
@@ -188,12 +201,16 @@ describe('SmartRateLimiterService', () => {
     const unknownKey = asGatewayKey('gw_unknown_streams');
 
     const configuredClient: ResolvedGatewayClient = {
-      instanceId: 'client-stream',
+      instanceId: asProviderInstanceId('client-stream'),
       name: 'Stream Client',
       type: 'service',
       gatewayKeyRef: asEnvRef('CLIENT_STREAM_KEY_ENV'),
       gatewayKey: configuredKey,
-      rateLimit: { rps: 5, burst: 10, maxConcurrentStreams: 2 },
+      rateLimit: {
+        rps: asRateLimitRps(5),
+        burst: asRateLimitBurst(10),
+        maxConcurrentStreams: asMaxConcurrentStreams(2),
+      },
     };
 
     it('uses client-specific maxConcurrentStreams for configured gateway key', async () => {
@@ -292,6 +309,34 @@ describe('SmartRateLimiterService', () => {
       await service.releaseStream(asGatewayKey('gw_key_123'));
 
       expect(mockRedisClient.decr).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('branded rate limit configuration (Faza 4.5)', () => {
+    it('passes branded rps and burst values to Redis token bucket script', async () => {
+      mockRedisClient.eval.mockResolvedValue([1, 4, Date.now()]);
+      const configuredKey = asGatewayKey('gw_branded_limits');
+      const configuredClient: ResolvedGatewayClient = {
+        instanceId: asProviderInstanceId('client-branded'),
+        name: 'Branded Limits Client',
+        type: 'service',
+        gatewayKeyRef: asEnvRef('CLIENT_BRANDED_KEY_ENV'),
+        gatewayKey: configuredKey,
+        rateLimit: {
+          rps: asRateLimitRps(7),
+          burst: asRateLimitBurst(14),
+          maxConcurrentStreams: asMaxConcurrentStreams(4),
+        },
+      };
+      const brandedService = await createServiceWithGatewayClients([
+        configuredClient,
+      ]);
+
+      await brandedService.checkRateLimit(configuredKey);
+
+      const args = (mockRedisClient.eval as jest.Mock).mock.calls[0];
+      expect(args[4]).toBe('7');
+      expect(args[5]).toBe('14');
     });
   });
 

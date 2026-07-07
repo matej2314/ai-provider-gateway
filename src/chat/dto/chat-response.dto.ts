@@ -19,6 +19,7 @@ import type {
   ProviderInstanceId,
   InputTokens,
   OutputTokens,
+  SystemFingerprint,
 } from '../../common/types/branded.types';
 
 export class ChatUsageDetailsDto {
@@ -57,7 +58,7 @@ export interface ChatResponseData {
   toolCalls?: GatewayToolCall[];
   finishReason?: GatewayFinishReason;
   usageDetails?: ProviderUsageDetails;
-  systemFingerprint?: string;
+  systemFingerprint?: SystemFingerprint;
   thinkingContent?: string;
   warnings?: ChatWarningDto[];
 }
@@ -203,7 +204,9 @@ export function toChatResponseDto(data: ChatResponseData): ChatResponseDto {
     requestId: data.requestId,
     conversationId: data.conversationId,
     ...(data.usageDetails && { usageDetails: data.usageDetails }),
-    ...(data.systemFingerprint && { systemFingerprint: data.systemFingerprint }),
+    ...(data.systemFingerprint && {
+      systemFingerprint: data.systemFingerprint,
+    }),
     ...(data.thinkingContent && { thinkingContent: data.thinkingContent }),
     ...(data.warnings?.length && { warnings: data.warnings }),
   };

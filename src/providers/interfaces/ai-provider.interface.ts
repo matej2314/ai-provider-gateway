@@ -11,6 +11,7 @@ import type {
   OutputTokens,
   PromptCacheHitTokens,
   PromptCacheCreationTokens,
+  SystemFingerprint,
 } from '../../common/types/branded.types';
 
 export type UserChatMessage = { role: 'user'; content: string };
@@ -71,7 +72,7 @@ export interface ProviderChatResponse {
     outputTokens: OutputTokens;
   };
   usageDetails?: ProviderUsageDetails;
-  systemFingerprint?: string;
+  systemFingerprint?: SystemFingerprint;
   thinkingContent?: string;
 }
 
@@ -87,7 +88,7 @@ export interface StreamResult {
   >;
   getFinalToolCalls?: () => Promise<ProviderToolCall[] | undefined>;
   getStopReason?: () => Promise<ProviderChatResponse['stopReason']>;
-  getSystemFingerprint?: () => Promise<string | undefined>;
+  getSystemFingerprint?: () => Promise<SystemFingerprint | undefined>;
   getThinkingContent?: () => Promise<string | undefined>;
   getUsageDetails?: () => Promise<ProviderUsageDetails | undefined>;
 }

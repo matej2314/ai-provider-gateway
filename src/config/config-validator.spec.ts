@@ -3,7 +3,9 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { validateGatewayConfig } from './config-validator';
+import { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
 import { asEnvRef } from '../common/types';
+import { asMaxAttempts, asTimeoutMs } from '../common/types/branded.types';
 
 function writeTempConfig(dir: string, config: Record<string, unknown>): string {
   const configPath = join(dir, 'gateway.config.yaml');
@@ -318,6 +320,57 @@ describe('validateGatewayConfig', () => {
         result.effectiveConfig!.providers['openai-main'].apiKeyRef,
         'OPENAI_API_KEY',
       );
+    });
+  });
+
+  describe('schema version and policy branded types (Faza 4.5)', () => {
+    it('accepts current schemaVersion without older-version warning', () => {
+      const configPath = writeTempConfig(
+        tempDir,
+        minimalValidConfig({ schemaVersion: EXPECTED_SCHEMA_VERSION }),
+      );
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        ANTHROPIC_PRIMARY_API_KEY: 'sk-ant-test-key',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(true);
+      expect(result.warnings.join('\n')).not.toContain(
+        'is older than expected',
+      );
+    });
+
+    it('fails when schemaVersion is below minimum', () => {
+      const configPath = writeTempConfig(
+        tempDir,
+        minimalValidConfig({ schemaVersion: 0 }),
+      );
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        ANTHROPIC_PRIMARY_API_KEY: 'sk-ant-test-key',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(false);
+      expect(result.errors.join('\n')).toMatch(/schemaVersion/i);
+    });
+
+    it('returns branded timeout and retry policy values in effectiveConfig', () => {
+      const configPath = writeTempConfig(tempDir, minimalValidConfig());
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        ANTHROPIC_PRIMARY_API_KEY: 'sk-ant-test-key',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(true);
+      const policy = result.effectiveConfig!.models['chat-default'].policy;
+      expect(policy.timeoutMs).toBe(asTimeoutMs(30000));
+      expect(policy.retry.maxAttempts).toBe(asMaxAttempts(3));
     });
   });
 });

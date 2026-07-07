@@ -1,5 +1,9 @@
 import type { GatewayModelConfig } from 'src/config/gateway-config.schema';
 import type { GatewayProviderType } from 'src/config/provider-types';
+import {
+  asMaxAttempts,
+  asTimeoutMs,
+} from '../../common/types/branded.types';
 import { DEFAULT_MODEL_ALLOW_OVERRIDES } from '../constants/model-allow-overrides';
 import {
   isThinkingCapableModel,
@@ -42,8 +46,11 @@ export function buildDefaultModelPolicy(
   const maxOutputBound = getMaxOutputTokensBound(modelId, providerType);
 
   return {
-    timeoutMs: 30000,
-    retry: { maxAttempts: 3, onStatus: [429, 500, 502, 503, 504] },
+    timeoutMs: asTimeoutMs(30000),
+    retry: {
+      maxAttempts: asMaxAttempts(3),
+      onStatus: [429, 500, 502, 503, 504],
+    },
     params: {
       defaults: {
         temperature: 0.7,

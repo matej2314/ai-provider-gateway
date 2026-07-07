@@ -1,14 +1,20 @@
 import { buildRetryPolicyFromResolved } from './retry-policy';
 import { RETRY_POLICY_DEFAULTS } from '../../common/retry-policy-defaults';
 import type { ModelRetrySource } from './retry-policy';
+import {
+  asMaxAttempts,
+  asTimeoutMs,
+  type MaxAttempts,
+  type TimeoutMs,
+} from '../../common/types/branded.types';
 
 describe('buildRetryPolicyFromResolved', () => {
   it('should use all custom values when provided', () => {
     const resolved: ModelRetrySource = {
       policy: {
-        timeoutMs: 60000,
+        timeoutMs: asTimeoutMs(60000),
         retry: {
-          maxAttempts: 5,
+          maxAttempts: asMaxAttempts(5),
           onStatus: [429, 503],
         },
       },
@@ -38,7 +44,7 @@ describe('buildRetryPolicyFromResolved', () => {
   it('should fallback maxAttempts to default when not provided', () => {
     const resolved: ModelRetrySource = {
       policy: {
-        timeoutMs: 30000,
+        timeoutMs: asTimeoutMs(30000),
         retry: {
           onStatus: [429],
         },
@@ -48,7 +54,7 @@ describe('buildRetryPolicyFromResolved', () => {
     const result = buildRetryPolicyFromResolved(resolved);
 
     expect(result.maxAttempts).toBe(RETRY_POLICY_DEFAULTS.maxAttempts);
-    expect(result.timeoutMs).toBe(30000);
+    expect(result.timeoutMs).toBe(asTimeoutMs(30000));
     expect(result.onStatus).toEqual([429]);
   });
 
@@ -56,14 +62,14 @@ describe('buildRetryPolicyFromResolved', () => {
     const resolved: ModelRetrySource = {
       policy: {
         retry: {
-          maxAttempts: 2,
+          maxAttempts: asMaxAttempts(2),
         },
       },
     };
 
     const result = buildRetryPolicyFromResolved(resolved);
 
-    expect(result.maxAttempts).toBe(2);
+    expect(result.maxAttempts).toBe(asMaxAttempts(2));
     expect(result.onStatus).toEqual(RETRY_POLICY_DEFAULTS.onStatus);
   });
 
@@ -71,7 +77,7 @@ describe('buildRetryPolicyFromResolved', () => {
     const resolved: ModelRetrySource = {
       policy: {
         retry: {
-          maxAttempts: 3,
+          maxAttempts: asMaxAttempts(3),
           onStatus: [500],
         },
       },
@@ -80,7 +86,7 @@ describe('buildRetryPolicyFromResolved', () => {
     const result = buildRetryPolicyFromResolved(resolved);
 
     expect(result.timeoutMs).toBe(RETRY_POLICY_DEFAULTS.timeoutMs);
-    expect(result.maxAttempts).toBe(3);
+    expect(result.maxAttempts).toBe(asMaxAttempts(3));
     expect(result.onStatus).toEqual([500]);
   });
 
@@ -114,18 +120,19 @@ describe('buildRetryPolicyFromResolved', () => {
     });
   });
 
-  it('should accept zero maxAttempts', () => {
+  it('should accept zero maxAttempts when already branded', () => {
+    const zeroAttempts = 0 as MaxAttempts;
     const resolved: ModelRetrySource = {
       policy: {
         retry: {
-          maxAttempts: 0,
+          maxAttempts: zeroAttempts,
         },
       },
     };
 
     const result = buildRetryPolicyFromResolved(resolved);
 
-    expect(result.maxAttempts).toBe(0);
+    expect(result.maxAttempts).toBe(zeroAttempts);
   });
 
   it('should accept empty onStatus array', () => {
@@ -142,15 +149,16 @@ describe('buildRetryPolicyFromResolved', () => {
     expect(result.onStatus).toEqual([]);
   });
 
-  it('should accept zero timeoutMs', () => {
+  it('should accept zero timeoutMs when already branded', () => {
+    const zeroTimeout = 0 as TimeoutMs;
     const resolved: ModelRetrySource = {
       policy: {
-        timeoutMs: 0,
+        timeoutMs: zeroTimeout,
       },
     };
 
     const result = buildRetryPolicyFromResolved(resolved);
 
-    expect(result.timeoutMs).toBe(0);
+    expect(result.timeoutMs).toBe(zeroTimeout);
   });
 });

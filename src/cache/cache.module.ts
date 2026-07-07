@@ -6,6 +6,7 @@ import { RedisConnectionService } from './adapters/redis-cache/redis-connection.
 import { CACHE_BACKEND } from './cache.tokens';
 import { ResponseCacheService } from './response-cache.service';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
+import type { CacheKey, CacheTtlSeconds } from '../common/types/branded.types';
 
 export interface CacheModuleOptions {
   includeRedisStack: boolean;
@@ -45,10 +46,10 @@ export class CacheModule {
           provide: CACHE_BACKEND,
           useFactory: (reg: CacheRegistryService): CacheBackend => ({
             isAvailable: () => reg.resolve().isAvailable(),
-            get: (key: string) => reg.resolve().get(key),
-            set: (key: string, value: string, ttl: number) =>
+            get: (key: CacheKey) => reg.resolve().get(key),
+            set: (key: CacheKey, value: string, ttl: CacheTtlSeconds) =>
               reg.resolve().set(key, value, ttl),
-            delete: (key: string) => reg.resolve().delete(key),
+            delete: (key: CacheKey) => reg.resolve().delete(key),
           }),
           inject: [CacheRegistryService],
         },

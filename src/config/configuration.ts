@@ -44,8 +44,15 @@ import {
   type ValidatedEnvironment,
 } from './env.validation';
 import { assertEnabledProviderApiKeysPresent } from './provider-api-key.validation';
-import { asGatewayKey, type GatewayKey} from '../common/types';
-import { asProviderInstanceId } from 'src/common/types/branded.types';
+import { asGatewayKey, type GatewayKey } from '../common/types';
+import {
+  asProviderInstanceId,
+  asRateLimitBurst,
+  asRateLimitRps,
+  asMaxConcurrentStreams,
+  asCacheTtlSeconds,
+  asPort,
+} from 'src/common/types/branded.types';
 
 export { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
 
@@ -254,13 +261,13 @@ export function buildAppConfiguration(
   const cacheConfig = {
     enabled: cacheEnabled,
     backend: parseCacheBackend(env.CACHE_BACKEND, cacheEnabled),
-    ttl: env.CACHE_TTL ?? 3600,
+    ttl: asCacheTtlSeconds(env.CACHE_TTL ?? 3600),
     keyPrefix: env.CACHE_KEY_PREFIX ?? 'aigw:',
   };
 
   const redisConfig = {
     host: env.REDIS_HOST ?? 'localhost',
-    port: env.REDIS_PORT ?? 6379,
+    port: asPort(env.REDIS_PORT ?? 6379),
     password: env.REDIS_PASSWORD ?? '',
     db: env.REDIS_DB ?? 0,
     keyPrefix: env.REDIS_KEY_PREFIX ?? 'aigw:',
@@ -271,7 +278,7 @@ export function buildAppConfiguration(
   return {
     gateway: gatewayConfig,
     gatewayKey,
-    port: parseInt(rawEnv.PORT || '3000', 10),
+    port: asPort(parseInt(rawEnv.PORT || '3000', 10)),
     nodeEnv: rawEnv.NODE_ENV || 'development',
     providers: providersByInstance,
     resolvedSystemPrompts: systemPromptsResolved,
@@ -279,9 +286,11 @@ export function buildAppConfiguration(
     redis: redisConfig,
     RATE_LIMIT_SMART_ENABLED: rateLimitSmartEnabled,
     rateLimit: {
-      rps: env.RATE_LIMIT_RPS_PER_KEY ?? 10,
-      burst: env.RATE_LIMIT_BURST_PER_KEY ?? 20,
-      maxConcurrentStreams: env.RATE_LIMIT_STREAMS_CONCURRENT ?? 3,
+      rps: asRateLimitRps(env.RATE_LIMIT_RPS_PER_KEY ?? 10),
+      burst: asRateLimitBurst(env.RATE_LIMIT_BURST_PER_KEY ?? 20),
+      maxConcurrentStreams: asMaxConcurrentStreams(
+        env.RATE_LIMIT_STREAMS_CONCURRENT ?? 3,
+      ),
       cooldownAfter429: env.RATE_LIMIT_COOLDOWN_AFTER_429 ?? 60,
     },
   };

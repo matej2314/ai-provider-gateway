@@ -3,6 +3,18 @@ import {
   unbrand,
   asRequestId,
   asConversationId,
+  asTimeoutMs,
+  asMaxAttempts,
+  asBaseUrl,
+  asPort,
+  asCacheTtlSeconds,
+  asCacheKey,
+  asSystemFingerprint,
+  asRateLimitRps,
+  asRateLimitBurst,
+  asMaxConcurrentStreams,
+  asAttemptNumber,
+  asSchemaVersion,
   type RequestId,
   type ConversationId,
 } from './branded.types';
@@ -11,6 +23,16 @@ import {
   isConversationId,
   createRequestId,
   isRequestId,
+  isTimeoutMs,
+  isMaxAttempts,
+  isBaseUrl,
+  isPort,
+  isCacheTtlSeconds,
+  isRateLimitRps,
+  isRateLimitBurst,
+  isMaxConcurrentStreams,
+  isAttemptNumber,
+  isSchemaVersion,
 } from './branded.guards';
 
 const VALID_CONV = 'conv_123e4567-e89b-12d3-a456-426614174000';
@@ -82,5 +104,208 @@ describe('isRequestId', () => {
 
   it('returns false for invalid id', () => {
     expect(isRequestId('req-123')).toBe(false);
+  });
+});
+
+// ========================================
+// CONFIGURATION & POLICY (Faza 4)
+// ========================================
+
+describe('asTimeoutMs', () => {
+  it('accepts values >= 1', () => {
+    expect(asTimeoutMs(1)).toBe(1);
+    expect(asTimeoutMs(1500)).toBe(1500);
+    expect(asTimeoutMs(1.5)).toBe(1.5);
+  });
+
+  it('throws when value < 1', () => {
+    expect(() => asTimeoutMs(0)).toThrow(/TimeoutMs must be >= 1/);
+    expect(() => asTimeoutMs(0.9)).toThrow(/TimeoutMs must be >= 1/);
+  });
+});
+
+describe('asMaxAttempts', () => {
+  it('accepts integers 1-5 and floors fractional values within range', () => {
+    expect(asMaxAttempts(1)).toBe(1);
+    expect(asMaxAttempts(5)).toBe(5);
+    expect(asMaxAttempts(4.9)).toBe(4);
+  });
+
+  it('throws outside 1-5 range', () => {
+    expect(() => asMaxAttempts(0)).toThrow(
+      /MaxAttempts must be between 1 and 5/,
+    );
+    expect(() => asMaxAttempts(5.9)).toThrow(
+      /MaxAttempts must be between 1 and 5/,
+    );
+    expect(() => asMaxAttempts(6)).toThrow(
+      /MaxAttempts must be between 1 and 5/,
+    );
+  });
+});
+
+describe('asBaseUrl', () => {
+  it('accepts http and https URLs', () => {
+    expect(asBaseUrl('http://localhost:3000')).toBe('http://localhost:3000');
+    expect(asBaseUrl('https://api.example.com/v1')).toBe(
+      'https://api.example.com/v1',
+    );
+  });
+
+  it('throws for non-http(s) values', () => {
+    expect(() => asBaseUrl('ftp://files.example.com')).toThrow(
+      /BaseUrl must start with http/,
+    );
+    expect(() => asBaseUrl('localhost')).toThrow(
+      /BaseUrl must start with http/,
+    );
+  });
+});
+
+describe('asPort', () => {
+  it('accepts valid ports and floors fractional values', () => {
+    expect(asPort(1)).toBe(1);
+    expect(asPort(65535)).toBe(65535);
+    expect(asPort(8080.9)).toBe(8080);
+  });
+
+  it('throws outside 1-65535 range', () => {
+    expect(() => asPort(0)).toThrow(/Port must be 1-65535/);
+    expect(() => asPort(65536)).toThrow(/Port must be 1-65535/);
+  });
+});
+
+describe('asCacheTtlSeconds', () => {
+  it('accepts zero and positive values', () => {
+    expect(asCacheTtlSeconds(0)).toBe(0);
+    expect(asCacheTtlSeconds(3600)).toBe(3600);
+  });
+
+  it('throws for negative values', () => {
+    expect(() => asCacheTtlSeconds(-1)).toThrow(/CacheTtlSeconds must be >=0/);
+  });
+});
+
+describe('asRateLimitRps', () => {
+  it('accepts values >= 1 and floors', () => {
+    expect(asRateLimitRps(1)).toBe(1);
+    expect(asRateLimitRps(10.7)).toBe(10);
+  });
+
+  it('throws when value < 1', () => {
+    expect(() => asRateLimitRps(0)).toThrow(/RateLimitRps must be >=1/);
+  });
+});
+
+describe('asRateLimitBurst', () => {
+  it('accepts values >= 1 and floors', () => {
+    expect(asRateLimitBurst(5)).toBe(5);
+    expect(asRateLimitBurst(5.9)).toBe(5);
+  });
+
+  it('throws when value < 1', () => {
+    expect(() => asRateLimitBurst(0.9)).toThrow(/RateLimitBurst must be >=1/);
+  });
+});
+
+describe('asMaxConcurrentStreams', () => {
+  it('accepts values >= 1 and floors', () => {
+    expect(asMaxConcurrentStreams(2)).toBe(2);
+    expect(asMaxConcurrentStreams(2.1)).toBe(2);
+  });
+
+  it('throws when value < 1', () => {
+    expect(() => asMaxConcurrentStreams(0)).toThrow(
+      /MaxConcurrentStreams must be >=1/,
+    );
+  });
+});
+
+describe('asAttemptNumber', () => {
+  it('accepts values >= 1 and floors', () => {
+    expect(asAttemptNumber(1)).toBe(1);
+    expect(asAttemptNumber(3.9)).toBe(3);
+  });
+
+  it('throws when value < 1', () => {
+    expect(() => asAttemptNumber(0)).toThrow(/AttemptNumber must be >=1/);
+  });
+});
+
+describe('asSchemaVersion', () => {
+  it('accepts values >= 1 and floors', () => {
+    expect(asSchemaVersion(1)).toBe(1);
+    expect(asSchemaVersion(2.9)).toBe(2);
+  });
+
+  it('throws when value < 1', () => {
+    expect(() => asSchemaVersion(0)).toThrow(/SchemaVersion must be >= 1/);
+  });
+});
+
+describe('pass-through configuration helpers', () => {
+  it('asCacheKey casts without validation', () => {
+    expect(asCacheKey('cache:chat:abc')).toBe('cache:chat:abc');
+    expect(asCacheKey('')).toBe('');
+  });
+
+  it('asSystemFingerprint casts without validation', () => {
+    expect(asSystemFingerprint('fp_abc123')).toBe('fp_abc123');
+    expect(asSystemFingerprint('')).toBe('');
+  });
+});
+
+describe('configuration type guards (Faza 4)', () => {
+  it('isTimeoutMs mirrors asTimeoutMs acceptance', () => {
+    expect(isTimeoutMs(1)).toBe(true);
+    expect(isTimeoutMs(1000)).toBe(true);
+    expect(isTimeoutMs(0)).toBe(false);
+    expect(isTimeoutMs(NaN)).toBe(false);
+    expect(isTimeoutMs(Infinity)).toBe(false);
+  });
+
+  it('isMaxAttempts mirrors asMaxAttempts acceptance', () => {
+    expect(isMaxAttempts(1)).toBe(true);
+    expect(isMaxAttempts(5)).toBe(true);
+    expect(isMaxAttempts(4.5)).toBe(true);
+    expect(isMaxAttempts(0)).toBe(false);
+    expect(isMaxAttempts(5.5)).toBe(false);
+    expect(isMaxAttempts(6)).toBe(false);
+  });
+
+  it('isBaseUrl mirrors asBaseUrl acceptance', () => {
+    expect(isBaseUrl('https://example.com')).toBe(true);
+    expect(isBaseUrl('http://localhost')).toBe(true);
+    expect(isBaseUrl('ftp://example.com')).toBe(false);
+    expect(isBaseUrl('')).toBe(false);
+  });
+
+  it('isPort mirrors asPort acceptance', () => {
+    expect(isPort(1)).toBe(true);
+    expect(isPort(65535)).toBe(true);
+    expect(isPort(8080.5)).toBe(true);
+    expect(isPort(0)).toBe(false);
+    expect(isPort(65536)).toBe(false);
+  });
+
+  it('isCacheTtlSeconds mirrors asCacheTtlSeconds acceptance', () => {
+    expect(isCacheTtlSeconds(0)).toBe(true);
+    expect(isCacheTtlSeconds(60)).toBe(true);
+    expect(isCacheTtlSeconds(-1)).toBe(false);
+  });
+
+  it('isRateLimitRps / isRateLimitBurst / isMaxConcurrentStreams', () => {
+    expect(isRateLimitRps(10)).toBe(true);
+    expect(isRateLimitRps(0.5)).toBe(false);
+    expect(isRateLimitBurst(5)).toBe(true);
+    expect(isMaxConcurrentStreams(3)).toBe(true);
+    expect(isMaxConcurrentStreams(0)).toBe(false);
+  });
+
+  it('isAttemptNumber and isSchemaVersion', () => {
+    expect(isAttemptNumber(2)).toBe(true);
+    expect(isAttemptNumber(0)).toBe(false);
+    expect(isSchemaVersion(1)).toBe(true);
+    expect(isSchemaVersion(0)).toBe(false);
   });
 });

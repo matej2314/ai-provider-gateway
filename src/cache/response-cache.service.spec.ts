@@ -24,6 +24,10 @@ import {
   TEST_INPUT_TOKENS_SMALL,
   TEST_OUTPUT_TOKENS_SMALL,
   TEST_PROVIDER_INSTANCE_BRANDED,
+  TEST_CACHE_TTL_CUSTOM,
+  TEST_FALLBACK_MODEL_ALIAS,
+  TEST_TOOL_CALL_ID_CACHED,
+  TEST_CACHE_TTL_SECONDS,
 } from '../common/mocks/test-constants';
 
 describe('ResponseCacheService', () => {
@@ -270,19 +274,24 @@ describe('ResponseCacheService', () => {
       expect(mockCacheBackend.set).toHaveBeenCalledWith(
         expect.any(String),
         expect.stringContaining('"cached":true'),
-        3600,
+        TEST_CACHE_TTL_SECONDS,
       );
     });
 
     it('should cache response with custom TTL', async () => {
       (mockCacheBackend.set as jest.Mock).mockResolvedValue(true);
 
-      await service.setCachedResponse(request, response, undefined, 7200);
+      await service.setCachedResponse(
+        request,
+        response,
+        undefined,
+        TEST_CACHE_TTL_CUSTOM,
+      );
 
       expect(mockCacheBackend.set).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(String),
-        7200,
+        TEST_CACHE_TTL_CUSTOM,
       );
     });
 
@@ -307,9 +316,15 @@ describe('ResponseCacheService', () => {
       const fullResponse: ChatResponseData = {
         ...response,
         conversationId: TEST_CACHED_CONVERSATION_ID,
-        toolCalls: [{ id: 'tc-1', name: 'search', arguments: '{}' }],
+        toolCalls: [
+          {
+            id: TEST_TOOL_CALL_ID_CACHED,
+            name: 'search',
+            arguments: '{}',
+          },
+        ],
         finishReason: 'stop',
-        effectiveModelAlias: 'fallback-alias',
+        effectiveModelAlias: TEST_FALLBACK_MODEL_ALIAS,
       };
 
       await service.setCachedResponse(request, fullResponse);

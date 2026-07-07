@@ -6,6 +6,16 @@ import { CacheRegistryService } from '../../cache-registry.service';
 import { LoggingService } from '../../../logging/logging.service';
 import { createMockLoggingService } from '../../../common/mocks/createMockLoggingService';
 import { createMockConfigService } from '../../../common/mocks/createMockConfigService';
+import {
+  asCacheKey,
+  asCacheTtlSeconds,
+  type CacheTtlSeconds,
+} from '../../../common/types/branded.types';
+import {
+  TEST_CACHE_KEY,
+  TEST_CACHE_TTL_SECONDS,
+  TEST_CACHE_TTL_CUSTOM,
+} from '../../../common/mocks/test-constants';
 
 describe('RedisCacheAdapter', () => {
   let adapter: RedisCacheAdapter;
@@ -84,16 +94,16 @@ describe('RedisCacheAdapter', () => {
     it('should return value from Redis', async () => {
       mockRedisClient.get.mockResolvedValue('cached-value');
 
-      const result = await adapter.get('test-key');
+      const result = await adapter.get(TEST_CACHE_KEY);
 
       expect(result).toBe('cached-value');
-      expect(mockRedisClient.get).toHaveBeenCalledWith('test-key');
+      expect(mockRedisClient.get).toHaveBeenCalledWith(TEST_CACHE_KEY);
     });
 
     it('should return null when key not found', async () => {
       mockRedisClient.get.mockResolvedValue(null);
 
-      const result = await adapter.get('nonexistent');
+      const result = await adapter.get(asCacheKey('nonexistent'));
 
       expect(result).toBeNull();
     });
@@ -101,7 +111,7 @@ describe('RedisCacheAdapter', () => {
     it('should return null when client not available', async () => {
       (mockConnection.getClient as jest.Mock).mockReturnValue(null);
 
-      const result = await adapter.get('test-key');
+      const result = await adapter.get(TEST_CACHE_KEY);
 
       expect(result).toBeNull();
       expect(mockRedisClient.get).not.toHaveBeenCalled();
@@ -111,7 +121,7 @@ describe('RedisCacheAdapter', () => {
       const error = new Error('Redis connection lost');
       mockRedisClient.get.mockRejectedValue(error);
 
-      const result = await adapter.get('test-key');
+      const result = await adapter.get(TEST_CACHE_KEY);
 
       expect(result).toBeNull();
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -122,7 +132,7 @@ describe('RedisCacheAdapter', () => {
     it('should handle non-Error exceptions', async () => {
       mockRedisClient.get.mockRejectedValue('string error');
 
-      const result = await adapter.get('test-key');
+      const result = await adapter.get(TEST_CACHE_KEY);
 
       expect(result).toBeNull();
       expect(mockLogger.warn).toHaveBeenCalled();
@@ -133,12 +143,16 @@ describe('RedisCacheAdapter', () => {
     it('should set value with TTL using SETEX', async () => {
       mockRedisClient.setex.mockResolvedValue('OK');
 
-      const result = await adapter.set('test-key', 'value', 3600);
+      const result = await adapter.set(
+        TEST_CACHE_KEY,
+        'value',
+        TEST_CACHE_TTL_SECONDS,
+      );
 
       expect(result).toBe(true);
       expect(mockRedisClient.setex).toHaveBeenCalledWith(
-        'test-key',
-        3600,
+        TEST_CACHE_KEY,
+        TEST_CACHE_TTL_SECONDS,
         'value',
       );
       expect(mockRedisClient.set).not.toHaveBeenCalled();
@@ -153,12 +167,12 @@ describe('RedisCacheAdapter', () => {
         return undefined;
       });
 
-      const result = await adapter.set('test-key', 'value');
+      const result = await adapter.set(TEST_CACHE_KEY, 'value');
 
       expect(result).toBe(true);
       expect(mockRedisClient.setex).toHaveBeenCalledWith(
-        'test-key',
-        7200,
+        TEST_CACHE_KEY,
+        TEST_CACHE_TTL_CUSTOM,
         'value',
       );
     });
@@ -166,26 +180,34 @@ describe('RedisCacheAdapter', () => {
     it('should use SET without TTL when TTL is 0', async () => {
       mockRedisClient.set.mockResolvedValue('OK');
 
-      const result = await adapter.set('test-key', 'value', 0);
+      const result = await adapter.set(
+        TEST_CACHE_KEY,
+        'value',
+        asCacheTtlSeconds(0),
+      );
 
       expect(result).toBe(true);
-      expect(mockRedisClient.set).toHaveBeenCalledWith('test-key', 'value');
+      expect(mockRedisClient.set).toHaveBeenCalledWith(TEST_CACHE_KEY, 'value');
       expect(mockRedisClient.setex).not.toHaveBeenCalled();
     });
 
     it('should use SET without TTL when TTL is negative', async () => {
       mockRedisClient.set.mockResolvedValue('OK');
 
-      const result = await adapter.set('test-key', 'value', -1);
+      const result = await adapter.set(
+        TEST_CACHE_KEY,
+        'value',
+        -1 as CacheTtlSeconds,
+      );
 
       expect(result).toBe(true);
-      expect(mockRedisClient.set).toHaveBeenCalledWith('test-key', 'value');
+      expect(mockRedisClient.set).toHaveBeenCalledWith(TEST_CACHE_KEY, 'value');
     });
 
     it('should return false when client not available', async () => {
       (mockConnection.getClient as jest.Mock).mockReturnValue(null);
 
-      const result = await adapter.set('test-key', 'value');
+      const result = await adapter.set(TEST_CACHE_KEY, 'value');
 
       expect(result).toBe(false);
       expect(mockRedisClient.setex).not.toHaveBeenCalled();
@@ -195,7 +217,11 @@ describe('RedisCacheAdapter', () => {
       const error = new Error('Redis write error');
       mockRedisClient.setex.mockRejectedValue(error);
 
-      const result = await adapter.set('test-key', 'value', 3600);
+      const result = await adapter.set(
+        TEST_CACHE_KEY,
+        'value',
+        TEST_CACHE_TTL_SECONDS,
+      );
 
       expect(result).toBe(false);
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -208,16 +234,16 @@ describe('RedisCacheAdapter', () => {
     it('should delete key from Redis', async () => {
       mockRedisClient.del.mockResolvedValue(1);
 
-      const result = await adapter.delete('test-key');
+      const result = await adapter.delete(TEST_CACHE_KEY);
 
       expect(result).toBe(true);
-      expect(mockRedisClient.del).toHaveBeenCalledWith('test-key');
+      expect(mockRedisClient.del).toHaveBeenCalledWith(TEST_CACHE_KEY);
     });
 
     it('should return false when key not found', async () => {
       mockRedisClient.del.mockResolvedValue(0);
 
-      const result = await adapter.delete('nonexistent');
+      const result = await adapter.delete(asCacheKey('nonexistent'));
 
       expect(result).toBe(false);
     });
@@ -225,7 +251,7 @@ describe('RedisCacheAdapter', () => {
     it('should return false when client not available', async () => {
       (mockConnection.getClient as jest.Mock).mockReturnValue(null);
 
-      const result = await adapter.delete('test-key');
+      const result = await adapter.delete(TEST_CACHE_KEY);
 
       expect(result).toBe(false);
       expect(mockRedisClient.del).not.toHaveBeenCalled();
@@ -235,7 +261,7 @@ describe('RedisCacheAdapter', () => {
       const error = new Error('Redis delete error');
       mockRedisClient.del.mockRejectedValue(error);
 
-      const result = await adapter.delete('test-key');
+      const result = await adapter.delete(TEST_CACHE_KEY);
 
       expect(result).toBe(false);
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -250,9 +276,9 @@ describe('RedisCacheAdapter', () => {
       mockRedisClient.setex.mockRejectedValue(new Error('SET error'));
       mockRedisClient.del.mockRejectedValue(new Error('DEL error'));
 
-      await expect(adapter.get('key')).resolves.toBeNull();
-      await expect(adapter.set('key', 'val')).resolves.toBe(false);
-      await expect(adapter.delete('key')).resolves.toBe(false);
+      await expect(adapter.get(TEST_CACHE_KEY)).resolves.toBeNull();
+      await expect(adapter.set(TEST_CACHE_KEY, 'val')).resolves.toBe(false);
+      await expect(adapter.delete(TEST_CACHE_KEY)).resolves.toBe(false);
     });
   });
 });

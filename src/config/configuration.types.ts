@@ -1,5 +1,10 @@
 import type { GatewayKey, EnvRef } from '../common/types';
-import type { ProviderInstanceId } from '../common/types/branded.types';
+import type {
+  MaxConcurrentStreams,
+  ProviderInstanceId,
+  RateLimitBurst,
+  RateLimitRps,
+} from '../common/types/branded.types';
 
 export type ResolvedSystemPrompts = {
   master: string;
@@ -25,9 +30,9 @@ export type ResolvedGatewayClient = {
   gatewayKeyRef: EnvRef;
   gatewayKey: GatewayKey;
   rateLimit?: {
-    rps: number;
-    burst: number;
-    maxConcurrentStreams: number;
+    rps: RateLimitRps;
+    burst: RateLimitBurst;
+    maxConcurrentStreams: MaxConcurrentStreams;
   };
 };
 

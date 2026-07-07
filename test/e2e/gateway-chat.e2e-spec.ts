@@ -7,7 +7,11 @@ import {
   TEST_PROVIDER_INSTANCE_BRANDED,
   TEST_INPUT_TOKENS,
   TEST_OUTPUT_TOKENS,
+  TEST_MAX_ATTEMPTS,
+  TEST_RETRY_ON_STATUS,
+  TEST_TIMEOUT_MS,
 } from '../../src/common/mocks/test-constants';
+import { RETRY_POLICY_DEFAULTS } from '../../src/common/retry-policy-defaults';
 import { expectGatewayUsage } from '../helpers/expect-gateway-usage';
 import {
   closeE2eApp,
@@ -408,6 +412,18 @@ describe('Gateway Chat API (E2E)', () => {
   describe('Fallback chain (smoke test)', () => {
     const primaryAlias = TEST_MODEL_ALIAS;
     const fallbackAlias = 'claude-sonnet';
+    const brandedModelPolicy = {
+      timeoutMs: TEST_TIMEOUT_MS,
+      retry: {
+        maxAttempts: TEST_MAX_ATTEMPTS,
+        onStatus: [...TEST_RETRY_ON_STATUS],
+      },
+      params: {
+        defaults: {},
+        allowOverrides: [] as string[],
+        bounds: {},
+      },
+    };
 
     it('should include effectiveModelAlias when fallback occurs', async () => {
       await withE2eApp(
@@ -421,11 +437,13 @@ describe('Gateway Chat API (E2E)', () => {
               models: {
                 [primaryAlias]: {
                   fallback: fallbackAlias,
+                  policy: brandedModelPolicy,
                 },
                 [fallbackAlias]: {
                   providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
                   modelId: 'claude-sonnet-4-5',
                   capabilities: { tools: true, streaming: true },
+                  policy: brandedModelPolicy,
                 },
               },
             },
@@ -443,6 +461,24 @@ describe('Gateway Chat API (E2E)', () => {
 
           expect(response.body.effectiveModelAlias).toBe(fallbackAlias);
           expect(response.body.output.text).toBe('Response from fallback');
+        },
+      );
+    });
+  });
+
+  describe('Retry policy configuration (smoke)', () => {
+    it('should use branded retry defaults when model policy omits explicit values', async () => {
+      await withE2eApp(
+        { providerRegistry: createE2eProviderRegistry() },
+        async ({ app }) => {
+          await request(app.getHttpServer())
+            .post(E2E_ROUTES.chat)
+            .set('x-gateway-key', E2E_GATEWAY_KEY)
+            .send(validBody)
+            .expect(E2E_POST_SUCCESS_STATUS);
+
+          expect(RETRY_POLICY_DEFAULTS.maxAttempts).toBe(TEST_MAX_ATTEMPTS);
+          expect(RETRY_POLICY_DEFAULTS.timeoutMs).toBe(TEST_TIMEOUT_MS);
         },
       );
     });

@@ -23,7 +23,7 @@ import type {
   ProviderChatResponse,
   StreamResult,
 } from '../../interfaces/ai-provider.interface';
-import { asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
+import { asInputTokens, asOutputTokens, asSystemFingerprint } from '../../../common/types/branded.types';
 
 export interface ChatCompletionsAdapterOptions {
   includeStreamUsage?: boolean;
@@ -135,7 +135,9 @@ export function createChatCompletionsAdapter(
           return 'stop';
         },
         getSystemFingerprint: async () =>
-          finalChunk?.system_fingerprint ?? undefined,
+          finalChunk?.system_fingerprint
+            ? asSystemFingerprint(finalChunk.system_fingerprint)
+            : undefined,
       };
     },
   };

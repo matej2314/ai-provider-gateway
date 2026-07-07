@@ -26,6 +26,7 @@ import {
   asOutputTokens,
   InputTokens,
   OutputTokens,
+  type SystemFingerprint,
 } from '../../common/types/branded.types';
 
 export interface CompleteOnceResult {
@@ -48,7 +49,7 @@ export interface StreamOnceResult {
     | undefined;
   toolCalls?: ProviderToolCall[];
   stopReason?: ProviderChatResponse['stopReason'];
-  systemFingerprint?: string;
+  systemFingerprint?: SystemFingerprint;
   thinkingContent?: string;
   usageDetails?: ProviderUsageDetails;
 }
@@ -223,11 +224,13 @@ export class ChatProviderCallService {
         providerName: asProviderInstanceId(resolved.providerName),
         modelId: asModelId(resolved.modelId),
         assembledText: assembledText || '',
-        usageMetadata: usageMetadata ? {
-          inputTokens: asInputTokens(usageMetadata.inputTokens),
-          outputTokens: asOutputTokens(usageMetadata.outputTokens),
-          model: usageMetadata.model,
-        } : undefined,
+        usageMetadata: usageMetadata
+          ? {
+              inputTokens: asInputTokens(usageMetadata.inputTokens),
+              outputTokens: asOutputTokens(usageMetadata.outputTokens),
+              model: usageMetadata.model,
+            }
+          : undefined,
         ...(toolCalls?.length && { toolCalls }),
         ...(stopReason && { stopReason }),
         ...(systemFingerprint && { systemFingerprint }),

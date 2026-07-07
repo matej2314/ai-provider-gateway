@@ -4,7 +4,12 @@ import type {
   ProviderToolDefinition,
 } from 'src/providers/interfaces/ai-provider.interface';
 import type { GatewayToolChoice } from '../../types/tooling-types';
-import { asToolCallId, asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
+import {
+  asToolCallId,
+  asInputTokens,
+  asOutputTokens,
+  asSystemFingerprint,
+} from '../../../common/types/branded.types';
 
 type ChatCompletionTool = OpenAI.Chat.Completions.ChatCompletionTool;
 type ChatCompletionMessageToolCall =
@@ -110,7 +115,9 @@ export function parseOpenAiCompletionWithTools(
           outputTokens: asOutputTokens(response.usage.completion_tokens ?? 0),
         }
       : undefined,
-    systemFingerprint: response.system_fingerprint ?? undefined,
+    systemFingerprint: response.system_fingerprint
+      ? asSystemFingerprint(response.system_fingerprint)
+      : undefined,
   };
 }
 

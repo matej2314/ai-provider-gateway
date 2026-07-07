@@ -10,7 +10,15 @@ import type { CacheBackend } from './interfaces/cache-backend-interface';
 import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
 import type { ChatResponseData } from '../chat/services/chat-response-builder.service';
 import type { CachedChatResponse } from './types/cached-chat-response.type';
-import { asProviderInstanceId, asInputTokens, asOutputTokens } from '../common/types/branded.types';
+import {
+  asProviderInstanceId,
+  asInputTokens,
+  asOutputTokens,
+  asCacheKey,
+  asCacheTtlSeconds,
+  type CacheKey,
+  type CacheTtlSeconds,
+} from '../common/types/branded.types';
 
 export type { CachedChatResponse } from './types/cached-chat-response.type';
 
@@ -32,7 +40,7 @@ export class ResponseCacheService {
   private generateCacheKey(
     request: ChatRequestDto,
     effectiveCallParams?: ProviderCallOptions,
-  ): string {
+  ): CacheKey {
     const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
     const systemSignature = createHash('sha256')
       .update(prompts.master)
@@ -53,7 +61,7 @@ export class ResponseCacheService {
       getAppConfig(this.config, 'cache')?.keyPrefix ||
       getAppConfig(this.config, 'redis')?.keyPrefix ||
       'aigw:';
-    return `${prefix}cache:chat:${hash}`;
+    return asCacheKey(`${prefix}cache:chat:${hash}`);
   }
 
   private serializeCallParamsForCache(
@@ -111,7 +119,7 @@ export class ResponseCacheService {
     request: ChatRequestDto,
     response: ChatResponseData,
     effectiveCallParams?: ProviderCallOptions,
-    ttlSeconds?: number,
+    ttlSeconds?: CacheTtlSeconds,
   ): Promise<void> {
     if (!this.cache.isAvailable()) return;
 
@@ -134,7 +142,8 @@ export class ResponseCacheService {
     };
 
     const serialized = JSON.stringify(cachedResponse);
-    const defaultTtl = getAppConfig(this.config, 'cache')?.ttl ?? 3600;
+    const configuredTtl = getAppConfig(this.config, 'cache')?.ttl;
+    const defaultTtl = configuredTtl ?? asCacheTtlSeconds(3600);
     const success = await this.cache.set(
       key,
       serialized,

@@ -127,6 +127,136 @@ export type PromptCacheCreationTokens = Brand<
   'PromptCacheCreationTokens'
 >;
 
+// ========================================
+// CONFIGURATION & POLICY
+// ========================================
+
+/**
+ * Timeout in milliseconds (min 1)
+ */
+export type TimeoutMs = Brand<number, 'TimeoutMs'>;
+
+/**
+ * Rate limit: requests per second (min 1, integer)
+ */
+export type RateLimitRps = Brand<number, 'RateLimitRps'>;
+
+/**
+ * Rate limit: burst size (min 1, integer)
+ */
+export type RateLimitBurst = Brand<number, 'RateLimitBurst'>;
+
+/**
+ * Max concurrent streams (min 1, integer)
+ */
+export type MaxConcurrentStreams = Brand<number, 'MaxConcurrentStreams'>;
+
+/**
+ * Max retry attempts (1-5, integer)
+ */
+export type MaxAttempts = Brand<number, 'MaxAttempts'>;
+
+/**
+ * Current attempt number (1-based)
+ */
+export type AttemptNumber = Brand<number, 'AttemptNumber'>;
+
+/**
+ * Base URL for provider (validated HTTP/HTTPS)
+ */
+export type BaseUrl = Brand<string, 'BaseUrl'>;
+
+/**
+ * Cache key for Redis
+ */
+export type CacheKey = Brand<string, 'CacheKey'>;
+
+/**
+ * Cache TTL in seconds (min 0)
+ */
+export type CacheTtlSeconds = Brand<number, 'CacheTtlSeconds'>;
+
+/**
+ * HTTP/TCP port number (1-65535)
+ */
+export type Port = Brand<number, 'Port'>;
+
+/**
+ * Schema version (integer, min 1)
+ */
+export type SchemaVersion = Brand<number, 'SchemaVersion'>;
+
+/**
+ * OpenAI system fingerprint (pass-through)
+ */
+export type SystemFingerprint = Brand<string, 'SystemFingerprint'>;
+
+export const asTimeoutMs = (value: number): TimeoutMs => {
+  if (value < 1) {
+    throw new Error('TimeoutMs must be >= 1');
+  }
+  return value as TimeoutMs;
+};
+
+export const asMaxAttempts = (value: number): MaxAttempts => {
+  if (value < 1 || value > 5) {
+    throw new Error('MaxAttempts must be between 1 and 5');
+  }
+  return Math.floor(value) as MaxAttempts;
+};
+
+export const asBaseUrl = (value: string): BaseUrl => {
+  if (!value.startsWith('http://') && !value.startsWith('https://')) {
+    throw new Error('BaseUrl must start with http:// or https://');
+  }
+  return value as BaseUrl;
+};
+
+export const asPort = (value: number): Port => {
+  if (value < 1 || value > 65535) {
+    throw new Error('Port must be 1-65535');
+  }
+  return Math.floor(value) as Port;
+};
+
+export const asCacheTtlSeconds = (value: number): CacheTtlSeconds => {
+  if (value < 0) throw new Error('CacheTtlSeconds must be >=0');
+  return value as CacheTtlSeconds;
+};
+
+export const asCacheKey = (value: string): CacheKey => {
+  return value as CacheKey;
+};
+
+export const asSystemFingerprint = (value: string): SystemFingerprint => {
+  return value as SystemFingerprint;
+};
+
+export const asRateLimitRps = (value: number): RateLimitRps => {
+  if (value < 1) throw new Error('RateLimitRps must be >=1');
+  return Math.floor(value) as RateLimitRps;
+};
+
+export const asRateLimitBurst = (value: number): RateLimitBurst => {
+  if (value < 1) throw new Error('RateLimitBurst must be >=1');
+  return Math.floor(value) as RateLimitBurst;
+};
+
+export const asMaxConcurrentStreams = (value: number): MaxConcurrentStreams => {
+  if (value < 1) throw new Error('MaxConcurrentStreams must be >=1');
+  return Math.floor(value) as MaxConcurrentStreams;
+};
+
+export const asAttemptNumber = (value: number): AttemptNumber => {
+  if (value < 1) throw new Error('AttemptNumber must be >=1');
+  return Math.floor(value) as AttemptNumber;
+};
+
+export const asSchemaVersion = (value: number): SchemaVersion => {
+  if (value < 1) throw new Error('SchemaVersion must be >= 1');
+  return Math.floor(value) as SchemaVersion;
+};
+
 export const asRequestId = (value: string): RequestId => value as RequestId;
 export const asConversationId = (value: string): ConversationId =>
   value as ConversationId;
