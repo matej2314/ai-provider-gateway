@@ -9,7 +9,10 @@ import {
   TEST_INPUT_TOKENS,
   TEST_OUTPUT_TOKENS,
 } from '../../../common/mocks/test-constants';
-import { asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
+import {
+  asInputTokens,
+  asOutputTokens,
+} from '../../../common/types/branded.types';
 
 describe('openai-response.mapper helpers', () => {
   it('toOpenAiCompletionId should replace gw_ prefix', () => {

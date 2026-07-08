@@ -7,6 +7,7 @@ import {
   E2E_POST_SUCCESS_STATUS,
   E2E_ROUTES,
 } from './helpers/e2e-constants';
+import { asToolCallId } from '../../src/common/types/branded.types';
 
 describe('Anthropic Facade Extended (E2E)', () => {
   const anthropicModel = 'claude-3-opus-20240229';
@@ -118,7 +119,7 @@ describe('Anthropic Facade Extended (E2E)', () => {
               stopReason: 'tool_use',
               toolCalls: [
                 {
-                  id: 'toolu_abc',
+                  id: asToolCallId('toolu_abc'),
                   name: 'get_weather',
                   arguments: JSON.stringify({ city: 'Wroclaw' }),
                 },

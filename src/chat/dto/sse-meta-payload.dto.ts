@@ -45,7 +45,9 @@ export class SseMetaPayloadDto {
 }
 
 /** Maps internal branded SSE meta payload to API DTO (implicit unbrand). */
-export function toSseMetaPayloadDto(payload: SseMetaPayload): SseMetaPayloadDto {
+export function toSseMetaPayloadDto(
+  payload: SseMetaPayload,
+): SseMetaPayloadDto {
   return {
     id: payload.id,
     provider: payload.provider,

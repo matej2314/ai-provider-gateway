@@ -32,7 +32,18 @@
     "posttest:integration": "npm run test:integration:redis:down",
     "test:integration": "jest --config ./test/jest-integration.json --runInBand",
     "test:integration:redis:up": "docker compose -f test/integration/docker-compose.redis.yml up -d --wait",
-    "test:integration:redis:down": "docker compose -f test/integration/docker-compose.redis.yml down -v"
+    "test:integration:redis:down": "docker compose -f test/integration/docker-compose.redis.yml down -v",
+    "typecheck:coverage": "type-coverage"
+  },
+  "typeCoverage": {
+    "atLeast": 99,
+    "detail": true,
+    "ignoreFiles": [
+      "dist/**",
+      "test/**",
+      "**/*.spec.ts",
+      "scripts/**"
+    ]
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.93.0",
@@ -85,6 +96,7 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "type-coverage": "^2.29.7",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },

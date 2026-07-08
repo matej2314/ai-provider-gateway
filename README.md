@@ -15,29 +15,31 @@ Aktualnie wspierani **adaptery runtime** (`src/providers/`):
 - **OpenAI** (`type: openai`) — Chat Completions + Responses API (`select-api-surface.ts`); wymaga `baseUrlRef` w YAML
 - **OpenAI-compatible** (`type: openai-compatible`) — Chat Completions (np. Ollama, lokalne endpointy); wymaga `baseUrlRef`, klucz API opcjonalny
 
-> **Uwaga — dwa „OpenAI” w projekcie:**  
-> 1. **Fasada** — `/api/v1/openai/*`, `src/integrations/openai/` — kompatybilność kontraktu HTTP (np. Cursor).  
+> **Uwaga — dwa „OpenAI” w projekcie:**
+>
+> 1. **Fasada** — `/api/v1/openai/*`, `src/integrations/openai/` — kompatybilność kontraktu HTTP (np. Cursor).
 > 2. **Adapter runtime** — `type: openai` / `openai-compatible`, `src/providers/` — wywołanie SDK po `baseUrlRef` + `apiKeyRef`.  
-> Fasada **nie wymaga** adaptera OpenAI; adapter **nie wymaga** fasady. Szczegóły: [`docs/dictionary.md`](docs/dictionary.md).
+>    Fasada **nie wymaga** adaptera OpenAI; adapter **nie wymaga** fasady. Szczegóły: [`docs/dictionary.md`](docs/dictionary.md).
 
 ## Dokumentacja
 
 Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 
-| Temat                       | Plik                                                                                       |
-| --------------------------- | ------------------------------------------------------------------------------------------ |
-| Kontrakt HTTP (OpenAPI 3.1) | [`openapi.json`](openapi.json) — natywny czat + models + health + fasady OpenAI/Anthropic; generowany: `npm run openapi:export` |
-| Swagger UI (runtime)        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`); tagi: Health, Chat, **Models**, OpenAI API *(fasada IDE)*, Anthropic API *(fasada IDE)* |
-| API (ludzki opis)           | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md)                                     |
-| Konfiguracja env + YAML     | [`docs/konfiguracja.md`](docs/konfiguracja.md)                                             |
-| Kody błędów                 | [`docs/dictionary.md`](docs/dictionary.md)                                                 |
-| Architektura                | [`docs/architektura.md`](docs/architektura.md)                                             |
-| Struktura katalogów         | [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md)               |
-| Fasada OpenAI (Cursor IDE)  | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md)                  |
-| Adapter OpenAI (runtime)  | [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)                          |
-| Architektura fasad IDE      | [`docs/integracje.md`](docs/integracje.md)                                                  |
-| Gateway CLI                 | [`docs/CLI.md`](docs/CLI.md)                                                                |
-| Testy (jednostkowe, CLI, E2E, integracyjne) | [`docs/testy.md`](docs/testy.md)                                             |
+| Temat                                       | Plik                                                                                                                                                                                |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kontrakt HTTP (OpenAPI 3.1)                 | [`openapi.json`](openapi.json) — natywny czat + models + health + fasady OpenAI/Anthropic; generowany: `npm run openapi:export`                                                     |
+| Swagger UI (runtime)                        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`); tagi: Health, Chat, **Models**, OpenAI API _(fasada IDE)_, Anthropic API _(fasada IDE)_ |
+| API (ludzki opis)                           | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md)                                                                                                                              |
+| Konfiguracja env + YAML                     | [`docs/konfiguracja.md`](docs/konfiguracja.md)                                                                                                                                      |
+| Kody błędów                                 | [`docs/dictionary.md`](docs/dictionary.md)                                                                                                                                          |
+| Brand types (type safety TS)                | [`docs/brand-types.md`](docs/brand-types.md)                                                                                                                                        |
+| Architektura                                | [`docs/architektura.md`](docs/architektura.md)                                                                                                                                      |
+| Struktura katalogów                         | [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md)                                                                                                        |
+| Fasada OpenAI (Cursor IDE)                  | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md)                                                                                                          |
+| Adapter OpenAI (runtime)                    | [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)                                                                                                                |
+| Architektura fasad IDE                      | [`docs/integracje.md`](docs/integracje.md)                                                                                                                                          |
+| Gateway CLI                                 | [`docs/CLI.md`](docs/CLI.md)                                                                                                                                                        |
+| Testy (jednostkowe, CLI, E2E, integracyjne) | [`docs/testy.md`](docs/testy.md)                                                                                                                                                    |
 
 ## Dystrybucja
 
@@ -57,11 +59,11 @@ Alternatywnie: jeśli potrzebujesz pakietu npm, otwórz issue z use case.
 
 Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 
-| Standard | Endpointy | Dokumentacja | Dla |
-|----------|-----------|--------------|-----|
-| **Natywny** | `/api/v1/chat`, `/api/v1/chat/stream`, `/api/v1/models` | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md) | Własne aplikacje |
-| **Fasada OpenAI** (kontrakt HTTP) | `/api/v1/openai/models`, `/api/v1/openai/chat/completions` | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md) | Cursor IDE |
-| **Fasada Anthropic** (kontrakt HTTP) | `/api/v1/anthropic/messages`, `/api/v1/anthropic/models` | [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md) | Claude Code |
+| Standard                             | Endpointy                                                  | Dokumentacja                                                                     | Dla              |
+| ------------------------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------- |
+| **Natywny**                          | `/api/v1/chat`, `/api/v1/chat/stream`, `/api/v1/models`    | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md)                           | Własne aplikacje |
+| **Fasada OpenAI** (kontrakt HTTP)    | `/api/v1/openai/models`, `/api/v1/openai/chat/completions` | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md)       | Cursor IDE       |
+| **Fasada Anthropic** (kontrakt HTTP) | `/api/v1/anthropic/messages`, `/api/v1/anthropic/models`   | [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md) | Claude Code      |
 
 ### Fasady integracji ≠ providerzy runtime
 
@@ -69,10 +71,10 @@ Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 
 **Provider runtime** (`src/providers/`) to **adaptery SDK** wywoływane po konfiguracji — każdy alias modelu w `gateway.config.yaml` wskazuje `providerInstance` i vendorowy `modelId`. Za aliasem może stać dowolny włączony typ providera (Anthropic, Google, OpenAI, OpenAI-compatible); **nie musi** to być ten sam vendor co kształt HTTP fasady.
 
-| Fasada | Kontrakt HTTP dla klienta | Gwarancja backendu LLM |
-|--------|---------------------------|-------------------------|
-| `/api/v1/openai/*` | OpenAI API (np. Cursor) | **Brak** — routing zależy wyłącznie od `model` (= `modelAlias`) w YAML |
-| `/api/v1/anthropic/*` | Anthropic Messages API (np. Claude Code) | **Brak** — alias może wskazywać np. Google Gemini, nie Anthropic |
+| Fasada                | Kontrakt HTTP dla klienta                | Gwarancja backendu LLM                                                 |
+| --------------------- | ---------------------------------------- | ---------------------------------------------------------------------- |
+| `/api/v1/openai/*`    | OpenAI API (np. Cursor)                  | **Brak** — routing zależy wyłącznie od `model` (= `modelAlias`) w YAML |
+| `/api/v1/anthropic/*` | Anthropic Messages API (np. Claude Code) | **Brak** — alias może wskazywać np. Google Gemini, nie Anthropic       |
 
 **Routing do providera** jest wyłącznie **konfiguracyjny**: `model` / `modelAlias` → wpis `models[]` → `providerInstance` → fabryka w `src/providers/`. Nie wynika z nagłówka auth ani z wyboru fasady.
 
@@ -104,6 +106,7 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 - **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
 - **Models catalog**: natywny `GET /api/v1/models` + fasady — wspólny `GatewayModelsCatalogService`, ten sam zestaw aliasów z YAML
 - **Production-ready**: Pino logging, Sentry observability, graceful shutdown, readiness probes
+- **Type safety (brand types)**: nominalne typy TS dla kluczy, identyfikatorów, metryk i policy (`src/common/types/`) — compile-time bez kosztu runtime; przewodnik: [`docs/brand-types.md`](docs/brand-types.md)
 - **CLI wizard**: `gateway config:init` — interaktywna konfiguracja, `provider:test`, model/client management
 
 ## Szybki start (lokalnie)
@@ -223,13 +226,14 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 
 ## Struktura kodu
 
-| Warstwa                    | Lokalizacja                                                                                                                                     |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Orkiestracja czatu         | [`ChatService`](src/chat/chat.service.ts)                                                                                                       |
-| Katalog aliasów modeli     | [`GatewayModelsCatalogService`](src/models/services/gateway-models-catalog.service.ts) — natywny `GET /models` + fasady przez mappery          |
-| Wywołania providerów + SSE | [`ChatProviderCallService`](src/chat/services/chat-provider-call.service.ts)                                                                    |
-| Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`, `openai/` — Chat Completions + Responses) |
-| Błędy / `requestId`        | [`GlobalExceptionFilter`](src/common/filters/http-exception.filter.ts), [`RequestIdMiddleware`](src/common/middleware/request-id.middleware.ts) |
+| Warstwa                     | Lokalizacja                                                                                                                                     |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Orkiestracja czatu          | [`ChatService`](src/chat/chat.service.ts)                                                                                                       |
+| Katalog aliasów modeli      | [`GatewayModelsCatalogService`](src/models/services/gateway-models-catalog.service.ts) — natywny `GET /models` + fasady przez mappery           |
+| Wywołania providerów + SSE  | [`ChatProviderCallService`](src/chat/services/chat-provider-call.service.ts)                                                                    |
+| Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`, `openai/` — Chat Completions + Responses)            |
+| Błędy / `requestId`         | [`GlobalExceptionFilter`](src/common/filters/http-exception.filter.ts), [`RequestIdMiddleware`](src/common/middleware/request-id.middleware.ts) |
+| Brand types (TS)            | [`src/common/types/`](src/common/types/) — `Brand`, guardy, helpery `as*` / `create*`; barrel: `index.ts`                                       |
 
 Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md).
 
@@ -237,7 +241,7 @@ Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalog
 
 Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
 
-Aktualne liczniki: `npm test` — **83** zestawy / **1211** przypadków; `npm run test:cli` — **13** / **53**; `npm run test:e2e` — **10** / **104**.
+Aktualne liczniki: `npm test` — **86** zestawów / **1305** przypadków; `npm run test:cli` — **13** / **53**; `npm run test:e2e` — **10** / **105**.
 
 Uruchomienie:
 

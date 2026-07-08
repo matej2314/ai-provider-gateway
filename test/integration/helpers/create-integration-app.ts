@@ -8,7 +8,11 @@ import {
   createMockConfigService,
   type MockConfigServiceOptions,
 } from '../../../src/common/mocks/createMockConfigService';
-import { asEnvRef, asGatewayKey, asProviderApiKey } from '../../../src/common/types';
+import {
+  asEnvRef,
+  asGatewayKey,
+  asProviderApiKey,
+} from '../../../src/common/types';
 import { createE2eLoggingServiceMock } from '../../e2e/helpers/e2e-infra-mocks';
 import {
   INTEGRATION_ANTHROPIC_API_KEY_REF,

@@ -4,7 +4,10 @@ import { ResilientExecutor } from './resilient-executor';
 import { LoggingService } from '../../logging/logging.service';
 import { ApiErrorCode } from '../errors/api-error.code';
 import { createMockLoggingService } from '../mocks/createMockLoggingService';
-import type { ResilientExecutionOptions, RetryPolicy } from './resilience.types';
+import type {
+  ResilientExecutionOptions,
+  RetryPolicy,
+} from './resilience.types';
 import {
   asAttemptNumber,
   asMaxAttempts,

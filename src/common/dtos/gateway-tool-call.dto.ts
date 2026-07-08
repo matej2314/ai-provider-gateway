@@ -30,7 +30,9 @@ export class GatewayToolCallDto {
 }
 
 /** Maps internal branded tool call to API DTO (implicit unbrand). */
-export function toGatewayToolCallDto(call: GatewayToolCall): GatewayToolCallDto {
+export function toGatewayToolCallDto(
+  call: GatewayToolCall,
+): GatewayToolCallDto {
   return {
     id: call.id,
     name: call.name,
@@ -39,7 +41,9 @@ export function toGatewayToolCallDto(call: GatewayToolCall): GatewayToolCallDto 
 }
 
 /** Maps API DTO to internal branded tool call. */
-export function fromGatewayToolCallDto(dto: GatewayToolCallDto): GatewayToolCall {
+export function fromGatewayToolCallDto(
+  dto: GatewayToolCallDto,
+): GatewayToolCall {
   return {
     id: asToolCallId(dto.id),
     name: dto.name,

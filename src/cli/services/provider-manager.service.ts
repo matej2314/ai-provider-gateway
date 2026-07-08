@@ -99,7 +99,9 @@ export class ProviderManagerService {
           type: 'input',
           name: 'url',
           message: `Base URL (env: ${baseUrlRef}):`,
-          default: defaultBaseUrlForOpenAiProviderType(type as OpenAiProviderType),
+          default: defaultBaseUrlForOpenAiProviderType(
+            type as OpenAiProviderType,
+          ),
           validate: (input: string) => validateCliProviderBaseUrl(input),
         },
       ]);
@@ -323,7 +325,9 @@ export class ProviderManagerService {
         }
 
         row.enabled = enabled;
-        await this.persistence.persistConfig(config, cwd, { skipEffectiveCheck });
+        await this.persistence.persistConfig(config, cwd, {
+          skipEffectiveCheck,
+        });
         CliLogger.success(`Provider ${instanceId} enabled=${enabled}`);
         return;
       }

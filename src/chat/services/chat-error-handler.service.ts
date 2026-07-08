@@ -1,7 +1,10 @@
 import { Injectable, HttpException } from '@nestjs/common';
 import { LoggingService } from '../../logging/logging.service';
 import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
-import { asProviderInstanceId, type GatewayKey } from '../../common/types/branded.types';
+import {
+  asProviderInstanceId,
+  type GatewayKey,
+} from '../../common/types/branded.types';
 
 @Injectable()
 export class ChatErrorHandlerService {

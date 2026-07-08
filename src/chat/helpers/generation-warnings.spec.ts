@@ -1,4 +1,7 @@
 import { buildGenerationWarnings } from './generation-warnings';
+import { asWarningCode } from '../../common/types/branded.types';
+
+const PARAM_IGNORED = asWarningCode('PARAM_IGNORED_BY_PROVIDER');
 
 describe('buildGenerationWarnings', () => {
   it('should warn frequencyPenalty for anthropic', () => {
@@ -8,7 +11,7 @@ describe('buildGenerationWarnings', () => {
     );
     expect(warnings).toEqual([
       expect.objectContaining({
-        code: 'PARAM_IGNORED_BY_PROVIDER',
+        code: PARAM_IGNORED,
         field: 'params.frequencyPenalty',
       }),
     ]);
@@ -43,7 +46,7 @@ describe('buildGenerationWarnings', () => {
     const warnings = buildGenerationWarnings({ topK: 40 }, 'openai');
     expect(warnings).toEqual([
       expect.objectContaining({
-        code: 'PARAM_IGNORED_BY_PROVIDER',
+        code: PARAM_IGNORED,
         field: 'params.topK',
         message: expect.stringMatching(/OpenAI Responses API/i),
       }),

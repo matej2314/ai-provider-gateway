@@ -4,6 +4,7 @@ import type { INestApplication } from '@nestjs/common';
 import { ApiErrorCode } from '../../src/common/errors/api-error.code';
 import {
   TEST_MODEL_ALIAS,
+  TEST_MODEL_ID,
   TEST_PROVIDER_INSTANCE_BRANDED,
   TEST_INPUT_TOKENS,
   TEST_OUTPUT_TOKENS,
@@ -441,7 +442,7 @@ describe('Gateway Chat API (E2E)', () => {
                 },
                 [fallbackAlias]: {
                   providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
-                  modelId: 'claude-sonnet-4-5',
+                  modelId: TEST_MODEL_ID,
                   capabilities: { tools: true, streaming: true },
                   policy: brandedModelPolicy,
                 },

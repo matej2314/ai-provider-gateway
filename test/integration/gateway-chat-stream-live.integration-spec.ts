@@ -49,8 +49,7 @@ describe('Gateway chat stream live (integration)', () => {
     expect(deltas.length).toBeGreaterThan(0);
     expect(
       deltas.some(
-        (e) =>
-          typeof e.data.text === 'string' && (e.data.text as string).length > 0,
+        (e) => typeof e.data.text === 'string' && e.data.text.length > 0,
       ),
     ).toBe(true);
 
@@ -64,7 +63,9 @@ describe('Gateway chat stream live (integration)', () => {
       finishReason: expect.any(String),
     });
 
-    const streamedText = deltas.map((e) => String(e.data.text ?? '')).join('');
+    const streamedText = deltas
+      .map((e) => (typeof e.data.text === 'string' ? e.data.text : ''))
+      .join('');
     expect(streamedText.length).toBeGreaterThan(0);
   });
 });

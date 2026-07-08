@@ -22,7 +22,6 @@ import { validateChatIngress } from './validation/chat-ingress.validator';
 import type { ChatIngressProfile } from './validation/chat-ingress.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
 import {
-  asRequestId,
   asProviderInstanceId,
   asModelAlias,
   asResponseId,

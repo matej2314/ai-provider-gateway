@@ -1,7 +1,5 @@
-import type {
-  MaxAttempts,
-  TimeoutMs,
-} from '../../common/types/branded.types';import type { RetryPolicy } from '../../common/resilience/resilience.types';
+import type { MaxAttempts, TimeoutMs } from '../../common/types/branded.types';
+import type { RetryPolicy } from '../../common/resilience/resilience.types';
 import { RETRY_POLICY_DEFAULTS } from '../../common/retry-policy-defaults';
 
 export interface ModelRetrySource {
@@ -18,9 +16,7 @@ function resolveMaxAttempts(raw: MaxAttempts | undefined): MaxAttempts {
   return raw ?? RETRY_POLICY_DEFAULTS.maxAttempts;
 }
 
-function resolveTimeoutMs(
-  raw: TimeoutMs | undefined,
-): TimeoutMs | undefined {
+function resolveTimeoutMs(raw: TimeoutMs | undefined): TimeoutMs | undefined {
   if (raw !== undefined) {
     return raw;
   }

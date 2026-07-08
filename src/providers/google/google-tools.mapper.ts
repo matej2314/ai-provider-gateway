@@ -15,7 +15,11 @@ import type {
   ProviderAssistantTurn,
 } from 'src/providers/interfaces/ai-provider.interface';
 import type { GatewayToolChoice } from 'src/providers/types/tooling-types';
-import { asToolCallId, asInputTokens, asOutputTokens } from '../../common/types/branded.types';
+import {
+  asToolCallId,
+  asInputTokens,
+  asOutputTokens,
+} from '../../common/types/branded.types';
 
 interface GeminiResponseWithTools {
   text?: string;
@@ -180,8 +184,12 @@ export function parseGeminiResponseWithTools(
     model: response.modelVersion ?? modelId,
     usage: response.usageMetadata
       ? {
-          inputTokens: asInputTokens(response.usageMetadata.promptTokenCount ?? 0),
-          outputTokens: asOutputTokens(response.usageMetadata.candidatesTokenCount ?? 0),
+          inputTokens: asInputTokens(
+            response.usageMetadata.promptTokenCount ?? 0,
+          ),
+          outputTokens: asOutputTokens(
+            response.usageMetadata.candidatesTokenCount ?? 0,
+          ),
         }
       : undefined,
   };

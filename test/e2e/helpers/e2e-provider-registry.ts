@@ -9,13 +9,21 @@ import {
   TEST_INPUT_TOKENS,
   TEST_INPUT_TOKENS_SMALL,
   TEST_MODEL_ALIAS,
+  TEST_MODEL_ID,
   TEST_OUTPUT_TOKENS,
   TEST_OUTPUT_TOKENS_SMALL,
   TEST_PROVIDER_INSTANCE,
+  TEST_PROVIDER_INSTANCE_BRANDED,
 } from '../../../src/common/mocks/test-constants';
 import type { GatewayProviderType } from '../../../src/config/provider-types';
 import type { OpenAiApiSurface } from '../../../src/providers/openai/openai-provider.types';
-import { asOutputTokens } from '../../../src/common/types/branded.types';
+import {
+  asMaxAttempts,
+  asModelAlias,
+  asModelId,
+  asOutputTokens,
+  asProviderInstanceId,
+} from '../../../src/common/types/branded.types';
 import {
   E2E_OPENAI_MODEL_ALIAS,
   E2E_OPENAI_PROVIDER_INSTANCE,
@@ -99,7 +107,9 @@ function createDefaultCompleteResponse(
   };
 }
 
-function createStreamResult(options: E2eStreamResultOptions = {}): StreamResult {
+function createStreamResult(
+  options: E2eStreamResultOptions = {},
+): StreamResult {
   const chunks = options.chunks ?? ['Hello', ' world'];
   const hang = options.hang === true;
 
@@ -148,14 +158,22 @@ function buildResolvedConfig(
 
   return {
     provider,
-    providerName: options.providerName ?? TEST_PROVIDER_INSTANCE,
+    providerName: asProviderInstanceId(
+      options.providerName ?? TEST_PROVIDER_INSTANCE,
+    ),
     providerType,
-    modelId: options.modelId ?? 'claude-sonnet-4-5',
-    modelAlias: alias,
-    fallbackAlias: alias === primaryAlias ? options.fallbackAlias : undefined,
+    modelId: asModelId(options.modelId ?? TEST_MODEL_ID),
+    modelAlias: asModelAlias(alias),
+    fallbackAlias:
+      alias === primaryAlias && options.fallbackAlias
+        ? asModelAlias(options.fallbackAlias)
+        : undefined,
     capabilities: capabilities(options),
     policy: {
-      retry: { maxAttempts: 1, onStatus: [429, 500, 502, 503, 504] },
+      retry: {
+        maxAttempts: asMaxAttempts(1),
+        onStatus: [429, 500, 502, 503, 504],
+      },
     },
     params: createDefaultParams(),
     ...(providerType === 'openai' && {
@@ -240,22 +258,29 @@ export function createE2eFallbackProviderRegistry(options: {
         },
       }),
     ),
-    stream: jest.fn().mockReturnValue(createStreamResult({ chunks: ['fallback'] })),
+    stream: jest
+      .fn()
+      .mockReturnValue(createStreamResult({ chunks: ['fallback'] })),
   };
 
   const resolveMock = jest.fn((alias: string) => {
     const isFallback = alias === options.fallbackAlias;
     return {
       provider: isFallback ? fallbackProvider : primaryProvider,
-      providerName: TEST_PROVIDER_INSTANCE,
+      providerName: TEST_PROVIDER_INSTANCE_BRANDED,
       providerType: 'anthropic' as const,
-      modelId: isFallback ? 'claude-sonnet-4-5' : 'claude-opus-4',
-      modelAlias: alias,
+      modelId: isFallback ? TEST_MODEL_ID : asModelId('claude-opus-4'),
+      modelAlias: asModelAlias(alias),
       fallbackAlias:
-        alias === options.primaryAlias ? options.fallbackAlias : undefined,
+        alias === options.primaryAlias
+          ? asModelAlias(options.fallbackAlias)
+          : undefined,
       capabilities: capabilities({}),
       policy: {
-        retry: { maxAttempts: 1, onStatus: [429, 500, 502, 503, 504] },
+        retry: {
+          maxAttempts: asMaxAttempts(1),
+          onStatus: [429, 500, 502, 503, 504],
+        },
       },
       params: createDefaultParams(),
     };

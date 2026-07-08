@@ -30,7 +30,7 @@ export class CliGatewayValidatorService {
 
     if (options.validateEnvFormat !== false && result.success) {
       try {
-        validateEnv(process.env as Record<string, unknown>);
+        validateEnv(process.env);
       } catch (err) {
         return {
           ...result,

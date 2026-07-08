@@ -6,8 +6,9 @@ import {
 import {
   getIntegrationGatewayKey,
   INTEGRATION_MODEL_ALIAS,
+  INTEGRATION_MODEL_ALIAS_BRANDED,
   INTEGRATION_POST_SUCCESS_STATUS,
-  INTEGRATION_PROVIDER_INSTANCE,
+  INTEGRATION_PROVIDER_INSTANCE_BRANDED,
   INTEGRATION_ROUTES,
 } from './helpers/integration-constants';
 import type { INestApplication } from '@nestjs/common';
@@ -41,11 +42,11 @@ describe('Gateway chat live (integration)', () => {
 
   it('resolves model policy with branded timeout and retry limits', () => {
     const registry = app.get(ProviderRegistryService);
-    const resolved = registry.resolve(INTEGRATION_MODEL_ALIAS);
+    const resolved = registry.resolve(INTEGRATION_MODEL_ALIAS_BRANDED);
 
     expect(resolved.policy?.timeoutMs).toBe(TEST_TIMEOUT_MS);
     expect(resolved.policy?.retry?.maxAttempts).toBe(TEST_MAX_ATTEMPTS);
-    expect(resolved.providerName).toBe(INTEGRATION_PROVIDER_INSTANCE);
+    expect(resolved.providerName).toBe(INTEGRATION_PROVIDER_INSTANCE_BRANDED);
   });
 
   it('POST /chat returns live SDK response', async () => {
@@ -59,7 +60,7 @@ describe('Gateway chat live (integration)', () => {
       id: expect.stringMatching(/^gw_/),
       conversationId: expect.any(String),
       model: INTEGRATION_MODEL_ALIAS,
-      provider: INTEGRATION_PROVIDER_INSTANCE,
+      provider: INTEGRATION_PROVIDER_INSTANCE_BRANDED,
       output: {
         type: 'text',
         text: expect.any(String),

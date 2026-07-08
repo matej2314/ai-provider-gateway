@@ -4,6 +4,8 @@ import {
   mapTurnsToGeminiContents,
   parseGeminiResponseWithTools,
 } from './google-tools.mapper';
+import { asOutputTokens, asToolCallId } from '../../common/types/branded.types';
+import { TEST_INPUT_TOKENS } from '../../common/mocks/test-constants';
 import type {
   ProviderToolDefinition,
   ProviderChatTurn,
@@ -292,7 +294,10 @@ describe('parseGeminiResponseWithTools', () => {
       text: 'Hello!',
       stopReason: 'end_turn',
       model: 'gemini-2.5-flash',
-      usage: { inputTokens: 10, outputTokens: 5 },
+      usage: {
+        inputTokens: TEST_INPUT_TOKENS,
+        outputTokens: asOutputTokens(5),
+      },
     });
   });
 
@@ -312,7 +317,11 @@ describe('parseGeminiResponseWithTools', () => {
     const result = parseGeminiResponseWithTools(response, 'gemini-2.5-flash');
 
     expect(result.toolCalls).toEqual([
-      { id: 'call_1', name: 'weather', arguments: '{"location":"SF"}' },
+      {
+        id: asToolCallId('call_1'),
+        name: 'weather',
+        arguments: '{"location":"SF"}',
+      },
     ]);
     expect(result.stopReason).toBe('tool_use');
   });

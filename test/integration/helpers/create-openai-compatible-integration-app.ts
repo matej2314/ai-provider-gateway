@@ -23,6 +23,13 @@ import {
 import { requireOpenAiCompatibleIntegrationEnv } from './require-integration-env';
 import { GatewayConfigSchema } from '../../../src/config/gateway-config.schema';
 import type { GatewayConfig } from '../../../src/config/configuration';
+import {
+  asBaseUrl,
+  asEnvRef,
+  asModelId,
+  asProviderApiKey,
+  asProviderInstanceId,
+} from '../../../src/common/types';
 
 export type CreateOpenAiCompatibleIntegrationAppOptions = {
   cacheEnabled?: boolean;
@@ -53,7 +60,7 @@ export type OpenAiCompatibleIntegrationAppContext = {
 function buildIntegrationEnvRefs(instanceId: string) {
   // Convert instance ID to uppercase and replace hyphens with underscores
   const envPrefix = instanceId.toUpperCase().replace(/-/g, '_');
-  
+
   return {
     apiKeyRef: `INTEGRATION_${envPrefix}_API_KEY`,
     baseUrlRef: `INTEGRATION_${envPrefix}_BASE_URL`,
@@ -114,7 +121,7 @@ function buildOpenAiCompatibleIntegrationConfigOptions(
 
   // Find a model that uses this provider
   const modelEntry = Object.entries(gatewayConfig.models).find(
-    ([_, modelConfig]) => modelConfig.providerInstance === instanceId,
+    ([, modelConfig]) => modelConfig.providerInstance === instanceId,
   );
 
   if (!modelEntry) {
@@ -123,7 +130,7 @@ function buildOpenAiCompatibleIntegrationConfigOptions(
     );
   }
 
-  const [originalModelAlias, modelConfig] = modelEntry;
+  const [, modelConfig] = modelEntry;
 
   // Get environment variables for this provider
   const { apiKey, baseUrl } = requireOpenAiCompatibleIntegrationEnv(instanceId);
@@ -151,22 +158,22 @@ function buildOpenAiCompatibleIntegrationConfigOptions(
         [INTEGRATION_GATEWAY_CLIENT_ID]: {
           name: 'Integration IDE Client',
           type: 'ide',
-          gatewayKeyRef: INTEGRATION_GATEWAY_KEY_REF,
+          gatewayKeyRef: asEnvRef(INTEGRATION_GATEWAY_KEY_REF),
         },
       },
       providers: {
         [integrationInstanceId]: {
           type: 'openai-compatible',
-          apiKeyRef: envRefs.apiKeyRef,
-          baseUrlRef: envRefs.baseUrlRef,
+          apiKeyRef: asEnvRef(envRefs.apiKeyRef),
+          baseUrlRef: asEnvRef(envRefs.baseUrlRef),
           enabled: true,
           apiSurface: providerConfig.apiSurface ?? 'chat-completions',
         },
       },
       models: {
         [integrationModelAlias]: {
-          providerInstance: integrationInstanceId,
-          modelId: modelConfig.modelId,
+          providerInstance: asProviderInstanceId(integrationInstanceId),
+          modelId: asModelId(modelConfig.modelId),
           capabilities: modelConfig.capabilities ?? {
             tools: false,
             streaming: true,
@@ -191,10 +198,10 @@ function buildOpenAiCompatibleIntegrationConfigOptions(
     providers: {
       [integrationInstanceId]: {
         type: 'openai-compatible',
-        apiKeyRef: envRefs.apiKeyRef,
-        apiKey,
-        baseUrlRef: envRefs.baseUrlRef,
-        baseUrl,
+        apiKeyRef: asEnvRef(envRefs.apiKeyRef),
+        apiKey: asProviderApiKey(apiKey),
+        baseUrlRef: asEnvRef(envRefs.baseUrlRef),
+        baseUrl: asBaseUrl(baseUrl),
         apiSurface: providerConfig.apiSurface ?? 'chat-completions',
       },
     },

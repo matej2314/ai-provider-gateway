@@ -7,7 +7,12 @@ import {
   TEST_API_KEY_REF,
   TEST_PROVIDER_INSTANCE,
 } from '../../../src/common/mocks/test-constants';
-import { asEnvRef, asProviderApiKey } from '../../../src/common/types';
+import {
+  asEnvRef,
+  asProviderApiKey,
+  asPort,
+  asCacheTtlSeconds,
+} from '../../../src/common/types';
 import type { GatewayConfig } from '../../../src/config/configuration';
 
 const gatewayConfig = createTestGatewayConfig();
@@ -16,7 +21,7 @@ function defaultConfiguration() {
   return {
     gateway: gatewayConfig,
     gatewayKey: createTestGatewayKeyRuntimeConfig(),
-    port: 3000,
+    port: asPort(3000),
     nodeEnv: 'test',
     providers: {
       [TEST_PROVIDER_INSTANCE]: {
@@ -29,12 +34,12 @@ function defaultConfiguration() {
     cache: {
       enabled: false,
       backend: 'noop',
-      ttl: 3600,
+      ttl: asCacheTtlSeconds(3600),
       keyPrefix: 'aigw:',
     },
     redis: {
       host: 'localhost',
-      port: 6379,
+      port: asPort(6379),
       password: '',
       db: 0,
       keyPrefix: 'aigw:',

@@ -2,6 +2,7 @@ import {
   accumulateOpenAiStreamToolCallDeltas,
   finalizeOpenAiStreamToolCalls,
 } from './openai-stream-provider.mapper';
+import { asToolCallId } from '../../../common/types/branded.types';
 
 describe('openai-stream-provider.mapper', () => {
   it('accumulates tool call arguments across chunks by index', () => {
@@ -55,7 +56,7 @@ describe('openai-stream-provider.mapper', () => {
 
     expect(finalizeOpenAiStreamToolCalls(accumulator)).toEqual([
       {
-        id: 'call_abc',
+        id: asToolCallId('call_abc'),
         name: 'get_weather',
         arguments: '{"city":"Warsaw"}',
       },

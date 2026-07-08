@@ -37,14 +37,26 @@ describe('openAiNumericThinkingBudgetIgnored', () => {
 
 describe('mapThinkingToResponsesReasoning', () => {
   it.each([
-    ['xhigh', { thinkingEnabled: true, thinkingBudget: 'xhigh' as const }, 'xhigh'],
+    [
+      'xhigh',
+      { thinkingEnabled: true, thinkingBudget: 'xhigh' as const },
+      'xhigh',
+    ],
     [
       'minimal',
       { thinkingEnabled: true, thinkingBudget: 'minimal' as const },
       'minimal',
     ],
-    ['none', { thinkingEnabled: true, thinkingBudget: 'none' as const }, 'none'],
-    ['max alias', { thinkingEnabled: true, thinkingBudget: 'max' as const }, 'xhigh'],
+    [
+      'none',
+      { thinkingEnabled: true, thinkingBudget: 'none' as const },
+      'none',
+    ],
+    [
+      'max alias',
+      { thinkingEnabled: true, thinkingBudget: 'max' as const },
+      'xhigh',
+    ],
     ['budget only', { thinkingBudget: 'high' as const }, 'high'],
     ['enabled only', { thinkingEnabled: true }, 'medium'],
   ])('%s', (_label, options, expected) => {
@@ -83,8 +95,8 @@ describe('mapThinkingToChatCompletion', () => {
   });
 
   it('enables thinking when requested', () => {
-    expect(
-      mapThinkingToChatCompletion({ thinkingEnabled: true }),
-    ).toEqual({ type: 'enabled' });
+    expect(mapThinkingToChatCompletion({ thinkingEnabled: true })).toEqual({
+      type: 'enabled',
+    });
   });
 });

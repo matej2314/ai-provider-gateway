@@ -6,7 +6,6 @@ import {
 import {
   getIntegrationGatewayKey,
   INTEGRATION_MODEL_ALIAS,
-  INTEGRATION_POST_SUCCESS_STATUS,
   INTEGRATION_ROUTES,
 } from './helpers/integration-constants';
 import { parseAnthropicSseEvents } from './helpers/parse-anthropic-sse-events';

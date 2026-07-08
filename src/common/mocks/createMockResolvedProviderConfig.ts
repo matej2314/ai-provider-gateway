@@ -1,7 +1,11 @@
 import { ResolvedProviderConfig } from 'src/providers/provider-registry.service';
 import { createMockAIProvider } from './createMockAIProvider';
 import { TEST_MODEL_ALIAS } from './test-constants';
-import { asModelAlias, asModelId, asProviderInstanceId } from '../types/branded.types';
+import {
+  asModelAlias,
+  asModelId,
+  asProviderInstanceId,
+} from '../types/branded.types';
 
 export function createMockDefaultResolvedConfig(): ResolvedProviderConfig {
   return {

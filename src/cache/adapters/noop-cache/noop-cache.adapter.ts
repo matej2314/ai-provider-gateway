@@ -1,7 +1,10 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { CacheBackend } from '../../interfaces/cache-backend-interface';
 import { CacheRegistryService } from '../../cache-registry.service';
-import type { CacheKey, CacheTtlSeconds } from '../../../common/types/branded.types';
+import type {
+  CacheKey,
+  CacheTtlSeconds,
+} from '../../../common/types/branded.types';
 
 @Injectable()
 export class NoOpCacheBackend implements CacheBackend, OnModuleInit {

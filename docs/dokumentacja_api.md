@@ -14,13 +14,13 @@ Wersja dokumentu: **1.5**. Dokument jest wersjonowany razem z kodem. **`openapi.
 
 ## Podstawy
 
-| Element | Wartość |
-|---------|---------|
-| Bazowy URL (przykład lokalny) | `http://localhost:3000` |
-| Prefiks API | `/api/v1` (`API_GLOBAL_PREFIX` w `src/setup.app.ts`) |
-| Kodowanie | UTF‑8 |
-| Standard | `application/json` |
-| Streaming | `text/event-stream` (`POST /api/v1/chat/stream`) |
+| Element                       | Wartość                                              |
+| ----------------------------- | ---------------------------------------------------- |
+| Bazowy URL (przykład lokalny) | `http://localhost:3000`                              |
+| Prefiks API                   | `/api/v1` (`API_GLOBAL_PREFIX` w `src/setup.app.ts`) |
+| Kodowanie                     | UTF‑8                                                |
+| Standard                      | `application/json`                                   |
+| Streaming                     | `text/event-stream` (`POST /api/v1/chat/stream`)     |
 
 **Konfiguracja przy starcie:**
 
@@ -50,15 +50,15 @@ Wszystkie odpowiedzi błędów obsłużone przez `GlobalExceptionFilter` jako JS
 
 Jeśli wyjątek przekazuje w obiekcie odpowiedzi pole **`code`** (np. `GatewayKeyGuard`, `ProviderRegistryService`, `ChatService.executeStream`), **`GlobalExceptionFilter`** zachowuje je (`GATEWAY_KEY_MISSING`, `GATEWAY_KEY_INVALID`, `GATEWAY_KEY_NOT_CONFIGURED`, `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, …). W przeciwnym razie **`code`** pochodzi z domyślnego mapowania statusu HTTP (`DEFAULT_HTTP_STATUS_TO_CODE` w `src/common/errors/api-error.code.ts`), m.in.:
 
-| HTTP | `code` (domyślnie)       |
-|------|--------------------------|
-| 400  | `VALIDATION_FAILED` *(gdy wyjątek nie nadpisuje `code`; inaczej np. `MODEL_ALIAS_NOT_FOUND`)* |
-| 401  | `PROVIDER_AUTH_FAILED`*    |
-| 403  | `GATEWAY_KEY_INVALID`*     |
-| 429  | `RATE_LIMITED` (gateway), `PROVIDER_RATE_LIMITED` (upstream) |
-| 502  | `PROVIDER_UNAVAILABLE`     |
-| 504  | `PROVIDER_TIMEOUT`         |
-| inne | `INTERNAL_SERVER_ERROR`    |
+| HTTP | `code` (domyślnie)                                                                            |
+| ---- | --------------------------------------------------------------------------------------------- |
+| 400  | `VALIDATION_FAILED` _(gdy wyjątek nie nadpisuje `code`; inaczej np. `MODEL_ALIAS_NOT_FOUND`)_ |
+| 401  | `PROVIDER_AUTH_FAILED`\*                                                                      |
+| 403  | `GATEWAY_KEY_INVALID`\*                                                                       |
+| 429  | `RATE_LIMITED` (gateway), `PROVIDER_RATE_LIMITED` (upstream)                                  |
+| 502  | `PROVIDER_UNAVAILABLE`                                                                        |
+| 504  | `PROVIDER_TIMEOUT`                                                                            |
+| inne | `INTERNAL_SERVER_ERROR`                                                                       |
 
 \* Przy guardzie klucza i jawnych kodach w payloadzie wyjątku używane są **`GATEWAY_KEY_MISSING`** / **`GATEWAY_KEY_INVALID`**, nie wartości z tej tabeli.
 
@@ -72,22 +72,22 @@ Przy walidacji `ValidationPipe` źródłowe `message` bywa tablicą stringów; *
 
 **Role w `messages[]`:** `user`, `assistant`, `tool` (`ChatMessageDto`):
 
-| Rola | Pola | Limity |
-|------|------|--------|
-| `user` | `content` | max 3000 znaków |
-| `assistant` | `content`; opcjonalnie `toolCalls[]` | max 3000 znaków |
-| `tool` | `content`, **`toolCallId`** (wymagane) | max 32000 znaków |
+| Rola        | Pola                                   | Limity           |
+| ----------- | -------------------------------------- | ---------------- |
+| `user`      | `content`                              | max 3000 znaków  |
+| `assistant` | `content`; opcjonalnie `toolCalls[]`   | max 3000 znaków  |
+| `tool`      | `content`, **`toolCallId`** (wymagane) | max 32000 znaków |
 
 **Pole `tooling` (opcjonalne):** obiekt z `definitions[]` (`name`, `description?`, `parameters` — JSON Schema) oraz opcjonalnym `toolChoice`. Włącza function calling — alias musi mieć **`capabilities.tools: true`** w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
 
 **Odpowiedź:** opcjonalne **`toolCalls`** (`id`, `name`, `arguments` jako JSON string) oraz **`finishReason`**. W runtime gateway mapuje `stopReason` providera funkcją **`mapStopReasonToFinishReason`** (`src/chat/helpers/map-provider-finish-reason.ts`) na znormalizowany typ **`GatewayFinishReason`** (`src/chat/types/gateway-finish-reason.type.ts`):
 
-| Wartość gateway | Typowe źródła `stopReason` providera |
-|-----------------|--------------------------------------|
-| **`stop`** | `end_turn`, `stop_sequence`, `pause_turn`, `stop`, `insufficient_system_resource`, brak / nieznane |
-| **`tool_calls`** | `tool_use`, `tool_calls` lub obecność `toolCalls[]` |
-| **`length`** | `max_tokens`, `length` |
-| **`content_filter`** | `refusal`, `content_filter` |
+| Wartość gateway      | Typowe źródła `stopReason` providera                                                               |
+| -------------------- | -------------------------------------------------------------------------------------------------- |
+| **`stop`**           | `end_turn`, `stop_sequence`, `pause_turn`, `stop`, `insufficient_system_resource`, brak / nieznane |
+| **`tool_calls`**     | `tool_use`, `tool_calls` lub obecność `toolCalls[]`                                                |
+| **`length`**         | `max_tokens`, `length`                                                                             |
+| **`content_filter`** | `refusal`, `content_filter`                                                                        |
 
 Enum w OpenAPI/DTO może zawierać dodatkowe wartości vendora — **emitowane w natywnym API są wyłącznie powyższe cztery**. Fasada Anthropic mapuje `content_filter` → `stop_reason: refusal` (`anthropic-stop-reason.mapper.ts`).
 
@@ -105,14 +105,14 @@ Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `too
 
 ## Różnice natywny API vs fasady IDE
 
-| Aspekt | Natywny (`/api/v1/chat`) | Fasady OpenAI/Anthropic |
-|--------|--------------------------|-------------------------|
-| Max wiadomości | 150 | 15000 |
-| Max długość `content` (user/assistant) | 3000 znaków | 128000 znaków |
-| Max długość `content` (tool) | 32000 znaków | 128000 znaków |
-| Pole `warnings` w response | Tak | Nie (zgodność z vendorem) |
+| Aspekt                                     | Natywny (`/api/v1/chat`)                                                         | Fasady OpenAI/Anthropic                                                        |
+| ------------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Max wiadomości                             | 150                                                                              | 15000                                                                          |
+| Max długość `content` (user/assistant)     | 3000 znaków                                                                      | 128000 znaków                                                                  |
+| Max długość `content` (tool)               | 32000 znaków                                                                     | 128000 znaków                                                                  |
+| Pole `warnings` w response                 | Tak (`warnings[].code` — string w JSON; wewnętrznie `WarningCode`, np. `PARAM_IGNORED_BY_PROVIDER`) | Nie (zgodność z vendorem)                                                      |
 | `systemFingerprint` / `system_fingerprint` | Opcjonalnie w JSON i SSE `done` — tylko gdy upstream zwraca (praktycznie OpenAI) | OpenAI fasada: `system_fingerprint` gdy ustawione; Anthropic fasada: brak pola |
-| System prompt | Serwer | Serwer (ignorowane z body) |
+| System prompt                              | Serwer                                                                           | Serwer (ignorowane z body)                                                     |
 
 **Uzasadnienie:** Fasady IDE są zaprojektowane dla długich konwersacji i dużych kontekstów (Cursor, Claude Code), podczas gdy natywne API ma konserwatywne limity dla własnych aplikacji. Szczegóły profili walidacji: `integracje.md`; implementacja: `validateChatIngress()` w `src/chat/validation/chat-ingress.validator.ts` (profile przekazywane z kontrolerów do `ChatService`).
 
@@ -148,17 +148,17 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 ### Typowe kody
 
-| HTTP | Kiedy |
-|------|--------|
-| 201 | Sukces (domyślny kod NestJS dla `POST` bez `@HttpCode`) |
-| 200 | Sukces streamingu SSE (`POST /chat/stream`) |
-| 400 | Walidacja DTO; nieznany `modelAlias` → `MODEL_ALIAS_NOT_FOUND`; niedozwolony override w `params` → `MODEL_NOT_ALLOWED`; tooling bez `capabilities.tools` → `TOOLS_NOT_SUPPORTED` |
-| 401 | Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`) |
-| 403 | Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`) |
-| 429 | Smart rate limit / cooldown (`RATE_LIMITED`) lub limit providera (`PROVIDER_RATE_LIMITED`) |
-| 502 | M.in. `PROVIDER_UNSUPPORTED`, `PROVIDER_UNAVAILABLE` (w tym wyczerpanie retry+fallback) — `provider-error.mapper.ts`, `ResilientExecutor` |
-| 504 | `PROVIDER_TIMEOUT` — przekroczony `policy.timeoutMs` (`ResilientExecutor`) |
-| 500 | Nieobsłużony błąd (np. SDK); wyjątkowo brak allowlisty kluczy (`GATEWAY_KEY_NOT_CONFIGURED`) |
+| HTTP | Kiedy                                                                                                                                                                            |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 201  | Sukces (domyślny kod NestJS dla `POST` bez `@HttpCode`)                                                                                                                          |
+| 200  | Sukces streamingu SSE (`POST /chat/stream`)                                                                                                                                      |
+| 400  | Walidacja DTO; nieznany `modelAlias` → `MODEL_ALIAS_NOT_FOUND`; niedozwolony override w `params` → `MODEL_NOT_ALLOWED`; tooling bez `capabilities.tools` → `TOOLS_NOT_SUPPORTED` |
+| 401  | Brak nagłówka `X-Gateway-Key` (`GATEWAY_KEY_MISSING`)                                                                                                                            |
+| 403  | Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`)                                                                                                                              |
+| 429  | Smart rate limit / cooldown (`RATE_LIMITED`) lub limit providera (`PROVIDER_RATE_LIMITED`)                                                                                       |
+| 502  | M.in. `PROVIDER_UNSUPPORTED`, `PROVIDER_UNAVAILABLE` (w tym wyczerpanie retry+fallback) — `provider-error.mapper.ts`, `ResilientExecutor`                                        |
+| 504  | `PROVIDER_TIMEOUT` — przekroczony `policy.timeoutMs` (`ResilientExecutor`)                                                                                                       |
+| 500  | Nieobsłużony błąd (np. SDK); wyjątkowo brak allowlisty kluczy (`GATEWAY_KEY_NOT_CONFIGURED`)                                                                                     |
 
 ---
 
@@ -168,7 +168,7 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation-tracking.md`).
 
-**Zdarzenia:** `meta` → `delta`* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage` (z `totalTokens`), **`toolCalls`**, **`finishReason`**, opcjonalnie **`systemFingerprint`** (reguły jak w JSON powyżej). Retry/fallback — `ResilientExecutor` (fallback aktywny także przy tooling w streamingu).
+**Zdarzenia:** `meta` → `delta`\* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage` (z `totalTokens`), **`toolCalls`**, **`finishReason`**, opcjonalnie **`systemFingerprint`** (reguły jak w JSON powyżej). Retry/fallback — `ResilientExecutor` (fallback aktywny także przy tooling w streamingu).
 
 **Błędy i JSON `ErrorEnvelope`:**
 
@@ -187,12 +187,12 @@ Liveness — `HealthService.getLiveness()`: `{ status: "healthy", timestamp }`. 
 
 Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `redis`, `cache`).
 
-| Aspekt | Zachowanie w kodzie |
-|--------|---------------------|
-| **HTTP** | Zawsze **200** — gotowość oceniasz po polu **`status`** w body (`ready` / `not_ready`), nie po kodzie HTTP. |
-| **`checks.config`** | **`healthy`** gdy załadowane są **`gateway`** i **`resolvedSystemPrompts`** (typowy start po poprawnym YAML). **`unhealthy`** gdy brakuje któregoś z tych obiektów w config — wtedy body często ma `status: not_ready`. Implementacja: `HealthService.checkConfig`. |
-| **`checks.redis`** | **`required: false`** → **`healthy`**, „Redis not required”, bez probe. **`required: true`** → `RedisConnectionService.ping()`; **`healthy`** gdy PONG OK, **`degraded`** gdy połączenie/ping niedostępne — **nie** blokuje `ready`. Pole **`consumers`**: `cache`, `rate-limit` (kto wymaga Redis w tym deploymencie). Implementacja: `isRedisRequiredFromConfig()` + `checkRedis`. |
-| **`checks.cache`** | Stan **feature** cache: wyłączony → **`healthy`** („Cache disabled (noop)”). Backend **`redis`** → status zależy od **`checks.redis`** (bez osobnego probe przez `CacheRegistryService`). Inne backendy → probe przez registry jak dotychczas. **`degraded`** nie blokuje `ready`. |
+| Aspekt              | Zachowanie w kodzie                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **HTTP**            | Zawsze **200** — gotowość oceniasz po polu **`status`** w body (`ready` / `not_ready`), nie po kodzie HTTP.                                                                                                                                                                                                                                                                          |
+| **`checks.config`** | **`healthy`** gdy załadowane są **`gateway`** i **`resolvedSystemPrompts`** (typowy start po poprawnym YAML). **`unhealthy`** gdy brakuje któregoś z tych obiektów w config — wtedy body często ma `status: not_ready`. Implementacja: `HealthService.checkConfig`.                                                                                                                  |
+| **`checks.redis`**  | **`required: false`** → **`healthy`**, „Redis not required”, bez probe. **`required: true`** → `RedisConnectionService.ping()`; **`healthy`** gdy PONG OK, **`degraded`** gdy połączenie/ping niedostępne — **nie** blokuje `ready`. Pole **`consumers`**: `cache`, `rate-limit` (kto wymaga Redis w tym deploymencie). Implementacja: `isRedisRequiredFromConfig()` + `checkRedis`. |
+| **`checks.cache`**  | Stan **feature** cache: wyłączony → **`healthy`** („Cache disabled (noop)”). Backend **`redis`** → status zależy od **`checks.redis`** (bez osobnego probe przez `CacheRegistryService`). Inne backendy → probe przez registry jak dotychczas. **`degraded`** nie blokuje `ready`.                                                                                                   |
 
 Orchestrator powinien traktować instancję jako gotową tylko przy `status === "ready"` w JSON.
 
@@ -204,31 +204,31 @@ Orchestrator powinien traktować instancję jako gotową tylko przy `status === 
 
 ### `GET /api/v1/models`
 
-| | |
-|--|--|
-| **Auth** | `X-Gateway-Key` |
-| **200** | `{ "models": GatewayModelDto[] }` |
+|          |                                   |
+| -------- | --------------------------------- |
+| **Auth** | `X-Gateway-Key`                   |
+| **200**  | `{ "models": GatewayModelDto[] }` |
 
 Pola **`GatewayModelDto`**:
 
-| Pole | Opis |
-|------|------|
-| `modelAlias` | publiczny alias z YAML |
-| `providerInstance` | identyfikator instancji w `providers[]` |
-| `providerType` | `anthropic` \| `google` \| `openai` \| `gateway` (gdy brak wpisu providera) |
-| `modelId` | vendorowy identyfikator modelu dla adaptera runtime |
-| `capabilities` | opcjonalnie: `streaming`, `tools`, `thinking` |
-| `fallback` | opcjonalny alias zapasowy z `models[].fallback` |
+| Pole               | Opis                                                                        |
+| ------------------ | --------------------------------------------------------------------------- |
+| `modelAlias`       | publiczny alias z YAML                                                      |
+| `providerInstance` | identyfikator instancji w `providers[]`                                     |
+| `providerType`     | `anthropic` \| `google` \| `openai` \| `gateway` (gdy brak wpisu providera) |
+| `modelId`          | vendorowy identyfikator modelu dla adaptera runtime                         |
+| `capabilities`     | opcjonalnie: `streaming`, `tools`, `thinking`                               |
+| `fallback`         | opcjonalny alias zapasowy z `models[].fallback`                             |
 
 ### `GET /api/v1/models/:modelAlias`
 
-| HTTP | Kiedy |
-|------|--------|
-| 200 | Znaleziony alias — pojedynczy `GatewayModelDto` |
-| 401 | Brak `X-Gateway-Key` (`GATEWAY_KEY_MISSING`) |
-| 403 | Niepoprawny klucz (`GATEWAY_KEY_INVALID`) |
-| 404 | Nieznany alias — **`MODEL_ALIAS_NOT_FOUND`** (`ErrorEnvelope`) |
-| 429 | Smart rate limit (`RATE_LIMITED`) |
+| HTTP | Kiedy                                                          |
+| ---- | -------------------------------------------------------------- |
+| 200  | Znaleziony alias — pojedynczy `GatewayModelDto`                |
+| 401  | Brak `X-Gateway-Key` (`GATEWAY_KEY_MISSING`)                   |
+| 403  | Niepoprawny klucz (`GATEWAY_KEY_INVALID`)                      |
+| 404  | Nieznany alias — **`MODEL_ALIAS_NOT_FOUND`** (`ErrorEnvelope`) |
+| 429  | Smart rate limit (`RATE_LIMITED`)                              |
 
 > **Różnica vs czat:** `POST /chat` z nieznanym `modelAlias` zwraca **400** + `MODEL_ALIAS_NOT_FOUND` (walidacja ingress przed LLM). Katalog modeli używa **404** dla nieistniejącego aliasu.
 
@@ -240,20 +240,20 @@ Fasady OpenAI (`GET /openai/models`) i Anthropic (`GET /anthropic/models`) zwrac
 
 Osobne kontrakty HTTP dla narzędzi IDE — **uwzględnione w `openapi.json`** (tagi **OpenAI API**, **Anthropic API**) oraz w Swagger UI (`/api/v1/api-docs`).
 
-| Powierzchnia | Ścieżki (prefiks `/api/v1`) | Auth w OpenAPI | Błędy w spec |
-|--------------|----------------------------|----------------|--------------|
-| OpenAI | `/openai/models`, `/openai/models/{model}`, `/openai/chat/completions` | `BearerAuth` | `OpenAiErrorResponseDto` (`ApiOpenAiErrorResponses`) |
-| Anthropic | `/anthropic/models`, `/anthropic/models/{model}`, `/anthropic/messages` | `ApiKeyAuth` (`x-api-key`) | `AnthropicErrorResponseDto` (`ApiAnthropicErrorResponses`) |
+| Powierzchnia | Ścieżki (prefiks `/api/v1`)                                             | Auth w OpenAPI             | Błędy w spec                                               |
+| ------------ | ----------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------- |
+| OpenAI       | `/openai/models`, `/openai/models/{model}`, `/openai/chat/completions`  | `BearerAuth`               | `OpenAiErrorResponseDto` (`ApiOpenAiErrorResponses`)       |
+| Anthropic    | `/anthropic/models`, `/anthropic/models/{model}`, `/anthropic/messages` | `ApiKeyAuth` (`x-api-key`) | `AnthropicErrorResponseDto` (`ApiAnthropicErrorResponses`) |
 
-| Powierzchnia | Dokumentacja operacyjna |
-|--------------|------------------------|
-| OpenAI | `integracja-openai-kontrakt.md` |
-| Anthropic | `integracja-anthropic-messages.md` |
-| Architektura wspólna | `integracje.md` |
+| Powierzchnia         | Dokumentacja operacyjna            |
+| -------------------- | ---------------------------------- |
+| OpenAI               | `integracja-openai-kontrakt.md`    |
+| Anthropic            | `integracja-anthropic-messages.md` |
+| Architektura wspólna | `integracje.md`                    |
 
 Wewnętrznie fasady wywołują ten sam **`ChatService`** co `POST /chat`. Pole **`model`** w żądaniu vendora = **`modelAlias`** z YAML. Runtime: błędy w kształcie OpenAI / Anthropic (`OpenAiExceptionFilter`, `AnthropicExceptionFilter`) — nie `ErrorEnvelope`. Streaming opisany w OpenAPI przez stałe `OPENAI_STREAM_API_DESCRIPTION` / `ANTHROPIC_STREAM_API_DESCRIPTION` (`src/integrations/*/helpers/*-stream-api-description.ts`).
 
-**Kody HTTP (fasady):** jak w natywnym czacie — **201** dla odpowiedzi JSON (`stream` false / pominięte; `@ApiResponse({ status: 201 })` w kontrolerach fasad), **200** dla SSE (`stream: true`; jawne `res.status(200)` w `handleStream`). OpenAPI deklaruje oba kody na jednej operacji (`POST .../chat/completions`, `POST .../messages`). *Uwaga:* upstream OpenAI i Anthropic API zwracają przy sukcesie **200**; gateway celowo używa **201** na wszystkich udanych `POST` z JSON (spójność NestJS w całym serwisie).
+**Kody HTTP (fasady):** jak w natywnym czacie — **201** dla odpowiedzi JSON (`stream` false / pominięte; `@ApiResponse({ status: 201 })` w kontrolerach fasad), **200** dla SSE (`stream: true`; jawne `res.status(200)` w `handleStream`). OpenAPI deklaruje oba kody na jednej operacji (`POST .../chat/completions`, `POST .../messages`). _Uwaga:_ upstream OpenAI i Anthropic API zwracają przy sukcesie **200**; gateway celowo używa **201** na wszystkich udanych `POST` z JSON (spójność NestJS w całym serwisie).
 
 ---
 
@@ -263,12 +263,12 @@ Gateway wspiera extended thinking / reasoning dla modeli z głębokim rozumowani
 
 ### Provider support matrix
 
-| Provider | API | Wspierane modele (przykłady) | Status w Gateway | Thinking content w response |
-|----------|-----|------------------------------|------------------|---------------------------|
-| **Anthropic** | `thinking` + `output_config.effort` | Claude Opus/Sonnet 4.5+ | ✅ Pełne wsparcie | ✅ `thinkingContent` (JSON / SSE `done`) |
-| **Google Gemini** | `ThinkingConfig` | Gemini 3.0+ (`capabilities.thinking: true`) | ✅ Pełne wsparcie | ✅ `thinkingContent` gdy `includeThoughts: true` |
-| **OpenAI** | Responses API (`/v1/responses`) | Modele obsługiwane przez Responses (np. `gpt-5*`, `o*`) przy `type: openai` | ✅ Pełne wsparcie (adapter runtime) | ✅ `thinkingContent` (reasoning summary) |
-| **OpenAI-compatible** | Chat Completions | Zależy od backendu (np. Ollama) | ❌ Brak mapowania thinking w adapterze | ❌ |
+| Provider              | API                                 | Wspierane modele (przykłady)                                                | Status w Gateway                       | Thinking content w response                      |
+| --------------------- | ----------------------------------- | --------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------ |
+| **Anthropic**         | `thinking` + `output_config.effort` | Claude Opus/Sonnet 4.5+                                                     | ✅ Pełne wsparcie                      | ✅ `thinkingContent` (JSON / SSE `done`)         |
+| **Google Gemini**     | `ThinkingConfig`                    | Gemini 3.0+ (`capabilities.thinking: true`)                                 | ✅ Pełne wsparcie                      | ✅ `thinkingContent` gdy `includeThoughts: true` |
+| **OpenAI**            | Responses API (`/v1/responses`)     | Modele obsługiwane przez Responses (np. `gpt-5*`, `o*`) przy `type: openai` | ✅ Pełne wsparcie (adapter runtime)    | ✅ `thinkingContent` (reasoning summary)         |
+| **OpenAI-compatible** | Chat Completions                    | Zależy od backendu (np. Ollama)                                             | ❌ Brak mapowania thinking w adapterze | ❌                                               |
 
 **Uwaga:** Fasada OpenAI (`POST /api/v1/openai/chat/completions`) mapuje `reasoning_effort` na `params.thinkingEnabled` / `params.thinkingBudget` (`openai-request.mapper.ts`). Efekt zależy od aliasu w YAML — działa, gdy alias wskazuje `providerInstance` z `type: openai` i ma `capabilities.thinking: true`.
 
@@ -321,6 +321,7 @@ POST /api/v1/anthropic/messages
 ### Parametry
 
 **Gateway unified params:**
+
 - **`thinkingEnabled`** (boolean): Włącza thinking mode
 - **`thinkingBudget`** (string | number): Budżet/intensywność thinking:
   - **String:** `"none"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` \| `"max"`
@@ -328,12 +329,12 @@ POST /api/v1/anthropic/messages
 
 **Vendor-specific mapping:**
 
-| Gateway param | Anthropic API | Google Gemini API | OpenAI (`type: openai`, Responses) |
-|---------------|---------------|-------------------|-------------------------------------|
-| `thinkingEnabled: true` | `thinking: { type: 'enabled' \| 'adaptive' }` | `thinkingConfig: { includeThoughts: true }` | `reasoning.effort` + `reasoning.summary: auto` |
-| `thinkingBudget: number` | `thinking.budget_tokens` (min 1024) | `thinkingConfig.thinkingBudget` | Walidacja surface; numery mogą dać warning — preferuj string effort |
-| `thinkingBudget: "low"` | `output_config.effort: "low"` | `thinkingConfig.thinkingLevel: "LOW"` | `reasoning.effort: "low"` |
-| `thinkingBudget: "high"` | `output_config.effort: "high"` | `thinkingConfig.thinkingLevel: "HIGH"` | `reasoning.effort: "high"` |
+| Gateway param            | Anthropic API                                 | Google Gemini API                           | OpenAI (`type: openai`, Responses)                                  |
+| ------------------------ | --------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------- |
+| `thinkingEnabled: true`  | `thinking: { type: 'enabled' \| 'adaptive' }` | `thinkingConfig: { includeThoughts: true }` | `reasoning.effort` + `reasoning.summary: auto`                      |
+| `thinkingBudget: number` | `thinking.budget_tokens` (min 1024)           | `thinkingConfig.thinkingBudget`             | Walidacja surface; numery mogą dać warning — preferuj string effort |
+| `thinkingBudget: "low"`  | `output_config.effort: "low"`                 | `thinkingConfig.thinkingLevel: "LOW"`       | `reasoning.effort: "low"`                                           |
+| `thinkingBudget: "high"` | `output_config.effort: "high"`                | `thinkingConfig.thinkingLevel: "HIGH"`      | `reasoning.effort: "high"`                                          |
 
 ### Response
 
@@ -354,6 +355,7 @@ Gdy model używa thinking mode, response może zawierać pole **`thinkingContent
 ```
 
 **Provider-specific notes:**
+
 - **Anthropic (natywny czat):** `thinkingContent` w JSON; w streamie — w evencie `done` (nie w deltach tekstu).
 - **Anthropic (fasada):** JSON — blok `{ type: 'thinking', thinking: string }` w `content[]`. Stream — `thinking_delta` w fazie `done`.
 - **Google Gemini:** Thoughts gdy `includeThoughts: true` (Gemini 3.0+).
@@ -392,6 +394,7 @@ models:
 Alias Anthropic z thinking (np. `claude-sonnet` w repo) wymaga `capabilities.thinking: true` oraz wpisów `thinkingEnabled` / `thinkingBudget` w `allowOverrides`.
 
 **Uwagi:**
+
 - Thinking mode **znacząco zwiększa** latencję i koszty (2-10x więcej tokenów).
 - Domyślnie **wyłączone** (`thinkingEnabled: false` w YAML defaults) — wymagane `capabilities.thinking: true` + `allowOverrides`.
 - **Gemini 3.0+ ONLY** dla `thinkingConfig` — wcześniejsze modele Gemini zwracają błąd przy thinking.
@@ -404,11 +407,11 @@ Alias Anthropic z thinking (np. `claude-sonnet` w repo) wymaga `capabilities.thi
 
 Gateway stosuje **trzy niezależne numeracje wersji** (nie mylić ze sobą):
 
-| Wersja | Lokalizacja | Pole w `openapi.json` | Znaczenie | Semver |
-|--------|-------------|----------------------|-----------|--------|
-| **App version** | `package.json` → `version` | — | Wersja aplikacji (release) | ✅ |
-| **OpenAPI version** | `src/swagger/swagger.constants.ts` → `OPENAPI_VERSION` | `info.version` | Semver kontraktu HTTP API | ✅ |
-| **OpenAPI spec version** | `src/swagger/swagger.constants.ts` → `OPENAPI_SPEC_VERSION` | `"openapi"` (root) | Wersja formatu dokumentu (3.0 / 3.1) | ❌ (stała specyfikacji) |
+| Wersja                   | Lokalizacja                                                 | Pole w `openapi.json` | Znaczenie                            | Semver                  |
+| ------------------------ | ----------------------------------------------------------- | --------------------- | ------------------------------------ | ----------------------- |
+| **App version**          | `package.json` → `version`                                  | —                     | Wersja aplikacji (release)           | ✅                      |
+| **OpenAPI version**      | `src/swagger/swagger.constants.ts` → `OPENAPI_VERSION`      | `info.version`        | Semver kontraktu HTTP API            | ✅                      |
+| **OpenAPI spec version** | `src/swagger/swagger.constants.ts` → `OPENAPI_SPEC_VERSION` | `"openapi"` (root)    | Wersja formatu dokumentu (3.0 / 3.1) | ❌ (stała specyfikacji) |
 
 ### Zasady bump
 

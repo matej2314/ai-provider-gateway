@@ -1,7 +1,11 @@
 import { adaptApiKeyProviderFactory } from './adapt-api-key-provider-factory';
 import type { ApiKeyProviderFactoryFn } from './provider-factory.types';
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
-import { asEnvRef, asProviderApiKey, type ProviderApiKey } from '../../common/types';
+import {
+  asEnvRef,
+  asProviderApiKey,
+  type ProviderApiKey,
+} from '../../common/types';
 
 describe('adaptApiKeyProviderFactory', () => {
   it('passes only apiKey to api-key factory', () => {
@@ -25,6 +29,9 @@ describe('adaptApiKeyProviderFactory', () => {
       logger as never,
     );
 
-    expect(apiKeyFactory).toHaveBeenCalledWith(asProviderApiKey('sk-ant-test'), logger);
+    expect(apiKeyFactory).toHaveBeenCalledWith(
+      asProviderApiKey('sk-ant-test'),
+      logger,
+    );
   });
 });

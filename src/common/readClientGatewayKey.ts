@@ -9,4 +9,3 @@ export function readClientGatewayKey(req: Request): GatewayKey | undefined {
   }
   return readGatewayKeyHeader(req);
 }
- 

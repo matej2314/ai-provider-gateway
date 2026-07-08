@@ -7,8 +7,8 @@ import {
   createIntegrationApp,
 } from './helpers/create-integration-app';
 import {
-  INTEGRATION_MODEL_ALIAS,
-  INTEGRATION_PROVIDER_INSTANCE,
+  INTEGRATION_MODEL_ALIAS_BRANDED,
+  INTEGRATION_PROVIDER_INSTANCE_BRANDED,
   INTEGRATION_ROUTES,
 } from './helpers/integration-constants';
 
@@ -46,13 +46,15 @@ describe('Integration harness smoke', () => {
 
   it('ProviderRegistryService.resolve returns live adapter', () => {
     const registry = app.get(ProviderRegistryService);
-    const resolved = registry.resolve(INTEGRATION_MODEL_ALIAS);
+    const resolved = registry.resolve(INTEGRATION_MODEL_ALIAS_BRANDED);
 
-    expect(resolved.providerName).toBe(INTEGRATION_PROVIDER_INSTANCE);
+    expect(resolved.providerName).toBe(INTEGRATION_PROVIDER_INSTANCE_BRANDED);
     expect(resolved.provider).toBeDefined();
     expect(typeof resolved.provider.complete).toBe('function');
     expect(typeof resolved.provider.stream).toBe('function');
-    expect(resolved.provider.complete).not.toBeInstanceOf(jest.fn());
+    expect(
+      (resolved.provider as unknown as Record<string, unknown>).complete,
+    ).not.toBeInstanceOf(jest.fn());
   });
 
   it('RedisConnectionService.ping succeeds when cache stack is loaded', async () => {

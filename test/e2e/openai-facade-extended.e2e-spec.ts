@@ -6,6 +6,7 @@ import {
   E2E_POST_SUCCESS_STATUS,
   E2E_ROUTES,
 } from './helpers/e2e-constants';
+import { asToolCallId } from '../../src/common/types/branded.types';
 
 describe('OpenAI Facade Extended (E2E)', () => {
   const openAiModel = 'gpt-4';
@@ -33,7 +34,7 @@ describe('OpenAI Facade Extended (E2E)', () => {
               stopReason: 'tool_use',
               toolCalls: [
                 {
-                  id: 'call_openai_1',
+                  id: asToolCallId('call_openai_1'),
                   name: 'get_weather',
                   arguments: JSON.stringify({ city: 'Gdansk' }),
                 },

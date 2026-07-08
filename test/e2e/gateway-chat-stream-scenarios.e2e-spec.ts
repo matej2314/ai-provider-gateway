@@ -3,7 +3,10 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { ApiErrorCode } from '../../src/common/errors/api-error.code';
 import {
   TEST_MODEL_ALIAS,
+  TEST_MODEL_ID,
   TEST_PROVIDER_INSTANCE_BRANDED,
+  TEST_INPUT_TOKENS_SMALL,
+  TEST_OUTPUT_TOKENS_SMALL,
 } from '../../src/common/mocks/test-constants';
 import { withE2eApp } from './helpers/create-e2e-app';
 import {
@@ -49,9 +52,10 @@ describe('Gateway Chat Stream Scenarios (E2E)', () => {
             textStream: (function* () {
               yield 'Done';
             })(),
-            getUsageMetadata: jest
-              .fn()
-              .mockResolvedValue({ inputTokens: 5, outputTokens: 10 }),
+            getUsageMetadata: jest.fn().mockResolvedValue({
+              inputTokens: TEST_INPUT_TOKENS_SMALL,
+              outputTokens: TEST_OUTPUT_TOKENS_SMALL,
+            }),
             getStopReason: jest.fn().mockResolvedValue('end_turn'),
             getSystemFingerprint: jest.fn().mockResolvedValue('fp_test_123'),
           });
@@ -113,7 +117,7 @@ describe('Gateway Chat Stream Scenarios (E2E)', () => {
                 [primaryAlias]: { fallback: fallbackAlias },
                 [fallbackAlias]: {
                   providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
-                  modelId: 'claude-sonnet-4-5',
+                  modelId: TEST_MODEL_ID,
                   capabilities: { tools: true, streaming: true },
                 },
               },

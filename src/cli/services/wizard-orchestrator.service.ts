@@ -119,7 +119,8 @@ export class WizardOrchestratorService {
           );
           break;
         case WizardStep.ServerConfig:
-          state.data.serverConfig = await this.serverPrompt.promptServerConfig();
+          state.data.serverConfig =
+            await this.serverPrompt.promptServerConfig();
           break;
       }
       state.completedSteps.push(step);
@@ -148,7 +149,9 @@ export class WizardOrchestratorService {
     return { ...result, wizardState: state };
   }
 
-  private buildResult(state: WizardState): Omit<WizardRunResult, 'wizardState'> {
+  private buildResult(
+    state: WizardState,
+  ): Omit<WizardRunResult, 'wizardState'> {
     const serverConfig = state.data.serverConfig!;
 
     const envInput: EnvTemplateInput = {

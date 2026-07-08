@@ -1,4 +1,7 @@
 import { mapTurnsToResponsesInput } from './openai-responses-input-provider.mapper';
+import { asToolCallId } from '../../../common/types/branded.types';
+
+const CALL_1 = asToolCallId('call_1');
 
 describe('mapTurnsToResponsesInput', () => {
   it('emits assistant content before function_call items', () => {
@@ -6,7 +9,7 @@ describe('mapTurnsToResponsesInput', () => {
       {
         role: 'assistant',
         content: 'Let me check.',
-        toolCalls: [{ id: 'call_1', name: 'fn', arguments: '{}' }],
+        toolCalls: [{ id: CALL_1, name: 'fn', arguments: '{}' }],
       },
     ]);
 
@@ -16,7 +19,7 @@ describe('mapTurnsToResponsesInput', () => {
     });
     expect(input[1]).toMatchObject({
       type: 'function_call',
-      call_id: 'call_1',
+      call_id: CALL_1,
     });
   });
 
@@ -26,7 +29,7 @@ describe('mapTurnsToResponsesInput', () => {
       {
         role: 'assistant',
         content: '',
-        toolCalls: [{ id: 'call_1', name: 'fn', arguments: '{}' }],
+        toolCalls: [{ id: CALL_1, name: 'fn', arguments: '{}' }],
       },
       { role: 'tool', toolCallId: 'call_1', content: '{"ok":true}' },
     ]);
@@ -35,13 +38,13 @@ describe('mapTurnsToResponsesInput', () => {
       { role: 'user', content: 'Hi' },
       {
         type: 'function_call',
-        call_id: 'call_1',
+        call_id: CALL_1,
         name: 'fn',
         arguments: '{}',
       },
       {
         type: 'function_call_output',
-        call_id: 'call_1',
+        call_id: CALL_1,
         output: '{"ok":true}',
       },
     ]);

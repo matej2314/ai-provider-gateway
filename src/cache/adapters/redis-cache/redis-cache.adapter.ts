@@ -58,7 +58,8 @@ export class RedisCacheAdapter implements CacheBackend, OnModuleInit {
     if (!client) return false;
     const ttl = unbrand(
       ttlSeconds ??
-        (getAppConfig(this.config, 'cache')?.ttl ?? asCacheTtlSeconds(3600)),
+        getAppConfig(this.config, 'cache')?.ttl ??
+        asCacheTtlSeconds(3600),
     );
 
     try {

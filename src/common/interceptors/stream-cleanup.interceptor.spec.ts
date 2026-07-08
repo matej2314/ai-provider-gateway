@@ -174,7 +174,10 @@ describe('StreamCleanupInterceptor', () => {
 
       await expect(
         lastValueFrom(
-          interceptor.intercept(context, createCallHandler(throwError(() => boom))),
+          interceptor.intercept(
+            context,
+            createCallHandler(throwError(() => boom)),
+          ),
         ),
       ).rejects.toThrow(boom);
 
@@ -193,7 +196,10 @@ describe('StreamCleanupInterceptor', () => {
 
       await expect(
         lastValueFrom(
-          interceptor.intercept(context, createCallHandler(throwError(() => boom))),
+          interceptor.intercept(
+            context,
+            createCallHandler(throwError(() => boom)),
+          ),
         ),
       ).rejects.toThrow(boom);
 

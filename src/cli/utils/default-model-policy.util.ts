@@ -1,9 +1,6 @@
 import type { GatewayModelConfig } from 'src/config/gateway-config.schema';
 import type { GatewayProviderType } from 'src/config/provider-types';
-import {
-  asMaxAttempts,
-  asTimeoutMs,
-} from '../../common/types/branded.types';
+import { asMaxAttempts, asTimeoutMs } from '../../common/types/branded.types';
 import { DEFAULT_MODEL_ALLOW_OVERRIDES } from '../constants/model-allow-overrides';
 import {
   isThinkingCapableModel,

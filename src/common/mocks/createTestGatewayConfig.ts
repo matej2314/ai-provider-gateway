@@ -1,5 +1,5 @@
 import type { GatewayConfig } from '../../config/configuration';
-import { asEnvRef, asProviderInstanceId } from '../types';
+import { asEnvRef, asModelId, asProviderInstanceId } from '../types';
 import {
   TEST_API_KEY_REF,
   TEST_MASTER_KEY_REF,
@@ -37,7 +37,7 @@ function defaultGatewayConfig(): GatewayConfig {
     models: {
       [TEST_MODEL_ALIAS]: {
         providerInstance: asProviderInstanceId(TEST_PROVIDER_INSTANCE),
-        modelId: 'claude-sonnet-4-5',
+        modelId: asModelId('claude-sonnet-4-5'),
         capabilities: { tools: true, streaming: true },
         policy: {
           timeoutMs: undefined,

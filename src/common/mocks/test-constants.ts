@@ -33,8 +33,9 @@ export const TEST_MODEL_ALIAS = 'test-model';
 export const TEST_MODEL_ALIAS_BRANDED = asModelAlias(TEST_MODEL_ALIAS);
 
 export const TEST_PROVIDER_INSTANCE = 'anthropic-primary';
-export const TEST_PROVIDER_INSTANCE_BRANDED =
-  asProviderInstanceId(TEST_PROVIDER_INSTANCE);
+export const TEST_PROVIDER_INSTANCE_BRANDED = asProviderInstanceId(
+  TEST_PROVIDER_INSTANCE,
+);
 
 export const TEST_API_KEY_REF = 'ANTHROPIC_API_KEY_TEST';
 
@@ -56,7 +57,8 @@ export const TEST_OUTPUT_TOKENS = asOutputTokens(20);
 export const TEST_INPUT_TOKENS_SMALL = asInputTokens(5);
 export const TEST_OUTPUT_TOKENS_SMALL = asOutputTokens(5);
 export const TEST_PROMPT_CACHE_HIT_TOKENS = asPromptCacheHitTokens(100);
-export const TEST_PROMPT_CACHE_CREATION_TOKENS = asPromptCacheCreationTokens(50);
+export const TEST_PROMPT_CACHE_CREATION_TOKENS =
+  asPromptCacheCreationTokens(50);
 export const TEST_COST_USD = asCostUsd(0.001);
 
 export const TEST_CACHED_RESPONSE_ID = asResponseId('msg-123');

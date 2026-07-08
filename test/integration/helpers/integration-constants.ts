@@ -1,5 +1,8 @@
 import {
   asGatewayKey,
+  asModelAlias,
+  asModelId,
+  asProviderInstanceId,
   type GatewayKey,
 } from '../../../src/common/types';
 import type { ResolvedSystemPrompts } from '../../../src/config/configuration.types';
@@ -16,6 +19,17 @@ export const INTEGRATION_MODEL_ALIAS = 'it-chat';
 export const INTEGRATION_MODEL_ID = 'claude-sonnet-4-5';
 export const INTEGRATION_SECOND_MODEL_ALIAS = 'it-chat-fast';
 export const INTEGRATION_SECOND_MODEL_ID = 'claude-sonnet-4-6';
+
+export const INTEGRATION_MODEL_ALIAS_BRANDED = asModelAlias(
+  INTEGRATION_MODEL_ALIAS,
+);
+export const INTEGRATION_SECOND_MODEL_ALIAS_BRANDED = asModelAlias(
+  INTEGRATION_SECOND_MODEL_ALIAS,
+);
+export const INTEGRATION_MODEL_ID_BRANDED = asModelId(INTEGRATION_MODEL_ID);
+export const INTEGRATION_PROVIDER_INSTANCE_BRANDED = asProviderInstanceId(
+  INTEGRATION_PROVIDER_INSTANCE,
+);
 
 export const INTEGRATION_API_PREFIX = '/api/v1';
 

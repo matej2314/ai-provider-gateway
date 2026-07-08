@@ -4,6 +4,8 @@ import { toProviderTurns, buildProviderInputForAlias } from './provider-input';
 import type { ChatMessageDto } from '../dto/chat-message.dto';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { ResolvedSystemPrompts } from '../../config/configuration.types';
+import { asToolCallId } from '../../common/types/branded.types';
+import { TEST_TOOL_CALL_ID } from '../../common/mocks/test-constants';
 
 const resolvedPrompts: ResolvedSystemPrompts = {
   master: 'master prompt',
@@ -84,7 +86,7 @@ describe('toProviderTurns', () => {
     expect(toProviderTurns(messages)).toEqual([
       {
         role: 'tool',
-        toolCallId: 'call_123',
+        toolCallId: TEST_TOOL_CALL_ID,
         content: '{"temperature":72}',
       },
     ]);
@@ -127,7 +129,7 @@ describe('toProviderTurns', () => {
       },
       {
         role: 'tool',
-        toolCallId: 'call_1',
+        toolCallId: asToolCallId('call_1'),
         content: '{"temperature":72}',
       },
       { role: 'assistant', content: 'It is 72°F in NYC.' },

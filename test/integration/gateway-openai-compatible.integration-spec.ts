@@ -20,17 +20,17 @@ import {
 
 /**
  * Integration test suite for ALL openai-compatible providers defined in gateway.config.yaml
- * 
+ *
  * This test suite dynamically discovers and tests all providers of type "openai-compatible"
  * from the gateway configuration file. When you add a new openai-compatible provider to
  * gateway.config.yaml, it will automatically be included in these tests.
- * 
+ *
  * Requirements:
  * - Provider must be defined in gateway.config.yaml with type: openai-compatible
  * - Environment variables must be set in .env.test:
  *   - INTEGRATION_{PROVIDER_NAME}_API_KEY
  *   - INTEGRATION_{PROVIDER_NAME}_BASE_URL
- * 
+ *
  * Current providers detected from config:
  * - ollama-local
  * - deepseek
@@ -66,11 +66,11 @@ const gatewayConfig = loadRealGatewayConfig();
 
 // Dynamically discover all openai-compatible providers
 const openAiCompatibleProviders = Object.entries(gatewayConfig.providers)
-  .filter(([_, providerConfig]) => providerConfig.type === 'openai-compatible')
+  .filter(([, providerConfig]) => providerConfig.type === 'openai-compatible')
   .map(([instanceId, providerConfig]) => {
     // Find a model that uses this provider
     const modelEntry = Object.entries(gatewayConfig.models).find(
-      ([_, modelConfig]) => modelConfig.providerInstance === instanceId,
+      ([, modelConfig]) => modelConfig.providerInstance === instanceId,
     );
 
     return {
@@ -82,7 +82,6 @@ const openAiCompatibleProviders = Object.entries(gatewayConfig.providers)
   });
 
 describe('Gateway OpenAI-compatible providers (integration)', () => {
-
   it('should discover at least one openai-compatible provider from gateway.config.yaml', () => {
     expect(openAiCompatibleProviders.length).toBeGreaterThan(0);
   });
@@ -95,208 +94,225 @@ describe('Gateway OpenAI-compatible providers (integration)', () => {
   });
 
   // Dynamically generate test suites for each openai-compatible provider
-  openAiCompatibleProviders.forEach(({ instanceId, config, modelAlias, modelId }) => {
-    const describeProvider = hasOpenAiCompatibleProviderEnv(instanceId)
-      ? describe
-      : describe.skip;
+  openAiCompatibleProviders.forEach(
+    ({ instanceId, config, modelAlias, modelId }) => {
+      const describeProvider = hasOpenAiCompatibleProviderEnv(instanceId)
+        ? describe
+        : describe.skip;
 
-    describeProvider(`Provider: ${instanceId}`, () => {
-      let app: INestApplication;
-      let providerTestConfig: OpenAiCompatibleProviderTestConfig;
+      describeProvider(`Provider: ${instanceId}`, () => {
+        let app: INestApplication;
+        let providerTestConfig: OpenAiCompatibleProviderTestConfig;
 
-      beforeAll(async () => {
-        const context = await createOpenAiCompatibleIntegrationApp(
-          instanceId,
-          {
-            cacheEnabled: false,
-            rateLimitEnabled: false,
-          },
-        );
-        app = context.app;
-        providerTestConfig = context.providerConfig;
-      });
-
-      afterAll(async () => {
-        await closeOpenAiCompatibleIntegrationApp(app);
-      });
-
-      describe('Configuration validation', () => {
-        it('should have baseUrlRef defined', () => {
-          expect(config.baseUrlRef).toBeDefined();
-          expect(config.baseUrlRef).toBeTruthy();
-        });
-
-        it('should have apiKeyRef defined', () => {
-          expect(config.apiKeyRef).toBeDefined();
-          expect(config.apiKeyRef).toBeTruthy();
-        });
-
-        it('should be enabled in gateway config', () => {
-          expect(config.enabled).toBe(true);
-        });
-
-        it('should have at least one model configured', () => {
-          expect(modelAlias).toBeDefined();
-          expect(modelId).toBeDefined();
-        });
-      });
-
-      describe('Provider registry integration', () => {
-        it('should successfully register provider instance', () => {
-          const registry = app.get(ProviderRegistryService);
-          const instances = registry.list();
-          
-          expect(instances).toContain(providerTestConfig.integrationInstanceId);
-        });
-
-        it('should resolve model alias to provider', () => {
-          if (!modelAlias) {
-            console.warn(`Skipping: no model alias found for ${instanceId}`);
-            return;
-          }
-
-          const registry = app.get(ProviderRegistryService);
-          const resolved = registry.resolve(providerTestConfig.integrationModelAlias);
-
-          expect(resolved).toBeDefined();
-          expect(resolved.providerName).toBe(providerTestConfig.integrationInstanceId);
-          expect(resolved.providerType).toBe('openai-compatible');
-        });
-
-        it('should have valid provider instance with complete and stream methods', () => {
-          if (!modelAlias) {
-            console.warn(`Skipping: no model alias found for ${instanceId}`);
-            return;
-          }
-
-          const registry = app.get(ProviderRegistryService);
-          const resolved = registry.resolve(providerTestConfig.integrationModelAlias);
-
-          expect(resolved.provider).toBeDefined();
-          expect(typeof resolved.provider.complete).toBe('function');
-          expect(typeof resolved.provider.stream).toBe('function');
-          expect(resolved.provider.complete).not.toBeInstanceOf(jest.fn());
-        });
-
-        it('should expose chat-completions apiSurface for openai-compatible', () => {
-          if (!modelAlias) {
-            console.warn(`Skipping: no model alias found for ${instanceId}`);
-            return;
-          }
-
-          const registry = app.get(ProviderRegistryService);
-          const resolved = registry.resolve(providerTestConfig.integrationModelAlias);
-
-          expect(resolved.providerType).toBe('openai-compatible');
-        });
-      });
-
-      describe('Provider factory validation', () => {
-        it('should have valid environment configuration', () => {
-          expect(providerTestConfig.apiKey).toBeTruthy();
-          expect(providerTestConfig.baseUrl).toBeTruthy();
-        });
-
-        it('should normalize baseUrl (remove trailing slash)', () => {
-          expect(providerTestConfig.baseUrl).not.toMatch(/\/$/);
-        });
-
-        it('should map to createOpenAiCompatibleProviderInstance factory', () => {
-          // This is verified by successful app bootstrap
-          // If wrong factory was used, app initialization would fail
-          expect(app).toBeDefined();
-        });
-      });
-
-      describe('Provider-specific metadata', () => {
-        it(`should use correct apiKeyRef: ${config.apiKeyRef}`, () => {
-          expect(config.apiKeyRef).toBe(config.apiKeyRef);
-        });
-
-        it(`should use correct baseUrlRef: ${config.baseUrlRef}`, () => {
-          expect(config.baseUrlRef).toBe(config.baseUrlRef);
-        });
-
-        if (modelId) {
-          it(`should configure model ${modelId}`, () => {
-            expect(providerTestConfig.integrationModelId).toBe(modelId);
-          });
-        }
-      });
-
-      describe('Live API integration', () => {
-        const validBody = {
-          modelAlias: '', // Will be set in beforeEach
-          messages: [{ role: 'user' as const, content: 'Reply with exactly: OK' }],
-          params: { maxOutputTokens: 50, temperature: 0 }, // Increased from 16 to 50
-        };
-
-        beforeEach(() => {
-          validBody.modelAlias = providerTestConfig.integrationModelAlias;
-        });
-
-        it('POST /chat returns live provider response', async () => {
-          const response = await request(app.getHttpServer())
-            .post(INTEGRATION_ROUTES.chat)
-            .set('x-gateway-key', getIntegrationGatewayKey())
-            .send(validBody)
-            .expect(INTEGRATION_POST_SUCCESS_STATUS);
-
-          expect(response.body).toMatchObject({
-            id: expect.stringMatching(/^gw_/),
-            conversationId: expect.any(String),
-            model: providerTestConfig.integrationModelAlias,
-            provider: providerTestConfig.integrationInstanceId,
-            output: {
-              type: 'text',
-              text: expect.any(String),
+        beforeAll(async () => {
+          const context = await createOpenAiCompatibleIntegrationApp(
+            instanceId,
+            {
+              cacheEnabled: false,
+              rateLimitEnabled: false,
             },
-            usage: {
-              inputTokens: expect.any(Number),
-              outputTokens: expect.any(Number),
-            },
-            finishReason: expect.any(String),
-            requestId: expect.any(String),
+          );
+          app = context.app;
+          providerTestConfig = context.providerConfig;
+        });
+
+        afterAll(async () => {
+          await closeOpenAiCompatibleIntegrationApp(app);
+        });
+
+        describe('Configuration validation', () => {
+          it('should have baseUrlRef defined', () => {
+            expect(config.baseUrlRef).toBeDefined();
+            expect(config.baseUrlRef).toBeTruthy();
           });
 
-          expect(response.body.output.text.length).toBeGreaterThan(0);
-          expect(response.body.usage.inputTokens).toBeGreaterThanOrEqual(0);
-          expect(response.body.usage.outputTokens).toBeGreaterThanOrEqual(0);
+          it('should have apiKeyRef defined', () => {
+            expect(config.apiKeyRef).toBeDefined();
+            expect(config.apiKeyRef).toBeTruthy();
+          });
+
+          it('should be enabled in gateway config', () => {
+            expect(config.enabled).toBe(true);
+          });
+
+          it('should have at least one model configured', () => {
+            expect(modelAlias).toBeDefined();
+            expect(modelId).toBeDefined();
+          });
         });
 
-        it('echoes X-Request-Id when provided', async () => {
-          const requestId = `it-${instanceId}-req-001`;
+        describe('Provider registry integration', () => {
+          it('should successfully register provider instance', () => {
+            const registry = app.get(ProviderRegistryService);
+            const instances = registry.list();
 
-          const response = await request(app.getHttpServer())
-            .post(INTEGRATION_ROUTES.chat)
-            .set('x-gateway-key', getIntegrationGatewayKey())
-            .set('x-request-id', requestId)
-            .send(validBody)
-            .expect(INTEGRATION_POST_SUCCESS_STATUS);
+            expect(instances).toContain(
+              providerTestConfig.integrationInstanceId,
+            );
+          });
 
-          expect(response.body.requestId).toBe(requestId);
-          expect(response.headers['x-request-id']).toBe(requestId);
+          it('should resolve model alias to provider', () => {
+            if (!modelAlias) {
+              console.warn(`Skipping: no model alias found for ${instanceId}`);
+              return;
+            }
+
+            const registry = app.get(ProviderRegistryService);
+            const resolved = registry.resolve(
+              providerTestConfig.integrationModelAlias,
+            );
+
+            expect(resolved).toBeDefined();
+            expect(resolved.providerName).toBe(
+              providerTestConfig.integrationInstanceId,
+            );
+            expect(resolved.providerType).toBe('openai-compatible');
+          });
+
+          it('should have valid provider instance with complete and stream methods', () => {
+            if (!modelAlias) {
+              console.warn(`Skipping: no model alias found for ${instanceId}`);
+              return;
+            }
+
+            const registry = app.get(ProviderRegistryService);
+            const resolved = registry.resolve(
+              providerTestConfig.integrationModelAlias,
+            );
+
+            expect(resolved.provider).toBeDefined();
+            expect(typeof resolved.provider.complete).toBe('function');
+            expect(typeof resolved.provider.stream).toBe('function');
+            expect(
+              (resolved.provider as unknown as Record<string, unknown>)
+                .complete,
+            ).not.toBeInstanceOf(jest.fn());
+          });
+
+          it('should expose chat-completions apiSurface for openai-compatible', () => {
+            if (!modelAlias) {
+              console.warn(`Skipping: no model alias found for ${instanceId}`);
+              return;
+            }
+
+            const registry = app.get(ProviderRegistryService);
+            const resolved = registry.resolve(
+              providerTestConfig.integrationModelAlias,
+            );
+
+            expect(resolved.providerType).toBe('openai-compatible');
+          });
         });
 
-        it('should handle API errors gracefully', async () => {
-          const invalidBody = {
-            modelAlias: providerTestConfig.integrationModelAlias,
-            messages: [], // Empty messages should fail
-            params: { maxOutputTokens: 16 },
+        describe('Provider factory validation', () => {
+          it('should have valid environment configuration', () => {
+            expect(providerTestConfig.apiKey).toBeTruthy();
+            expect(providerTestConfig.baseUrl).toBeTruthy();
+          });
+
+          it('should normalize baseUrl (remove trailing slash)', () => {
+            expect(providerTestConfig.baseUrl).not.toMatch(/\/$/);
+          });
+
+          it('should map to createOpenAiCompatibleProviderInstance factory', () => {
+            // This is verified by successful app bootstrap
+            // If wrong factory was used, app initialization would fail
+            expect(app).toBeDefined();
+          });
+        });
+
+        describe('Provider-specific metadata', () => {
+          it(`should use correct apiKeyRef: ${config.apiKeyRef}`, () => {
+            expect(config.apiKeyRef).toBe(config.apiKeyRef);
+          });
+
+          it(`should use correct baseUrlRef: ${config.baseUrlRef}`, () => {
+            expect(config.baseUrlRef).toBe(config.baseUrlRef);
+          });
+
+          if (modelId) {
+            it(`should configure model ${modelId}`, () => {
+              expect(providerTestConfig.integrationModelId).toBe(modelId);
+            });
+          }
+        });
+
+        describe('Live API integration', () => {
+          const validBody = {
+            modelAlias: '', // Will be set in beforeEach
+            messages: [
+              { role: 'user' as const, content: 'Reply with exactly: OK' },
+            ],
+            params: { maxOutputTokens: 50, temperature: 0 }, // Increased from 16 to 50
           };
 
-          const response = await request(app.getHttpServer())
-            .post(INTEGRATION_ROUTES.chat)
-            .set('x-gateway-key', getIntegrationGatewayKey())
-            .send(invalidBody);
+          beforeEach(() => {
+            validBody.modelAlias = providerTestConfig.integrationModelAlias;
+          });
 
-          // Should return 400 or similar error status
-          expect(response.status).toBeGreaterThanOrEqual(400);
-          expect(response.status).toBeLessThan(500);
+          it('POST /chat returns live provider response', async () => {
+            const response = await request(app.getHttpServer())
+              .post(INTEGRATION_ROUTES.chat)
+              .set('x-gateway-key', getIntegrationGatewayKey())
+              .send(validBody)
+              .expect(INTEGRATION_POST_SUCCESS_STATUS);
+
+            expect(response.body).toMatchObject({
+              id: expect.stringMatching(/^gw_/),
+              conversationId: expect.any(String),
+              model: providerTestConfig.integrationModelAlias,
+              provider: providerTestConfig.integrationInstanceId,
+              output: {
+                type: 'text',
+                text: expect.any(String),
+              },
+              usage: {
+                inputTokens: expect.any(Number),
+                outputTokens: expect.any(Number),
+              },
+              finishReason: expect.any(String),
+              requestId: expect.any(String),
+            });
+
+            expect(response.body.output.text.length).toBeGreaterThan(0);
+            expect(response.body.usage.inputTokens).toBeGreaterThanOrEqual(0);
+            expect(response.body.usage.outputTokens).toBeGreaterThanOrEqual(0);
+          });
+
+          it('echoes X-Request-Id when provided', async () => {
+            const requestId = `it-${instanceId}-req-001`;
+
+            const response = await request(app.getHttpServer())
+              .post(INTEGRATION_ROUTES.chat)
+              .set('x-gateway-key', getIntegrationGatewayKey())
+              .set('x-request-id', requestId)
+              .send(validBody)
+              .expect(INTEGRATION_POST_SUCCESS_STATUS);
+
+            expect(response.body.requestId).toBe(requestId);
+            expect(response.headers['x-request-id']).toBe(requestId);
+          });
+
+          it('should handle API errors gracefully', async () => {
+            const invalidBody = {
+              modelAlias: providerTestConfig.integrationModelAlias,
+              messages: [], // Empty messages should fail
+              params: { maxOutputTokens: 16 },
+            };
+
+            const response = await request(app.getHttpServer())
+              .post(INTEGRATION_ROUTES.chat)
+              .set('x-gateway-key', getIntegrationGatewayKey())
+              .send(invalidBody);
+
+            // Should return 400 or similar error status
+            expect(response.status).toBeGreaterThanOrEqual(400);
+            expect(response.status).toBeLessThan(500);
+          });
         });
       });
-    });
-  });
+    },
+  );
 
   describe('Cross-provider validation', () => {
     it('should have unique instanceId for each provider', () => {
@@ -306,7 +322,9 @@ describe('Gateway OpenAI-compatible providers (integration)', () => {
     });
 
     it('should have unique apiKeyRef for each provider', () => {
-      const apiKeyRefs = openAiCompatibleProviders.map((p) => p.config.apiKeyRef);
+      const apiKeyRefs = openAiCompatibleProviders.map(
+        (p) => p.config.apiKeyRef,
+      );
       const uniqueRefs = new Set(apiKeyRefs);
       expect(uniqueRefs.size).toBe(apiKeyRefs.length);
     });

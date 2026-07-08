@@ -327,7 +327,12 @@ describe('ChatService', () => {
       );
 
       await expect(
-        service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native'),
+        service.executeChat(
+          baseRequest,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
       ).rejects.toBe(rateLimitError);
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
     });
@@ -380,7 +385,12 @@ describe('ChatService', () => {
       });
 
       await expect(
-        service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native'),
+        service.executeChat(
+          baseRequest,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
       ).rejects.toBe(validationError);
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
     });
@@ -455,7 +465,12 @@ describe('ChatService', () => {
         request.params,
       );
 
-      await service.executeChat(request, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native');
+      await service.executeChat(
+        request,
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        'native',
+      );
 
       expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
         expect.any(Object),
@@ -472,7 +487,12 @@ describe('ChatService', () => {
     it('should delegate cache write after successful execution', async () => {
       mockExecutorChatSuccess({ text: 'Fresh answer' });
 
-      await service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native');
+      await service.executeChat(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        'native',
+      );
 
       expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
@@ -486,7 +506,12 @@ describe('ChatService', () => {
     it('should skip rate limit and cache when gatewayKey is empty', async () => {
       mockExecutorChatSuccess();
 
-      await service.executeChat(baseRequest, TEST_REQUEST_ID, asGatewayKey(''), 'native');
+      await service.executeChat(
+        baseRequest,
+        TEST_REQUEST_ID,
+        asGatewayKey(''),
+        'native',
+      );
 
       expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
       expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
@@ -516,7 +541,12 @@ describe('ChatService', () => {
         baseRequest.params,
       );
 
-      await service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native');
+      await service.executeChat(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        'native',
+      );
 
       expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
         expect.objectContaining({ text: 'Fallback response' }),
@@ -562,7 +592,12 @@ describe('ChatService', () => {
       (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
       mockExecutorChatSuccess();
 
-      await service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native');
+      await service.executeChat(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        'native',
+      );
 
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -579,7 +614,12 @@ describe('ChatService', () => {
       );
 
       await expect(
-        service.executeChat(baseRequest, TEST_REQUEST_ID, TEST_GATEWAY_KEY_BRANDED, 'native'),
+        service.executeChat(
+          baseRequest,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
       ).rejects.toBe(error);
 
       expect(mockErrorHandler.handleProviderError).toHaveBeenCalledWith(

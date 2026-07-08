@@ -4,9 +4,7 @@ import { ProviderRegistryService } from '../../src/providers/provider-registry.s
 import { CACHE_BACKEND } from '../../src/cache/cache.tokens';
 import type { CacheBackend } from '../../src/cache/interfaces/cache-backend-interface';
 import type { CacheKey } from '../../src/common/types';
-import {
-  TEST_INTEGRATION_CACHE_KEY_PREFIX,
-} from '../../src/common/mocks/test-constants';
+import { TEST_INTEGRATION_CACHE_KEY_PREFIX } from '../../src/common/mocks/test-constants';
 import {
   createIntegrationApp,
   closeIntegrationApp,
@@ -15,6 +13,7 @@ import { flushIntegrationRedisDb } from './helpers/flush-integration-redis';
 import {
   getIntegrationGatewayKey,
   INTEGRATION_MODEL_ALIAS,
+  INTEGRATION_MODEL_ALIAS_BRANDED,
   INTEGRATION_POST_SUCCESS_STATUS,
   INTEGRATION_ROUTES,
 } from './helpers/integration-constants';
@@ -38,7 +37,7 @@ describe('Gateway chat cache Redis (integration)', () => {
     app = context.app;
 
     const registry = app.get(ProviderRegistryService);
-    const resolved = registry.resolve(INTEGRATION_MODEL_ALIAS);
+    const resolved = registry.resolve(INTEGRATION_MODEL_ALIAS_BRANDED);
     completeSpy = jest.spyOn(resolved.provider, 'complete');
 
     const cacheBackend = app.get<CacheBackend>(CACHE_BACKEND);

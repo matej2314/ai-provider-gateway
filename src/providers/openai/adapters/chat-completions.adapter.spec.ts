@@ -3,7 +3,10 @@ import { HttpException } from '@nestjs/common';
 import { createChatCompletionsAdapter } from './chat-completions.adapter';
 import { createMockLoggingService } from '../../../common/mocks/createMockLoggingService';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
-import { asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
+import {
+  asInputTokens,
+  asOutputTokens,
+} from '../../../common/types/branded.types';
 
 function createMockClient() {
   return {
@@ -42,7 +45,9 @@ describe('createChatCompletionsAdapter', () => {
       'gpt-4o',
     );
 
-    expect(client.chat.completions.create).toHaveBeenCalledWith(
+    expect(
+      (client.chat.completions as unknown as Record<string, unknown>).create,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         model: 'gpt-4o',
         messages: [{ role: 'user', content: 'Hi' }],
@@ -65,11 +70,17 @@ describe('createChatCompletionsAdapter', () => {
     const adapter = createChatCompletionsAdapter(client, logger as never);
 
     await expect(
-      adapter.complete({ messages: [{ role: 'user', content: 'Hi' }] }, 'gpt-4o'),
+      adapter.complete(
+        { messages: [{ role: 'user', content: 'Hi' }] },
+        'gpt-4o',
+      ),
     ).rejects.toBeInstanceOf(HttpException);
 
     await expect(
-      adapter.complete({ messages: [{ role: 'user', content: 'Hi' }] }, 'gpt-4o'),
+      adapter.complete(
+        { messages: [{ role: 'user', content: 'Hi' }] },
+        'gpt-4o',
+      ),
     ).rejects.toMatchObject({
       response: expect.objectContaining({
         code: ApiErrorCode.PROVIDER_RATE_LIMITED,
@@ -80,7 +91,7 @@ describe('createChatCompletionsAdapter', () => {
   it('stream yields text deltas and exposes final tool calls', async () => {
     const client = createMockClient();
     (client.chat.completions.create as jest.Mock).mockResolvedValue(
-      (async function* () {
+      (function* () {
         yield {
           model: 'gpt-4o',
           choices: [
@@ -136,7 +147,7 @@ describe('createChatCompletionsAdapter', () => {
   it('stream omits stream_options by default (openai-compatible path)', async () => {
     const client = createMockClient();
     (client.chat.completions.create as jest.Mock).mockResolvedValue(
-      (async function* () {
+      (function* () {
         yield {
           choices: [{ delta: { content: 'Hi' } }],
         };
@@ -149,11 +160,13 @@ describe('createChatCompletionsAdapter', () => {
       'llama3',
     );
 
-    for await (const _chunk of stream.textStream) {
-      // consume
+    for await (const chunk of stream.textStream) {
+      void chunk;
     }
 
-    expect(client.chat.completions.create).toHaveBeenCalledWith(
+    expect(
+      (client.chat.completions as unknown as Record<string, unknown>).create,
+    ).toHaveBeenCalledWith(
       expect.not.objectContaining({ stream_options: expect.anything() }),
     );
   });
@@ -161,7 +174,7 @@ describe('createChatCompletionsAdapter', () => {
   it('stream sends stream_options when includeStreamUsage is true', async () => {
     const client = createMockClient();
     (client.chat.completions.create as jest.Mock).mockResolvedValue(
-      (async function* () {
+      (function* () {
         yield {
           choices: [{ delta: { content: 'Hi' } }],
           usage: { prompt_tokens: 1, completion_tokens: 1 },
@@ -177,11 +190,13 @@ describe('createChatCompletionsAdapter', () => {
       'gpt-4o',
     );
 
-    for await (const _chunk of stream.textStream) {
-      // consume
+    for await (const chunk of stream.textStream) {
+      void chunk;
     }
 
-    expect(client.chat.completions.create).toHaveBeenCalledWith(
+    expect(
+      (client.chat.completions as unknown as Record<string, unknown>).create,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         stream_options: { include_usage: true },
       }),

@@ -194,9 +194,6 @@ export class ProviderRegistryService {
         }
       : undefined;
 
-    const providerInstanceConfig =
-      gatewayConfig.providers[modelConfig.providerInstance];
-
     return {
       provider: providerEntry.provider,
       providerName: providerEntry.instanceId,

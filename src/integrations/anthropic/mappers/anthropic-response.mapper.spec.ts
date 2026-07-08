@@ -4,6 +4,16 @@ jest.mock('uuid', () => ({
 
 import { mapGatewayResponseToAnthropicFormat } from './anthropic-response.mapper';
 import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
+import {
+  asInputTokens,
+  asOutputTokens,
+  asToolCallId,
+} from '../../../common/types/branded.types';
+import {
+  TEST_INPUT_TOKENS,
+  TEST_OUTPUT_TOKENS,
+  TEST_TOOL_CALL_ID,
+} from '../../../common/mocks/test-constants';
 
 describe('mapGatewayResponseToAnthropicFormat', () => {
   it('should map simple text response with usage defaults', () => {
@@ -11,7 +21,10 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
       {
         id: 'gw_abc123',
         output: { text: 'Hello world' },
-        usage: { inputTokens: 10, outputTokens: 20 },
+        usage: {
+          inputTokens: TEST_INPUT_TOKENS,
+          outputTokens: TEST_OUTPUT_TOKENS,
+        },
       } as ChatResponseDto,
       'claude-sonnet-4-5',
     );
@@ -39,7 +52,10 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
         id: 'gw_1',
         output: { text: '' },
         thinkingContent: 'Reasoning',
-        usage: { inputTokens: 1, outputTokens: 2 },
+        usage: {
+          inputTokens: asInputTokens(1),
+          outputTokens: asOutputTokens(2),
+        },
       } as ChatResponseDto,
       'claude',
     );
@@ -55,10 +71,17 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
         id: 'gw_1',
         output: { text: '' },
         toolCalls: [
-          { id: 'call_1', name: 'get_weather', arguments: '{"city":"NYC"}' },
+          {
+            id: TEST_TOOL_CALL_ID,
+            name: 'get_weather',
+            arguments: '{"city":"NYC"}',
+          },
         ],
         finishReason: 'tool_calls',
-        usage: { inputTokens: 1, outputTokens: 2 },
+        usage: {
+          inputTokens: asInputTokens(1),
+          outputTokens: asOutputTokens(2),
+        },
       } as ChatResponseDto,
       'claude',
     );
@@ -66,7 +89,7 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
     expect(result.content).toEqual([
       {
         type: 'tool_use',
-        id: 'call_1',
+        id: TEST_TOOL_CALL_ID,
         name: 'get_weather',
         input: { city: 'NYC' },
       },
@@ -79,8 +102,13 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
       {
         id: 'gw_1',
         output: { text: '' },
-        toolCalls: [{ id: 'call_1', name: 'test', arguments: 'not-json' }],
-        usage: { inputTokens: 1, outputTokens: 2 },
+        toolCalls: [
+          { id: asToolCallId('call_1'), name: 'test', arguments: 'not-json' },
+        ],
+        usage: {
+          inputTokens: asInputTokens(1),
+          outputTokens: asOutputTokens(2),
+        },
       } as ChatResponseDto,
       'claude',
     );
@@ -120,7 +148,10 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
       {
         id: 'gw_1',
         output: { text: 'x' },
-        usage: { inputTokens: 100, outputTokens: 50 },
+        usage: {
+          inputTokens: asInputTokens(100),
+          outputTokens: asOutputTokens(50),
+        },
         usageDetails: {
           promptCacheCreationTokens: 20,
           promptCacheHitTokens: 30,

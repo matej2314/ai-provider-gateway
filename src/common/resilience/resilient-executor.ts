@@ -3,7 +3,11 @@ import { ApiErrorCode } from '../errors/api-error.code';
 import { isRetryableHttpError } from './is-retryable-http-error';
 import { assertNoFallbackCycle } from './fallback-chain';
 import { LoggingService } from '../../logging/logging.service';
-import { asRequestId, type ModelAlias, type RequestId } from 'src/common/types/branded.types';
+import {
+  asRequestId,
+  type ModelAlias,
+  type RequestId,
+} from 'src/common/types/branded.types';
 import {
   asAttemptNumber,
   asMaxAttempts,
@@ -29,8 +33,7 @@ export class ResilientExecutor {
   async executeWithRetryAndFallback<T>(
     options: ResilientExecutionOptions<T>,
   ): Promise<ResilientExecutionResult<T>> {
-    const maxAttempts =
-      options.retry.maxAttempts ?? asMaxAttempts(3);
+    const maxAttempts = options.retry.maxAttempts ?? asMaxAttempts(3);
 
     if (options.validateFallbackChain) {
       options.validateFallbackChain(
@@ -98,7 +101,9 @@ export class ResilientExecutor {
         primaryAlias: options.primaryAlias,
         effectiveModelAlias: fallback.usedAlias,
         attempts: totalAttempts,
-        requestId: options.requestId ? asRequestId(options.requestId) : undefined,
+        requestId: options.requestId
+          ? asRequestId(options.requestId)
+          : undefined,
       });
       return {
         value: fallback.value!,
@@ -121,7 +126,9 @@ export class ResilientExecutor {
         attempts: asAttemptNumber(
           unbrand(primary.attempts) + unbrand(fallback.attempts),
         ),
-        requestId: options.requestId ? asRequestId(options.requestId) : undefined,
+        requestId: options.requestId
+          ? asRequestId(options.requestId)
+          : undefined,
       },
     );
     throw this.toExhaustedException(primary.error, fallback.error, options);

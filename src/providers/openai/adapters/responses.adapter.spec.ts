@@ -3,7 +3,10 @@ import { HttpException } from '@nestjs/common';
 import { createResponsesAdapter } from './responses.adapter';
 import { createMockLoggingService } from '../../../common/mocks/createMockLoggingService';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
-import { asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
+import {
+  asInputTokens,
+  asOutputTokens,
+} from '../../../common/types/branded.types';
 
 function createMockClient() {
   return {
@@ -42,7 +45,9 @@ describe('createResponsesAdapter', () => {
       { thinkingEnabled: true },
     );
 
-    expect(client.responses.create).toHaveBeenCalledWith(
+    expect(
+      (client.responses as unknown as Record<string, unknown>).create,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         model: 'gpt-5.4-mini',
         reasoning: { effort: 'medium', summary: 'auto' },
@@ -70,7 +75,9 @@ describe('createResponsesAdapter', () => {
       'gpt-5.4-mini',
     );
 
-    expect(client.responses.create).toHaveBeenCalledWith(
+    expect(
+      (client.responses as unknown as Record<string, unknown>).create,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: { userId: '123', sessionId: 'abc' },
       }),
@@ -91,7 +98,9 @@ describe('createResponsesAdapter', () => {
       'gpt-5.4-mini',
     );
 
-    expect(client.responses.create).toHaveBeenCalledWith(
+    expect(
+      (client.responses as unknown as Record<string, unknown>).create,
+    ).toHaveBeenCalledWith(
       expect.not.objectContaining({ metadata: expect.anything() }),
     );
   });
@@ -114,7 +123,9 @@ describe('createResponsesAdapter', () => {
       { parallelToolCalls: false },
     );
 
-    expect(client.responses.create).toHaveBeenCalledWith(
+    expect(
+      (client.responses as unknown as Record<string, unknown>).create,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         parallel_tool_calls: false,
       }),
@@ -151,7 +162,7 @@ describe('createResponsesAdapter', () => {
   it('stream exposes thinking content from reasoning summary events', async () => {
     const client = createMockClient();
     (client.responses.create as jest.Mock).mockResolvedValue(
-      (async function* () {
+      (function* () {
         yield {
           type: 'response.reasoning_summary_text.delta',
           delta: 'Thinking ',
@@ -199,7 +210,7 @@ describe('createResponsesAdapter', () => {
   it('stream exposes final tool calls from function_call_arguments.done', async () => {
     const client = createMockClient();
     (client.responses.create as jest.Mock).mockResolvedValue(
-      (async function* () {
+      (function* () {
         yield {
           type: 'response.output_item.added',
           item: {
@@ -239,8 +250,8 @@ describe('createResponsesAdapter', () => {
       'o3-mini',
       { thinkingEnabled: true },
     );
-    for await (const _chunk of stream.textStream) {
-      // consume
+    for await (const chunk of stream.textStream) {
+      void chunk;
     }
     await expect(stream.getFinalToolCalls?.()).resolves.toEqual([
       {

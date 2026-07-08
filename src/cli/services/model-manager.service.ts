@@ -8,15 +8,17 @@ import {
 } from 'src/config/gateway-config.schema';
 import { ConfigPersistenceService } from './config-persistence.service';
 import { DEFAULT_MODELS } from '../constants/default-models';
-import {
-  isThinkingCapableModel,
-} from '../constants/thinking-capable-models';
+import { isThinkingCapableModel } from '../constants/thinking-capable-models';
 import {
   buildDefaultModelPolicy,
   getMaxOutputTokensBound,
 } from '../utils/default-model-policy.util';
 import type { GatewayProviderType } from 'src/config/provider-types';
-import { asProviderInstanceId, asMaxAttempts, asTimeoutMs } from '../../common/types/branded.types';
+import {
+  asProviderInstanceId,
+  asMaxAttempts,
+  asTimeoutMs,
+} from '../../common/types/branded.types';
 import boxen from 'boxen';
 import chalk from 'chalk';
 import {
@@ -311,7 +313,8 @@ export class ModelManagerService {
             min: 0,
             max: 2,
           };
-          const tokenBounds = base.params?.bounds?.maxOutputTokens ??
+          const tokenBounds =
+            base.params?.bounds?.maxOutputTokens ??
             (providerType
               ? {
                   min: 1,
@@ -460,7 +463,9 @@ export class ModelManagerService {
         return;
       }
       delete config.models[alias];
-      await this.persistence.persistConfig(config, cwd, { skipEffectiveCheck: true });
+      await this.persistence.persistConfig(config, cwd, {
+        skipEffectiveCheck: true,
+      });
     } else {
       delete config.models[alias];
       await this.persistence.persistConfig(config, cwd);

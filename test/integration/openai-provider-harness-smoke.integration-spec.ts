@@ -6,8 +6,9 @@ import {
   createOpenAiIntegrationApp,
 } from './helpers/create-openai-integration-app';
 import {
-  INTEGRATION_OPENAI_MODEL_ALIAS,
-  INTEGRATION_OPENAI_PROVIDER_INSTANCE,
+  INTEGRATION_OPENAI_MODEL_ALIAS_BRANDED,
+  INTEGRATION_OPENAI_MODEL_ID_BRANDED,
+  INTEGRATION_OPENAI_PROVIDER_INSTANCE_BRANDED,
 } from './helpers/integration-openai-constants';
 import { INTEGRATION_ROUTES } from './helpers/integration-constants';
 import { hasOpenAiIntegrationEnv } from './helpers/require-integration-env';
@@ -28,15 +29,19 @@ describeOpenAiLive('OpenAI provider harness smoke (integration)', () => {
 
   it('ProviderRegistryService.resolve returns live OpenAI adapter', () => {
     const registry = app.get(ProviderRegistryService);
-    const resolved = registry.resolve(INTEGRATION_OPENAI_MODEL_ALIAS);
+    const resolved = registry.resolve(INTEGRATION_OPENAI_MODEL_ALIAS_BRANDED);
 
-    expect(resolved.providerName).toBe(INTEGRATION_OPENAI_PROVIDER_INSTANCE);
-    expect(resolved.modelId).toBe('gpt-4o-mini');
+    expect(resolved.providerName).toBe(
+      INTEGRATION_OPENAI_PROVIDER_INSTANCE_BRANDED,
+    );
+    expect(resolved.modelId).toBe(INTEGRATION_OPENAI_MODEL_ID_BRANDED);
     expect(resolved.openAiApiSurface).toBe('responses');
     expect(resolved.provider).toBeDefined();
     expect(typeof resolved.provider.complete).toBe('function');
     expect(typeof resolved.provider.stream).toBe('function');
-    expect(resolved.provider.complete).not.toBeInstanceOf(jest.fn());
+    expect(
+      (resolved.provider as unknown as Record<string, unknown>).complete,
+    ).not.toBeInstanceOf(jest.fn());
   });
 
   it('GET /health/ready returns ready', async () => {

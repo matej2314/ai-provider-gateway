@@ -5,6 +5,11 @@ import {
   asEnvRef,
   asGatewayKey,
   asProviderApiKey,
+  asPort,
+  asCacheTtlSeconds,
+  asRateLimitRps,
+  asRateLimitBurst,
+  asMaxConcurrentStreams,
 } from '../../../src/common/types';
 import {
   INTEGRATION_ANTHROPIC_API_KEY_REF,
@@ -77,7 +82,7 @@ function cacheFromEnv() {
   return {
     enabled,
     backend: (enabled ? backendRaw : 'noop') as 'redis' | 'noop' | 'memory',
-    ttl: Number(process.env.CACHE_TTL ?? 60),
+    ttl: asCacheTtlSeconds(Number(process.env.CACHE_TTL ?? 60)),
     keyPrefix: process.env.CACHE_KEY_PREFIX ?? 'it-cache:',
   };
 }
@@ -85,7 +90,7 @@ function cacheFromEnv() {
 function redisFromEnv() {
   return {
     host: process.env.REDIS_HOST ?? '127.0.0.1',
-    port: Number(process.env.REDIS_PORT ?? 6380),
+    port: asPort(Number(process.env.REDIS_PORT ?? 6380)),
     password: process.env.REDIS_PASSWORD ?? '',
     db: Number(process.env.REDIS_DB ?? 15),
     keyPrefix: process.env.REDIS_KEY_PREFIX ?? 'it:',
@@ -96,7 +101,7 @@ function defaultConfiguration(): AppConfiguration {
   return {
     gateway: integrationGatewayConfig,
     gatewayKey: buildGatewayKeyRuntime(),
-    port: Number(process.env.PORT ?? 3000),
+    port: asPort(Number(process.env.PORT ?? 3000)),
     nodeEnv: process.env.NODE_ENV ?? 'test',
     providers: buildProvidersRuntime(),
     resolvedSystemPrompts: INTEGRATION_RESOLVED_PROMPTS,
@@ -104,10 +109,12 @@ function defaultConfiguration(): AppConfiguration {
     redis: redisFromEnv(),
     RATE_LIMIT_SMART_ENABLED: process.env.RATE_LIMIT_SMART_ENABLED === 'true',
     rateLimit: {
-      rps: Number(process.env.RATE_LIMIT_RPS_PER_KEY ?? 10),
-      burst: Number(process.env.RATE_LIMIT_BURST_PER_KEY ?? 20),
-      maxConcurrentStreams: Number(
-        process.env.RATE_LIMIT_STREAMS_CONCURRENT ?? 3,
+      rps: asRateLimitRps(Number(process.env.RATE_LIMIT_RPS_PER_KEY ?? 10)),
+      burst: asRateLimitBurst(
+        Number(process.env.RATE_LIMIT_BURST_PER_KEY ?? 20),
+      ),
+      maxConcurrentStreams: asMaxConcurrentStreams(
+        Number(process.env.RATE_LIMIT_STREAMS_CONCURRENT ?? 3),
       ),
       cooldownAfter429: Number(process.env.RATE_LIMIT_COOLDOWN_AFTER_429 ?? 60),
     },

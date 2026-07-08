@@ -219,7 +219,8 @@ describe('SmartRateLimiterService', () => {
         configuredClient,
       ]);
 
-      const result = await configuredService.checkConcurrentStreams(configuredKey);
+      const result =
+        await configuredService.checkConcurrentStreams(configuredKey);
 
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(0);
@@ -242,7 +243,9 @@ describe('SmartRateLimiterService', () => {
     it('should allow when Redis not ready', async () => {
       (mockRedis.isReady as jest.Mock).mockReturnValue(false);
 
-      const result = await service.checkConcurrentStreams(asGatewayKey('gw_key_123'));
+      const result = await service.checkConcurrentStreams(
+        asGatewayKey('gw_key_123'),
+      );
 
       expect(result.allowed).toBe(true);
     });
@@ -250,7 +253,9 @@ describe('SmartRateLimiterService', () => {
     it('should allow when under limit', async () => {
       mockRedisClient.incr.mockResolvedValue(2);
 
-      const result = await service.checkConcurrentStreams(asGatewayKey('gw_key_123'));
+      const result = await service.checkConcurrentStreams(
+        asGatewayKey('gw_key_123'),
+      );
 
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(1);
@@ -259,7 +264,9 @@ describe('SmartRateLimiterService', () => {
     it('should deny when at limit', async () => {
       mockRedisClient.incr.mockResolvedValue(4);
 
-      const result = await service.checkConcurrentStreams(asGatewayKey('gw_key_123'));
+      const result = await service.checkConcurrentStreams(
+        asGatewayKey('gw_key_123'),
+      );
 
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('Max concurrent streams');
@@ -280,7 +287,9 @@ describe('SmartRateLimiterService', () => {
     it('should fallback on error', async () => {
       mockRedisClient.incr.mockRejectedValue(new Error('Redis error'));
 
-      const result = await service.checkConcurrentStreams(asGatewayKey('gw_key_123'));
+      const result = await service.checkConcurrentStreams(
+        asGatewayKey('gw_key_123'),
+      );
 
       expect(result.allowed).toBe(true);
       expect(mockLogger.error).toHaveBeenCalled();
@@ -299,7 +308,9 @@ describe('SmartRateLimiterService', () => {
     it('should not throw on error', async () => {
       mockRedisClient.decr.mockRejectedValue(new Error('Redis error'));
 
-      await expect(service.releaseStream(asGatewayKey('gw_key_123'))).resolves.not.toThrow();
+      await expect(
+        service.releaseStream(asGatewayKey('gw_key_123')),
+      ).resolves.not.toThrow();
       expect(mockLogger.error).toHaveBeenCalled();
     });
 
@@ -344,7 +355,10 @@ describe('SmartRateLimiterService', () => {
     it('should allow when Redis not ready', async () => {
       (mockRedis.isReady as jest.Mock).mockReturnValue(false);
 
-      const result = await service.checkCooldown(asGatewayKey('gw_key_123'), 'anthropic');
+      const result = await service.checkCooldown(
+        asGatewayKey('gw_key_123'),
+        'anthropic',
+      );
 
       expect(result.allowed).toBe(true);
     });
@@ -352,7 +366,10 @@ describe('SmartRateLimiterService', () => {
     it('should allow when no cooldown', async () => {
       mockRedisClient.ttl.mockResolvedValue(-1);
 
-      const result = await service.checkCooldown(asGatewayKey('gw_key_123'), 'anthropic');
+      const result = await service.checkCooldown(
+        asGatewayKey('gw_key_123'),
+        'anthropic',
+      );
 
       expect(result.allowed).toBe(true);
     });
@@ -360,7 +377,10 @@ describe('SmartRateLimiterService', () => {
     it('should deny when in cooldown', async () => {
       mockRedisClient.ttl.mockResolvedValue(30);
 
-      const result = await service.checkCooldown(asGatewayKey('gw_key_123'), 'anthropic');
+      const result = await service.checkCooldown(
+        asGatewayKey('gw_key_123'),
+        'anthropic',
+      );
 
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('cooldown');
@@ -370,7 +390,10 @@ describe('SmartRateLimiterService', () => {
     it('should fallback on error', async () => {
       mockRedisClient.ttl.mockRejectedValue(new Error('Redis error'));
 
-      const result = await service.checkCooldown(asGatewayKey('gw_key_123'), 'anthropic');
+      const result = await service.checkCooldown(
+        asGatewayKey('gw_key_123'),
+        'anthropic',
+      );
 
       expect(result.allowed).toBe(true);
       expect(mockLogger.error).toHaveBeenCalled();

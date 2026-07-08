@@ -22,9 +22,7 @@ describe('assertNoFallbackCycle', () => {
   });
 
   it('should throw when primaryAlias equals fallbackAlias', () => {
-    expect(() => assertNoFallbackCycle(alias1, alias1)).toThrow(
-      HttpException,
-    );
+    expect(() => assertNoFallbackCycle(alias1, alias1)).toThrow(HttpException);
 
     try {
       assertNoFallbackCycle(alias1, alias1);

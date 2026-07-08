@@ -24,6 +24,11 @@ import {
 } from './integration-openai-constants';
 import { buildOpenAiIntegrationGatewayModels } from './integration-openai-gateway-config';
 import { requireOpenAiIntegrationEnv } from './require-integration-env';
+import {
+  asBaseUrl,
+  asEnvRef,
+  asProviderApiKey,
+} from '../../../src/common/types';
 
 export type CreateOpenAiIntegrationAppOptions = {
   cacheEnabled?: boolean;
@@ -53,14 +58,14 @@ function buildOpenAiIntegrationConfigOptions(
         [INTEGRATION_GATEWAY_CLIENT_ID]: {
           name: 'Integration IDE Client',
           type: 'ide',
-          gatewayKeyRef: INTEGRATION_GATEWAY_KEY_REF,
+          gatewayKeyRef: asEnvRef(INTEGRATION_GATEWAY_KEY_REF),
         },
       },
       providers: {
         [INTEGRATION_OPENAI_PROVIDER_INSTANCE]: {
           type: 'openai',
-          apiKeyRef: INTEGRATION_OPENAI_API_KEY_REF,
-          baseUrlRef: INTEGRATION_OPENAI_BASE_URL_REF,
+          apiKeyRef: asEnvRef(INTEGRATION_OPENAI_API_KEY_REF),
+          baseUrlRef: asEnvRef(INTEGRATION_OPENAI_BASE_URL_REF),
           enabled: true,
         },
       },
@@ -73,10 +78,10 @@ function buildOpenAiIntegrationConfigOptions(
     providers: {
       [INTEGRATION_OPENAI_PROVIDER_INSTANCE]: {
         type: 'openai',
-        apiKeyRef: INTEGRATION_OPENAI_API_KEY_REF,
-        apiKey,
-        baseUrlRef: INTEGRATION_OPENAI_BASE_URL_REF,
-        baseUrl,
+        apiKeyRef: asEnvRef(INTEGRATION_OPENAI_API_KEY_REF),
+        apiKey: asProviderApiKey(apiKey),
+        baseUrlRef: asEnvRef(INTEGRATION_OPENAI_BASE_URL_REF),
+        baseUrl: asBaseUrl(baseUrl),
       },
     },
     resolvedSystemPrompts: INTEGRATION_RESOLVED_PROMPTS,

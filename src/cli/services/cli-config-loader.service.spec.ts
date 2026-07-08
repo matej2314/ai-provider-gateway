@@ -24,14 +24,22 @@ describe('CliConfigLoaderService', () => {
 
   it('configExists should return true when file exists', () => {
     const configPath = join(tempDir, 'gateway.config.yaml');
-    writeFileSync(configPath, readFixture('valid-gateway.config.yaml'), 'utf-8');
+    writeFileSync(
+      configPath,
+      readFixture('valid-gateway.config.yaml'),
+      'utf-8',
+    );
 
     expect(service.configExists(configPath)).toBe(true);
   });
 
   it('loadRawConfig should parse valid fixture YAML', () => {
     const configPath = join(tempDir, 'gateway.config.yaml');
-    writeFileSync(configPath, readFixture('valid-gateway.config.yaml'), 'utf-8');
+    writeFileSync(
+      configPath,
+      readFixture('valid-gateway.config.yaml'),
+      'utf-8',
+    );
 
     const config = service.loadRawConfig(configPath);
 
@@ -73,14 +81,22 @@ describe('CliConfigLoaderService', () => {
 
   it('isBoilerplateConfig should return false for valid config', () => {
     const configPath = join(tempDir, 'gateway.config.yaml');
-    writeFileSync(configPath, readFixture('valid-gateway.config.yaml'), 'utf-8');
+    writeFileSync(
+      configPath,
+      readFixture('valid-gateway.config.yaml'),
+      'utf-8',
+    );
 
     expect(service.isBoilerplateConfig(configPath)).toBe(false);
   });
 
   it('loadWithEnvCheck should report missing env refs', () => {
     const configPath = join(tempDir, 'gateway.config.yaml');
-    writeFileSync(configPath, readFixture('valid-gateway.config.yaml'), 'utf-8');
+    writeFileSync(
+      configPath,
+      readFixture('valid-gateway.config.yaml'),
+      'utf-8',
+    );
 
     const savedMasterKey = process.env.MASTER_KEY_TEST;
     const savedApiKey = process.env.ANTHROPIC_API_KEY_TEST;
@@ -122,7 +138,11 @@ describe('CliConfigLoaderService', () => {
 
   it('loadWithEnvCheck should return empty missing list when env is complete', () => {
     const configPath = join(tempDir, 'gateway.config.yaml');
-    writeFileSync(configPath, readFixture('valid-gateway.config.yaml'), 'utf-8');
+    writeFileSync(
+      configPath,
+      readFixture('valid-gateway.config.yaml'),
+      'utf-8',
+    );
 
     const savedMasterKey = process.env.MASTER_KEY_TEST;
     const savedApiKey = process.env.ANTHROPIC_API_KEY_TEST;

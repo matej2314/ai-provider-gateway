@@ -21,7 +21,9 @@ export function isLastModelInConfig(
   config: GatewayConfig,
   alias: string,
 ): boolean {
-  return Object.keys(config.models).length === 1 && config.models[alias] != null;
+  return (
+    Object.keys(config.models).length === 1 && config.models[alias] != null
+  );
 }
 
 export function countModelsForInstance(

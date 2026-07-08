@@ -1,7 +1,6 @@
 import type { Request, Response } from 'express';
 import { asGatewayKey, asRequestId } from '../types';
 
-
 export function createMockExpressRequest(
   overrides?: Partial<Request>,
 ): Partial<Request> {

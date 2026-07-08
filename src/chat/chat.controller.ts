@@ -10,7 +10,11 @@ import {
 import { ChatService } from './chat.service';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { GatewayKeyAndSmartRateLimit } from '../common/decorators/gateway-key-and-smart-rate-limit.decorator';
-import { ChatResponseDto, toChatResponseDto, toChatResponseDtoFromCache } from './dto/chat-response.dto';
+import {
+  ChatResponseDto,
+  toChatResponseDto,
+  toChatResponseDtoFromCache,
+} from './dto/chat-response.dto';
 import { ApiGatewayChatErrorResponses } from '../common/decorators/api-gateway-error-responses.decorator';
 import { ApiRequestIdHeader } from '../common/decorators/api-request-id-header.decorator';
 import { requireClientGatewayKey } from '../common/requireClientGatewayKey';

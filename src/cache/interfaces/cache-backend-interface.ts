@@ -1,4 +1,7 @@
-import type { CacheKey, CacheTtlSeconds } from '../../common/types/branded.types';
+import type {
+  CacheKey,
+  CacheTtlSeconds,
+} from '../../common/types/branded.types';
 
 export interface CacheBackend {
   isAvailable(): boolean;

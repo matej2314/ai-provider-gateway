@@ -10,7 +10,9 @@ describe('validateProviderApiKey', () => {
   });
 
   it('requires key for anthropic', () => {
-    expect(validateProviderApiKey('anthropic', '')).toBe('API key is required.');
+    expect(validateProviderApiKey('anthropic', '')).toBe(
+      'API key is required.',
+    );
   });
 
   it('requires key for google', () => {

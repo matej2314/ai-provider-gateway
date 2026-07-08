@@ -10,6 +10,10 @@ import {
   E2E_ROUTES,
 } from './helpers/e2e-constants';
 import { parseGatewaySseEvents } from '../integration/helpers/parse-gateway-sse-events';
+import {
+  asInputTokens,
+  asOutputTokens,
+} from '../../src/common/types/branded.types';
 
 describe('Gateway Chat API — OpenAI provider (E2E)', () => {
   const validBody = {
@@ -24,7 +28,10 @@ describe('Gateway Chat API — OpenAI provider (E2E)', () => {
           providerRegistry: createE2eOpenAiProviderRegistry({
             completeResponse: {
               text: 'OpenAI mocked reply',
-              usage: { inputTokens: 12, outputTokens: 8 },
+              usage: {
+                inputTokens: asInputTokens(12),
+                outputTokens: asOutputTokens(8),
+              },
             },
           }),
         },
@@ -47,7 +54,10 @@ describe('Gateway Chat API — OpenAI provider (E2E)', () => {
               outputTokens: 8,
             },
           });
-          expect(providerRegistry.provider.complete).toHaveBeenCalledTimes(1);
+          expect(
+            (providerRegistry.provider as unknown as Record<string, unknown>)
+              .complete,
+          ).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -255,14 +265,14 @@ describe('Gateway Chat API — OpenAI provider (E2E)', () => {
 
           const events = parseGatewaySseEvents(response.text);
           expect(events.some((e) => e.event === 'meta')).toBe(true);
-          expect(events.filter((e) => e.event === 'delta').length).toBeGreaterThan(
-            0,
-          );
+          expect(
+            events.filter((e) => e.event === 'delta').length,
+          ).toBeGreaterThan(0);
           expect(events.some((e) => e.event === 'done')).toBe(true);
 
           const streamedText = events
             .filter((e) => e.event === 'delta')
-            .map((e) => String(e.data.text ?? ''))
+            .map((e) => (typeof e.data.text === 'string' ? e.data.text : ''))
             .join('');
           expect(streamedText).toBe('Hello OpenAI');
         },
@@ -333,7 +343,10 @@ describe('Gateway Chat API — OpenAI provider (E2E)', () => {
             })
             .expect(E2E_POST_SUCCESS_STATUS);
 
-          expect(providerRegistry.provider.complete).toHaveBeenCalledWith(
+          expect(
+            (providerRegistry.provider as unknown as Record<string, unknown>)
+              .complete,
+          ).toHaveBeenCalledWith(
             expect.anything(),
             expect.anything(),
             expect.objectContaining({

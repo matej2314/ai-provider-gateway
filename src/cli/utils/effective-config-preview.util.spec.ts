@@ -36,7 +36,9 @@ describe('effective-config-preview.util', () => {
         },
       });
 
-      expect(isLastModelForEnabledProvider(config, 'anthropic-model')).toBe(true);
+      expect(isLastModelForEnabledProvider(config, 'anthropic-model')).toBe(
+        true,
+      );
       expect(isLastModelForEnabledProvider(config, 'google-model')).toBe(true);
     });
 

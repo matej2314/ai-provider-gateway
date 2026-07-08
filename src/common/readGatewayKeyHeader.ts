@@ -7,4 +7,3 @@ export function readGatewayKeyHeader(req: Request): GatewayKey | undefined {
 
   return trimmed ? asGatewayKey(trimmed) : undefined;
 }
- 

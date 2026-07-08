@@ -3,6 +3,7 @@ import {
   extractResponsesStreamToolCallDone,
   registerResponsesFunctionCallItemId,
 } from './openai-responses-stream-provider.mapper';
+import { asToolCallId } from '../../../common/types/branded.types';
 
 describe('openai-responses-stream-provider.mapper', () => {
   it('resolves call_id from item_id registry', () => {
@@ -29,7 +30,7 @@ describe('openai-responses-stream-provider.mapper', () => {
     );
 
     expect(call).toEqual({
-      id: 'call_456',
+      id: asToolCallId('call_456'),
       name: 'fn',
       arguments: '{"a":1}',
     });
@@ -46,7 +47,7 @@ describe('openai-responses-stream-provider.mapper', () => {
       new Map(),
     );
 
-    expect(call.id).toBe('item_123');
+    expect(call.id).toBe(asToolCallId('item_123'));
   });
 
   it('extractResponsesOutputItemToolCall uses call_id', () => {
@@ -59,7 +60,7 @@ describe('openai-responses-stream-provider.mapper', () => {
         arguments: '{"b":2}',
       } as never),
     ).toEqual({
-      id: 'call_456',
+      id: asToolCallId('call_456'),
       name: 'fn',
       arguments: '{"b":2}',
     });

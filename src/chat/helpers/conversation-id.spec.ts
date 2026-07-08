@@ -8,11 +8,19 @@ import {
   getOrCreateConversationIdForResponse,
 } from './conversation-id';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
+import {
+  MOCK_UUID,
+  TEST_CONVERSATION_ID,
+  VALID_CONVERSATION_ID,
+} from '../../common/mocks/test-constants';
+import { asConversationId } from '../../common/types/branded.types';
 
 const mockedUuidV4 = uuidv4 as unknown as jest.Mock<string>;
 
-const VALID_CONV_ID = 'conv_123e4567-e89b-12d3-a456-426614174000';
-const VALID_CONV_ID_ALT = 'conv_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+const VALID_CONV_ID = VALID_CONVERSATION_ID;
+const VALID_CONV_ID_ALT = asConversationId(
+  'conv_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+);
 
 describe('getClientConversationId', () => {
   it('should return conversation ID when provided', () => {
@@ -24,7 +32,7 @@ describe('getClientConversationId', () => {
 
     const result = getClientConversationId(request);
 
-    expect(result).toBe(VALID_CONV_ID);
+    expect(result).toBe(TEST_CONVERSATION_ID);
   });
 
   it('should trim conversation ID', () => {
@@ -36,7 +44,7 @@ describe('getClientConversationId', () => {
 
     const result = getClientConversationId(request);
 
-    expect(result).toBe(VALID_CONV_ID);
+    expect(result).toBe(TEST_CONVERSATION_ID);
   });
 
   it('should return undefined when conversationId not provided', () => {
@@ -101,12 +109,12 @@ describe('getOrCreateConversationIdForResponse', () => {
 
     const result = getOrCreateConversationIdForResponse(request);
 
-    expect(result).toBe(VALID_CONV_ID);
+    expect(result).toBe(TEST_CONVERSATION_ID);
     expect(mockedUuidV4).not.toHaveBeenCalled();
   });
 
   it('should generate new conversation ID when not provided', () => {
-    mockedUuidV4.mockReturnValue('123e4567-e89b-12d3-a456-426614174000');
+    mockedUuidV4.mockReturnValue(MOCK_UUID);
 
     const request: ChatRequestDto = {
       modelAlias: 'test-model',
@@ -115,7 +123,7 @@ describe('getOrCreateConversationIdForResponse', () => {
 
     const result = getOrCreateConversationIdForResponse(request);
 
-    expect(result).toBe(VALID_CONV_ID);
+    expect(result).toBe(TEST_CONVERSATION_ID);
     expect(mockedUuidV4).toHaveBeenCalledTimes(1);
   });
 
@@ -192,7 +200,7 @@ describe('getOrCreateConversationIdForResponse', () => {
 
     const result = getOrCreateConversationIdForResponse(request);
 
-    expect(result).toBe(VALID_CONV_ID);
+    expect(result).toBe(TEST_CONVERSATION_ID);
     expect(mockedUuidV4).not.toHaveBeenCalled();
   });
 

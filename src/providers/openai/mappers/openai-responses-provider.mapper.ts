@@ -1,6 +1,10 @@
 import type OpenAI from 'openai';
 import type { ProviderChatResponse } from 'src/providers/interfaces/ai-provider.interface';
-import { asToolCallId, asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
+import {
+  asToolCallId,
+  asInputTokens,
+  asOutputTokens,
+} from '../../../common/types/branded.types';
 
 function extractResponsesToolCalls(
   output: OpenAI.Responses.Response['output'] | undefined,

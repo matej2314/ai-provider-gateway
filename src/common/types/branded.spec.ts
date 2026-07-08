@@ -15,8 +15,25 @@ import {
   asMaxConcurrentStreams,
   asAttemptNumber,
   asSchemaVersion,
+  asGatewayKey,
+  asProviderApiKey,
+  asEnvRef,
+  asResponseId,
+  asMessageId,
+  asToolCallId,
+  asClientId,
+  asProviderInstanceId,
+  asJsonSchemaName,
+  asModelAlias,
+  asModelId,
+  asInputTokens,
+  asOutputTokens,
+  asThinkingBudgetTokens,
+  asCostUsd,
+  asPromptCacheHitTokens,
+  asPromptCacheCreationTokens,
+  asWarningCode,
   type RequestId,
-  type ConversationId,
 } from './branded.types';
 import {
   createConversationId,
@@ -307,5 +324,85 @@ describe('configuration type guards (Faza 4)', () => {
     expect(isAttemptNumber(0)).toBe(false);
     expect(isSchemaVersion(1)).toBe(true);
     expect(isSchemaVersion(0)).toBe(false);
+  });
+});
+
+// ========================================
+// SECURITY-CRITICAL (Faza 1)
+// ========================================
+
+describe('security-critical pass-through helpers', () => {
+  it('asGatewayKey casts without validation', () => {
+    const key = asGatewayKey('gw_test_key_123');
+    expect(key).toBe('gw_test_key_123');
+    expect(unbrand(key)).toBe('gw_test_key_123');
+  });
+
+  it('asProviderApiKey casts without validation', () => {
+    const key = asProviderApiKey('sk-ant-test');
+    expect(key).toBe('sk-ant-test');
+  });
+
+  it('asEnvRef casts without validation', () => {
+    expect(asEnvRef('ANTHROPIC_API_KEY')).toBe('ANTHROPIC_API_KEY');
+  });
+});
+
+// ========================================
+// IDENTIFIERS & TRACKING (Faza 2)
+// ========================================
+
+describe('identifier pass-through helpers', () => {
+  it('asResponseId / asMessageId cast without validation', () => {
+    expect(asResponseId('gw_abc')).toBe('gw_abc');
+    expect(asMessageId('msg_abc')).toBe('msg_abc');
+  });
+
+  it('asToolCallId / asClientId / asProviderInstanceId cast without validation', () => {
+    expect(asToolCallId('call_1')).toBe('call_1');
+    expect(asClientId('ide-client')).toBe('ide-client');
+    expect(asProviderInstanceId('anthropic-primary')).toBe('anthropic-primary');
+  });
+
+  it('asJsonSchemaName / asModelAlias / asModelId cast without validation', () => {
+    expect(asJsonSchemaName('weather_schema')).toBe('weather_schema');
+    expect(asModelAlias('claude-sonnet')).toBe('claude-sonnet');
+    expect(asModelId('claude-sonnet-4-5-20250929')).toBe(
+      'claude-sonnet-4-5-20250929',
+    );
+  });
+});
+
+// ========================================
+// METRICS & USAGE (Faza 3)
+// ========================================
+
+describe('metrics pass-through helpers', () => {
+  it('asInputTokens / asOutputTokens cast without validation', () => {
+    expect(asInputTokens(10)).toBe(10);
+    expect(asOutputTokens(20)).toBe(20);
+  });
+
+  it('asThinkingBudgetTokens / asCostUsd cast without validation', () => {
+    expect(asThinkingBudgetTokens(2048)).toBe(2048);
+    expect(asCostUsd(0.001)).toBe(0.001);
+  });
+
+  it('asPromptCacheHitTokens / asPromptCacheCreationTokens cast without validation', () => {
+    expect(asPromptCacheHitTokens(100)).toBe(100);
+    expect(asPromptCacheCreationTokens(50)).toBe(50);
+  });
+});
+
+// ========================================
+// ERROR & WARNING CODES (Faza 5)
+// ========================================
+
+describe('asWarningCode', () => {
+  it('casts without validation', () => {
+    expect(asWarningCode('PARAM_IGNORED_BY_PROVIDER')).toBe(
+      'PARAM_IGNORED_BY_PROVIDER',
+    );
+    expect(asWarningCode('')).toBe('');
   });
 });

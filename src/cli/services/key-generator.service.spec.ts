@@ -31,5 +31,4 @@ describe('KeyGeneratorService', () => {
 
     expect(key).toMatch(/^gw_my_client_/);
   });
-
 });

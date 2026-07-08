@@ -9,6 +9,7 @@ import { flushIntegrationRedisDb } from './helpers/flush-integration-redis';
 import {
   getIntegrationGatewayKey,
   INTEGRATION_MODEL_ALIAS,
+  INTEGRATION_MODEL_ALIAS_BRANDED,
   INTEGRATION_POST_SUCCESS_STATUS,
   INTEGRATION_ROUTES,
 } from './helpers/integration-constants';
@@ -49,7 +50,7 @@ describe('Gateway chat cache tooling bypass (integration)', () => {
     app = context.app;
 
     const registry = app.get(ProviderRegistryService);
-    const resolved = registry.resolve(INTEGRATION_MODEL_ALIAS);
+    const resolved = registry.resolve(INTEGRATION_MODEL_ALIAS_BRANDED);
     completeSpy = jest.spyOn(resolved.provider, 'complete');
   });
 

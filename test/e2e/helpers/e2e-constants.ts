@@ -1,6 +1,11 @@
 import { API_GLOBAL_PREFIX } from '../../../src/setup.app';
 import { TEST_GATEWAY_KEY } from '../../../src/common/mocks/test-constants';
-import { asGatewayKey, type GatewayKey } from '../../../src/common/types';
+import {
+  asGatewayKey,
+  asModelAlias,
+  asProviderInstanceId,
+  type GatewayKey,
+} from '../../../src/common/types';
 
 export const E2E_GATEWAY_KEY: GatewayKey = asGatewayKey(TEST_GATEWAY_KEY);
 export const E2E_INVALID_GATEWAY_KEY: GatewayKey = asGatewayKey(
@@ -10,6 +15,12 @@ export const E2E_API_PREFIX = `/${API_GLOBAL_PREFIX}`;
 
 export const E2E_OPENAI_MODEL_ALIAS = 'gpt-4o';
 export const E2E_OPENAI_PROVIDER_INSTANCE = 'openai-primary';
+export const E2E_OPENAI_MODEL_ALIAS_BRANDED = asModelAlias(
+  E2E_OPENAI_MODEL_ALIAS,
+);
+export const E2E_OPENAI_PROVIDER_INSTANCE_BRANDED = asProviderInstanceId(
+  E2E_OPENAI_PROVIDER_INSTANCE,
+);
 
 export const E2E_ROUTES = {
   chat: `${E2E_API_PREFIX}/chat`,

@@ -73,18 +73,16 @@ export class ProviderPromptService {
 
       let apiKey = '';
       if (isOpenAiProviderType(providerType)) {
-        const { optionalKey } = await inquirer.prompt<{ optionalKey: string }>(
-          [
-            {
-              type: 'password',
-              name: 'optionalKey',
-              message: `API key for ${providerType} (optional, env: ${apiKeyRef}):`,
-              mask: '*',
-              validate: (input: string) =>
-                validateProviderApiKey(providerType, String(input)),
-            },
-          ],
-        );
+        const { optionalKey } = await inquirer.prompt<{ optionalKey: string }>([
+          {
+            type: 'password',
+            name: 'optionalKey',
+            message: `API key for ${providerType} (optional, env: ${apiKeyRef}):`,
+            mask: '*',
+            validate: (input: string) =>
+              validateProviderApiKey(providerType, String(input)),
+          },
+        ]);
         apiKey = String(optionalKey).trim();
       } else {
         const { requiredKey } = await inquirer.prompt<{ requiredKey: string }>([

@@ -1,4 +1,7 @@
-import type { RequestId, ProviderInstanceId} from '../../common/types/branded.types';
+import type {
+  RequestId,
+  ProviderInstanceId,
+} from '../../common/types/branded.types';
 
 export interface LogContext {
   requestId?: RequestId;

@@ -13,7 +13,7 @@ import type {
 } from '../../providers/interfaces/ai-provider.interface';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { ChatMessageDto } from '../dto/chat-message.dto';
-import { asToolCallId, type ToolCallId } from '../../common/types/branded.types';
+import { asToolCallId } from '../../common/types/branded.types';
 
 export function toProviderTurns(
   messages: ChatMessageDto[],

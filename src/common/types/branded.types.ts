@@ -10,7 +10,7 @@ export type Brand<K, T> = K & { readonly __brand: T };
  * Utility to extract base type from branded type
  */
 
-export type UnBrand<T> = T extends Brand<infer K, any> ? K : T;
+export type UnBrand<T> = T extends Brand<infer K, unknown> ? K : T;
 
 /**
  * Generic cast function (runtime no-op, compile-time type assertion)
@@ -255,6 +255,12 @@ export const asAttemptNumber = (value: number): AttemptNumber => {
 export const asSchemaVersion = (value: number): SchemaVersion => {
   if (value < 1) throw new Error('SchemaVersion must be >= 1');
   return Math.floor(value) as SchemaVersion;
+};
+
+export type WarningCode = Brand<string, 'WarningCode'>;
+
+export const asWarningCode = (value: string): WarningCode => {
+  return value as WarningCode;
 };
 
 export const asRequestId = (value: string): RequestId => value as RequestId;

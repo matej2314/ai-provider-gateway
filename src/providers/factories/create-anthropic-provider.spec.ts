@@ -32,7 +32,10 @@ describe('createAnthropicProvider', () => {
   describe('anthropic factory', () => {
     it('should throw when apiKey empty', () => {
       expect(() =>
-        createAnthropicProvider(asProviderApiKey(''), mockLogger as LoggingService),
+        createAnthropicProvider(
+          asProviderApiKey(''),
+          mockLogger as LoggingService,
+        ),
       ).toThrow('[createAnthropicProvider] API key is required.');
     });
 
@@ -51,7 +54,10 @@ describe('createAnthropicProvider', () => {
     });
 
     it('should create Anthropic client with apiKey', () => {
-      createAnthropicProvider(asProviderApiKey('my-api-key'), mockLogger as LoggingService);
+      createAnthropicProvider(
+        asProviderApiKey('my-api-key'),
+        mockLogger as LoggingService,
+      );
 
       expect(Anthropic).toHaveBeenCalledWith({ apiKey: 'my-api-key' });
     });

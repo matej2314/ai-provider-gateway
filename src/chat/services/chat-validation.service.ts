@@ -9,7 +9,6 @@ import { asProviderInstanceId } from '../../common/types/branded.types';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
 
-
 @Injectable()
 export class ChatValidationService {
   constructor(

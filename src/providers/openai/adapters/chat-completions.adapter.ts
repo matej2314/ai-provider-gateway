@@ -23,7 +23,11 @@ import type {
   ProviderChatResponse,
   StreamResult,
 } from '../../interfaces/ai-provider.interface';
-import { asInputTokens, asOutputTokens, asSystemFingerprint } from '../../../common/types/branded.types';
+import {
+  asInputTokens,
+  asOutputTokens,
+  asSystemFingerprint,
+} from '../../../common/types/branded.types';
 
 export interface ChatCompletionsAdapterOptions {
   includeStreamUsage?: boolean;
@@ -113,31 +117,34 @@ export function createChatCompletionsAdapter(
       }
       return {
         textStream: textStream(),
-        getUsageMetadata: async () => {
+        getUsageMetadata: () => {
           const usage = finalChunk?.usage;
-          if (!usage) return undefined;
-          return {
+          if (!usage) return Promise.resolve(undefined);
+          return Promise.resolve({
             inputTokens: asInputTokens(usage.prompt_tokens ?? 0),
             outputTokens: asOutputTokens(usage.completion_tokens ?? 0),
             model: finalChunk?.model ?? modelId,
-          };
+          });
         },
 
-        getFinalToolCalls: async () => {
+        getFinalToolCalls: () => {
           const calls = finalizeOpenAiStreamToolCalls(toolCallAccumulator);
-          return calls.length ? calls : undefined;
+          return Promise.resolve(calls.length ? calls : undefined);
         },
-        getStopReason: async () => {
+        getStopReason: () => {
           const reason = finalChunk?.choices[0]?.finish_reason;
-          if (reason === 'tool_calls') return 'tool_calls';
-          if (reason === 'length') return 'length';
-          if (reason === 'content_filter') return 'content_filter';
-          return 'stop';
+          if (reason === 'tool_calls') return Promise.resolve('tool_calls');
+          if (reason === 'length') return Promise.resolve('length');
+          if (reason === 'content_filter')
+            return Promise.resolve('content_filter');
+          return Promise.resolve('stop');
         },
-        getSystemFingerprint: async () =>
-          finalChunk?.system_fingerprint
-            ? asSystemFingerprint(finalChunk.system_fingerprint)
-            : undefined,
+        getSystemFingerprint: () =>
+          Promise.resolve(
+            finalChunk?.system_fingerprint
+              ? asSystemFingerprint(finalChunk.system_fingerprint)
+              : undefined,
+          ),
       };
     },
   };

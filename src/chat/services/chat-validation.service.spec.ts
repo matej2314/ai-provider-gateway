@@ -7,6 +7,7 @@ import { ApiErrorCode } from '../../common/errors/api-error.code';
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
 import { createMockDefaultResolvedConfig } from '../../common/mocks/createMockResolvedProviderConfig';
 import { createMockAIProvider } from '../../common/mocks/createMockAIProvider';
+import { asModelId } from '../../common/types/branded.types';
 import { TEST_MODEL_ALIAS } from '../../common/mocks/test-constants';
 import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
@@ -157,11 +158,6 @@ describe('ChatValidationService', () => {
   });
 
   describe('validateThinking', () => {
-    const baseRequest: ChatRequestDto = {
-      modelAlias: TEST_MODEL_ALIAS,
-      messages: [{ role: 'user', content: 'Hi' }],
-    };
-
     describe('Happy path', () => {
       it('should pass when thinkingEnabled is false', () => {
         const options = { thinkingEnabled: false };
@@ -214,15 +210,19 @@ describe('ChatValidationService', () => {
         } as unknown as ResolvedProviderConfig;
         const options = { thinkingEnabled: true };
 
-        expect(() =>
-          service.validateThinking(configNoThinking, options),
-        ).toThrow(
-          expect.objectContaining({
-            response: expect.objectContaining({
-              code: ApiErrorCode.THINKING_NOT_SUPPORTED,
-            }),
-          }),
-        );
+        try {
+          service.validateThinking(configNoThinking, options);
+          fail('Expected HttpException');
+        } catch (error) {
+          expect(error).toBeInstanceOf(HttpException);
+          const ex = error as HttpException;
+          expect(ex.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+          expect(ex.getResponse()).toEqual({
+            code: ApiErrorCode.THINKING_NOT_SUPPORTED,
+            message: 'Extended thinking is not supported for this model alias.',
+            details: [],
+          });
+        }
       });
 
       it('should throw THINKING_NOT_SUPPORTED for openai implicit string effort without capability', () => {
@@ -232,22 +232,26 @@ describe('ChatValidationService', () => {
           capabilities: { streaming: true, thinking: false },
         };
 
-        expect(() =>
-          service.validateThinking(configOpenAi, { thinkingBudget: 'high' }),
-        ).toThrow(
-          expect.objectContaining({
-            response: expect.objectContaining({
-              code: ApiErrorCode.THINKING_NOT_SUPPORTED,
-            }),
-          }),
-        );
+        try {
+          service.validateThinking(configOpenAi, { thinkingBudget: 'high' });
+          fail('Expected HttpException');
+        } catch (error) {
+          expect(error).toBeInstanceOf(HttpException);
+          const ex = error as HttpException;
+          expect(ex.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+          expect(ex.getResponse()).toEqual({
+            code: ApiErrorCode.THINKING_NOT_SUPPORTED,
+            message: 'Extended thinking is not supported for this model alias.',
+            details: [],
+          });
+        }
       });
 
       it('should pass for openai o3-mini without thinking params', () => {
         const configOpenAi: ResolvedProviderConfig = {
           ...resolvedConfig,
           providerType: 'openai',
-          modelId: 'o3-mini',
+          modelId: asModelId('o3-mini'),
           capabilities: { streaming: true, thinking: false },
         };
 

@@ -9,7 +9,11 @@ import {
   TEST_PROVIDER_INSTANCE_BRANDED,
   TEST_REQUEST_ID,
 } from '../common/mocks/test-constants';
-import { asInputTokens, asOutputTokens, asCostUsd } from '../common/types/branded.types';
+import {
+  asInputTokens,
+  asOutputTokens,
+  asCostUsd,
+} from '../common/types/branded.types';
 
 describe('MetricsService', () => {
   let service: MetricsService;

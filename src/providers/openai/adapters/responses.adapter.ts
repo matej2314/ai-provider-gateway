@@ -26,7 +26,11 @@ import {
   extractResponsesReasoningSummaryText,
 } from '../mappers/openai-responses-thinking-provider.mapper';
 import { mapThinkingToResponsesReasoning } from '../mappers/openai-thinking-provider.mapper';
-import { asToolCallId, asInputTokens, asOutputTokens } from '../../../common/types/branded.types';
+import {
+  asToolCallId,
+  asInputTokens,
+  asOutputTokens,
+} from '../../../common/types/branded.types';
 import {
   mapToolChoiceToResponses,
   mapToolsToResponses,
@@ -152,33 +156,39 @@ export function createResponsesAdapter(client: OpenAI, logger: LoggingService) {
 
       return {
         textStream: textStream(),
-        getUsageMetadata: async () => {
+        getUsageMetadata: () => {
           const usage = finalResponse?.usage;
-          if (!usage) return undefined;
-          return {
+          if (!usage) return Promise.resolve(undefined);
+          return Promise.resolve({
             inputTokens: asInputTokens(usage.input_tokens ?? 0),
             outputTokens: asOutputTokens(usage.output_tokens ?? 0),
             model: finalResponse?.model ?? modelId,
-          };
+          });
         },
-        getFinalToolCalls: async () => {
-          if (accumulatedToolCalls.size === 0) return undefined;
-          return [...accumulatedToolCalls.entries()].map(([id, call]) => ({
-            id: asToolCallId(id),
-            name: call.name,
-            arguments: call.args || '{}',
-          }));
+        getFinalToolCalls: () => {
+          if (accumulatedToolCalls.size === 0)
+            return Promise.resolve(undefined);
+          return Promise.resolve(
+            [...accumulatedToolCalls.entries()].map(([id, call]) => ({
+              id: asToolCallId(id),
+              name: call.name,
+              arguments: call.args || '{}',
+            })),
+          );
         },
-        getStopReason: async () => {
-          if (accumulatedToolCalls.size > 0) return 'tool_calls';
-          if (!finalResponse) return 'stop';
-          return mapResponsesStopReason(finalResponse);
+        getStopReason: () => {
+          if (accumulatedToolCalls.size > 0)
+            return Promise.resolve('tool_calls');
+          if (!finalResponse) return Promise.resolve('stop');
+          return Promise.resolve(mapResponsesStopReason(finalResponse));
         },
-        getThinkingContent: async () => {
+        getThinkingContent: () => {
           const fromFinal = extractResponsesReasoningSummaryText(
             finalResponse?.output,
           );
-          return fromFinal ?? (reasoningBuffer.text || undefined);
+          return Promise.resolve(
+            fromFinal ?? (reasoningBuffer.text || undefined),
+          );
         },
       };
     },

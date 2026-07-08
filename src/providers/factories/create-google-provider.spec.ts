@@ -33,7 +33,10 @@ describe('createGoogleProvider', () => {
   describe('google factory', () => {
     it('should throw when apiKey is empty', () => {
       expect(() =>
-        createGoogleProvider(asProviderApiKey(''), mockLogger as LoggingService),
+        createGoogleProvider(
+          asProviderApiKey(''),
+          mockLogger as LoggingService,
+        ),
       ).toThrow('[createGoogleProvider] API key is required.');
     });
 
@@ -52,7 +55,10 @@ describe('createGoogleProvider', () => {
     });
 
     it('should create GoogleGenAI client with apiKey', () => {
-      createGoogleProvider(asProviderApiKey('my-api-key'), mockLogger as LoggingService);
+      createGoogleProvider(
+        asProviderApiKey('my-api-key'),
+        mockLogger as LoggingService,
+      );
 
       expect(GoogleGenAI).toHaveBeenCalledWith({ apiKey: 'my-api-key' });
     });
@@ -63,7 +69,10 @@ describe('createGoogleProvider', () => {
     let input: ProviderChatInput;
 
     beforeEach(() => {
-      provider = createGoogleProvider(asProviderApiKey('test-key'), mockLogger as LoggingService);
+      provider = createGoogleProvider(
+        asProviderApiKey('test-key'),
+        mockLogger as LoggingService,
+      );
       input = {
         messages: [{ role: 'user', content: 'Hello' }],
         system: 'You are helpful',
@@ -552,7 +561,10 @@ describe('createGoogleProvider', () => {
     let input: ProviderChatInput;
 
     beforeEach(() => {
-      provider = createGoogleProvider(asProviderApiKey('test-key'), mockLogger as LoggingService);
+      provider = createGoogleProvider(
+        asProviderApiKey('test-key'),
+        mockLogger as LoggingService,
+      );
       input = {
         messages: [{ role: 'user', content: 'Hello' }],
       };

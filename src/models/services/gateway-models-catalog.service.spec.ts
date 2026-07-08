@@ -77,7 +77,9 @@ describe('GatewayModelsCatalogService', () => {
   it('getOne should return null for unknown alias (case-sensitive)', () => {
     configService.get.mockReturnValue(gatewayConfig);
 
-    expect(service.getOne(asModelAlias('gemini-2.5-flash'))?.providerType).toBe('google');
+    expect(service.getOne(asModelAlias('gemini-2.5-flash'))?.providerType).toBe(
+      'google',
+    );
     expect(service.getOne(asModelAlias('GEMINI-2.5-FLASH'))).toBeNull();
     expect(service.getOne('')).toBeNull();
   });

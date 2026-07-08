@@ -3,7 +3,6 @@ import {
   RequestId,
   TimeoutMs,
   RateLimitRps,
-  asRateLimitBurst,
   MaxConcurrentStreams,
   MaxAttempts,
   AttemptNumber,

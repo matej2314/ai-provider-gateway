@@ -7,7 +7,9 @@ import {
 describe('openai-params-provider.mapper', () => {
   describe('mapMaxOutputTokensForChatCompletions', () => {
     it('uses max_tokens for legacy models', () => {
-      expect(mapMaxOutputTokensForChatCompletions('gpt-3.5-turbo', 512)).toEqual({
+      expect(
+        mapMaxOutputTokensForChatCompletions('gpt-3.5-turbo', 512),
+      ).toEqual({
         max_tokens: 512,
       });
     });
@@ -31,9 +33,11 @@ describe('openai-params-provider.mapper', () => {
 
   describe('mapCallOptionsToChatCompletionParams', () => {
     it('disables thinking by default for chat-completions (DeepSeek V4 compat)', () => {
-      expect(mapCallOptionsToChatCompletionParams('deepseek-v4-flash')).toEqual({
-        thinking: { type: 'disabled' },
-      });
+      expect(mapCallOptionsToChatCompletionParams('deepseek-v4-flash')).toEqual(
+        {
+          thinking: { type: 'disabled' },
+        },
+      );
     });
 
     it('enables thinking when thinkingEnabled is true', () => {
