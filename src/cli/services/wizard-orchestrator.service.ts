@@ -17,7 +17,6 @@ import { ModelPromptService } from './prompts/model-prompt.service';
 import { ClientPromptService } from './prompts/client-prompt.service';
 import { ServerPromptService } from './prompts/server-prompt.service';
 import { KeyGeneratorService } from './key-generator.service';
-
 export interface WizardRunResult {
   configInput: ConfigTemplateInput;
   envInput: EnvTemplateInput;

@@ -2,6 +2,7 @@ import { Command, CommandRunner } from 'nest-commander';
 import { CliConfigLoaderService } from 'src/cli/services/cli-config-loader.service';
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
 import { ClientManagerService } from 'src/cli/services/client-manager.service';
+import { asClientId } from 'src/common/types/branded.types';
 
 @Command({
   name: 'client:remove',
@@ -22,8 +23,8 @@ export class ClientRemoveCommand extends CommandRunner {
 
   async run(passedParams: string[]): Promise<void> {
     try {
-      const clientId = passedParams[0]?.trim();
-      if (!clientId) {
+      const rawClientId = passedParams[0]?.trim();
+      if (!rawClientId) {
         CliLogger.error('Client ID is required.');
         CliLogger.info('Usage: gateway client:remove <clientId>');
         process.exit(1);
@@ -44,6 +45,7 @@ export class ClientRemoveCommand extends CommandRunner {
         return;
       }
 
+      const clientId = asClientId(rawClientId);
       const config = this.cliLoader.loadRawConfig();
       await this.clientManager.removeClient(config, clientId, process.cwd());
     } catch (error) {

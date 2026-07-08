@@ -3,12 +3,19 @@ import { KeyGeneratorService } from 'src/cli/services/key-generator.service';
 import chalk from 'chalk';
 import boxen from 'boxen';
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
+import {
+  asClientId,
+  asEnvRef,
+  type ClientId,
+  type EnvRef,
+  type GatewayKey,
+} from 'src/common/types/branded.types';
 
 type KeyType = 'master' | 'client';
 
 interface KeyGenerateOptions {
   type?: KeyType;
-  clientId?: string;
+  clientId?: ClientId;
 }
 
 @Command({
@@ -28,7 +35,7 @@ export class KeyGenerateCommand extends CommandRunner {
   run(passedParams: string[], options?: KeyGenerateOptions): Promise<void> {
     try {
       const type = options?.type ?? (passedParams[0] as KeyType | undefined);
-      const clientId = options?.clientId ?? passedParams[1];
+      const rawClientId = options?.clientId ?? passedParams[1]?.trim();
 
       if (!type || (type !== 'master' && type !== 'client')) {
         CliLogger.error('Key type is required.');
@@ -46,15 +53,14 @@ export class KeyGenerateCommand extends CommandRunner {
       );
       const spinner = CliLogger.spinner('Generating key...');
 
-      let key: string;
+      let key: GatewayKey;
       let envHint: string;
 
       if (type === 'master') {
         key = this.keyGenerator.generateMasterKey();
         envHint = `Add to .env: MASTER_KEY=<key>`;
       } else {
-        const trimmedClientId = clientId?.trim();
-        if (!trimmedClientId) {
+        if (!rawClientId) {
           spinner.stop();
           CliLogger.error('CLient ID is required.');
           CliLogger.info(
@@ -63,8 +69,9 @@ export class KeyGenerateCommand extends CommandRunner {
           process.exit(1);
         }
 
-        key = this.keyGenerator.generateGatewayClientKey(trimmedClientId);
-        const envRef = `GATEWAY_KEY_${trimmedClientId.toUpperCase().replace(/-/g, '_')}`;
+        const clientId = asClientId(rawClientId);
+        key = this.keyGenerator.generateGatewayClientKey(clientId);
+        const envRef = this.deriveGatewayKeyRef(clientId);
         envHint = `Add to .env: ${envRef}=<key>`;
       }
 
@@ -94,6 +101,12 @@ export class KeyGenerateCommand extends CommandRunner {
     }
   }
 
+  private deriveGatewayKeyRef(clientId: ClientId): EnvRef {
+    return asEnvRef(
+      `GATEWAY_KEY_${clientId.trim().toUpperCase().replace(/-/g, '_')}`,
+    );
+  }
+
   @Option({
     flags: '-t, --type <type>',
     description: 'key type: master or client',
@@ -110,7 +123,7 @@ export class KeyGenerateCommand extends CommandRunner {
     flags: '-c, --client-id <id>',
     description: 'Client ID (required when type is client)',
   })
-  parseClientId(val: string): string {
-    return val.trim();
+  parseClientId(val: string): ClientId {
+    return asClientId(val.trim());
   }
 }

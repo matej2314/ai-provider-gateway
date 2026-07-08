@@ -1,26 +1,33 @@
 import { isRedisRequired } from '../../cache/should-include-redis-stack';
 import type { GatewayProviderType } from 'src/config/provider-types';
 import { applyLegacyProviderApiKeyEnv } from '../utils/legacy-provider-env.util';
+import {
+  EnvRef,
+  ProviderApiKey,
+  GatewayKey,
+  BaseUrl,
+  Port,
+} from '../../common/types/branded.types';
 
 export interface ProviderCli {
-  apiKeyRef: string;
-  apiKey: string;
+  apiKeyRef: EnvRef;
+  apiKey: ProviderApiKey;
   type?: GatewayProviderType;
-  baseUrlRef?: string;
-  baseUrl?: string;
+  baseUrlRef?: EnvRef;
+  baseUrl?: BaseUrl;
 }
 
 export interface ClientCli {
-  gatewayKeyRef: string;
-  gatewayKey: string;
+  gatewayKeyRef: EnvRef;
+  gatewayKey: GatewayKey;
 }
 
 export interface EnvTemplateInput {
   masterKeyRef: string;
-  masterKey: string;
+  masterKey: GatewayKey;
   providers: ProviderCli[];
   clients: ClientCli[];
-  port?: number;
+  port?: Port;
   nodeEnv?: string;
   swaggerEnabled?: boolean;
 

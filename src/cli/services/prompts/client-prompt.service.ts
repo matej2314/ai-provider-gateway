@@ -8,6 +8,14 @@ import {
 } from 'src/config/configuration.types';
 import type { GatewayClient } from '../cli.services.types';
 import { KeyGeneratorService } from '../key-generator.service';
+import {
+  asClientId,
+  asEnvRef,
+  asGatewayKey,
+  asMaxConcurrentStreams,
+  asRateLimitBurst,
+  asRateLimitRps,
+} from '../../../common/types/branded.types';
 
 export type ClientPromptResult = GatewayClient;
 
@@ -144,12 +152,22 @@ export class ClientPromptService {
       console.log(chalk.green(`\n✓ Generated gateway key\n`));
 
       clients.push({
-        id: clientAnswers.id.trim(),
+        id: asClientId(clientAnswers.id.trim()),
         name: clientAnswers.name.trim(),
         type: clientAnswers.type,
-        gatewayKeyRef: `GATEWAY_KEY_${clientAnswers.id.trim().toUpperCase().replace(/-/g, '_')}`,
-        gatewayKey,
-        rateLimit,
+        gatewayKeyRef: asEnvRef(
+          `GATEWAY_KEY_${clientAnswers.id.trim().toUpperCase().replace(/-/g, '_')}`,
+        ),
+        gatewayKey: asGatewayKey(gatewayKey),
+        rateLimit: rateLimit
+          ? {
+              rps: asRateLimitRps(rateLimit.rps),
+              burst: asRateLimitBurst(rateLimit.burst),
+              maxConcurrentStreams: rateLimit.maxConcurrentStreams
+                ? asMaxConcurrentStreams(rateLimit.maxConcurrentStreams)
+                : undefined,
+            }
+          : undefined,
       });
 
       if (clients.length > 0) {

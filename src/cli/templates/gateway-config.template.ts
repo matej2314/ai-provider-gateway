@@ -8,20 +8,30 @@ import {
   buildDefaultModelCapabilities,
   buildDefaultModelPolicy,
 } from '../utils/default-model-policy.util';
+import {
+  asRateLimitRps,
+  asRateLimitBurst,
+  asMaxConcurrentStreams,
+  EnvRef,
+  ModelAlias,
+  ProviderInstanceId,
+  ModelId,
+  asClientId,
+} from '../../common/types/branded.types';
 
 export interface ConfigTemplateInput {
   masterKeyRef: string;
   providers: Array<{
     id: string;
     type: GatewayProviderType;
-    apiKeyRef: string;
-    baseUrlRef?: string;
+    apiKeyRef: EnvRef;
+    baseUrlRef?: EnvRef;
   }>;
   clients: Array<{
     id: string;
     name: string;
     type: GatewayClientType;
-    gatewayKeyRef: string;
+    gatewayKeyRef: EnvRef;
     rateLimit?: {
       rps: number;
       burst: number;
@@ -29,9 +39,9 @@ export interface ConfigTemplateInput {
     };
   }>;
   models: Array<{
-    alias: string;
-    providerInstance: string;
-    modelId: string;
+    alias: ModelAlias;
+    providerInstance: ProviderInstanceId;
+    modelId: ModelId;
   }>;
   envInput: EnvTemplateInput;
 }
@@ -41,7 +51,7 @@ export function generateGatewayConfigTemplate(
 ): Partial<GatewayConfig> {
   const providers = Object.fromEntries(
     input.providers.map((provider) => [
-      provider.id,
+      asProviderInstanceId(provider.id),
       {
         type: provider.type,
         apiKeyRef: asEnvRef(provider.apiKeyRef),
@@ -55,13 +65,19 @@ export function generateGatewayConfigTemplate(
 
   const clients = Object.fromEntries(
     input.clients.map((client) => [
-      client.id,
+      asClientId(client.id),
       {
         name: client.name,
         type: client.type,
         gatewayKeyRef: asEnvRef(client.gatewayKeyRef),
         ...(client.rateLimit && {
-          rateLimit: buildClientRateLimitConfig(client.rateLimit),
+          rateLimit: buildClientRateLimitConfig({
+            rps: asRateLimitRps(client.rateLimit.rps),
+            burst: asRateLimitBurst(client.rateLimit.burst),
+            maxConcurrentStreams: client.rateLimit.maxConcurrentStreams
+              ? asMaxConcurrentStreams(client.rateLimit.maxConcurrentStreams)
+              : undefined,
+          }),
         }),
       },
     ]),

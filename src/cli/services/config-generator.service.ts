@@ -14,6 +14,10 @@ import {
 import { MASTER_PROMPT_TEMPLATE } from '../templates/master-prompt.template';
 import { generateModelPromptTemplate } from '../templates/model-prompt.template';
 import { CliLogger } from '../utils/cli-logger.util';
+import {
+  asProviderApiKey,
+  asGatewayKey,
+} from '../../common/types/branded.types';
 
 @Injectable()
 export class ConfigGeneratorService {
@@ -94,15 +98,15 @@ export class ConfigGeneratorService {
 
     const exampleEnv = { ...input };
 
-    exampleEnv.masterKey = '';
+    exampleEnv.masterKey = asGatewayKey('');
     exampleEnv.providers = exampleEnv.providers.map((provider) => ({
       ...provider,
-      apiKey: '',
-      ...(provider.baseUrlRef && { baseUrl: '' }),
+      apiKey: asProviderApiKey(''),
+      ...(provider.baseUrlRef ? { baseUrl: undefined } : {}),
     }));
     exampleEnv.clients = exampleEnv.clients.map((client) => ({
       ...client,
-      gatewayKey: '',
+      gatewayKey: asGatewayKey(''),
     }));
 
     if (isEnvInputRedisRequired(exampleEnv)) {

@@ -18,6 +18,8 @@ import {
   asProviderInstanceId,
   asMaxAttempts,
   asTimeoutMs,
+  asModelId,
+  asModelAlias,
 } from '../../common/types/branded.types';
 import boxen from 'boxen';
 import chalk from 'chalk';
@@ -101,7 +103,7 @@ export class ModelManagerService {
 
       config.models[modelAlias] = {
         providerInstance: asProviderInstanceId(providerInstance),
-        modelId: modelId.trim(),
+        modelId: asModelId(trimmedModelId),
         capabilities: {
           streaming: true,
           tools: true,
@@ -178,7 +180,7 @@ export class ModelManagerService {
                 value?.trim() ? true : 'Model ID is required.',
             },
           ]);
-          current.modelId = modelId.trim();
+          current.modelId = asModelId(modelId.trim());
 
           const providerType = config.providers[current.providerInstance]?.type;
           if (providerType) {
@@ -221,7 +223,7 @@ export class ModelManagerService {
 
           if (
             providerInstance !== sourceInstanceId &&
-            isLastModelForEnabledProvider(config, alias)
+            isLastModelForEnabledProvider(config, asModelAlias(alias))
           ) {
             console.log(
               boxen(
@@ -428,8 +430,11 @@ export class ModelManagerService {
     }
 
     const model = config.models[alias];
-    const lastInConfig = isLastModelInConfig(config, alias);
-    const lastForProvider = isLastModelForEnabledProvider(config, alias);
+    const lastInConfig = isLastModelInConfig(config, asModelAlias(alias));
+    const lastForProvider = isLastModelForEnabledProvider(
+      config,
+      asModelAlias(alias),
+    );
 
     if (lastInConfig || lastForProvider) {
       const detail = lastInConfig

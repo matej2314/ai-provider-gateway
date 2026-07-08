@@ -2,6 +2,7 @@ import { Command, CommandRunner } from 'nest-commander';
 import { CliConfigLoaderService } from 'src/cli/services/cli-config-loader.service';
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
 import { ModelManagerService } from 'src/cli/services/model-manager.service';
+import { asModelAlias } from 'src/common/types';
 
 @Command({
   name: 'model:edit',
@@ -16,8 +17,8 @@ export class ModelEditCommand extends CommandRunner {
     super();
   }
   async run(passedParams: string[]): Promise<void> {
-    const alias = passedParams[0]?.trim();
-    if (!alias) {
+    const rawAlias = passedParams[0]?.trim();
+    if (!rawAlias) {
       CliLogger.error('Model alias is required.');
       process.exit(1);
     }
@@ -38,6 +39,7 @@ export class ModelEditCommand extends CommandRunner {
         process.exit(1);
       }
 
+      const alias = asModelAlias(rawAlias);
       const config = this.cliLoader.loadRawConfig();
       await this.modelManager.editModel(config, alias, process.cwd());
     } catch (error) {

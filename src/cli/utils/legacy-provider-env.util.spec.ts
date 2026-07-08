@@ -1,4 +1,5 @@
 import { applyLegacyProviderApiKeyEnv } from './legacy-provider-env.util';
+import { asProviderApiKey } from '../../common/types/branded.types';
 
 describe('legacy-provider-env.util', () => {
   it('mirrors custom apiKeyRef under legacy env names', () => {
@@ -7,7 +8,7 @@ describe('legacy-provider-env.util', () => {
     applyLegacyProviderApiKeyEnv(env, [
       {
         type: 'anthropic',
-        apiKey: 'sk-ant-primary',
+        apiKey: asProviderApiKey('sk-ant-primary'),
       },
     ]);
 
@@ -21,7 +22,7 @@ describe('legacy-provider-env.util', () => {
     applyLegacyProviderApiKeyEnv(env, [
       {
         type: 'google',
-        apiKey: 'AIza-test',
+        apiKey: asProviderApiKey('AIza-test'),
       },
     ]);
 
@@ -34,7 +35,7 @@ describe('legacy-provider-env.util', () => {
     applyLegacyProviderApiKeyEnv(env, [
       {
         type: 'openai',
-        apiKey: 'sk-test',
+        apiKey: asProviderApiKey('sk-test'),
       },
     ]);
 

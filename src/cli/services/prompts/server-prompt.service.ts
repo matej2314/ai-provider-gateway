@@ -2,17 +2,18 @@ import { Injectable } from '@nestjs/common';
 import * as inquirer from 'inquirer';
 import chalk from 'chalk';
 import { isRedisRequired } from '../../../cache/should-include-redis-stack';
+import { asPort, type Port } from '../../../common/types/branded.types';
 import { CliLogger } from '../../utils/cli-logger.util';
 
 export interface ServerConfigPromptResult {
-  port: number;
+  port: Port;
   nodeEnv: string;
   swaggerEnabled?: boolean;
 
   cacheEnabled?: boolean;
   cacheBackend?: 'redis' | 'noop';
   redisHost?: string;
-  redisPort?: number;
+  redisPort?: Port;
   redisPassword?: string;
 
   rateLimitSmartEnabled?: boolean;
@@ -232,8 +233,12 @@ export class ServerPromptService {
 
     return {
       ...basicAnswers,
+      port: asPort(basicAnswers.port),
       ...cacheAnswers,
       ...redisAnswers,
+      redisPort: redisAnswers.redisPort
+        ? asPort(redisAnswers.redisPort)
+        : undefined,
       rateLimitSmartEnabled: rateLimitAnswers.rateLimitSmartEnabled,
       ...metricsAnswers,
       ...sentryAnswers,

@@ -1,5 +1,10 @@
 import { createTestGatewayConfig } from '../../common/mocks/createTestGatewayConfig';
 import {
+  asEnvRef,
+  asModelAlias,
+  asProviderInstanceId,
+} from '../../common/types';
+import {
   isLastModelForEnabledProvider,
   isLastModelInConfig,
   countActiveModelsAfterProviderChange,
@@ -13,33 +18,35 @@ describe('effective-config-preview.util', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
             enabled: true,
           },
           'google-primary': {
             type: 'google',
-            apiKeyRef: 'GOOGLE_API_KEY',
+            apiKeyRef: asEnvRef('GOOGLE_API_KEY'),
             enabled: true,
           },
         },
         models: {
           'anthropic-model': {
-            providerInstance: 'anthropic-primary',
+            providerInstance: asProviderInstanceId('anthropic-primary'),
             modelId: 'claude-sonnet-4-5',
             capabilities: { streaming: true, tools: true },
           },
           'google-model': {
-            providerInstance: 'google-primary',
+            providerInstance: asProviderInstanceId('google-primary'),
             modelId: 'gemini-pro',
             capabilities: { streaming: true, tools: true },
           },
         },
       });
 
-      expect(isLastModelForEnabledProvider(config, 'anthropic-model')).toBe(
-        true,
-      );
-      expect(isLastModelForEnabledProvider(config, 'google-model')).toBe(true);
+      expect(
+        isLastModelForEnabledProvider(config, asModelAlias('anthropic-model')),
+      ).toBe(true);
+      expect(
+        isLastModelForEnabledProvider(config, asModelAlias('google-model')),
+      ).toBe(true);
     });
 
     it('returns false when provider has other models', () => {
@@ -48,25 +55,27 @@ describe('effective-config-preview.util', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
             enabled: true,
           },
         },
         models: {
           'model-a': {
-            providerInstance: 'anthropic-primary',
+            providerInstance: asProviderInstanceId('anthropic-primary'),
             modelId: 'claude-sonnet-4-5',
             capabilities: { streaming: true, tools: true },
           },
           'model-b': {
-            providerInstance: 'anthropic-primary',
+            providerInstance: asProviderInstanceId('anthropic-primary'),
             modelId: 'claude-haiku',
             capabilities: { streaming: true, tools: true },
           },
         },
       });
 
-      expect(isLastModelForEnabledProvider(config, 'model-a')).toBe(false);
+      expect(
+        isLastModelForEnabledProvider(config, asModelAlias('model-a')),
+      ).toBe(false);
     });
 
     it('returns false when provider is disabled', () => {
@@ -75,27 +84,29 @@ describe('effective-config-preview.util', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
             enabled: false,
           },
         },
         models: {
           'only-model': {
-            providerInstance: 'anthropic-primary',
+            providerInstance: asProviderInstanceId('anthropic-primary'),
             modelId: 'claude-sonnet-4-5',
             capabilities: { streaming: true, tools: true },
           },
         },
       });
 
-      expect(isLastModelForEnabledProvider(config, 'only-model')).toBe(false);
+      expect(
+        isLastModelForEnabledProvider(config, asModelAlias('only-model')),
+      ).toBe(false);
     });
   });
 
   describe('isLastModelInConfig', () => {
     it('returns true for the sole model alias', () => {
       const config = createTestGatewayConfig();
-      expect(isLastModelInConfig(config, 'test-model')).toBe(true);
+      expect(isLastModelInConfig(config, asModelAlias('test-model'))).toBe(true);
     });
   });
 
@@ -106,23 +117,23 @@ describe('effective-config-preview.util', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
             enabled: true,
           },
           'google-primary': {
             type: 'google',
-            apiKeyRef: 'GOOGLE_API_KEY',
+            apiKeyRef: asEnvRef('GOOGLE_API_KEY'),
             enabled: true,
           },
         },
         models: {
           'anthropic-model': {
-            providerInstance: 'anthropic-primary',
+            providerInstance: asProviderInstanceId('anthropic-primary'),
             modelId: 'claude-sonnet-4-5',
             capabilities: { streaming: true, tools: true },
           },
           'google-model': {
-            providerInstance: 'google-primary',
+            providerInstance: asProviderInstanceId('google-primary'),
             modelId: 'gemini-pro',
             capabilities: { streaming: true, tools: true },
           },
@@ -132,7 +143,7 @@ describe('effective-config-preview.util', () => {
       expect(
         countActiveModelsAfterProviderChange(
           config,
-          new Set(['anthropic-primary']),
+          new Set([asProviderInstanceId('anthropic-primary')]),
         ),
       ).toBe(1);
     });

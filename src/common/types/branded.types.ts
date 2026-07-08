@@ -1,3 +1,7 @@
+// ========================================
+// CORE BRAND TYPE UTILITIES
+// ========================================
+
 /**
  * Core brand type utility
  * @template K - Base primitive type
@@ -23,6 +27,10 @@ export const brand = <B>(value: UnBrand<B>): B => value as B;
  */
 
 export const unbrand = <B>(value: B): UnBrand<B> => value as UnBrand<B>;
+
+// ========================================
+// IDENTIFIERS & TRACKING (Faza 2)
+// ========================================
 
 /**
  * Request ID for correlation (format: req_<uuid> or custom)
@@ -65,6 +73,10 @@ export type ProviderInstanceId = Brand<string, 'ProviderInstanceId'>;
  */
 export type JsonSchemaName = Brand<string, 'JsonSchemaName'>;
 
+// ========================================
+// SECURITY-CRITICAL TYPES (Faza 1)
+// ========================================
+
 /**
  * Gateway client authorization key (from allowlist)
  * DO NOT confuse with ProviderApiKey!
@@ -82,6 +94,10 @@ export type ProviderApiKey = Brand<string, 'ProviderApiKey'>;
  */
 export type EnvRef = Brand<string, 'EnvRef'>;
 
+// ========================================
+// MODEL ROUTING (Faza 2)
+// ========================================
+
 /**
  * Model alias from gateway configuration (e.g., "claude-sonnet-4-5", "gemini-flash")
  * NOT to be confused with vendor modelId!
@@ -93,6 +109,10 @@ export type ModelAlias = Brand<string, 'ModelAlias'>;
  * NOT to be confused with ModelAlias!
  */
 export type ModelId = Brand<string, 'ModelId'>;
+
+// ========================================
+// METRICS & USAGE (Faza 3)
+// ========================================
 
 /**
  * Number of input tokens
@@ -128,7 +148,7 @@ export type PromptCacheCreationTokens = Brand<
 >;
 
 // ========================================
-// CONFIGURATION & POLICY
+// CONFIGURATION & POLICY (Faza 4)
 // ========================================
 
 /**
@@ -190,6 +210,10 @@ export type SchemaVersion = Brand<number, 'SchemaVersion'>;
  * OpenAI system fingerprint (pass-through)
  */
 export type SystemFingerprint = Brand<string, 'SystemFingerprint'>;
+
+// ========================================
+// CONFIGURATION & POLICY — HELPERS (Faza 4)
+// ========================================
 
 export const asTimeoutMs = (value: number): TimeoutMs => {
   if (value < 1) {
@@ -257,11 +281,23 @@ export const asSchemaVersion = (value: number): SchemaVersion => {
   return Math.floor(value) as SchemaVersion;
 };
 
+// ========================================
+// ERROR & WARNING CODES (Faza 5)
+// ========================================
+
 export type WarningCode = Brand<string, 'WarningCode'>;
+
+// ========================================
+// ERROR & WARNING CODES — HELPERS (Faza 5)
+// ========================================
 
 export const asWarningCode = (value: string): WarningCode => {
   return value as WarningCode;
 };
+
+// ========================================
+// HELPERS (Fazy 1–3)
+// ========================================
 
 export const asRequestId = (value: string): RequestId => value as RequestId;
 export const asConversationId = (value: string): ConversationId =>

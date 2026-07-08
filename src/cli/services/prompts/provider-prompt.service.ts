@@ -17,6 +17,11 @@ import {
   deriveApiKeyRef,
   deriveBaseUrlRef,
 } from '../../utils/provider-id.util';
+import {
+  asProviderApiKey,
+  asProviderInstanceId,
+  type BaseUrl,
+} from '../../../common/types/branded.types';
 
 type ProviderPromptResult = CliAiProvider;
 
@@ -98,7 +103,7 @@ export class ProviderPromptService {
         apiKey = String(requiredKey).trim();
       }
 
-      let baseUrl = '';
+      let baseUrl: BaseUrl | undefined;
       if (isOpenAiProviderType(providerType) && baseUrlRef) {
         const { url } = await inquirer.prompt<{ url: string }>([
           {
@@ -113,11 +118,15 @@ export class ProviderPromptService {
       }
 
       providers.push({
-        id,
+        id: asProviderInstanceId(id),
         type: providerType,
         apiKeyRef,
-        apiKey,
-        ...(baseUrlRef && { baseUrlRef, baseUrl }),
+        apiKey: asProviderApiKey(apiKey),
+        ...(baseUrlRef &&
+          baseUrl && {
+            baseUrlRef,
+            baseUrl,
+          }),
       });
     }
 

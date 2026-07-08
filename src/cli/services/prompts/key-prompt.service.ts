@@ -3,10 +3,14 @@ import * as inquirer from 'inquirer';
 import chalk from 'chalk';
 import { CliLogger } from '../../utils/cli-logger.util';
 import { KeyGeneratorService } from '../key-generator.service';
+import {
+  asGatewayKey,
+  type GatewayKey,
+} from '../../../common/types/branded.types';
 
 @Injectable()
 export class KeyPromptService {
-  async promptMasterKey(keyGenerator: KeyGeneratorService): Promise<string> {
+  async promptMasterKey(keyGenerator: KeyGeneratorService): Promise<GatewayKey> {
     CliLogger.section('Step 1/5: Master Key');
     console.log(
       chalk.dim(
@@ -43,6 +47,6 @@ export class KeyPromptService {
       }
       return generated;
     }
-    return masterKey.trim();
+    return asGatewayKey(masterKey.trim());
   }
 }

@@ -5,6 +5,11 @@ import { CliLogger } from '../../utils/cli-logger.util';
 import { DEFAULT_MODELS } from 'src/cli/constants/default-models';
 import type { CliAiModel } from '../cli.services.types';
 import type { GatewayProviderType } from 'src/config/provider-types';
+import {
+  asModelId,
+  asProviderInstanceId,
+  asModelAlias,
+} from '../../../common/types/branded.types';
 
 type ModelPromptResult = CliAiModel;
 
@@ -82,9 +87,9 @@ export class ModelPromptService {
       ]);
 
       models.push({
-        alias: alias.trim(),
-        providerInstance: provider.id,
-        modelId: modelId.trim(),
+        alias: asModelAlias(alias.trim()),
+        providerInstance: asProviderInstanceId(provider.id),
+        modelId: asModelId(modelId.trim()),
       });
     }
 

@@ -6,9 +6,11 @@ import chalk from 'chalk';
 import { GatewayConfig } from 'src/config/gateway-config.schema';
 import { isApiKeyRequiredForProviderType } from 'src/config/provider-api-key.validation';
 import { isOpenAiProviderType } from 'src/config/provider-types';
+import { asBaseUrl, asProviderApiKey, asProviderInstanceId } from 'src/common/types';
+import type { ProviderInstanceId } from 'src/common/types';
 
 interface ProviderTestOptions {
-  provider?: string;
+  provider?: ProviderInstanceId;
 }
 
 @Command({
@@ -51,10 +53,10 @@ export class ProviderTestCommand extends CommandRunner {
         process.exit(1);
       }
 
-      const providerName = options?.provider || passedParams[0];
+      const instanceId = this.resolveInstanceId(options, passedParams);
 
-      if (providerName) {
-        await this.testSingleProvider(providerName, config);
+      if (instanceId) {
+        await this.testSingleProvider(instanceId, config);
       } else {
         await this.testAllProviders(config);
       }
@@ -70,12 +72,20 @@ export class ProviderTestCommand extends CommandRunner {
     flags: '-p, --provider <instanceId>',
     description: 'Specific provider to test',
   })
-  parseProvider(val: string): string {
-    return val;
+  parseProvider(val: string): ProviderInstanceId {
+    return asProviderInstanceId(val.trim());
+  }
+
+  private resolveInstanceId(
+    options?: ProviderTestOptions,
+    passedParams?: string[],
+  ): ProviderInstanceId | undefined {
+    const raw = options?.provider ?? passedParams?.[0]?.trim();
+    return raw ? asProviderInstanceId(raw) : undefined;
   }
 
   private async testSingleProvider(
-    instanceId: string,
+    instanceId: ProviderInstanceId,
     config: GatewayConfig,
   ): Promise<void> {
     const provider = config.providers[instanceId];
@@ -158,12 +168,14 @@ export class ProviderTestCommand extends CommandRunner {
     apiKey: string,
     spinner: ReturnType<typeof CliLogger.spinner>,
   ): Promise<boolean> {
+    const brandedApiKey = asProviderApiKey(apiKey.trim());
+
     if (provider.type === 'anthropic') {
-      return this.tester.testAnthropic(apiKey);
+      return this.tester.testAnthropic(brandedApiKey);
     }
 
     if (provider.type === 'google') {
-      return this.tester.testGoogle(apiKey);
+      return this.tester.testGoogle(brandedApiKey);
     }
 
     if (isOpenAiProviderType(provider.type)) {
@@ -176,7 +188,10 @@ export class ProviderTestCommand extends CommandRunner {
         );
         return false;
       }
-      return this.tester.testOpenAi(apiKey, baseUrl.trim());
+      return this.tester.testOpenAi(
+        brandedApiKey,
+        asBaseUrl(baseUrl.trim()),
+      );
     }
 
     spinner.fail(`Unknown provider type: ${String(provider.type)}`);

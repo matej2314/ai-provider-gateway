@@ -1,9 +1,13 @@
 import type { GatewayConfig } from 'src/config/gateway-config.schema';
+import type {
+  ModelAlias,
+  ProviderInstanceId,
+} from '../../common/types/branded.types';
 
 export function countActiveModelsAfterProviderChange(
   config: GatewayConfig,
-  disabledInstanceIds: Set<string> = new Set(),
-  removedInstanceIds: Set<string> = new Set(),
+  disabledInstanceIds: Set<ProviderInstanceId> = new Set(),
+  removedInstanceIds: Set<ProviderInstanceId> = new Set(),
 ): number {
   let count = 0;
   for (const model of Object.values(config.models)) {
@@ -19,7 +23,7 @@ export function countActiveModelsAfterProviderChange(
 
 export function isLastModelInConfig(
   config: GatewayConfig,
-  alias: string,
+  alias: ModelAlias,
 ): boolean {
   return (
     Object.keys(config.models).length === 1 && config.models[alias] != null
@@ -28,7 +32,7 @@ export function isLastModelInConfig(
 
 export function countModelsForInstance(
   config: GatewayConfig,
-  instanceId: string,
+  instanceId: ProviderInstanceId,
 ): number {
   return Object.values(config.models).filter(
     (model) => model.providerInstance === instanceId,
@@ -37,7 +41,7 @@ export function countModelsForInstance(
 
 export function isLastModelForEnabledProvider(
   config: GatewayConfig,
-  alias: string,
+  alias: ModelAlias,
 ): boolean {
   const model = config.models[alias];
   if (!model) return false;

@@ -4,6 +4,7 @@ import { isApiKeyRequiredForProviderType } from 'src/config/provider-api-key.val
 const ANTHROPIC_KEY = /^sk-ant-/;
 const GOOGLE_KEY = /^(AIza|AQ\.)/;
 
+/** Validates raw provider API key input before `asProviderApiKey()` branding. */
 export function validateProviderApiKey(
   type: GatewayProviderType,
   value: string,

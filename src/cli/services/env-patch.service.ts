@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import type {
+  BaseUrl,
+  EnvRef,
+  GatewayKey,
+  ProviderApiKey,
+} from '../../common/types/branded.types';
+
+export type EnvPatchValue = ProviderApiKey | GatewayKey | BaseUrl | string;
 
 @Injectable()
 export class EnvPatchService {
@@ -18,7 +26,7 @@ export class EnvPatchService {
     }
   }
 
-  async getVar(cwd: string, key: string): Promise<string | undefined> {
+  async getVar(cwd: string, key: EnvRef): Promise<string | undefined> {
     const lines = await this.readLines(cwd);
     const prefix = `${key}=`;
     for (const line of lines) {
@@ -29,22 +37,27 @@ export class EnvPatchService {
     return undefined;
   }
 
-  async setVar(cwd: string, key: string, value: string): Promise<void> {
+  async setVar(
+    cwd: string,
+    key: EnvRef,
+    value: EnvPatchValue,
+  ): Promise<void> {
     const lines = await this.readLines(cwd);
     const prefix = `${key}=`;
+    const serialized = String(value);
     let found = false;
     const next = lines.map((line) => {
       if (line.startsWith(prefix)) {
         found = true;
-        return `${key}=${value}`;
+        return `${key}=${serialized}`;
       }
       return line;
     });
-    if (!found) next.push(`${key}=${value}`);
+    if (!found) next.push(`${key}=${serialized}`);
     await fs.writeFile(this.envPath(cwd), next.join('\n') + '\n', 'utf-8');
   }
 
-  async removeVar(cwd: string, key: string): Promise<void> {
+  async removeVar(cwd: string, key: EnvRef): Promise<void> {
     const prefix = `${key}=`;
     const lines = await this.readLines(cwd);
     const next = lines.filter((line) => !line.startsWith(prefix));

@@ -2,6 +2,7 @@ import { Command, CommandRunner } from 'nest-commander';
 import { CliConfigLoaderService } from 'src/cli/services/cli-config-loader.service';
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
 import { ProviderManagerService } from 'src/cli/services/provider-manager.service';
+import { asProviderInstanceId } from 'src/common/types';
 
 @Command({
   name: 'provider:remove',
@@ -19,8 +20,8 @@ export class ProviderRemoveCommand extends CommandRunner {
 
   async run(passedParams: string[]): Promise<void> {
     try {
-      const instanceId = passedParams[0]?.trim();
-      if (!instanceId) {
+      const rawInstanceId = passedParams[0]?.trim();
+      if (!rawInstanceId) {
         CliLogger.error('Provider instance ID is required.');
         CliLogger.info('Usage: gateway provider:remove <instanceId>');
         process.exit(1);
@@ -39,6 +40,7 @@ export class ProviderRemoveCommand extends CommandRunner {
         );
         process.exit(1);
       }
+      const instanceId = asProviderInstanceId(rawInstanceId);
       const config = this.cliLoader.loadRawConfig();
       await this.providerManager.removeProvider(
         config,

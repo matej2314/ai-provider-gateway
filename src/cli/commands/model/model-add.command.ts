@@ -3,6 +3,7 @@ import { CliConfigLoaderService } from 'src/cli/services/cli-config-loader.servi
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
 import { ModelManagerService } from 'src/cli/services/model-manager.service';
 import { ConfigPersistenceService } from 'src/cli/services/config-persistence.service';
+import { asProviderInstanceId } from 'src/common/types';
 import * as inquirer from 'inquirer';
 
 @Command({
@@ -56,7 +57,7 @@ export class ModelAddCommand extends CommandRunner {
 
       await this.modelManager.addModelForProvider(
         config,
-        providerInstance,
+        asProviderInstanceId(providerInstance),
         cwd,
       );
 

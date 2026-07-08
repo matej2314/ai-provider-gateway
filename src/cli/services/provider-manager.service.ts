@@ -15,14 +15,22 @@ import { ModelManagerService } from './model-manager.service';
 import { CliLogger } from '../utils/cli-logger.util';
 import { countActiveModelsAfterProviderChange } from '../utils/effective-config-preview.util';
 import { validateProviderApiKey } from '../utils/api-key-validation.util';
-import { deriveApiKeyRef, deriveBaseUrlRef } from '../utils/provider-id.util';
+import {
+  deriveApiKeyRef as buildApiKeyRef,
+  deriveBaseUrlRef,
+} from '../utils/provider-id.util';
 import {
   defaultBaseUrlForOpenAiProviderType,
   normalizeCliProviderBaseUrl,
   validateCliProviderBaseUrl,
 } from '../utils/provider-base-url.cli.util';
 import { syncLegacyProviderApiKeysInEnv } from '../utils/legacy-provider-env.util';
-import { asEnvRef } from 'src/common/types';
+import {
+  asProviderInstanceId,
+  asProviderApiKey,
+  type BaseUrl,
+  type EnvRef,
+} from 'src/common/types';
 
 @Injectable()
 export class ProviderManagerService {
@@ -32,8 +40,8 @@ export class ProviderManagerService {
     private readonly modelManager: ModelManagerService,
   ) {}
 
-  deriveApiKeyRef(instanceId: string): string {
-    return deriveApiKeyRef(instanceId);
+  deriveApiKeyRef(instanceId: string): EnvRef {
+    return buildApiKeyRef(instanceId);
   }
 
   hasModelsForInstance(config: GatewayConfig, instanceId: string): boolean {
@@ -92,7 +100,7 @@ export class ProviderManagerService {
       },
     ]);
 
-    let baseUrl = '';
+    let baseUrl: BaseUrl | undefined;
     if (baseUrlRef) {
       const { url } = await inquirer.prompt<{ url: string }>([
         {
@@ -119,9 +127,9 @@ export class ProviderManagerService {
 
     config.providers[id] = {
       type,
-      apiKeyRef: asEnvRef(apiKeyRef),
+      apiKeyRef,
       enabled,
-      baseUrlRef: baseUrlRef ? asEnvRef(baseUrlRef) : undefined,
+      baseUrlRef,
     };
 
     if (!this.hasModelsForInstance(config, id)) {
@@ -132,8 +140,12 @@ export class ProviderManagerService {
       await this.modelManager.addModelForProvider(config, id, cwd);
     }
 
-    await this.envPatch.setVar(cwd, apiKeyRef, apiKey.trim());
-    if (baseUrlRef) {
+    await this.envPatch.setVar(
+      cwd,
+      apiKeyRef,
+      asProviderApiKey(apiKey.trim()),
+    );
+    if (baseUrlRef && baseUrl) {
       await this.envPatch.setVar(cwd, baseUrlRef, baseUrl);
     }
     await syncLegacyProviderApiKeysInEnv(this.envPatch, cwd, config);
@@ -294,7 +306,7 @@ export class ProviderManagerService {
         if (!enabled) {
           const activeAfter = countActiveModelsAfterProviderChange(
             config,
-            new Set([instanceId]),
+            new Set([asProviderInstanceId(instanceId)]),
           );
           if (activeAfter === 0) {
             const warning = boxen(
@@ -344,7 +356,11 @@ export class ProviderManagerService {
             },
           },
         ]);
-        await this.envPatch.setVar(cwd, row.apiKeyRef, apiKey.trim());
+        await this.envPatch.setVar(
+          cwd,
+          row.apiKeyRef,
+          asProviderApiKey(apiKey.trim()),
+        );
         await syncLegacyProviderApiKeysInEnv(this.envPatch, cwd, config);
         CliLogger.success(`API key updated for ${instanceId}.`);
         return;

@@ -3,6 +3,7 @@ import {
   normalizeCliProviderBaseUrl,
   validateCliProviderBaseUrl,
 } from './provider-base-url.cli.util';
+import { asBaseUrl } from '../../common/types/branded.types';
 
 describe('provider-base-url.cli.util', () => {
   it('validates http(s) URLs', () => {
@@ -15,16 +16,16 @@ describe('provider-base-url.cli.util', () => {
 
   it('normalizes trailing slash', () => {
     expect(normalizeCliProviderBaseUrl('https://api.openai.com/v1/')).toBe(
-      'https://api.openai.com/v1',
+      asBaseUrl('https://api.openai.com/v1'),
     );
   });
 
   it('returns defaults per OpenAI provider type', () => {
     expect(defaultBaseUrlForOpenAiProviderType('openai')).toBe(
-      'https://api.openai.com/v1',
+      asBaseUrl('https://api.openai.com/v1'),
     );
     expect(defaultBaseUrlForOpenAiProviderType('openai-compatible')).toBe(
-      'http://localhost:11434/v1',
+      asBaseUrl('http://localhost:11434/v1'),
     );
   });
 });

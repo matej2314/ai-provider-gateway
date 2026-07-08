@@ -2,6 +2,7 @@ import { Command, CommandRunner } from 'nest-commander';
 import { CliConfigLoaderService } from 'src/cli/services/cli-config-loader.service';
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
 import { ModelManagerService } from 'src/cli/services/model-manager.service';
+import { asModelAlias } from 'src/common/types';
 
 @Command({
   name: 'model:remove',
@@ -29,11 +30,13 @@ export class ModelRemoveCommand extends CommandRunner {
         return;
       }
 
-      const alias = passedParams[0]?.trim();
-      if (!alias) {
+      const rawAlias = passedParams[0]?.trim();
+      if (!rawAlias) {
         CliLogger.error('Model alias is required.');
         process.exit(1);
       }
+
+      const alias = asModelAlias(rawAlias);
 
       if (!this.cliLoader.configExists()) {
         CliLogger.error(
@@ -49,14 +52,14 @@ export class ModelRemoveCommand extends CommandRunner {
         error instanceof Error ? error.message : 'Unknown error occurred.';
 
       CliLogger.error(message);
-      const alias = passedParams[0]?.trim();
+      const rawAlias = passedParams[0]?.trim();
       if (
-        alias &&
+        rawAlias &&
         error instanceof Error &&
         message.toLowerCase().includes('validation failed')
       ) {
         CliLogger.info(
-          `Model ${alias} was not removed. gateway.config.yaml was not changed.`,
+          `Model ${rawAlias} was not removed. gateway.config.yaml was not changed.`,
         );
       }
       process.exit(1);

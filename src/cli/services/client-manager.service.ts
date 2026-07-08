@@ -12,7 +12,14 @@ import * as inquirer from 'inquirer';
 import type { CliRateLimit } from './cli.services.types';
 import { KeyGeneratorService } from './key-generator.service';
 import { buildClientRateLimitConfig } from '../utils/client-rate-limit.util';
-import { asEnvRef } from 'src/common/types';
+import {
+  asClientId,
+  asEnvRef,
+  asRateLimitBurst,
+  asRateLimitRps,
+  asMaxConcurrentStreams,
+  type EnvRef,
+} from '../../common/types/branded.types';
 
 @Injectable()
 export class ClientManagerService {
@@ -22,8 +29,10 @@ export class ClientManagerService {
     private readonly keyGenerator: KeyGeneratorService,
   ) {}
 
-  deriveGatewayKeyRef(clientId: string): string {
-    return `GATEWAY_KEY_${clientId.trim().toUpperCase().replace(/-/g, '_')}`;
+  deriveGatewayKeyRef(clientId: string): EnvRef {
+    return asEnvRef(
+      `GATEWAY_KEY_${clientId.trim().toUpperCase().replace(/-/g, '_')}`,
+    );
   }
 
   async addClient(config: GatewayConfig, cwd: string): Promise<void> {
@@ -75,7 +84,7 @@ export class ClientManagerService {
       },
     ]);
 
-    const clientId = clientAnswers.id.trim();
+    const clientId = asClientId(clientAnswers.id.trim());
     let rateLimit: CliRateLimit | undefined;
 
     if (clientAnswers.addRateLimit) {
@@ -127,23 +136,25 @@ export class ClientManagerService {
       ]);
 
       rateLimit = {
-        rps: rateLimitAnswers.rps,
-        burst: rateLimitAnswers.burst,
+        rps: asRateLimitRps(rateLimitAnswers.rps),
+        burst: asRateLimitBurst(rateLimitAnswers.burst),
         maxConcurrentStreams:
           rateLimitAnswers.maxConcurrentStreams > 0
-            ? rateLimitAnswers.maxConcurrentStreams
+            ? asMaxConcurrentStreams(rateLimitAnswers.maxConcurrentStreams)
             : undefined,
       };
     }
 
-    const gatewayKeyRef = this.deriveGatewayKeyRef(clientId);
-    const gatewayKey = this.keyGenerator.generateGatewayClientKey(clientId);
+    const gatewayKeyRef = this.deriveGatewayKeyRef(clientAnswers.id.trim());
+    const gatewayKey = this.keyGenerator.generateGatewayClientKey(
+      clientAnswers.id.trim(),
+    );
     console.log(chalk.green('\n✓ Generated gateway key\n'));
 
     config.clients[clientId] = {
       name: clientAnswers.name.trim(),
       type: clientAnswers.type,
-      gatewayKeyRef: asEnvRef(gatewayKeyRef),
+      gatewayKeyRef,
       ...(rateLimit && {
         rateLimit: buildClientRateLimitConfig(rateLimit),
       }),
@@ -301,9 +312,9 @@ export class ClientManagerService {
           },
         ]);
         row.rateLimit = buildClientRateLimitConfig({
-          rps: rateLimitAnswers.rps,
-          burst: rateLimitAnswers.burst,
-          maxConcurrentStreams: rateLimitAnswers.maxConcurrentStreams,
+          rps: asRateLimitRps(rateLimitAnswers.rps),
+          burst: asRateLimitBurst(rateLimitAnswers.burst),
+          maxConcurrentStreams: asMaxConcurrentStreams(rateLimitAnswers.maxConcurrentStreams),
         });
         await this.persistence.persistConfig(config, cwd);
         CliLogger.success(`Rate limit updated for client ${clientId}.`);

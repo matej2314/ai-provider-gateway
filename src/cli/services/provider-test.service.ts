@@ -3,10 +3,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 import { CliLogger } from '../utils/cli-logger.util';
+import type { BaseUrl, ProviderApiKey } from '../../common/types/branded.types';
 
 @Injectable()
 export class ProviderTestService {
-  async testAnthropic(apiKey: string): Promise<boolean> {
+  async testAnthropic(apiKey: ProviderApiKey): Promise<boolean> {
     try {
       const client = new Anthropic({ apiKey });
 
@@ -25,7 +26,7 @@ export class ProviderTestService {
     }
   }
 
-  async testGoogle(apiKey: string): Promise<boolean> {
+  async testGoogle(apiKey: ProviderApiKey): Promise<boolean> {
     try {
       const client = new GoogleGenAI({ apiKey });
       await client.models.generateContent({
@@ -41,7 +42,7 @@ export class ProviderTestService {
     }
   }
 
-  async testOpenAi(apiKey: string, baseUrl: string): Promise<boolean> {
+  async testOpenAi(apiKey: ProviderApiKey, baseUrl: BaseUrl): Promise<boolean> {
     try {
       const client = new OpenAI({ apiKey, baseURL: baseUrl });
       await client.chat.completions.create({
