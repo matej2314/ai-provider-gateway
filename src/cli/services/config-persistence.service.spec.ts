@@ -9,6 +9,11 @@ import {
   TEST_PROVIDER_INSTANCE_BRANDED,
 } from '../../common/mocks/test-constants';
 
+/** js-yaml omits undefined fields on write — mirror that for disk assertions. */
+function withoutUndefinedFields<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 describe('ConfigPersistenceService', () => {
   let service: ConfigPersistenceService;
   let fileManager: FileManagerService;
@@ -44,7 +49,7 @@ describe('ConfigPersistenceService', () => {
 
     const onDisk = await fileManager.readYaml<typeof config>(configPath);
     expect(onDisk.schemaVersion).toBe(1);
-    expect(onDisk.models).toMatchObject(config.models);
+    expect(onDisk.models).toMatchObject(withoutUndefinedFields(config.models));
   });
 
   it('persistConfig should reject invalid config shape', async () => {
