@@ -1,6 +1,5 @@
 schemaVersion: 1
 masterKeyRef: MASTER_KEY
-
 providers:
   anthropic:
     type: anthropic
@@ -13,21 +12,18 @@ providers:
   openai:
     type: openai
     apiKeyRef: OPENAI_API_KEY
-    baseUrlRef: OPENAI_BASE_URL
     enabled: true
+    baseUrlRef: OPENAI_BASE_URL
   ollama-local:
     type: openai-compatible
     apiKeyRef: OLLAMA_API_KEY
-    baseUrlRef: OLLAMA_BASE_URL
     enabled: true
+    baseUrlRef: OLLAMA_BASE_URL
   deepseek:
     type: openai-compatible
     apiKeyRef: DEEPSEEK_API_KEY
-    baseUrlRef: DEEPSEEK_BASE_URL
     enabled: true
-
-# Configuration for gateway clients
-
+    baseUrlRef: DEEPSEEK_BASE_URL
 clients:
   webapp:
     name: My web app
@@ -41,7 +37,6 @@ clients:
     name: IDE INTEGRATION
     type: ide
     gatewayKeyRef: GATEWAY_KEY_IDE_PLUGIN
-
 models:
   chat-default:
     providerInstance: anthropic
@@ -54,7 +49,12 @@ models:
       timeoutMs: 30000
       retry:
         maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
+        onStatus:
+          - 429
+          - 500
+          - 502
+          - 503
+          - 504
       params:
         defaults:
           temperature: 0.4
@@ -73,12 +73,21 @@ models:
           - thinkingEnabled
           - thinkingBudget
         bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-          topP: { min: 0, max: 1 }
-          frequencyPenalty: { min: -2, max: 2 }
-          presencePenalty: { min: -2, max: 2 }
-
+          temperature:
+            min: 0
+            max: 2
+          maxOutputTokens:
+            min: 1
+            max: 8192
+          topP:
+            min: 0
+            max: 1
+          frequencyPenalty:
+            min: -2
+            max: 2
+          presencePenalty:
+            min: -2
+            max: 2
   claude-sonnet:
     providerInstance: anthropic
     modelId: claude-sonnet-4-5-20250929
@@ -91,7 +100,12 @@ models:
       timeoutMs: 30000
       retry:
         maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
+        onStatus:
+          - 429
+          - 500
+          - 502
+          - 503
+          - 504
       params:
         defaults:
           temperature: 0.4
@@ -110,12 +124,21 @@ models:
           - thinkingEnabled
           - thinkingBudget
         bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-          topP: { min: 0, max: 1 }
-          frequencyPenalty: { min: -2, max: 2 }
-          presencePenalty: { min: -2, max: 2 }
-
+          temperature:
+            min: 0
+            max: 2
+          maxOutputTokens:
+            min: 1
+            max: 8192
+          topP:
+            min: 0
+            max: 1
+          frequencyPenalty:
+            min: -2
+            max: 2
+          presencePenalty:
+            min: -2
+            max: 2
   gemini-flash:
     providerInstance: google
     modelId: gemini-2.5-flash
@@ -128,7 +151,12 @@ models:
       timeoutMs: 30000
       retry:
         maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
+        onStatus:
+          - 429
+          - 500
+          - 502
+          - 503
+          - 504
       params:
         defaults:
           temperature: 0.4
@@ -148,12 +176,21 @@ models:
           - thinkingEnabled
           - thinkingBudget
         bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-          topP: { min: 0, max: 1 }
-          frequencyPenalty: { min: -2, max: 2 }
-          presencePenalty: { min: -2, max: 2 }
-
+          temperature:
+            min: 0
+            max: 2
+          maxOutputTokens:
+            min: 1
+            max: 8192
+          topP:
+            min: 0
+            max: 1
+          frequencyPenalty:
+            min: -2
+            max: 2
+          presencePenalty:
+            min: -2
+            max: 2
   gpt-cheap:
     providerInstance: openai
     modelId: gpt-5.4-nano
@@ -165,15 +202,21 @@ models:
       timeoutMs: 30000
       retry:
         maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
+        onStatus:
+          - 429
+          - 500
+          - 502
+          - 503
+          - 504
       params:
         defaults:
           maxOutputTokens: 1024
         allowOverrides:
           - maxOutputTokens
         bounds:
-          maxOutputTokens: { min: 1, max: 8192 }
-
+          maxOutputTokens:
+            min: 1
+            max: 8192
   ollama-local-chat:
     providerInstance: ollama-local
     modelId: llama3.1:8b
@@ -185,11 +228,15 @@ models:
       timeoutMs: 120000
       retry:
         maxAttempts: 3
-        onStatus: [429, 502, 503, 504]
+        onStatus:
+          - 429
+          - 502
+          - 503
+          - 504
       params:
         defaults:
-          maxOutputTokens: 1024
           temperature: 0.4
+          maxOutputTokens: 1024
         allowOverrides:
           - temperature
           - maxOutputTokens
@@ -200,12 +247,21 @@ models:
           - seed
           - responseFormat
         bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-          topP: { min: 0, max: 1 }
-          frequencyPenalty: { min: -2, max: 2 }
-          presencePenalty: { min: -2, max: 2 }
-
+          temperature:
+            min: 0
+            max: 2
+          maxOutputTokens:
+            min: 1
+            max: 8192
+          topP:
+            min: 0
+            max: 1
+          frequencyPenalty:
+            min: -2
+            max: 2
+          presencePenalty:
+            min: -2
+            max: 2
   deepseek-chat:
     providerInstance: deepseek
     modelId: deepseek-v4-flash
@@ -217,7 +273,12 @@ models:
       timeoutMs: 60000
       retry:
         maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
+        onStatus:
+          - 429
+          - 500
+          - 502
+          - 503
+          - 504
       params:
         defaults:
           temperature: 0.7
@@ -232,8 +293,18 @@ models:
           - seed
           - responseFormat
         bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-          topP: { min: 0, max: 1 }
-          frequencyPenalty: { min: -2, max: 2 }
-          presencePenalty: { min: -2, max: 2 }
+          temperature:
+            min: 0
+            max: 2
+          maxOutputTokens:
+            min: 1
+            max: 8192
+          topP:
+            min: 0
+            max: 1
+          frequencyPenalty:
+            min: -2
+            max: 2
+          presencePenalty:
+            min: -2
+            max: 2

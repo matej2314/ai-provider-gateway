@@ -2,6 +2,12 @@ import { readFileSync, mkdtempSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { CliConfigLoaderService } from './cli-config-loader.service';
+import {
+  TEST_API_KEY_REF,
+  TEST_GATEWAY_KEY,
+  TEST_MASTER_KEY_REF,
+} from '../../common/mocks/test-constants';
+import { asEnvRef } from '../../common/types';
 
 const FIXTURES_DIR = join(__dirname, '../../../test/fixtures/cli');
 
@@ -44,7 +50,7 @@ describe('CliConfigLoaderService', () => {
     const config = service.loadRawConfig(configPath);
 
     expect(config.schemaVersion).toBe(1);
-    expect(config.masterKeyRef).toBe('MASTER_KEY_TEST');
+    expect(config.masterKeyRef).toBe(asEnvRef(TEST_MASTER_KEY_REF));
     expect(Object.keys(config.models)).toContain('test-model');
     expect(Object.keys(config.providers)).toContain('anthropic-primary');
   });
@@ -98,12 +104,12 @@ describe('CliConfigLoaderService', () => {
       'utf-8',
     );
 
-    const savedMasterKey = process.env.MASTER_KEY_TEST;
-    const savedApiKey = process.env.ANTHROPIC_API_KEY_TEST;
+    const savedMasterKey = process.env[TEST_MASTER_KEY_REF];
+    const savedApiKey = process.env[TEST_API_KEY_REF];
     const savedGatewayKey = process.env.GATEWAY_KEY_CLI_TEST;
 
-    delete process.env.MASTER_KEY_TEST;
-    delete process.env.ANTHROPIC_API_KEY_TEST;
+    delete process.env[TEST_MASTER_KEY_REF];
+    delete process.env[TEST_API_KEY_REF];
     delete process.env.GATEWAY_KEY_CLI_TEST;
 
     try {
@@ -112,21 +118,21 @@ describe('CliConfigLoaderService', () => {
       expect(config.schemaVersion).toBe(1);
       expect(missingEnvVars).toEqual(
         expect.arrayContaining([
-          'MASTER_KEY_TEST',
-          'ANTHROPIC_API_KEY_TEST',
+          TEST_MASTER_KEY_REF,
+          TEST_API_KEY_REF,
           'GATEWAY_KEY_CLI_TEST',
         ]),
       );
     } finally {
       if (savedMasterKey !== undefined) {
-        process.env.MASTER_KEY_TEST = savedMasterKey;
+        process.env[TEST_MASTER_KEY_REF] = savedMasterKey;
       } else {
-        delete process.env.MASTER_KEY_TEST;
+        delete process.env[TEST_MASTER_KEY_REF];
       }
       if (savedApiKey !== undefined) {
-        process.env.ANTHROPIC_API_KEY_TEST = savedApiKey;
+        process.env[TEST_API_KEY_REF] = savedApiKey;
       } else {
-        delete process.env.ANTHROPIC_API_KEY_TEST;
+        delete process.env[TEST_API_KEY_REF];
       }
       if (savedGatewayKey !== undefined) {
         process.env.GATEWAY_KEY_CLI_TEST = savedGatewayKey;
@@ -144,27 +150,27 @@ describe('CliConfigLoaderService', () => {
       'utf-8',
     );
 
-    const savedMasterKey = process.env.MASTER_KEY_TEST;
-    const savedApiKey = process.env.ANTHROPIC_API_KEY_TEST;
+    const savedMasterKey = process.env[TEST_MASTER_KEY_REF];
+    const savedApiKey = process.env[TEST_API_KEY_REF];
     const savedGatewayKey = process.env.GATEWAY_KEY_CLI_TEST;
 
-    process.env.MASTER_KEY_TEST = 'gw_mk_test';
-    process.env.ANTHROPIC_API_KEY_TEST = 'sk-test';
-    process.env.GATEWAY_KEY_CLI_TEST = 'gw_test';
+    process.env[TEST_MASTER_KEY_REF] = 'gw_mk_test';
+    process.env[TEST_API_KEY_REF] = 'sk-test';
+    process.env.GATEWAY_KEY_CLI_TEST = TEST_GATEWAY_KEY;
 
     try {
       const { missingEnvVars } = service.loadWithEnvCheck(configPath);
       expect(missingEnvVars).toEqual([]);
     } finally {
       if (savedMasterKey !== undefined) {
-        process.env.MASTER_KEY_TEST = savedMasterKey;
+        process.env[TEST_MASTER_KEY_REF] = savedMasterKey;
       } else {
-        delete process.env.MASTER_KEY_TEST;
+        delete process.env[TEST_MASTER_KEY_REF];
       }
       if (savedApiKey !== undefined) {
-        process.env.ANTHROPIC_API_KEY_TEST = savedApiKey;
+        process.env[TEST_API_KEY_REF] = savedApiKey;
       } else {
-        delete process.env.ANTHROPIC_API_KEY_TEST;
+        delete process.env[TEST_API_KEY_REF];
       }
       if (savedGatewayKey !== undefined) {
         process.env.GATEWAY_KEY_CLI_TEST = savedGatewayKey;
@@ -178,7 +184,7 @@ describe('CliConfigLoaderService', () => {
     const envPath = join(tempDir, '.env');
     expect(service.envExists(envPath)).toBe(false);
 
-    writeFileSync(envPath, 'MASTER_KEY_TEST=gw_mk_test\n', 'utf-8');
+    writeFileSync(envPath, `${TEST_MASTER_KEY_REF}=gw_mk_test\n`, 'utf-8');
 
     expect(service.envExists(envPath)).toBe(true);
   });

@@ -3,9 +3,17 @@ import { WizardStep } from '../constants/wizard-steps';
 import {
   asEnvRef,
   asProviderApiKey,
+  type ClientId,
   type EnvRef,
   type GatewayKey,
+  type MaxConcurrentStreams,
+  type ModelAlias,
+  type ModelId,
+  type Port,
   type ProviderApiKey,
+  type ProviderInstanceId,
+  type RateLimitBurst,
+  type RateLimitRps,
 } from '../../common/types/branded.types';
 
 describe('parseWizardState', () => {
@@ -40,7 +48,7 @@ describe('WizardState Branded Types Conversion', () => {
     const raw = {
       sessionId: 'session-123',
       startedAt: '2026-01-01T00:00:00Z',
-      currentStep: 'providers',
+      currentStep: WizardStep.Providers,
       completedSteps: [],
       data: {
         masterKey: 'master-key-123',
@@ -98,21 +106,40 @@ describe('WizardState Branded Types Conversion', () => {
     expect(apiKey).toBe('sk-test-123');
 
     expect(state!.data.models).toHaveLength(1);
+    const model = state!.data.models![0];
+    const alias: ModelAlias = model.alias;
+    const providerInstance: ProviderInstanceId = model.providerInstance;
+    const modelId: ModelId = model.modelId;
+    expect(alias).toBe('claude-sonnet');
+    expect(providerInstance).toBe('test-provider');
+    expect(modelId).toBe('claude-sonnet-4-5-20250929');
+
     expect(state!.data.clients).toHaveLength(1);
-
     const client = state!.data.clients![0];
-    expect(client.rateLimit?.rps).toBe(10);
-    expect(client.rateLimit?.burst).toBe(20);
+    const clientId: ClientId = client.id;
+    const gatewayKey: GatewayKey = client.gatewayKey;
+    expect(clientId).toBe('test-client');
+    expect(gatewayKey).toBe('gk_test_123');
 
-    expect(state!.data.serverConfig?.port).toBe(3000);
-    expect(state!.data.serverConfig?.redisPort).toBe(6379);
+    const rps: RateLimitRps = client.rateLimit!.rps;
+    const burst: RateLimitBurst = client.rateLimit!.burst;
+    const maxConcurrentStreams: MaxConcurrentStreams =
+      client.rateLimit!.maxConcurrentStreams!;
+    expect(rps).toBe(10);
+    expect(burst).toBe(20);
+    expect(maxConcurrentStreams).toBe(5);
+
+    const port: Port = state!.data.serverConfig!.port;
+    const redisPort: Port = state!.data.serverConfig!.redisPort!;
+    expect(port).toBe(3000);
+    expect(redisPort).toBe(6379);
   });
 
   it('should handle optional fields in conversion', () => {
     const raw = {
       sessionId: 'session-456',
       startedAt: '2026-01-01T00:00:00Z',
-      currentStep: 'server-config',
+      currentStep: WizardStep.ServerConfig,
       completedSteps: [],
       data: {
         providers: [

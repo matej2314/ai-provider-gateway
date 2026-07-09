@@ -2,6 +2,7 @@ import { mkdtempSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { FileManagerService } from './file-manager.service';
+import { asGatewayKey, asProviderApiKey } from '../../common/types/branded.types';
 
 describe('FileManagerService', () => {
   let service: FileManagerService;
@@ -38,10 +39,12 @@ describe('FileManagerService', () => {
 
   it('writeEnv should write KEY=value lines', async () => {
     const path = join(tempDir, '.env');
+    const masterKey = asGatewayKey('gw_mk_test');
+    const apiKey = asProviderApiKey('sk-test');
 
     await service.writeEnv(path, {
-      MASTER_KEY_TEST: 'gw_mk_test',
-      ANTHROPIC_API_KEY_TEST: 'sk-test',
+      MASTER_KEY_TEST: masterKey,
+      ANTHROPIC_API_KEY_TEST: apiKey,
     });
 
     const content = await service.readFile(path);

@@ -62,10 +62,9 @@ Konfiguracja: `test/jest-cli.json` — `roots: ["<rootDir>/../src/cli"]`.
 
 | Obszar               | Przykładowe pliki                                                                                                                                                                                                                                                                                 |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bootstrap / wizard   | `cli-bootstrap.spec.ts`, `schemas/wizard-state.schema.spec.ts`                                                                                                                                                                                                                                    |
 | Config / persistence | `services/config-persistence.service.spec.ts`, `services/cli-config-loader.service.spec.ts`, `services/file-manager.service.spec.ts`                                                                                                                                                              |
 | Utils                | `utils/legacy-provider-env.util.spec.ts`, `utils/default-model-policy.util.spec.ts`, `utils/effective-config-preview.util.spec.ts`, `utils/client-rate-limit.util.spec.ts`, `utils/api-key-validation.util.spec.ts`, `utils/provider-base-url.cli.util.spec.ts`, `utils/provider-id.util.spec.ts` |
-| Klucze               | `services/key-generator.service.spec.ts`                                                                                                                                                                                                                                                          |
+| Schemas / klucze     | `schemas/wizard-state.schema.spec.ts`, `services/key-generator.service.spec.ts`                                                                                                                                                                                                                   |
 
 ## Testy E2E (`test/e2e/`)
 

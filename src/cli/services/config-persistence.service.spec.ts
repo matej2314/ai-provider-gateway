@@ -6,7 +6,7 @@ import { FileManagerService } from './file-manager.service';
 import { createTestGatewayConfig } from '../../common/mocks/createTestGatewayConfig';
 import {
   TEST_API_KEY_REF,
-  TEST_PROVIDER_INSTANCE,
+  TEST_PROVIDER_INSTANCE_BRANDED,
 } from '../../common/mocks/test-constants';
 
 describe('ConfigPersistenceService', () => {
@@ -75,7 +75,7 @@ describe('ConfigPersistenceService', () => {
 
   it('persistConfig rejects config with no active models when effective check enabled', async () => {
     const invalid = createTestGatewayConfig({
-      providers: { [TEST_PROVIDER_INSTANCE]: { enabled: false } },
+      providers: { [TEST_PROVIDER_INSTANCE_BRANDED]: { enabled: false } },
     });
     await expect(service.persistConfig(invalid, cwd)).rejects.toThrow(
       /would fail at application startup|No active models/,
@@ -87,7 +87,7 @@ describe('ConfigPersistenceService', () => {
     writeFileSync(configPath, 'schemaVersion: 1\n', 'utf-8');
 
     const invalid = createTestGatewayConfig({
-      providers: { [TEST_PROVIDER_INSTANCE]: { enabled: false } },
+      providers: { [TEST_PROVIDER_INSTANCE_BRANDED]: { enabled: false } },
     });
     await expect(
       service.persistConfig(invalid, cwd, { skipEffectiveCheck: true }),

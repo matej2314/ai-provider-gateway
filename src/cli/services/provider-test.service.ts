@@ -3,7 +3,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 import { CliLogger } from '../utils/cli-logger.util';
-import type { BaseUrl, ProviderApiKey } from '../../common/types/branded.types';
+import type {
+  BaseUrl,
+  ProviderApiKey,
+  ProviderInstanceId,
+} from '../../common/types/branded.types';
+import type { GatewayConfig } from '../../config/gateway-config.schema';
 
 @Injectable()
 export class ProviderTestService {
@@ -54,6 +59,47 @@ export class ProviderTestService {
     } catch (err) {
       if (err instanceof Error) {
         CliLogger.error(`OpenAI test failed: ${err.message}`);
+      }
+      return false;
+    }
+  }
+
+  async testOpenAiCompatible(
+    apiKey: ProviderApiKey,
+    baseUrl: BaseUrl,
+    providerInstanceId: ProviderInstanceId,
+    config: GatewayConfig,
+  ): Promise<boolean> {
+    try {
+      const modelEntry = Object.entries(config.models).find(
+        ([_, model]) => model.providerInstance === providerInstanceId,
+      );
+
+      if (!modelEntry) {
+        CliLogger.error(
+          `No model configured for provider ${providerInstanceId} in gateway.config.yaml`,
+        );
+        CliLogger.info(
+          'Add at least one model for this provider using: gateway model:add',
+        );
+        return false;
+      }
+
+      const [modelAlias, modelConfig] = modelEntry;
+      const modelId = modelConfig.modelId;
+
+      CliLogger.info(`Using model ${modelId} (alias: ${modelAlias})`);
+
+      const client = new OpenAI({ apiKey, baseURL: baseUrl });
+      await client.chat.completions.create({
+        model: modelId,
+        max_tokens: 5,
+        messages: [{ role: 'user', content: 'Say hi' }],
+      });
+      return true;
+    } catch (err) {
+      if (err instanceof Error) {
+        CliLogger.error(`OpenAI-compatible test failed: ${err.message}`);
       }
       return false;
     }

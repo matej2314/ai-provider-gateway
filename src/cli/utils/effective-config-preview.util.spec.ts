@@ -2,6 +2,7 @@ import { createTestGatewayConfig } from '../../common/mocks/createTestGatewayCon
 import {
   asEnvRef,
   asModelAlias,
+  asModelId,
   asProviderInstanceId,
 } from '../../common/types';
 import {
@@ -30,12 +31,12 @@ describe('effective-config-preview.util', () => {
         models: {
           'anthropic-model': {
             providerInstance: asProviderInstanceId('anthropic-primary'),
-            modelId: 'claude-sonnet-4-5',
+            modelId: asModelId('claude-sonnet-4-5'),
             capabilities: { streaming: true, tools: true },
           },
           'google-model': {
             providerInstance: asProviderInstanceId('google-primary'),
-            modelId: 'gemini-pro',
+            modelId: asModelId('gemini-pro'),
             capabilities: { streaming: true, tools: true },
           },
         },
@@ -62,12 +63,12 @@ describe('effective-config-preview.util', () => {
         models: {
           'model-a': {
             providerInstance: asProviderInstanceId('anthropic-primary'),
-            modelId: 'claude-sonnet-4-5',
+            modelId: asModelId('claude-sonnet-4-5'),
             capabilities: { streaming: true, tools: true },
           },
           'model-b': {
             providerInstance: asProviderInstanceId('anthropic-primary'),
-            modelId: 'claude-haiku',
+            modelId: asModelId('claude-haiku'),
             capabilities: { streaming: true, tools: true },
           },
         },
@@ -91,7 +92,7 @@ describe('effective-config-preview.util', () => {
         models: {
           'only-model': {
             providerInstance: asProviderInstanceId('anthropic-primary'),
-            modelId: 'claude-sonnet-4-5',
+            modelId: asModelId('claude-sonnet-4-5'),
             capabilities: { streaming: true, tools: true },
           },
         },
@@ -129,12 +130,12 @@ describe('effective-config-preview.util', () => {
         models: {
           'anthropic-model': {
             providerInstance: asProviderInstanceId('anthropic-primary'),
-            modelId: 'claude-sonnet-4-5',
+            modelId: asModelId('claude-sonnet-4-5'),
             capabilities: { streaming: true, tools: true },
           },
           'google-model': {
             providerInstance: asProviderInstanceId('google-primary'),
-            modelId: 'gemini-pro',
+            modelId: asModelId('gemini-pro'),
             capabilities: { streaming: true, tools: true },
           },
         },

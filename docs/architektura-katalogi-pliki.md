@@ -334,7 +334,6 @@ ai-provider-gateway/
 │   │   │   │   └── client-remove.command.ts
 │   │   │   └── key/
 │   │   │       └── key-generate.command.ts
-│   │   ├── cli-bootstrap.spec.ts
 │   │   ├── constants/
 │   │   │   ├── default-models.ts
 │   │   │   ├── model-allow-overrides.ts

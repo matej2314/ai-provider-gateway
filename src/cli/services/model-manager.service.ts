@@ -9,11 +9,13 @@ import {
 import { ConfigPersistenceService } from './config-persistence.service';
 import { DEFAULT_MODELS } from '../constants/default-models';
 import { isThinkingCapableModel } from '../constants/thinking-capable-models';
+import { providerModelRejectsSamplingParams } from 'src/providers/anthropic/anthropic-sampling-params.util';
 import {
   buildDefaultModelPolicy,
   getMaxOutputTokensBound,
+  syncPolicySamplingForModel,
 } from '../utils/default-model-policy.util';
-import type { GatewayProviderType } from 'src/config/provider-types';
+import { FileManagerService } from './file-manager.service';
 import {
   asProviderInstanceId,
   asMaxAttempts,
@@ -23,10 +25,12 @@ import {
 } from '../../common/types/branded.types';
 import boxen from 'boxen';
 import chalk from 'chalk';
+import { join } from 'path';
 import {
   isLastModelInConfig,
   isLastModelForEnabledProvider,
 } from '../utils/effective-config-preview.util';
+import type { GatewayProviderType } from 'src/config/provider-types';
 
 type ModelEditField =
   | 'modelId'
@@ -50,6 +54,7 @@ export class ModelManagerService {
   constructor(
     private readonly configGenerator: ConfigGeneratorService,
     private readonly persistence: ConfigPersistenceService,
+    private readonly fileManager: FileManagerService,
   ) {}
 
   async addModelForProvider(
@@ -98,6 +103,15 @@ export class ModelManagerService {
         );
         CliLogger.info(
           'Configuration includes thinking parameters (thinkingEnabled: false by default).',
+        );
+      }
+
+      if (providerModelRejectsSamplingParams(trimmedModelId, type)) {
+        CliLogger.info(
+          `Model ${trimmedModelId} does not support temperature, topP, or topK.`,
+        );
+        CliLogger.info(
+          'Sampling parameters are omitted from policy. Use system prompt or thinkingBudget (effort) instead.',
         );
       }
 
@@ -155,7 +169,7 @@ export class ModelManagerService {
           },
           {
             value: 'policy',
-            name: `policy (timeout, retry, temperature, maxOutputTokens)`,
+            name: `policy (timeout, retry, maxOutputTokens)`,
           },
         ],
       },
@@ -201,6 +215,15 @@ export class ModelManagerService {
                 'Capabilities updated: thinking mode removed for new model.',
               );
             }
+
+            current.policy = syncPolicySamplingForModel(
+              current.policy,
+              current.modelId,
+              providerType,
+            );
+            CliLogger.info(
+              'Policy sampling parameters updated for new model ID.',
+            );
           }
           break;
         }
@@ -311,6 +334,9 @@ export class ModelManagerService {
           const providerType = config.providers[current.providerInstance]?.type;
           const base =
             current.policy ?? defaultModelPolicy(current.modelId, providerType);
+          const rejectsSampling = providerType
+            ? providerModelRejectsSamplingParams(current.modelId, providerType)
+            : false;
           const tempBounds = base.params?.bounds?.temperature ?? {
             min: 0,
             max: 2,
@@ -323,88 +349,110 @@ export class ModelManagerService {
                   max: getMaxOutputTokensBound(current.modelId, providerType),
                 }
               : { min: 1, max: 8192 });
-          const policyAnswers = await inquirer.prompt<{
-            timeoutMs: number;
-            maxAttempts: number;
-            temperature: number;
-            maxOutputTokens: number;
-          }>([
-            {
-              type: 'number',
-              name: 'timeoutMs',
-              message: 'Request timeout (ms):',
-              default: base.timeoutMs ?? 30000,
-              validate: (value: number) => {
-                if (!Number.isFinite(value)) return 'Timeout must be a number.';
-                return value >= 1 ? true : 'Timeout must be at least 1ms.';
+
+          const { timeoutMs, maxAttempts, maxOutputTokens, temperature } =
+            await inquirer.prompt<{
+              timeoutMs: number;
+              maxAttempts: number;
+              maxOutputTokens: number;
+              temperature?: number;
+            }>([
+              {
+                type: 'number',
+                name: 'timeoutMs',
+                message: 'Request timeout (ms):',
+                default: base.timeoutMs ?? 30000,
+                validate: (value: number) => {
+                  if (!Number.isFinite(value)) {
+                    return 'Timeout must be a number.';
+                  }
+                  return value >= 1 ? true : 'Timeout must be at least 1ms.';
+                },
               },
-            },
-            {
-              type: 'number',
-              name: 'maxAttempts',
-              message: 'Retry max attempts (1-5):',
-              default: base.retry?.maxAttempts ?? 3,
-              validate: (value: number) => {
-                if (!Number.isFinite(value)) {
-                  return 'Max attempts must be a number.';
-                }
-                return value >= 1 && value <= 5
-                  ? true
-                  : 'Max attempts must be between 1 and 5.';
+              {
+                type: 'number',
+                name: 'maxAttempts',
+                message: 'Retry max attempts (1-5):',
+                default: base.retry?.maxAttempts ?? 3,
+                validate: (value: number) => {
+                  if (!Number.isFinite(value)) {
+                    return 'Max attempts must be a number.';
+                  }
+                  return value >= 1 && value <= 5
+                    ? true
+                    : 'Max attempts must be between 1 and 5.';
+                },
               },
-            },
-            {
-              type: 'number',
-              name: 'temperature',
-              message: `Default temperature:`,
-              default: base.params?.defaults?.temperature ?? 0.7,
-              validate: (value: number) => {
-                if (!Number.isFinite(value)) {
-                  return 'Temperature must be a number.';
-                }
-                return value >= tempBounds.min && value <= tempBounds.max
-                  ? true
-                  : `Temperature must be between ${tempBounds.min} and ${tempBounds.max}.`;
+              ...(rejectsSampling
+                ? []
+                : [
+                    {
+                      type: 'number' as const,
+                      name: 'temperature' as const,
+                      message: 'Default temperature:',
+                      default: base.params?.defaults?.temperature ?? 0.7,
+                      validate: (value: number) => {
+                        if (!Number.isFinite(value)) {
+                          return 'Temperature must be a number.';
+                        }
+                        return value >= tempBounds.min &&
+                          value <= tempBounds.max
+                          ? true
+                          : `Temperature must be between ${tempBounds.min} and ${tempBounds.max}.`;
+                      },
+                    },
+                  ]),
+              {
+                type: 'number',
+                name: 'maxOutputTokens',
+                message: 'Default max output tokens:',
+                default: base.params?.defaults?.maxOutputTokens ?? 1024,
+                validate: (value: number) => {
+                  if (!Number.isFinite(value)) {
+                    return 'Max output tokens must be a number.';
+                  }
+                  return value >= tokenBounds.min && value <= tokenBounds.max
+                    ? true
+                    : `Max output tokens must be between ${tokenBounds.min} and ${tokenBounds.max}.`;
+                },
               },
-            },
-            {
-              type: 'number',
-              name: 'maxOutputTokens',
-              message: `Default max output tokens:`,
-              default: base.params?.defaults?.maxOutputTokens ?? 1024,
-              validate: (value: number) => {
-                if (!Number.isFinite(value)) {
-                  return 'Max output tokens must be a number.';
-                }
-                return value >= tokenBounds.min && value <= tokenBounds.max
-                  ? true
-                  : `Max output tokens must be between ${tokenBounds.min} and ${tokenBounds.max}.`;
-              },
-            },
-          ]);
+            ]);
+
           const policyDefaults = defaultModelPolicy(
             current.modelId,
             providerType,
           );
+          const existingDefaults = base.params?.defaults ?? {};
+          const {
+            temperature: _removedTemperature,
+            ...defaultsWithoutTemperature
+          } = existingDefaults;
+
           current.policy = {
             ...base,
-            timeoutMs: asTimeoutMs(policyAnswers.timeoutMs),
+            timeoutMs: asTimeoutMs(timeoutMs),
             retry: {
               ...base.retry,
-              maxAttempts: asMaxAttempts(policyAnswers.maxAttempts),
+              maxAttempts: asMaxAttempts(maxAttempts),
               onStatus: base.retry?.onStatus ?? policyDefaults.retry?.onStatus,
             },
             params: {
               ...base.params,
-              defaults: {
-                ...base.params?.defaults,
-                temperature: policyAnswers.temperature,
-                maxOutputTokens: policyAnswers.maxOutputTokens,
-              },
+              defaults: rejectsSampling
+                ? {
+                    ...defaultsWithoutTemperature,
+                    maxOutputTokens,
+                  }
+                : {
+                    ...existingDefaults,
+                    temperature:
+                      temperature ?? existingDefaults.temperature ?? 0.7,
+                    maxOutputTokens,
+                  },
               allowOverrides:
-                base.params?.allowOverrides ??
-                policyDefaults.params.allowOverrides,
-              bounds: base.params?.bounds ?? policyDefaults.params.bounds,
+                policyDefaults.params?.allowOverrides ??
+                base.params?.allowOverrides,
+              bounds: policyDefaults.params?.bounds ?? base.params?.bounds,
             },
           };
           break;
@@ -476,9 +524,33 @@ export class ModelManagerService {
       await this.persistence.persistConfig(config, cwd);
     }
 
+    await this.deleteModelPrompt(alias, cwd);
+
     CliLogger.success(`Model ${alias} removed from configuration.`);
-    CliLogger.info(
-      `Note: Model prompt file (models/${alias}.md) was not removed. Remove it manually if needed.`,
-    );
+  }
+
+  private async deleteModelPrompt(
+    modelAlias: string,
+    cwd: string,
+  ): Promise<boolean> {
+    const modelsDir = join(cwd, 'src', 'config', 'system-prompt', 'models');
+    const promptPath = join(modelsDir, `${modelAlias}.md`);
+
+    try {
+      const deleted = await this.fileManager.deleteFile(promptPath);
+      if (deleted) {
+        CliLogger.success(
+          `Deleted: src/config/system-prompt/models/${modelAlias}.md`,
+        );
+      } else {
+        CliLogger.info(`Skipped: models/${modelAlias}.md does not exist.`);
+      }
+      return deleted;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Unknown error occurred.';
+      CliLogger.warning(`Failed to delete models/${modelAlias}.md: ${message}`);
+    }
+    return false;
   }
 }

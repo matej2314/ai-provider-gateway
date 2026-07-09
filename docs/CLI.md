@@ -324,9 +324,11 @@ gateway model:add
 
 ### `gateway model:remove <alias>`
 
-Usuwa alias z `gateway.config.yaml` (z backupem w `backup/`). Plik promptu modelu pozostaje na dysku — po sukcesie CLI przypomina o ręcznym usunięciu `models/<alias>.md`.
+Usuwa alias z `gateway.config.yaml` (z backupem w `backup/`) oraz **automatycznie usuwa** plik promptu `src/config/system-prompt/models/<alias>.md` (jeśli istnieje).
 
-Przy błędzie walidacji Zod po mutacji (`validation failed`) YAML **nie jest** zapisywany — komunikat informuje, że alias nie został usunięty.
+Przy błędzie walidacji Zod po mutacji (`validation failed`) YAML **nie jest** zapisywany — komunikat informuje, że alias nie został usunięty. W takim przypadku plik promptu również nie jest usuwany.
+
+Jeśli plik promptu nie istnieje lub nie może zostać usunięty, operacja zakończy się sukcesem z odpowiednim komunikatem informacyjnym/ostrzegawczym — usunięcie modelu z konfiguracji jest operacją krytyczną, usunięcie promptu jest dodatkiem.
 
 ```bash
 gateway model:remove chat-default
@@ -432,7 +434,7 @@ Kierunek zależności: **config → cli**, **cache/should-include-redis-stack �
 |-----------|------|
 | `CliModule` | Root NestJS module — **bez** `ConfigModule` |
 | `CliConfigLoaderService` | YAML + `GatewayConfigSchema`; `loadWithEnvCheck()` raportuje braki env |
-| `FileManagerService` | read/write YAML, `.env`, backup do `backup/` |
+| `FileManagerService` | read/write YAML, `.env`, backup do `backup/`, delete files |
 | `ConfigGeneratorService` | Generowanie plików z szablonów (wizard) |
 | `ConfigPersistenceService` | Walidacja Zod + backup + zapis YAML po mutacjach |
 | `EnvPatchService` | Aktualizacja pojedynczych zmiennych w `.env` |
@@ -462,7 +464,7 @@ Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `PROVIDE
 - `gateway <command> --help` — opcje per komenda
 - Komendy mutujące tworzą backup `gateway.config.yaml` w `backup/` przed zapisem (wizard przy nadpisaniu istniejącej konfiguracji robi to samo dla YAML i `.env`)
 - Po zmianach env uruchom `gateway config:validate` przed startem serwera
-- Pliki promptów modeli nie są automatycznie usuwane przy `model:remove` / `provider:remove` — usuń ręcznie, jeśli potrzeba
+- `model:remove` automatycznie usuwa plik promptu modelu; `provider:remove` wyświetla listę promptów powiązanych modeli do ręcznego przeglądu (może być wiele modeli per provider)
 
 ## Powiązane dokumenty
 

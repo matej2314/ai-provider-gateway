@@ -61,4 +61,13 @@ export class FileManagerService {
   async readFile(path: string): Promise<string> {
     return await fs.readFile(path, 'utf-8');
   }
+
+  async deleteFile(path: string): Promise<boolean> {
+    const exists = await this.fileExists(path);
+    if (!exists) {
+      return false;
+    }
+    await fs.unlink(path);
+    return true;
+  }
 }

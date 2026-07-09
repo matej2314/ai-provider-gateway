@@ -241,7 +241,7 @@ Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalog
 
 Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
 
-Aktualne liczniki: `npm test` — **86** zestawów / **1305** przypadków; `npm run test:cli` — **13** / **53**; `npm run test:e2e` — **10** / **105**.
+Aktualne liczniki: `npm test` — **86** zestawów / **1305** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105**.
 
 Uruchomienie:
 
@@ -272,7 +272,7 @@ npm run cli provider:remove <instanceId> # usuń instancję, modele i klucz z .e
 npm run cli model:list                   # lista aliasów modeli
 npm run cli model:add                    # dodaj alias (interaktywnie)
 npm run cli model:edit <alias>           # edycja pól modelu
-npm run cli model:remove <alias>         # usuń alias z YAML
+npm run cli model:remove <alias>         # usuń alias z YAML + plik promptu
 
 npm run cli client:list                  # lista klientów gateway
 npm run cli client:add                   # dodaj klienta (interaktywnie)
