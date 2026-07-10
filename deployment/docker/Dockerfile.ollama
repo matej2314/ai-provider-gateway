@@ -1,0 +1,31 @@
+# Ollama image with llama3.1:8b baked in at build time.
+# First build downloads ~4.7 GB and may take several minutes.
+
+FROM ollama/ollama:latest
+
+ARG OLLAMA_MODEL=llama3.1:8b
+
+RUN /bin/ollama serve & \
+    until /bin/ollama list >/dev/null 2>&1; do sleep 1; done && \
+    /bin/ollama pull "${OLLAMA_MODEL}" && \
+    /bin/ollama list | grep -Fq "${OLLAMA_MODEL}" && \
+    pkill ollama || true
+
+# Named volumes mount over /root/.ollama and hide baked models on first run.
+RUN cp -a /root/.ollama /opt/ollama-baked
+
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'set -e' \
+    'if [ ! -d /root/.ollama/models/manifests ] || [ -z "$(ls -A /root/.ollama/models/manifests 2>/dev/null)" ]; then' \
+    '  echo "Initializing Ollama models from image..."' \
+    '  mkdir -p /root/.ollama' \
+    '  cp -a /opt/ollama-baked/. /root/.ollama/' \
+    'fi' \
+    'exec /bin/ollama serve' \
+    > /usr/local/bin/ollama-entrypoint.sh && \
+    chmod +x /usr/local/bin/ollama-entrypoint.sh
+
+EXPOSE 11434
+
+ENTRYPOINT ["/usr/local/bin/ollama-entrypoint.sh"]

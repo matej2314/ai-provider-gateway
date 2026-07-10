@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Build
+dist
+build
+
+# Tests
+test
+coverage
+*.spec.ts
+
+# Config files
+# .env
+# .env.*
+# !.env.example
+
+# Git
+.git
+.gitignore
+
+# Documentation
+docs
+!README.md
+
+# IDE
+.vscode
+.idea
+
+# Logs
+logs
+*.log
+
+# Temp
+tmp
+temp
+
+# Deployment artifacts (not needed in image)
+deployment/
+
+# Graphify output (może być duży)
+graphify-out/
+# Agent instructions
+AGENTS.md
+# Production readiness plan
+production-readiness-plan.md
+PLAN_IMPLEMENTACJI.md
+object-values-entitites-plan.md
+# All markdown except README
+*.md
+!README.md

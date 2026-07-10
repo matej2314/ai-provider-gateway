@@ -1,0 +1,38 @@
+name: ai-provider-gateway-ollama
+
+# Standalone Ollama (npm run ollama:up)
+# Gateway + Ollama together: npm run docker:up:ollama
+#
+# Build image with model (first run downloads ~4.7 GB):
+#   docker-compose -f deployment/docker/docker-compose.ollama.yml build
+
+services:
+  ollama:
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama
+      args:
+        OLLAMA_MODEL: llama3.1:8b
+    image: ai-gateway-ollama:latest
+    container_name: ai-gateway-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    networks:
+      - ai-gateway-network
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  ollama-data:
+
+networks:
+  ai-gateway-network:
+    external: true
+    name: ai-gateway-network
