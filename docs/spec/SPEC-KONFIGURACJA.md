@@ -15,7 +15,7 @@ Użytkownik ma móc skonfigurować gateway bez zmian w kodzie:
 1. Użytkownik uruchamia **`gateway config:init`** (zalecane po sklonowaniu — zastępuje boilerplate w repo) **lub** ręcznie ustawia env i YAML.
 2. Ustawia klucze providerów w `.env` pod nazwami **`apiKeyRef`** z YAML (wizard generuje np. `ANTHROPIC_PRIMARY_API_KEY` dla instancji `anthropic-primary`; synchronizuje też legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`).
 3. W configu dodaje `providerInstance=anthropic-primary` (lub inne ID) z `enabled: true` i `modelAlias=chat-default`.
-4. Uruchamia serwis i wywołuje `/chat`.
+4. Uruchamia serwis i wywołuje `POST /api/v1/chat`.
 
 ### Scenariusz B — konfiguracja dwóch providerów + streaming
 

@@ -42,7 +42,7 @@ Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya, zarządzania
 | `model:add`, `model:list`, `model:remove`, `model:edit` | **wdrożone** |
 | `client:add`, `client:list`, `client:edit`, `client:remove` | **wdrożone** |
 | `key:generate` | **wdrożone** |
-| Testy jednostkowe CLI (`npm run test:cli`) | **wdrożone** (13 zestawów / 53 przypadki) |
+| Testy jednostkowe CLI (`npm run test:cli`) | **wdrożone** (12 zestawów / 62 przypadki) |
 
 ## Uruchomienie
 
@@ -171,8 +171,8 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
    | Cache | Smart rate limit | `.env`: `REDIS_*` | `.env`: `RATE_LIMIT_SMART_ENABLED` |
    |-------|------------------|-------------------|-------------------------------------|
    | `redis` | wł. / wył. | tak | wg wyboru |
-   | `memory` / wył. | wł. | tak | `true` |
-   | wył. / `memory` | wył. | nie (puste) | `false` |
+   | wył. (`noop`) | wł. | tak | `true` |
+   | wył. | wył. | nie (puste) | `false` |
 
 4. **Walidacja końcowa** — `validateGatewayConfig()` z `src/config/config-validator.ts`:
    - Przed każdą iteracją doładowanie `.env` (gdy dostępny `dotenv`)
@@ -203,7 +203,7 @@ gateway config:validate
 
 **Uwaga:** Komenda sprawdza plik `gateway.config.yaml` w katalogu roboczym.
 
-**Alternatywa offline (identyczna logika walidacji runtime):** `npm run config:validate` — skrypt `scripts/validate-config.ts` (szczegóły: `konfiguracja.md`).
+**Alternatywa offline (walidacja YAML + reguły runtime):** `npm run config:validate` — skrypt `scripts/validate-config.ts` (szczegóły: `konfiguracja.md`). **Nie** uruchamia `validateEnv()` — do pełnej walidacji env (format legacy kluczy) użyj `gateway config:validate`.
 
 ### `gateway config:show`
 

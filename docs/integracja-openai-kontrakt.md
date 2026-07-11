@@ -81,7 +81,7 @@ Lista dostępnych ID: `GET /api/v1/openai/models`.
 
 Szczegóły: [`dictionary.md`](dictionary.md) (sekcja „`systemFingerprint` — semantyka i providerzy”).
 
-**Provider docelowy:** fasada mapuje pola OpenAI na wspólne `params.*`, ale **wywołanie LLM** idzie do adaptera wskazanego przez **`model`** (= `modelAlias` w YAML). Dla aliasu na Anthropic obowiązuje wykluczenie `temperature` + `top_p` (patrz `integracja-anthropic-messages.md`). **Adapter OpenAI** (`create-openai-provider.ts`) **nie jest wdrożony** — parametry penalties/seed oraz `system_fingerprint` w odpowiedzi nie trafią z OpenAI.com, dopóki alias nie wskazuje przyszłego providera OpenAI. Macierz: `dictionary.md`, `konfiguracja.md`.
+**Provider docelowy:** fasada mapuje pola OpenAI na wspólne `params.*`, ale **wywołanie LLM** idzie do adaptera wskazanego przez **`model`** (= `modelAlias` w YAML). Dla aliasu na Anthropic obowiązuje wykluczenie `temperature` + `top_p` (patrz `integracja-anthropic-messages.md`). Gdy alias wskazuje **`type: openai`** lub **`openai-compatible`**, adapter runtime OpenAI (`create-openai-provider.ts`) obsługuje m.in. penalties, seed i `system_fingerprint` — szczegóły: [`provider-openai-runtime.md`](provider-openai-runtime.md). Macierz parametrów: `dictionary.md`, `konfiguracja.md`.
 
 Limit **`messages`**: 1–15 000 (DTO fasady; natywny czat: 1–150).
 
@@ -123,7 +123,7 @@ Jeśli budujesz własną aplikację pod kontrakt gateway:
 
 ## Ograniczenia
 
-- **Brak adaptera OpenAI w runtime** — fasada przyjmuje kontrakt OpenAI, lecz modele w YAML kierują na **Anthropic** lub **Google**. Parametry z tabeli powyżej są mapowane na `params.*`; skutek u vendora = macierz w `dictionary.md`.
+- **Routing LLM jest konfiguracyjny** — fasada OpenAI **nie** wymusza backendu OpenAI.com; alias w YAML może wskazywać Anthropic, Google, OpenAI lub OpenAI-compatible (`providerInstance` + `modelId`). Adapter OpenAI runtime jest **wdrożony** — patrz [`provider-openai-runtime.md`](provider-openai-runtime.md).
 - Wiadomości **`role: system`** z klienta są **pomijane** — instrukcja systemowa pochodzi z plików w `src/config/system-prompt/`.
 - **`messages[].content`** musi być stringiem (brak tablicy multimodalnej).
 - Function calling wymaga `capabilities.tools: true` na aliasie w YAML.

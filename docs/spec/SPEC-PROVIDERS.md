@@ -28,7 +28,7 @@ Implementacja: fabryki w `src/providers/factories/` (zwykłe funkcje, bez `@Inje
 
 ## Klucze API (env)
 
-Wartości uwierzytelniające są wczytywane z env przez **`apiKeyRef`** w YAML (per **instancja**, nie per typ). W **`NODE_ENV=production`** przy starcie obowiązuje reguła z `provider-api-key.validation.ts`: **niepusty env pod `apiKeyRef`** dla każdej włączonej instancji (`buildEffectiveGatewayConfig`). Szczegóły: `docs/konfiguracja.md`.
+Wartości uwierzytelniające są wczytywane z env przez **`apiKeyRef`** w YAML (per **instancja**, nie per typ). Przy **każdym starcie** aplikacji obowiązuje reguła z `provider-api-key.validation.ts`: **niepusty env pod `apiKeyRef`** dla każdej włączonej instancji (typy OpenAI / openai-compatible — klucz może być pusty, wymagany `baseUrlRef`). Wywołanie: `buildEffectiveGatewayConfig` w `configuration.ts`. Szczegóły: `docs/konfiguracja.md`.
 
 ## Użytkownicy i scenariusze
 

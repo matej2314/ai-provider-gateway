@@ -39,6 +39,7 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 | Adapter OpenAI (runtime)                    | [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)                                                                                                                |
 | Architektura fasad IDE                      | [`docs/integracje.md`](docs/integracje.md)                                                                                                                                          |
 | Gateway CLI                                 | [`docs/CLI.md`](docs/CLI.md)                                                                                                                                                        |
+| Wdrożenie (Docker Compose)                  | [`docs/deployment.md`](docs/deployment.md)                                                                                                                                          |
 | Testy (jednostkowe, CLI, E2E, integracyjne) | [`docs/testy.md`](docs/testy.md)                                                                                                                                                    |
 
 ## Dystrybucja
@@ -51,7 +52,7 @@ Projekt jest open-source pod licencją **MIT** — możesz **klonować**, **fork
 
 1. Fork repozytorium.
 2. Clone lokalnie i skonfiguruj (patrz „Szybki start”).
-3. Deploy na własnej infrastrukturze (VPS, Kubernetes, Docker Compose).
+3. Deploy na własnej infrastrukturze — [`docs/deployment.md`](docs/deployment.md) (Docker Compose, VPS, Kubernetes).
 
 Alternatywnie: jeśli potrzebujesz pakietu npm, otwórz issue z use case.
 
@@ -86,7 +87,7 @@ Szczegóły: [`docs/integracje.md`](docs/integracje.md), [`docs/dictionary.md`](
 - OpenAI fasada: `Authorization: Bearer <klucz_klienta_gateway>` — Base URL: `.../api/v1/openai`
 - Anthropic fasada: `x-api-key` lub Bearer `<klucz_klienta_gateway>` — Base URL: `.../api/v1/anthropic`
 
-Klucze providerów (`.env`, `apiKeyRef` w YAML — np. `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `OLLAMA_API_KEY`, `DEEPSEEK_API_KEY`) są używane **wyłącznie** w warstwie `src/providers/` przy wywołaniu SDK.
+Klucze providerów (`.env` pod nazwami z **`apiKeyRef`** w YAML — wizard domyślnie `{INSTANCE_ID}_API_KEY`, np. `ANTHROPIC_PRIMARY_API_KEY`; CLI synchronizuje też legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`) są używane **wyłącznie** w warstwie `src/providers/` przy wywołaniu SDK.
 
 ## Features
 
@@ -105,13 +106,13 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 - **Multi-provider (runtime)**: adaptery SDK w `src/providers/` — Anthropic, Google Gemini, OpenAI, OpenAI-compatible — [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)
 - **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
 - **Models catalog**: natywny `GET /api/v1/models` + fasady — wspólny `GatewayModelsCatalogService`, ten sam zestaw aliasów z YAML
-- **Production-ready**: Pino logging, Sentry observability, graceful shutdown, readiness probes
+- **Production-ready**: Helmet.js security headers, Pino logging, Sentry observability, graceful shutdown, readiness probes, Docker Compose (`deployment/`)
 - **Type safety (brand types)**: nominalne typy TS dla kluczy, identyfikatorów, metryk i policy (`src/common/types/`) — compile-time bez kosztu runtime; przewodnik: [`docs/brand-types.md`](docs/brand-types.md)
 - **CLI wizard**: `gateway config:init` — interaktywna konfiguracja, `provider:test`, model/client management
 
 ## Szybki start (lokalnie)
 
-Wymagania: Node.js + npm.
+Wymagania: Node.js 20+ i npm.
 
 1. Instalacja:
 
@@ -119,14 +120,28 @@ Wymagania: Node.js + npm.
 npm install
 ```
 
-2. Konfiguracja (wymagane po sklonowaniu — repozytorium zawiera przykładowy [`gateway.config.yaml`](gateway.config.yaml); uzupełnij `.env` kluczami providerów i gateway):
+2. Konfiguracja (wymagane po sklonowaniu):
+
+Repozytorium może zawierać [`gateway.config.yaml`](gateway.config.yaml) gotowy do developmentu. Przed pierwszym startem uzupełnij **`.env`** albo uruchom wizard.
+
+**Opcja A — wizard CLI (zalecane lokalnie):**
 
 ```bash
 npm run cli config:init
 # lub: npx gateway config:init
 ```
 
-Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env`, `.env.example` oraz pliki system prompt (szablony w `src/cli/templates/`). Wykrywa też konfigurację boilerplate (`isBoilerplateConfig()` — ID/nazwy z `placeholder` / `PLACEHOLDER`). Alternatywnie: ręcznie skopiuj [`.env.example`](.env.example) i uzupełnij YAML — szczegóły: [`docs/konfiguracja.md`](docs/konfiguracja.md).
+Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env`, `.env.example` oraz pliki system prompt (szablony w `src/cli/templates/`). Wykrywa konfigurację boilerplate (`isBoilerplateConfig()` — ID/refy z `placeholder` / `PLACEHOLDER`) i uruchamia pełny flow bez pytania o nadpisanie.
+
+**Opcja B — szablony (prod / Docker / ręcznie):**
+
+```bash
+cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
+cp deployment/templates/.env.example .env
+# uzupełnij .env i YAML — nazwy env muszą odpowiadać *KeyRef w YAML
+```
+
+Szczegóły obu ścieżek: [`docs/konfiguracja.md`](docs/konfiguracja.md), [`docs/deployment.md`](docs/deployment.md).
 
 Zweryfikuj konfigurację:
 
@@ -145,7 +160,29 @@ Przy starcie każda **włączona** instancja providera w YAML musi mieć niepust
 npm run start:dev
 ```
 
-Domyślnie: `http://localhost:3000`, prefiks API: `/api/v1` ([`src/main.ts`](src/main.ts)).
+Domyślnie: `http://localhost:3000`, prefiks API: `/api/v1` ([`src/setup.app.ts`](src/setup.app.ts)).
+
+## Wdrożenie (Docker Compose)
+
+Artefakty w katalogu [`deployment/`](deployment/) — pełny przewodnik: [`docs/deployment.md`](docs/deployment.md).
+
+```bash
+# jednorazowo: sieć współdzielona przez compose
+docker network create ai-gateway-network
+
+# konfiguracja w katalogu głównym (gateway.config.yaml + .env)
+cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
+cp deployment/templates/.env.example .env
+
+# MVP (sam gateway)
+npm run docker:build
+npm run docker:up
+
+# pełny stack (gateway + Redis + Prometheus + Grafana)
+npm run docker:up:full
+```
+
+Alternatywa: `make docker-up` / `make docker-up-full` (wymaga Make). W kontenerze montowane są `gateway.config.yaml` i `.env` z katalogu głównego repozytorium.
 
 ## Endpointy (przykłady)
 
@@ -208,7 +245,7 @@ Odpowiedź zawiera opcjonalne pole **`thinkingContent`** z rozumowaniem modelu. 
 
 - **Auth:** nagłówek **`X-Gateway-Key`** — allowlista z `gateway.config.yaml` + env ([`docs/konfiguracja.md`](docs/konfiguracja.md)).
 - **Smart rate limit** (opcjonalnie): `RATE_LIMIT_SMART_ENABLED=true` + Redis (wspólny `RedisConnectionService` — ładowany także bez cache odpowiedzi) — [`src/rate-limit/`](src/rate-limit/). Kody **429**: **`RATE_LIMITED`** (gateway) vs **`PROVIDER_RATE_LIMITED`** (upstream) — [`docs/dictionary.md`](docs/dictionary.md).
-- **Cooldown** po 429 od providera — tylko `POST /api/v1/chat`, nie streaming.
+- **Cooldown** po 429 od upstream — JSON i streaming (`prepareRequestForExecution`, `handleProviderError`)
 
 ## Cache odpowiedzi
 
@@ -220,7 +257,7 @@ Rola **`system`** w `messages[]` jest zablokowana — instrukcja systemowa jest 
 
 W `messages[]` dozwolone są role **`user`**, **`assistant`** i **`tool`** (wynik wywołania narzędzia — wymaga `toolCallId`). Asystent może zwracać **`toolCalls`** w odpowiedzi. Opcjonalne pole **`tooling`** w body (`definitions`, `toolChoice`) włącza function calling — wymaga `capabilities.tools: true` dla aliasu w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
 
-Odpowiedź JSON / SSE `done` może zawierać **`toolCalls`**, **`finishReason`** (runtime: `stop` | `tool_calls` | `length` — `mapStopReasonToFinishReason`), opcjonalnie **`usageDetails`** (tokeny cache Anthropic) oraz opcjonalnie **`systemFingerprint`** — tylko gdy upstream zwraca odpowiednik OpenAI `system_fingerprint` (Anthropic i Gemini **nie** mają tego pola; przy aliasach na te providery klucz jest pomijany). Fasada OpenAI mapuje je na `system_fingerprint` gdy obecne. Szczegóły: [`docs/dictionary.md`](docs/dictionary.md). Cache i fallback YAML są **wyłączone** dla żądań z toolingiem w czacie standardowym; streaming nadal używa fallbacku z YAML.
+Odpowiedź JSON / SSE `done` może zawierać **`toolCalls`**, **`finishReason`** (runtime: `stop` | `tool_calls` | `length` | `content_filter` — `mapStopReasonToFinishReason`), opcjonalnie **`usageDetails`** (tokeny cache Anthropic) oraz opcjonalnie **`systemFingerprint`** — tylko gdy upstream zwraca odpowiednik OpenAI `system_fingerprint` (Anthropic i Gemini **nie** mają tego pola; przy aliasach na te providery klucz jest pomijany). Fasada OpenAI mapuje je na `system_fingerprint` gdy obecne. Szczegóły: [`docs/dictionary.md`](docs/dictionary.md). Cache i fallback YAML są **wyłączone** dla żądań z toolingiem — w czacie standardowym i streamingu.
 
 Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/architektura.md`](docs/architektura.md).
 
@@ -235,13 +272,13 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 | Błędy / `requestId`         | [`GlobalExceptionFilter`](src/common/filters/http-exception.filter.ts), [`RequestIdMiddleware`](src/common/middleware/request-id.middleware.ts) |
 | Brand types (TS)            | [`src/common/types/`](src/common/types/) — `Brand`, guardy, helpery `as*` / `create*`; barrel: `index.ts`                                       |
 
-Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md).
+Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md). Wdrożenie Docker: [`deployment/`](deployment/), [`docs/deployment.md`](docs/deployment.md).
 
 ## Testy
 
 Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
 
-Aktualne liczniki: `npm test` — **86** zestawów / **1305** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105**.
+Aktualne liczniki: `npm test` — **87** zestawów / **1314** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105** (źródło: [`docs/testy.md`](docs/testy.md)).
 
 Uruchomienie:
 
@@ -288,15 +325,33 @@ Mutacje YAML tworzą backup w katalogu `backup/` (ignorowany przez git). Pełna 
 ## Skrypty
 
 ```bash
+# Serwer
 npm run start:dev       # development
 npm run build
 npm run start:prod      # po build
 npm run openapi:export  # openapi.json z dekoratorów @nestjs/swagger
+
+# Konfiguracja
 npm run cli             # Gateway CLI (alias: npx gateway)
 npm run config:validate # walidacja offline (scripts/validate-config.ts)
-npm test                # testy jednostkowe (src/, bez cli/)
-npm run test:cli        # testy jednostkowe CLI (src/cli/)
-npm run test:e2e        # testy E2E HTTP (test/e2e/)
-npm run test:integration # testy integracyjne live (test/integration/)
+
+# Testy
+npm test                # jednostkowe (src/, bez cli/)
+npm run test:cli        # jednostkowe CLI (src/cli/)
+npm run test:e2e        # E2E HTTP (test/e2e/)
+npm run test:integration # integracyjne live (test/integration/, Docker Redis)
 npm run test:all        # jednostkowe + E2E
+
+# Docker (pliki w deployment/docker/)
+npm run docker:build
+npm run docker:up              # MVP: sam gateway
+npm run docker:up:redis        # + Redis
+npm run docker:up:monitoring   # + Prometheus + Grafana
+npm run docker:up:full         # gateway + Redis + monitoring
+npm run docker:up:dev          # dev z hot reload
+npm run docker:down
+npm run deploy:mvp             # test:all + build + docker:up
+npm run deploy:staging         # test:all + build + docker:up:monitoring
 ```
+
+Pełna lista targetów Make: [`Makefile`](Makefile).

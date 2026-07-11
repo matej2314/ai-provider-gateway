@@ -16,8 +16,8 @@ Wersja dokumentu: **2.0** (zsynchronizowana z `package.json`, `test/` i `src/**/
 
 | Skrypt             | Zestawy | Przypadki |
 | ------------------ | ------- | --------- |
-| `npm test`         | 86      | 1305      |
-| `npm run test:cli` | 13      | 53        |
+| `npm test`         | 87      | 1314      |
+| `npm run test:cli` | 12      | 62        |
 | `npm run test:e2e` | 10      | 105       |
 
 Integracyjne wymagają Docker (Redis) i `.env.test` — patrz `test/integration/README.md`.

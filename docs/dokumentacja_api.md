@@ -7,7 +7,7 @@ Wersja dokumentu: **1.5**. Dokument jest wersjonowany razem z kodem. **`openapi.
 1. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — dekoratory `@nestjs/swagger` na kontrolerach i klasach odpowiedzi (`@ApiProperty`, `@ApiOperation`, `@ApiGatewayChatErrorResponses`, `@ApiGatewayModelsErrorResponses`, `@ApiOpenAiErrorResponses`, `@ApiAnthropicErrorResponses`, `@ApiRequestIdHeader`, …). Konfiguracja dokumentu: `src/swagger/swagger.setup.ts` (`extraModels`, trzy `securitySchemes`).
 2. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) **generowany z kodu** (`npm run openapi:export` → `src/swagger/export-openapi.ts`). W runtime ten sam dokument serwowany jako `/api/v1/swagger.json` (gdy Swagger włączony).
 3. **Swagger UI** — interaktywna dokumentacja pod `/api/v1/api-docs` (`setupSwagger` w `src/main.ts`; wyłączanie: `SWAGGER_ENABLED` — `konfiguracja.md`).
-4. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1. **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` — `konfiguracja.md`.
+4. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1. **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` (YAML + runtime) lub **`gateway config:validate`** (+ format legacy env) — `konfiguracja.md`.
 5. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis`, odczyt walidowany `CachedChatResponseSchema` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
 6. **System prompt po stronie serwera** — wczytanie plików w `configuration.ts`, składanie w `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`).
 7. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
@@ -122,7 +122,7 @@ Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `too
 
 Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRegistryService.resolve()` — lookup po **`models[].providerInstance`**, nie po `type`. Runtime: fabryki `anthropic` / `google` tworzone w `ProviderInstancesBootstrap` (`ProvidersModule`).
 
-**Odporność:** `policy.timeoutMs` i `policy.retry` z YAML są egzekwowane przez **`ResilientExecutor`**. Opcjonalny **`models[].fallback`**: po wyczerpaniu prób gateway próbuje alias zapasowy; przy sukcesie — opcjonalne **`effectiveModelAlias`**. **Fallback jest wyłączony** dla żądań z toolingiem w czacie standardowym (`isToolingRequest`); w streamingu fallback pozostaje aktywny.
+**Odporność:** `policy.timeoutMs` i `policy.retry` z YAML są egzekwowane przez **`ResilientExecutor`**. Opcjonalny **`models[].fallback`**: po wyczerpaniu prób gateway próbuje alias zapasowy; przy sukcesie — opcjonalne **`effectiveModelAlias`**. **Fallback jest wyłączony** dla żądań z toolingiem — zarówno w czacie standardowym (`executeChat`), jak i w streamingu (`executeStream`; `isToolingRequest` → `fallbackAlias: undefined`).
 
 ---
 
@@ -142,7 +142,7 @@ Udana odpowiedź JSON: **201 Created** — domyślne zachowanie NestJS dla `POST
 
 **Cache (opcjonalny):** lookup przed wywołaniem providera; **pomijany** dla żądań z toolingiem. Przy trafieniu — gdy alias i provider są **włączone** w YAML — zwracany JSON z **`cached: true`**, **`cachedAt`**. Odczyt z backendu parsowany przez **`parseCachedChatResponse`** (`CachedChatResponseSchema`); niepoprawny wpis usuwany. Streaming nie jest cache’owany.
 
-**Cooldown po 429 od providera** (`SmartRateLimiterService.setCooldown`) jest ustawiany w `ChatService.executeChat` po błędzie upstream — **nie** dotyczy `executeStream` (brak przekazania klucza do `handleProviderError` w streamingu).
+**Cooldown po 429 od providera** (`SmartRateLimiterService.setCooldown`) jest ustawiany w **`ChatErrorHandlerService.handleProviderError`** po błędzie upstream — dotyczy **`executeChat` i `executeStream`** (w obu ścieżkach przekazywany jest `gatewayKey`). Wspólne sprawdzenie cooldownu przed wywołaniem: `prepareRequestForExecution` → `checkCooldown`.
 
 Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi standardowej, jak i w SSE (`meta.model`) — vendorowy `modelId` nie jest zwracany w żadnej odpowiedzi. SSE **`meta`** jest emitowane w `ChatProviderCallService.streamOnce` (pierwsze udane wywołanie w łańcuchu retry/fallback).
 
@@ -168,7 +168,7 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation-tracking.md`).
 
-**Zdarzenia:** `meta` → `delta`\* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage` (z `totalTokens`), **`toolCalls`**, **`finishReason`**, opcjonalnie **`systemFingerprint`** (reguły jak w JSON powyżej). Retry/fallback — `ResilientExecutor` (fallback aktywny także przy tooling w streamingu).
+**Zdarzenia:** `meta` → `delta`\* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage` (z `totalTokens`), **`toolCalls`**, **`finishReason`**, opcjonalnie **`systemFingerprint`** (reguły jak w JSON powyżej). Retry/fallback — `ResilientExecutor` (fallback wyłączony przy tooling, jak w JSON).
 
 **Błędy i JSON `ErrorEnvelope`:**
 

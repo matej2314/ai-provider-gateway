@@ -44,12 +44,12 @@ sequenceDiagram
   Note over K,S: Tura 1 — start rozmowy (bez conversationId w request)
   K->>G: POST /chat { messages: [user₁] }
   G->>S: span gen_ai.chat (bez conversation.id)
-  G-->>K: 200 { conversationId: conv_abc, output: assistant₁ }
+  G-->>K: 201 { conversationId: conv_abc, output: assistant₁ }
 
   Note over K,S: Tura 2 — konwersacja w Sentry + pełna historia w messages[]
   K->>G: POST /chat { conversationId: conv_abc, messages: [user₁, assistant₁, user₂] }
   G->>S: span gen_ai.chat (conversation.id = conv_abc, input = całe messages[])
-  G-->>K: 200 { conversationId: conv_abc, output: assistant₂ }
+  G-->>K: 201 { conversationId: conv_abc, output: assistant₂ }
 ```
 
 ### Tura 1 (pierwsza wiadomość użytkownika)

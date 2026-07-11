@@ -171,4 +171,4 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura-katalogi-pliki.md` (sekc
 
 **Nie rób**: oczekiwania, że `npm run start:dev` zadziała od razu po sklonowaniu bez uzupełnionego `.env` (klucze providerów + `MASTER_KEY`) i poprawnego `gateway.config.yaml`.
 
-**Rób**: uruchom `gateway config:init` albo ręcznie uzupełnij YAML + `.env` (`konfiguracja.md`); zweryfikuj przez `npm run config:validate`.
+**Rób**: uruchom `gateway config:init` albo ręcznie uzupełnij YAML + `.env` (`konfiguracja.md`); zweryfikuj przez `gateway config:validate` (pełna) lub `npm run config:validate` (YAML + reguły runtime).

@@ -2,7 +2,7 @@
 
 Ten dokument opisuje infrastrukturę **brand types** w projekcie (plan implementacji: `brand-types-plan.md` w katalogu głównym repo — plik lokalny, ignorowany przez git). Celem jest zwiększenie type safety: semantycznie różne wartości oparte na tym samym typie prymitywnym (`string` / `number`) nie powinny dać się przypadkowo zamienić w compile time.
 
-**Stan (2026-07):** Fazy **0–5** wdrożone w runtime (`src/`), testach jednostkowych, E2E i integracyjnych (`test/`). Warstwa **CLI** (`src/cli/`) — planowana w **Fazie 5a** planu; nadal używa zwykłych `string` / `number` w typach wewnętrznych.
+**Stan (2026-07):** Fazy **0–5** wdrożone w runtime (`src/`), testach jednostkowych, E2E i integracyjnych (`test/`). Warstwa **CLI** (`src/cli/`) — **częściowa** adopcja brandów (`asGatewayKey`, `asModelAlias`, `asProviderInstanceId` w komendach i wizardzie); pełna migracja CLI — plan **Faza 5a**.
 
 ---
 

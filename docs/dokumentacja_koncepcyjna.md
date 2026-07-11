@@ -84,7 +84,7 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 
 ### 1) Gateway, nie “open proxy”
 
-- Endpointy providerów są **zaszyte** w fabrykach SDK (`src/providers/factories/`).
+- Endpointy providerów Anthropic i Google są **zaszyte** w fabrykach SDK (`src/providers/factories/`). Typy **`openai`** / **`openai-compatible`** używają konfigurowalnego **`baseUrlRef`** w env (walidowany URL http(s) — np. api.openai.com, Ollama); szczegóły: `provider-openai-runtime.md`, `konfiguracja.md`.
 - Konfiguracja nie pozwala dowolnie ustawiać URL/headers w sposób, który zmieniłby usługę w ogólny proxy HTTP.
 
 ### 2) Modele jako aliasy (preferowane)

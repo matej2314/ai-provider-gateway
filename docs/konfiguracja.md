@@ -42,9 +42,9 @@ Wizard (`deriveApiKeyRef()` w `src/cli/utils/provider-id.util.ts`) buduje `apiKe
 | `ANTHROPIC_API_KEY` | prefiks `sk-ant-` |
 | `GOOGLE_API_KEY` | prefiks `AIza` lub `AQ.` |
 
-Brak tych zmiennych **nie blokuje** startu. `gateway config:validate` i `npm run config:validate` po sukcesie YAML dodatkowo uruchamiają `validateEnv()` (`CliGatewayValidatorService`) — błędny format legacy klucza kończy walidację exit `1`.
+Brak tych zmiennych **nie blokuje** startu. **`gateway config:validate`** po sukcesie YAML dodatkowo uruchamia `validateEnv()` (`CliGatewayValidatorService`) — błędny format legacy klucza kończy walidację exit `1`. Skrypt **`npm run config:validate`** wywołuje wyłącznie `validateGatewayConfig()` (YAML + reguły runtime + klucze pod `*KeyRef`) — **bez** walidacji formatu legacy env.
 
-W repo powinien istnieć `.env.example` bez wartości sekretów (nazwy `apiKeyRef` zgodne z przykładowym YAML).
+W repo mogą istnieć dwa szablony `.env.example`: w **katalogu głównym** (typowo po wizardzie CLI) oraz **`deployment/templates/.env.example`** (boilerplate sparowany z `gateway.config.example.yaml`). Nazwy `apiKeyRef` / `gatewayKeyRef` muszą być zgodne z YAML.
 
 **Uwaga o `.env.example` vs domyślne wartości w kodzie:** szablon w repozytorium może mieć włączone funkcje opcjonalne (np. `CACHE_ENABLED=true`, `RATE_LIMIT_SMART_ENABLED=true`) dla wygody lokalnego developmentu. **Domyślne wartości walidatora** (`EnvironmentVariables` w `src/config/env.validation.ts`) przy braku zmiennej to: `CACHE_ENABLED=false`, `CACHE_BACKEND=noop`, `RATE_LIMIT_SMART_ENABLED=false`. Efektywna konfiguracja zależy od tego, co faktycznie ustawisz w `.env`.
 
@@ -62,7 +62,7 @@ Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/con
 | Zmienna            | Domyślnie   | Znaczenie                                                                                                                                                                                                                                                                                                              |
 | ------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CACHE_ENABLED`    | `false`     | Gdy **`true`**, cache jest **włączony** w konfiguracji; faktyczny backend wybiera `CACHE_BACKEND` (patrz niżej). Gdy `false`, w konfiguracji wymuszany jest backend **`noop`** — brak odczytu/zapisu cache.                                                                                                            |
-| `CACHE_BACKEND`    | `noop`      | Dozwolone wartości w walidatorze: `noop`, `redis`, `memory`, `other`. **W kodzie zarejestrowane są `noop` i `redis`.** Wizard `config:init` może zapisać `memory` — runtime traktuje nieznany backend jak **`noop`** (`CacheRegistryService.resolve`). Nieznany backend → ostrzeżenie w logu i fallback do **`noop`**. |
+| `CACHE_BACKEND`    | `noop`      | Dozwolone wartości w walidatorze: `noop`, `redis`, `memory`, `other`. **W kodzie zarejestrowane są `noop` i `redis`.** Wizard `config:init` oferuje tylko `redis` \| `noop`; wartość `memory` można ustawić ręcznie w `.env` — runtime traktuje nieznany backend jak **`noop`** (`CacheRegistryService.resolve`). Nieznany backend → ostrzeżenie w logu i fallback do **`noop`**. |
 | `CACHE_TTL`        | `3600`      | TTL wpisów cache w **sekundach** (liczba całkowita ≥ 1).                                                                                                                                                                                                                                                               |
 | `CACHE_KEY_PREFIX` | `aigw:`     | Prefiks kluczy zapisu odpowiedzi czatu (`ResponseCacheService`).                                                                                                                                                                                                                                                       |
 | `REDIS_HOST`       | `localhost` | Host Redis (gdy ładowany moduł Redis).                                                                                                                                                                                                                                                                                 |
@@ -99,7 +99,7 @@ Implementacja: **`RateLimitModule`**, **`SmartRateLimiterService`**, **`SmartRat
 | `RATE_LIMIT_RPS_PER_KEY`        | `10`      | Domyślny RPS (token bucket) gdy klient nie ma `rateLimit` w YAML.                                                                                                 |
 | `RATE_LIMIT_BURST_PER_KEY`      | `20`      | Domyślny burst.                                                                                                                                                   |
 | `RATE_LIMIT_STREAMS_CONCURRENT` | `3`       | Maks. równoległych streamów per klucz.                                                                                                                            |
-| `RATE_LIMIT_COOLDOWN_AFTER_429` | `60`      | Sekundy blokady per klucz+provider po 429 od upstream (`ChatService.executeChat` → `SmartRateLimiterService.setCooldown`; tylko czat standardowy, nie streaming). |
+| `RATE_LIMIT_COOLDOWN_AFTER_429` | `60`      | Sekundy blokady per klucz+provider po 429 od upstream. **Sprawdzenie** cooldownu (`checkCooldown`) i **ustawienie** (`setCooldown` przez `ChatErrorHandlerService.handleProviderError`) dotyczy **`executeChat` i `executeStream`** — wspólne `prepareRequestForExecution`. |
 
 W **`gateway.config.yaml`** opcjonalna sekcja **`clients.<id>.rateLimit`**. Wizard `config:init` pozwala skonfigurować limity per klient; klient bez `rateLimit` korzysta z wartości env.
 
@@ -446,7 +446,7 @@ Runtime HTTP i CLI **nie używają tej samej ścieżki** ładowania configu:
 | Wymaga `.env` przy starcie CLI           | tak (przy starcie serwera HTTP)                                | **nie** — CLI startuje bez `.env`                                                                         |
 | Parsowanie YAML                          | `yaml.load` + `GatewayConfigSchema`                            | to samo (`loadRawConfig`)                                                                                 |
 | Rozwiązywanie env                        | `buildEffectiveGatewayConfig()`, klucze master/provider/client | **pominięte** w `loadRawConfig`; opcjonalny raport braków w `loadWithEnvCheck()`                          |
-| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP                                          | **`gateway config:init`** — na końcu wizarda; **`gateway config:validate`** (`CliGatewayValidatorService`: YAML + `validateEnv()`) lub `npm run config:validate` |
+| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP                                          | **`gateway config:init`** — na końcu wizarda; **`gateway config:validate`** (YAML + `validateEnv()` dla legacy kluczy); **`npm run config:validate`** — YAML + reguły runtime (bez formatu legacy env) |
 
 #### Inicjalizacja konfiguracji (wizard)
 

@@ -12,7 +12,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 
 ## Jak czytać tę dokumentację
 
-0. **Po sklonowaniu repozytorium:** uzupełnij `.env` i `gateway.config.yaml` albo uruchom `gateway config:init` — wizard generuje konfigurację z szablonów CLI (`konfiguracja.md` sekcja 0, `CLI.md`).
+0. **Po sklonowaniu repozytorium:** uzupełnij `.env` i `gateway.config.yaml` albo uruchom `gateway config:init` — wizard generuje konfigurację z szablonów CLI (`konfiguracja.md` sekcja 0, `CLI.md`). Do wdrożenia Docker: `deployment.md`.
    0a. **Fasada (`src/integrations/`) ≠ adapter runtime (`src/providers/`):** szczególnie przy **OpenAI** — fasada `/api/v1/openai/*` to kształt HTTP dla IDE (Cursor); adapter `type: openai` / `openai-compatible` woła SDK po `baseUrlRef` + `apiKeyRef`. Warstwy są **ortogonalne**. Skrót: [`dictionary.md`](dictionary.md) (sekcja „Fasada vs provider runtime”), fasada: `integracja-openai-kontrakt.md`, adapter: `provider-openai-runtime.md`.
 1. Zacznij od `dokumentacja_koncepcyjna.md` (WHAT/WHY).
 2. Następnie `architektura.md` (moduły i granice) oraz `architektura_api.md` (konwencje API).
@@ -41,7 +41,8 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 19. **ModelsModule** (`src/models/`) — natywny `GET /api/v1/models` + `GET /api/v1/models/:modelAlias`; wspólny katalog `GatewayModelsCatalogService` (odczyt `gateway.config.yaml`, bez wywołań SDK); fasady OpenAI/Anthropic mapują `GatewayModelDto` przez `openai-models.mapper.ts` / `anthropic-models.mapper.ts`. Błędy natywne: `ErrorEnvelope`; nieznany alias → **404** + `MODEL_ALIAS_NOT_FOUND` (czat z nieznanym aliasem nadal **400**). Szczegóły: `dokumentacja_api.md`, `lista_endpointów.md`, `integracje.md`.
 20. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`). **Fasada ≠ provider runtime:** `/api/v1/openai/*` i `/api/v1/anthropic/*` to kształty kontraktów HTTP (standardy dla Cursor / Claude Code), **nie** gwarancja backendu OpenAI.com ani Anthropic — routing LLM wyłącznie przez `modelAlias` w YAML. Adapter runtime OpenAI (`type: openai`, `openai-compatible`) jest **wdrożony** w `src/providers/`. Szczegóły: **`dictionary.md`** (sekcja „Fasada vs provider runtime”), `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`, **`provider-openai-runtime.md`**.
 21. **CLI** — osobny entry point `bin/`, moduł `src/cli/` bez `ConfigModule`; wizard **`gateway config:init`**, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli i klientów, `provider:test`, `key:generate`. Backup mutacji YAML → katalog `backup/`. Uruchomienie: `npm run cli`, `npx gateway`, opcjonalnie `npm link` → `gateway`. Szczegóły: **`CLI.md`**, `architektura-katalogi-pliki.md` (sekcja 2a), `architektura.md`.
-22. **Testy** — cztery warstwy: jednostkowe runtime (`npm test`, **86** zestawów / **1305** przypadków, bez `src/cli/`), jednostkowe CLI (`npm run test:cli`, **12** / **62**), E2E HTTP mock (`test/e2e/`, **10** / **105**), integracyjne live SDK+Redis (`test/integration/`, **15** zestawów, `npm run test:integration`); `npm run test:all` = runtime + E2E — **`testy.md`** (single source of truth dla liczników).
+22. **Wdrożenie** — Docker Compose w `deployment/` (multi-stage Dockerfile, modularne compose: MVP, Redis, monitoring, Ollama, dev); szablony `deployment/templates/`; skrypty `npm run docker:*`, `make docker-*`. Szczegóły: **`deployment.md`**.
+23. **Testy** — cztery warstwy: jednostkowe runtime (`npm test`, **87** zestawów / **1314** przypadków, bez `src/cli/`), jednostkowe CLI (`npm run test:cli`, **12** / **62**), E2E HTTP mock (`test/e2e/`, **10** / **105**), integracyjne live SDK+Redis (`test/integration/`, **15** zestawów, `npm run test:integration`); `npm run test:all` = runtime + E2E — **`testy.md`** (single source of truth dla liczników).
 
 ## Spis plików
 
@@ -52,7 +53,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 - `lista_endpointów.md` — szybka lista endpointów (standard + streaming).
 - `dokumentacja_api.md` — szczegółowy kontrakt endpointów, przykłady payloadów.
 - `conversation-tracking.md` — `conversationId`, tryby Sentry (pojedyncza wiadomość vs konwersacja), przepływ tura 1→2, obowiązki klienta.
-- `konfiguracja.md` — env + `gateway.config.yaml` (wizard `config:init`, wczytywanie przy starcie, walidacja Zod, klucze providerów **per `apiKeyRef`** w YAML — `provider-api-key.validation.ts`; legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` synchronizowane przez CLI); opcjonalnie **`CACHE_*`** / **`REDIS_*`**; skrypt `npm run config:validate`.
+- `konfiguracja.md` — env + `gateway.config.yaml` (wizard `config:init`, wczytywanie przy starcie, walidacja Zod, klucze providerów **per `apiKeyRef`** w YAML); `gateway config:validate` vs `npm run config:validate`; opcjonalnie **`CACHE_*`** / **`REDIS_*`**.
 - `data_flow.md` — przepływ danych (Mermaid) dla standard/stream.
 - `dictionary.md` — słownik pojęć, kody błędów, **macierz parametrów generacji ↔ provider** (Anthropic / Google / OpenAI / OpenAI-compatible).
 - `brand-types.md` — brand types TypeScript (Fazy 0–5 wdrożone w runtime): katalog typów, konwencje `create*` / `as*`, granica DTO vs serwisy, mocki testowe.
@@ -63,6 +64,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 - `integracja-anthropic-messages.md` — **fasada** kontraktu Anthropic: podłączenie Claude Code (Base URL `/api/v1/anthropic`); models + messages (JSON i stream).
 - `architektura-katalogi-pliki.md` — drzewo katalogów repo, w tym **CLI** (`bin/`, `src/cli/`, sekcja 2a).
 - `CLI.md` — dokumentacja Gateway CLI (18 komend: `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate`; wizard, backup w `backup/`, uruchomienie).
+- `deployment.md` — wdrożenie Docker Compose (`deployment/`), szablony z `deployment/templates/`, warianty stacku (MVP, Redis, monitoring), checklist produkcyjny.
 - `testy.md` — testy jednostkowe (runtime + CLI), E2E i integracyjne; skrypty `npm test`, `npm run test:cli`, `npm run test:e2e`, `npm run test:integration`, `npm run test:all`.
 
 ## Specyfikacje (SDD)

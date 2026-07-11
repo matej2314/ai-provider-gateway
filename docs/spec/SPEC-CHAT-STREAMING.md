@@ -42,7 +42,7 @@ F-7. W przypadku błędu po rozpoczęciu streamingu zachowanie musi być spójne
 - zamknięcie połączenia w sposób przewidywalny, oraz
 - log z `requestId` i `code` błędu.
 
-**Stan kodu:** nagłówek odpowiedzi **`x-request-id`** ustawiany przez `RequestIdMiddleware` przed `flushHeaders`. **Cooldown** po 429 od providera (`RATE_LIMITED` w `ChatService`) — **tylko** `POST /api/v1/chat`, nie streaming (`dokumentacja_api.md`).
+**Stan kodu:** nagłówek odpowiedzi **`x-request-id`** ustawiany przez `RequestIdMiddleware` przed `flushHeaders`. **Cooldown** po 429 od providera — **`executeChat` i `executeStream`** (`prepareRequestForExecution` → `checkCooldown`; `handleProviderError` → `setCooldown`).
 
 ## Wymagania niefunkcjonalne
 
