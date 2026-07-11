@@ -25,9 +25,9 @@
     "semantic_hash": "e4f9ea8d975b51da6b1c67892edbad84"
   },
   "package.json": {
-    "mtime": 1783606312.217868,
-    "ast_hash": "8ca2e3b8ea266289e8a3d4599af8b4b5",
-    "semantic_hash": "8ca2e3b8ea266289e8a3d4599af8b4b5"
+    "mtime": 1783699980.5156949,
+    "ast_hash": "b30902a48ce89a4faa218cad77f2acb6",
+    "semantic_hash": ""
   },
   "scripts/generate-key.ps1": {
     "mtime": 1781088802.3200986,
@@ -1565,9 +1565,9 @@
     "semantic_hash": "a9e573511857efe4fafa4a32c5bd1fd7"
   },
   "src/main.ts": {
-    "mtime": 1782582880.877018,
-    "ast_hash": "59380731bbad6d733a4a7110025c22a2",
-    "semantic_hash": "59380731bbad6d733a4a7110025c22a2"
+    "mtime": 1783755780.2988446,
+    "ast_hash": "9f4a83f4c1b6afc139dcc2df593457d7",
+    "semantic_hash": ""
   },
   "src/metrics/adapters/noop-metrics.adapter.ts": {
     "mtime": 1783606186.5128748,
@@ -2228,5 +2228,295 @@
     "mtime": 1782582880.9236045,
     "ast_hash": "d35d624bfb634784b2f9376a1ffea8c1",
     "semantic_hash": "d35d624bfb634784b2f9376a1ffea8c1"
+  },
+  "deployment/monitoring/grafana/dashboards/ai-gateway-overview.json": {
+    "mtime": 1783684752.8587985,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "deployment/scripts/deploy-production.sh": {
+    "mtime": 1783684801.6073446,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "deployment/scripts/deploy-staging.sh": {
+    "mtime": 1783684801.6068027,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "deployment/scripts/rollback.sh": {
+    "mtime": 1783684801.6078808,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1783676889.7949023,
+    "ast_hash": "261491d77c1cfe50f9b75cba3447062e",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1783758998.6485815,
+    "ast_hash": "a32031693a4fa9d59ebcb9534c91065e",
+    "semantic_hash": ""
+  },
+  "SECURITY.md": {
+    "mtime": 1782582880.704224,
+    "ast_hash": "ba628883aeaee76fdd59588be4e5e3af",
+    "semantic_hash": ""
+  },
+  "deployment/docker/docker-compose.dev.yml": {
+    "mtime": 1783691053.0762866,
+    "ast_hash": "ee3b95302fecc1a7c8b68a34ae95346a",
+    "semantic_hash": ""
+  },
+  "deployment/docker/docker-compose.monitoring.yml": {
+    "mtime": 1783694771.3342612,
+    "ast_hash": "c950b526bb7ddacf550bf7d934a9b3bb",
+    "semantic_hash": ""
+  },
+  "deployment/docker/docker-compose.ollama.yml": {
+    "mtime": 1783697502.1462252,
+    "ast_hash": "6e49258e90152afdacd70260a889ff5c",
+    "semantic_hash": ""
+  },
+  "deployment/docker/docker-compose.redis.yml": {
+    "mtime": 1783699567.1883197,
+    "ast_hash": "3e4ea0d68cb49d376ae97fa8bf6c1373",
+    "semantic_hash": ""
+  },
+  "deployment/docker/docker-compose.yml": {
+    "mtime": 1783700413.4894075,
+    "ast_hash": "d4c7ccb57db19dbcd49306a6d8eb6a7c",
+    "semantic_hash": ""
+  },
+  "deployment/monitoring/alerts.yml": {
+    "mtime": 1783684655.3275764,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "deployment/monitoring/grafana/provisioning/dashboards/dashboard.yml": {
+    "mtime": 1783684714.685287,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "deployment/monitoring/grafana/provisioning/datasources/prometheus.yml": {
+    "mtime": 1783684692.3274775,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "deployment/monitoring/prometheus.yml": {
+    "mtime": 1783684655.3270876,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "deployment/templates/gateway.config.example.yaml": {
+    "mtime": 1783757434.9371479,
+    "ast_hash": "1ec19a9386e469583f89f9f03098a69a",
+    "semantic_hash": ""
+  },
+  "docs/CLI.md": {
+    "mtime": 1783758970.1616106,
+    "ast_hash": "d773fb1d1a2b32821821e8654a7385af",
+    "semantic_hash": ""
+  },
+  "docs/README.md": {
+    "mtime": 1783759024.7450602,
+    "ast_hash": "635f51844a6a50461f76382dbc21eea7",
+    "semantic_hash": ""
+  },
+  "docs/anty-patterny.md": {
+    "mtime": 1783759020.7825933,
+    "ast_hash": "0d27912151b4be8e03f04e5542346e40",
+    "semantic_hash": ""
+  },
+  "docs/architektura-katalogi-pliki.md": {
+    "mtime": 1783759020.1242738,
+    "ast_hash": "29a478f7127e19f975902be9d12bf372",
+    "semantic_hash": ""
+  },
+  "docs/architektura.md": {
+    "mtime": 1783606186.4233458,
+    "ast_hash": "b2199a8384746bf8ef1c1406a6ba6ede",
+    "semantic_hash": ""
+  },
+  "docs/architektura_api.md": {
+    "mtime": 1783759019.930479,
+    "ast_hash": "e949aa8dfa9f9a575adcaf308c0506b2",
+    "semantic_hash": ""
+  },
+  "docs/brand-types.md": {
+    "mtime": 1783758987.3691058,
+    "ast_hash": "288581f4a3f0fb37d35311c24897a47d",
+    "semantic_hash": ""
+  },
+  "docs/conversation-tracking.md": {
+    "mtime": 1783758987.9445498,
+    "ast_hash": "cc7ac049dee7ce5d3742de5c607708ab",
+    "semantic_hash": ""
+  },
+  "docs/data_flow.md": {
+    "mtime": 1782582880.7102242,
+    "ast_hash": "2ac935d6c62710f330cbb69374aeddd5",
+    "semantic_hash": ""
+  },
+  "docs/deployment.md": {
+    "mtime": 1783759025.6595135,
+    "ast_hash": "6493a0978b6ffa9c089e94209cf3479e",
+    "semantic_hash": ""
+  },
+  "docs/dictionary.md": {
+    "mtime": 1783759011.7393339,
+    "ast_hash": "6837455cc541efb7fd57faa808ef3873",
+    "semantic_hash": ""
+  },
+  "docs/dokumentacja_api.md": {
+    "mtime": 1783759020.2479045,
+    "ast_hash": "6b09a88d5079958766e5f52701aed701",
+    "semantic_hash": ""
+  },
+  "docs/dokumentacja_koncepcyjna.md": {
+    "mtime": 1783759010.5520458,
+    "ast_hash": "8d83089f2b6e3bc36f756277b2ad0ad4",
+    "semantic_hash": ""
+  },
+  "docs/integracja-anthropic-messages.md": {
+    "mtime": 1782582880.714224,
+    "ast_hash": "1075977e9dac17382cbbbd22e163bdd8",
+    "semantic_hash": ""
+  },
+  "docs/integracja-openai-kontrakt.md": {
+    "mtime": 1783758977.536429,
+    "ast_hash": "7d075da669ed19abddee6aa073840ffc",
+    "semantic_hash": ""
+  },
+  "docs/integracje.md": {
+    "mtime": 1783189569.1365013,
+    "ast_hash": "c1f711cb38f2688e1500770b4b6918d8",
+    "semantic_hash": ""
+  },
+  "docs/konfiguracja.md": {
+    "mtime": 1783758967.273323,
+    "ast_hash": "48861da8952484b824ed67773346ab34",
+    "semantic_hash": ""
+  },
+  "docs/lista_endpoint\u00f3w.md": {
+    "mtime": 1783189569.138502,
+    "ast_hash": "bbe91a65db2bb178842be9bb826cf02d",
+    "semantic_hash": ""
+  },
+  "docs/opis_koncepcyjny.md": {
+    "mtime": 1782582880.7182243,
+    "ast_hash": "5d25cc7e11243d3499a01347c6191b8d",
+    "semantic_hash": ""
+  },
+  "docs/provider-openai-runtime.md": {
+    "mtime": 1783189569.1395018,
+    "ast_hash": "bf42774a4e3cf33bbae7bbb4e0fceca6",
+    "semantic_hash": ""
+  },
+  "docs/spec/SPEC-CHAT-STREAMING.md": {
+    "mtime": 1783758985.5748415,
+    "ast_hash": "ca5289f1287919e5491314f8b336e13a",
+    "semantic_hash": ""
+  },
+  "docs/spec/SPEC-CHAT.md": {
+    "mtime": 1782582880.7202246,
+    "ast_hash": "8aa3e07ec873caa58487d8949bab5187",
+    "semantic_hash": ""
+  },
+  "docs/spec/SPEC-HEALTH.md": {
+    "mtime": 1783759021.4359057,
+    "ast_hash": "d554e45a83dd22ad35aa02b5cd43124f",
+    "semantic_hash": ""
+  },
+  "docs/spec/SPEC-KONFIGURACJA.md": {
+    "mtime": 1783758985.523443,
+    "ast_hash": "c7b798fd8585d2df3319e5ee26fd6748",
+    "semantic_hash": ""
+  },
+  "docs/spec/SPEC-PLATFORMA-I-KONTRAKTY.md": {
+    "mtime": 1782642338.71453,
+    "ast_hash": "153cadbb982c8a3ac2ecd2614322beb2",
+    "semantic_hash": ""
+  },
+  "docs/spec/SPEC-PROVIDERS.md": {
+    "mtime": 1783758986.4916034,
+    "ast_hash": "56b5c9fad397853393315f6e5667829f",
+    "semantic_hash": ""
+  },
+  "docs/spec/SPEC-README.md": {
+    "mtime": 1783189569.1415012,
+    "ast_hash": "074d4e418e578dfd65e421961965588e",
+    "semantic_hash": ""
+  },
+  "docs/testy.md": {
+    "mtime": 1783758990.817809,
+    "ast_hash": "95613f7ceaada3b01a0a7ad6584a2092",
+    "semantic_hash": ""
+  },
+  "gateway.config.yaml": {
+    "mtime": 1783706363.4016461,
+    "ast_hash": "501a97299fb1f5c239ca35400b583d82",
+    "semantic_hash": ""
+  },
+  "src/config/system-prompt/MAIN_SYSTEM_PROMPT.md": {
+    "mtime": 1779556496.4131641,
+    "ast_hash": "08e35e999cf45cb8abbf3315c23e5893",
+    "semantic_hash": ""
+  },
+  "src/config/system-prompt/MASTER_SYSTEM_PROMPT.md": {
+    "mtime": 1778271178.6519525,
+    "ast_hash": "7e761f3974afc9b125ed74c112478502",
+    "semantic_hash": ""
+  },
+  "src/config/system-prompt/models/chat-default.md": {
+    "mtime": 1783606186.4974735,
+    "ast_hash": "07dc75896c9fcd216a5eff5ab63adcbf",
+    "semantic_hash": ""
+  },
+  "src/config/system-prompt/models/ollama-chat.md": {
+    "mtime": 1783606186.498492,
+    "ast_hash": "fea97858161f50a49debf2ece0dc54d5",
+    "semantic_hash": ""
+  },
+  "src/config/system-prompt/models/openai-chat-gpt.md": {
+    "mtime": 1783606186.498492,
+    "ast_hash": "a9bae4f7813b4b4024c5347c45ab1df3",
+    "semantic_hash": ""
+  },
+  "test/fixtures/cli/boilerplate-gateway.config.yaml": {
+    "mtime": 1782582880.9036047,
+    "ast_hash": "3c5927e4f592ea7456f2a3c2fbaac98f",
+    "semantic_hash": ""
+  },
+  "test/fixtures/cli/valid-gateway.config.yaml": {
+    "mtime": 1782582880.9046054,
+    "ast_hash": "88b6614214d70f6cbf717c1d3327b7e4",
+    "semantic_hash": ""
+  },
+  "test/fixtures/cli/wizard-output-gateway.config.yaml": {
+    "mtime": 1782582880.9046054,
+    "ast_hash": "6071336751b3d43396b613e45b7dc63d",
+    "semantic_hash": ""
+  },
+  "test/integration/README.md": {
+    "mtime": 1783189569.2109406,
+    "ast_hash": "f841bb3e898ec86020296270f5883705",
+    "semantic_hash": ""
+  },
+  "test/integration/docker-compose.redis.yml": {
+    "mtime": 1782582880.9086049,
+    "ast_hash": "1dc3713087f2a7e5f7279be11119a134",
+    "semantic_hash": ""
+  },
+  "test/integration/fixtures/integration-openai.gateway.config.yaml": {
+    "mtime": 1783189569.211948,
+    "ast_hash": "2b2112c417373df03419016c9eaa9214",
+    "semantic_hash": ""
+  },
+  "test/integration/fixtures/integration.gateway.config.yaml": {
+    "mtime": 1782582880.9096053,
+    "ast_hash": "6adf7996daaad2e3774720a2fdc0fb62",
+    "semantic_hash": ""
   }
 }
