@@ -1,5 +1,6 @@
 import { Module, DynamicModule } from '@nestjs/common';
 import { CacheRegistryService } from './cache-registry.service';
+import { AppMetricsModule } from '../observability/app-metrics/app-metrics.module';
 import { NoopCacheModule } from './adapters/noop-cache/noop-cache.module';
 import { RedisCacheModule } from './adapters/redis-cache/redis-cache.module';
 import { RedisConnectionService } from './adapters/redis-cache/redis-connection.service';
@@ -17,6 +18,7 @@ export class CacheModule {
   static register(options: CacheModuleOptions): DynamicModule {
     const imports = [
       NoopCacheModule,
+      AppMetricsModule,
       ...(options.includeRedisStack ? [RedisCacheModule] : []),
     ];
 

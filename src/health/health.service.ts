@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getAppConfig } from '../config/typed-config';
+import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
+import { PreMetricsScrapeRegistry } from '../observability/app-metrics/pre-metrics-scrape.registry';
 import { CacheRegistryService } from '../cache/cache-registry.service';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
 import {
@@ -8,6 +10,8 @@ import {
   isRedisRequiredFromConfig,
   RedisConsumer,
 } from '../cache/should-include-redis-stack';
+import { LoggingService } from 'src/logging/logging.service';
+import { HealthReadinessResponseDto } from './dto/health-readiness-response.dto';
 
 export interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -20,12 +24,29 @@ export interface HealthRedisCheckResult extends HealthCheckResult {
 }
 
 @Injectable()
-export class HealthService {
+export class HealthService implements OnModuleInit {
+  private static readonly SCRAPE_REFRESH_MS = 5_000;
+
+  private readonly logger: LoggingService;
+  private lastAggregateStatus: 'ready' | 'not_ready' | undefined;
+  private lastScrapeRefreshAt = 0;
+  private scrapeRefreshInFlight: Promise<void> | undefined;
+
   constructor(
     private readonly config: ConfigService,
     private readonly cacheRegistry: CacheRegistryService,
     private readonly redisConnection: RedisConnectionService,
-  ) {}
+    private readonly appMetrics: AppMetricsService,
+    private readonly preMetricsScrapeRegistry: PreMetricsScrapeRegistry,
+    loggingService: LoggingService,
+  ) {
+    this.logger = loggingService.child({ module: 'HealthService' });
+  }
+
+  async onModuleInit(): Promise<void> {
+    this.preMetricsScrapeRegistry.register(() => this.refreshMetricsForScrape());
+    await this.refreshMetricsForScrape();
+  }
 
   getLiveness() {
     return {
@@ -34,7 +55,7 @@ export class HealthService {
     };
   }
 
-  async getReadiness() {
+  async evaluateReadiness(): Promise<HealthReadinessResponseDto> {
     const configCheck = this.checkConfig();
     const redisCheck = await this.checkRedis();
     const cacheCheck = this.checkCache(redisCheck);
@@ -56,6 +77,63 @@ export class HealthService {
       uptime: Math.floor(process.uptime()),
       checks,
     };
+  }
+
+  async getReadiness(): Promise<HealthReadinessResponseDto> {
+    const result = await this.evaluateReadiness();
+    this.publishMetrics(result);
+    return result;
+  }
+
+  async refreshMetricsForScrape(): Promise<void> {
+    if (this.scrapeRefreshInFlight) {
+      return this.scrapeRefreshInFlight;
+    }
+
+    const now = Date.now();
+    if (now - this.lastScrapeRefreshAt < HealthService.SCRAPE_REFRESH_MS) {
+      return;
+    }
+
+    this.scrapeRefreshInFlight = this.runScrapeRefresh().finally(() => {
+      this.scrapeRefreshInFlight = undefined;
+      this.lastScrapeRefreshAt = Date.now();
+    });
+
+    return this.scrapeRefreshInFlight;
+  }
+
+  publishMetrics(result: HealthReadinessResponseDto): void {
+    this.appMetrics.syncHealthMetrics({
+      ready: result.status === 'ready',
+      components: {
+        config: result.checks.config.status,
+        redis: result.checks.redis.status,
+        cache: result.checks.cache.status,
+      },
+    });
+    this.appMetrics.setProcessUpTime(result.uptime);
+
+    if (this.lastAggregateStatus !== result.status) {
+      const context = {
+        previous: this.lastAggregateStatus,
+        current: result.status,
+        checks: result.checks,
+      };
+
+      if (result.status === 'ready') {
+        this.logger.info('Readiness status changed', context);
+      } else {
+        this.logger.error('Readiness status changed', undefined, context);
+      }
+
+      this.lastAggregateStatus = result.status;
+    }
+  }
+
+  private async runScrapeRefresh(): Promise<void> {
+    const result = await this.evaluateReadiness();
+    this.publishMetrics(result);
   }
 
   private checkConfig(): HealthCheckResult {

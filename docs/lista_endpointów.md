@@ -1,6 +1,6 @@
 # Lista endpointów — AI Provider Gateway
 
-Wersja dokumentu: **1.8**.  
+Wersja dokumentu: **1.9**.  
 **OpenAPI:** `openapi.json` (v0.14.0) — zsynchronizowany z `src/` (health, czat natywny, **models**, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`, dekoratory `@nestjs/swagger`). **Błędy:** natywny czat i models — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat, models), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat / models:** `@GatewayKeyAndSmartRateLimit()` na `ChatController`, `ChatStreamController`, `ModelsController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
 
 ## Konwencje globalne
@@ -32,7 +32,17 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + 
 
 | | |
 |--|--|
-| **200** | Readiness w body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.redis`, `checks.cache`. **HTTP zawsze 200** — probe ocenia pole `status`, nie kod HTTP. `checks.redis: degraded` (Redis wymagany, ale niedostępny) i `checks.cache: degraded` **nie** blokują `ready`. Szczegóły: `dokumentacja_api.md`. |
+| **200** | Readiness w body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.redis`, `checks.cache`. **HTTP zawsze 200** — probe ocenia pole `status`, nie kod HTTP. `checks.redis: degraded` (Redis wymagany, ale niedostępny) i `checks.cache: degraded` **nie** blokują `ready`. Po ewaluacji sync metryk Prometheus (`publishMetrics`). Szczegóły: `dokumentacja_api.md`. |
+
+---
+
+## Metryki Prometheus *(publiczne, bez prefiksu `/api/v1`)*
+
+### `GET /metrics`
+
+| | |
+|--|--|
+| **200** | Tekst w formacie Prometheus (`text/plain; version=0.0.4`). Przed exportem odświeżane są gauge'e readiness (`gateway_readiness`, `gateway_health_status{component=...}`, `gateway_process_uptime_seconds`) oraz metryki operacyjne (requesty, tokeny, cache, rate limit, Node.js defaults z prefiksem `gateway_`). **Bez** `X-Gateway-Key`. Backend noop w dev (pusty snapshot), Prometheus w production — `METRICS_BACKEND` / `NODE_ENV`. Scrape: `deployment/monitoring/prometheus.yml`. |
 
 ---
 
@@ -97,6 +107,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 |--------|---------|------|
 | GET | `/api/v1/health` | liveness |
 | GET | `/api/v1/health/ready` | readiness (`checks.config`, `checks.redis`, `checks.cache`) |
+| GET | `/metrics` | metryki Prometheus (health gauges odświeżane przy scrape) |
 | GET | `/api/v1/models` | lista aliasów modeli (kontrakt gateway) |
 | GET | `/api/v1/models/:modelAlias` | szczegóły aliasu |
 | POST | `/api/v1/chat` | standard (pełna odpowiedź) |

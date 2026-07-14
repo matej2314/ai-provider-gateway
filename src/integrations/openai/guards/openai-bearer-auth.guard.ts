@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { getAppConfig } from '../../../config/typed-config';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { asGatewayKey } from '../../../common/types';
+import { enrichRequestWithClientId } from '../../../guards/helpers/resolve-and-enrich-request.helper';
 import type { Request } from 'express';
 
 function readAuthorizationHeader(req: Request): string | undefined {
@@ -78,7 +79,7 @@ export class OpenAiBearerAuthGuard implements CanActivate {
         details: [],
       });
     }
-    req.gatewayKey = brandedKey;
+    enrichRequestWithClientId(req, brandedKey, this.config);
     return true;
   }
 }

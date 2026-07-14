@@ -409,22 +409,26 @@ ai-provider-gateway/
 │   │       ├── sentry-error-reporting.adapter.ts
 │   │       └── noop-error-reporting.adapter.ts
 │   │
-│   ├── metrics/
-│   │   ├── metrics.module.ts
-│   │   ├── metrics.service.ts
-│   │   ├── metrics.service.spec.ts
-│   │   ├── metrics.tokens.ts
-│   │   ├── interfaces/
-│   │   │   └── metrics-backend.interface.ts
-│   │   └── adapters/
-│   │       ├── sentry-metrics.adapter.ts
-│   │       └── noop-metrics.adapter.ts
+│   ├── observability/
+│   │   ├── observability.module.ts
+│   │   ├── ai-metrics/                    # Sentry LLM spans (AiMetricsService)
+│   │   │   ├── ai-metrics.module.ts
+│   │   │   ├── ai-metrics.service.ts
+│   │   │   └── adapters/                  # sentry-ai-metrics, noop-ai-metrics
+│   │   └── app-metrics/                   # Prometheus RED + health gauges
+│   │       ├── app-metrics.module.ts
+│   │       ├── app-metrics.service.ts
+│   │       ├── metrics.controller.ts      # GET /metrics
+│   │       ├── pre-metrics-scrape.registry.ts
+│   │       ├── prometheus.service.ts
+│   │       ├── active-streams.tracker.ts
+│   │       └── adapters/                  # prometheus-app-metrics, noop-app-metrics
 │   │
 │   ├── health/
 │   │   ├── health.module.ts
 │   │   ├── health.controller.ts
 │   │   ├── health.controller.spec.ts
-│   │   ├── health.service.ts
+│   │   ├── health.service.ts              # evaluateReadiness, publishMetrics, scrape hook
 │   │   ├── health.service.spec.ts
 │   │   └── dto/
 │   │       ├── health-liveness-response.dto.ts
@@ -545,8 +549,9 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/common/`**                        | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), **brand types** (`types/branded.*`), typy Express (`express.d.ts`), mocki testowe (`mocks/`), walidatory (`validators/` — np. `stop` jako string \| string[]). |
 | **`src/cache/`**                         | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). Odczyt walidowany **`CachedChatResponseSchema`**. **`RedisConnectionService`** — współdzielona infrastruktura Redis (cache + rate limit); predykat `isRedisRequired()` w `should-include-redis-stack.ts`.                                                                                                                                                                                                                                                                                                                                        |
 | **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez wspólny `RedisConnectionService` (ładowany gdy `isRedisRequiredFromEnv()`).                                                                                                                                                                                                                                                                                                                                                                                      |
-| **`src/logging/`**, **`src/metrics/`**   | Pino / Sentry (opcjonalnie), spany LLM, `conversationId` → Sentry — patrz `conversation-tracking.md`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **`src/health/`**                        | Liveness i readiness (`checks.config`, `checks.redis`, `checks.cache`); DTO z dekoratorami `@Api*` dla OpenAPI.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **`src/logging/`**                       | Pino structured logging; opcjonalnie Sentry error reporting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **`src/observability/`**                 | **`AiMetricsModule`** (Sentry LLM) + **`AppMetricsModule`** (Prometheus, `GET /metrics`, health gauges, `PreMetricsScrapeRegistry`). Patrz `conversation-tracking.md`, `deployment.md`.                                                                                                                                                                                                                                                                                                                                                                 |
+| **`src/health/`**                        | Liveness i readiness; sync metryk health do Prometheus; rejestracja hooka scrape w `onModuleInit`. DTO z dekoratorami `@Api*` dla OpenAPI.                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **`src/swagger/`**                       | Generowanie jednego dokumentu OpenAPI 3.1 z kodu (`@nestjs/swagger`) — czat natywny, **models**, health, fasady OpenAI/Anthropic; `extraModels` + trzy `securitySchemes` w `swagger.setup.ts`. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport → `openapi.json`.                                                                                                                                                                                                                                                                                                                                                      |
 | **`bin/`**                               | Entry point CLI: wrapper JS (`gateway-cli-wrapper.js`) uruchamia skompilowany `dist/bin/gateway-cli.js` lub — gdy brak build — TypeScript przez `ts-node` (`gateway-cli.ts` → `CliModule`). Dostęp: `npm run cli`, `npx gateway`, bin **`gateway`** z `package.json` (po `npm link` lub instalacji globalnej).                                                                                                                                                                                                                                                                                                          |
 | **`src/cli/`**                           | Warstwa CLI: **nie importuje** `ConfigModule`. NestJS tylko dla DI. Wizard (`config:init`), walidacja/wyświetlanie configu, CRUD providerów (multi-instance), modeli, klientów, testy SDK, generowanie kluczy. Szczegóły: `CLI.md`, `architektura.md`.                                                                                                                                                                                                                                                                                                                                                                  |
@@ -598,7 +603,7 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - Error envelope (`GlobalExceptionFilter`), kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
-- System prompt z plików, cache (`noop`/`redis`, walidacja odczytu `CachedChatResponseSchema`), typed config (`AppConfiguration`, `typed-config.ts`), logging/metrics (Pino, Sentry), readiness (`checks.config`, `checks.redis`, `checks.cache`), graceful shutdown.
+- System prompt z plików, cache (`noop`/`redis`, walidacja odczytu `CachedChatResponseSchema`), typed config (`AppConfiguration`, `typed-config.ts`), logging + observability (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges na `/metrics`), readiness (`checks.config`, `checks.redis`, `checks.cache`), alerty Prometheus (`deployment/monitoring/alerts.yml`), graceful shutdown.
 - `GatewayFinishReason` (`stop` | `tool_calls` | `length` | `content_filter`) w natywnym API; reverse map na fasadzie Anthropic (`anthropic-stop-reason.mapper.ts`).
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad IDE; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
 - **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule` i `ModelsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` oraz natywny `/api/v1/models` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — adapter OpenAI: `provider-openai-runtime.md`.

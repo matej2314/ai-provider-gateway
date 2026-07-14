@@ -29,7 +29,9 @@ Uwagi:
 - `timestamp` to ISO 8601 UTC (`new Date().toISOString()` w `HealthService.getLiveness` / `getReadiness`).
 - Endpoint nie wymaga `X-Gateway-Key`.
 
-F-1b. `GET /api/v1/health/ready` zwraca readiness (`status`: `ready` | `not_ready`, `checks.config`, `checks.redis`, `checks.cache`, `version`, `uptime`) — implementacja w `HealthService.getReadiness`. **HTTP zawsze 200**; probe ocenia pole `status` w body. **`checks.redis`**: współdzielona infrastruktura Redis (`RedisConnectionService.ping()` tylko gdy `required: true`; pola `required`, `consumers`: `cache`, `rate-limit`). **`checks.cache`**: stan feature cache odpowiedzi; przy backendzie `redis` dostępność wynika z `checks.redis`. Szczegóły: `docs/dokumentacja_api.md`.
+F-1b. `GET /api/v1/health/ready` zwraca readiness (`status`: `ready` | `not_ready`, `checks.config`, `checks.redis`, `checks.cache`, `version`, `uptime`) — implementacja w `HealthService.getReadiness`. **HTTP zawsze 200**; probe ocenia pole `status` w body. **`checks.redis`**: współdzielona infrastruktura Redis (`RedisConnectionService.ping()` tylko gdy `required: true`; pola `required`, `consumers`: `cache`, `rate-limit`). **`checks.cache`**: stan feature cache odpowiedzi; przy backendzie `redis` dostępność wynika z `checks.redis`. Po ewaluacji: `publishMetrics()` → gauge'e Prometheus. Szczegóły: `docs/dokumentacja_api.md`.
+
+F-1c. **`GET /metrics`** (poza prefiksem `/api/v1`) eksportuje metryki Prometheus, w tym **`gateway_readiness`** i **`gateway_health_status`**. Przed exportem aplikacja odświeża stan readiness (hook `PreMetricsScrapeRegistry` + `HealthService.refreshMetricsForScrape`). Prometheus scrape co 10s — `deployment/monitoring/prometheus.yml`. Alerty: `deployment/monitoring/alerts.yml`.
 
 F-2. Gateway musi być w stanie jednoznacznie określić “gotowość” do obsługi żądań LLM:
 
@@ -49,6 +51,7 @@ NFR-2. Health endpoint ma działać szybko (p95 < 50ms lokalnie).
 - [x] `GET /api/v1/health` działa, gdy proces działa.
 - [x] Liveness zwraca `status: healthy` (bez sekretów).
 - [x] Readiness (`GET /api/v1/health/ready`) raportuje `checks.config`, `checks.redis` i `checks.cache`.
+- [x] Metryki readiness eksportowane na `GET /metrics` i odświeżane przy scrape Prometheus.
 
 ## Poza zakresem (względem rdzenia MVP)
 

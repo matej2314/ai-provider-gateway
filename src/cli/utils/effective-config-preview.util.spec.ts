@@ -107,7 +107,9 @@ describe('effective-config-preview.util', () => {
   describe('isLastModelInConfig', () => {
     it('returns true for the sole model alias', () => {
       const config = createTestGatewayConfig();
-      expect(isLastModelInConfig(config, asModelAlias('test-model'))).toBe(true);
+      expect(isLastModelInConfig(config, asModelAlias('test-model'))).toBe(
+        true,
+      );
     });
   });
 

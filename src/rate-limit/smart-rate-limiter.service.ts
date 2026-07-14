@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
 import { ResolvedGatewayClient } from '../config/configuration.types';
 import { LoggingService } from '../logging/logging.service';
-import type { GatewayKey } from '../common/types';
+import { resolveClientIdFromKey } from '../common/resolveClientIdFromKey';
+import type { GatewayKey, ClientId } from '../common/types/branded.types';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -22,6 +24,7 @@ export class SmartRateLimiterService {
     private readonly config: ConfigService,
     private readonly redisConnection: RedisConnectionService,
     private readonly loggingService: LoggingService,
+    private readonly appMetrics: AppMetricsService,
   ) {
     const logger = this.loggingService.child({
       module: 'SmartRateLimiterService',
@@ -131,6 +134,16 @@ export class SmartRateLimiterService {
         number,
       ];
 
+      const clients = Array.from(this.clientsMap.values());
+      const clientId = resolveClientIdFromKey(gatewayKey, clients);
+
+      if (!allowed) {
+        this.appMetrics.recordRateLimit(clientId, 'rate');
+        this.logger.warn(
+          `Rate limit exceeded for client: ${clientId}, key: ${gatewayKey}`,
+        );
+      }
+
       if (allowed === 1) {
         return {
           allowed: true,
@@ -158,6 +171,7 @@ export class SmartRateLimiterService {
 
   async checkConcurrentStreams(
     gatewayKey: GatewayKey,
+    clientId: ClientId,
   ): Promise<RateLimitResult> {
     if (!this.redisConnection.isReady()) {
       return { allowed: true, remaining: 999, resetAt: new Date() };
@@ -184,6 +198,7 @@ export class SmartRateLimiterService {
         };
       } else {
         await client.decr(key);
+        this.appMetrics.recordRateLimit(clientId, 'concurrency');
         return {
           allowed: false,
           remaining: 0,

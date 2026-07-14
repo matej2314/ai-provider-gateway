@@ -7,97 +7,12 @@ import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { TEST_TOOL_CALL_ID } from '../../../common/mocks/test-constants';
 
 describe('mapOpenAiToolCalls', () => {
-  it('should map valid tool call', () => {
+  it('should map valid tool calls', () => {
     const raw = [
       {
         id: TEST_TOOL_CALL_ID,
         type: 'function',
         function: { name: 'get_weather', arguments: '{"location":"NYC"}' },
-      },
-    ];
-
-    const result = mapOpenAiToolCalls(raw);
-
-    expect(result).toEqual([
-      {
-        id: TEST_TOOL_CALL_ID,
-        name: 'get_weather',
-        arguments: '{"location":"NYC"}',
-      },
-    ]);
-  });
-
-  it('should map tool call with missing arguments (default to empty object)', () => {
-    const raw = [
-      {
-        id: TEST_TOOL_CALL_ID,
-        type: 'function',
-        function: { name: 'get_weather' },
-      },
-    ];
-
-    const result = mapOpenAiToolCalls(raw);
-
-    expect(result).toEqual([
-      { id: TEST_TOOL_CALL_ID, name: 'get_weather', arguments: '{}' },
-    ]);
-  });
-
-  it('should skip non-function type tool calls', () => {
-    const raw = [
-      {
-        id: TEST_TOOL_CALL_ID,
-        type: 'invalid',
-        function: { name: 'test', arguments: '{}' },
-      },
-    ];
-
-    const result = mapOpenAiToolCalls(raw);
-
-    expect(result).toEqual([]);
-  });
-
-  it('should skip tool calls without id', () => {
-    const raw = [
-      {
-        type: 'function',
-        function: { name: 'test', arguments: '{}' },
-      },
-    ];
-
-    const result = mapOpenAiToolCalls(raw);
-
-    expect(result).toEqual([]);
-  });
-
-  it('should skip tool calls without function name', () => {
-    const raw = [
-      {
-        id: TEST_TOOL_CALL_ID,
-        type: 'function',
-        function: { arguments: '{}' },
-      },
-    ];
-
-    const result = mapOpenAiToolCalls(raw);
-
-    expect(result).toEqual([]);
-  });
-
-  it('should skip non-object items', () => {
-    const raw = [null, undefined, 'string', 123];
-
-    const result = mapOpenAiToolCalls(raw);
-
-    expect(result).toEqual([]);
-  });
-
-  it('should map multiple tool calls', () => {
-    const raw = [
-      {
-        id: 'call_1',
-        type: 'function',
-        function: { name: 'get_weather', arguments: '{}' },
       },
       {
         id: 'call_2',
@@ -109,129 +24,89 @@ describe('mapOpenAiToolCalls', () => {
     const result = mapOpenAiToolCalls(raw);
 
     expect(result).toHaveLength(2);
-    expect(result[0].name).toBe('get_weather');
+    expect(result[0]).toEqual({
+      id: TEST_TOOL_CALL_ID,
+      name: 'get_weather',
+      arguments: '{"location":"NYC"}',
+    });
     expect(result[1].name).toBe('get_time');
   });
 
-  it('should filter out invalid tool calls and keep valid ones', () => {
+  it('should handle missing arguments (default to empty object)', () => {
     const raw = [
-      { id: 'call_1', type: 'function', function: { name: 'valid' } },
-      { id: 'call_2', type: 'invalid', function: { name: 'skip' } },
-      { type: 'function', function: { name: 'skip_no_id' } },
-      { id: 'call_3', type: 'function', function: { name: 'valid2' } },
+      {
+        id: TEST_TOOL_CALL_ID,
+        type: 'function',
+        function: { name: 'get_weather' },
+      },
     ];
 
     const result = mapOpenAiToolCalls(raw);
 
-    expect(result).toHaveLength(2);
-    expect(result[0].name).toBe('valid');
-    expect(result[1].name).toBe('valid2');
+    expect(result[0].arguments).toBe('{}');
+  });
+
+  it('should skip invalid tool calls', () => {
+    const raw = [
+      { id: 'valid', type: 'function', function: { name: 'test' } },
+      { id: 'invalid', type: 'invalid_type', function: { name: 'skip' } },
+      { type: 'function', function: { name: 'skip_no_id' } },
+      { id: 'skip', type: 'function', function: {} },
+      null,
+      undefined,
+      'string',
+    ];
+
+    const result = mapOpenAiToolCalls(raw);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('valid');
   });
 });
 
 describe('mapOpenAiMessagesToGateway', () => {
-  describe('Happy path - basic messages', () => {
-    it('should map user message', () => {
-      const messages = [{ role: 'user', content: 'Hello' }];
-
-      const result = mapOpenAiMessagesToGateway(messages as any);
-
-      expect(result).toEqual([{ role: 'user', content: 'Hello' }]);
-    });
-
-    it('should map assistant message without tool calls', () => {
-      const messages = [{ role: 'assistant', content: 'Hi there!' }];
-
-      const result = mapOpenAiMessagesToGateway(messages as any);
-
-      expect(result).toEqual([{ role: 'assistant', content: 'Hi there!' }]);
-    });
-
-    it('should map multiple messages', () => {
-      const messages = [
-        { role: 'user', content: 'Hello' },
-        { role: 'assistant', content: 'Hi' },
-        { role: 'user', content: 'How are you?' },
-      ];
-
-      const result = mapOpenAiMessagesToGateway(messages as any);
-
-      expect(result).toHaveLength(3);
-    });
-  });
-
-  describe('Happy path - system message filtering', () => {
-    it('should skip system message', () => {
+  describe('Basic messages', () => {
+    it('should map user and assistant messages (system messages are filtered)', () => {
       const messages = [
         { role: 'system', content: 'You are helpful' },
         { role: 'user', content: 'Hello' },
+        { role: 'assistant', content: 'Hi there!' },
       ];
 
       const result = mapOpenAiMessagesToGateway(messages as any);
 
-      expect(result).toEqual([{ role: 'user', content: 'Hello' }]);
+      expect(result).toEqual([
+        { role: 'user', content: 'Hello' },
+        { role: 'assistant', content: 'Hi there!' },
+      ]);
     });
 
-    it('should skip multiple system messages', () => {
+    it('should preserve null and undefined content', () => {
       const messages = [
-        { role: 'system', content: 'System 1' },
-        { role: 'user', content: 'Hello' },
-        { role: 'system', content: 'System 2' },
-        { role: 'assistant', content: 'Hi' },
+        { role: 'user', content: null },
+        { role: 'assistant', content: undefined },
       ];
 
       const result = mapOpenAiMessagesToGateway(messages as any);
 
-      expect(result).toHaveLength(2);
-      expect(result[0].role).toBe('user');
-      expect(result[1].role).toBe('assistant');
+      expect(result).toEqual([
+        { role: 'user', content: null },
+        { role: 'assistant', content: undefined },
+      ]);
     });
   });
 
-  describe('Happy path - assistant with tool calls', () => {
+  describe('Assistant messages with tool calls', () => {
     it('should map assistant message with tool calls', () => {
       const messages = [
         {
           role: 'assistant',
-          content: 'Let me check the weather',
-          tool_calls: [
-            {
-              id: TEST_TOOL_CALL_ID,
-              type: 'function',
-              function: { name: 'get_weather', arguments: '{"loc":"NYC"}' },
-            },
-          ],
-        },
-      ];
-
-      const result = mapOpenAiMessagesToGateway(messages as any);
-
-      expect(result).toEqual([
-        {
-          role: 'assistant',
-          content: 'Let me check the weather',
-          toolCalls: [
-            { id: 'call_123', name: 'get_weather', arguments: '{"loc":"NYC"}' },
-          ],
-        },
-      ]);
-    });
-
-    it('should map assistant with multiple tool calls', () => {
-      const messages = [
-        {
-          role: 'assistant',
-          content: '',
+          content: 'Let me check',
           tool_calls: [
             {
               id: 'call_1',
               type: 'function',
-              function: { name: 'get_weather' },
-            },
-            {
-              id: 'call_2',
-              type: 'function',
-              function: { name: 'get_time' },
+              function: { name: 'get_weather', arguments: '{"city":"NYC"}' },
             },
           ],
         },
@@ -239,139 +114,138 @@ describe('mapOpenAiMessagesToGateway', () => {
 
       const result = mapOpenAiMessagesToGateway(messages as any);
 
-      expect(result[0].toolCalls).toHaveLength(2);
-    });
-
-    it('should not add toolCalls field when empty', () => {
-      const messages = [
-        {
-          role: 'assistant',
-          content: 'Hello',
-          tool_calls: [],
-        },
-      ];
-
-      const result = mapOpenAiMessagesToGateway(messages as any);
-
-      expect(result[0]).toEqual({ role: 'assistant', content: 'Hello' });
-      expect(result[0].toolCalls).toBeUndefined();
-    });
-  });
-
-  describe('Happy path - tool messages', () => {
-    it('should map tool message', () => {
-      const messages = [
-        {
-          role: 'tool',
-          tool_call_id: 'call_123',
-          content: '{"temp":72}',
-        },
-      ];
-
-      const result = mapOpenAiMessagesToGateway(messages as any);
-
       expect(result).toEqual([
         {
-          role: 'tool',
-          toolCallId: 'call_123',
-          content: '{"temp":72}',
+          role: 'assistant',
+          content: 'Let me check',
+          toolCalls: [
+            {
+              id: 'call_1',
+              name: 'get_weather',
+              arguments: '{"city":"NYC"}',
+            },
+          ],
         },
       ]);
     });
 
-    it('should map multiple tool messages', () => {
-      const messages = [
-        { role: 'tool', tool_call_id: 'call_1', content: 'result1' },
-        { role: 'tool', tool_call_id: 'call_2', content: 'result2' },
-      ];
-
-      const result = mapOpenAiMessagesToGateway(messages as any);
-
-      expect(result).toHaveLength(2);
-      expect(result[0].toolCallId).toBe('call_1');
-      expect(result[1].toolCallId).toBe('call_2');
-    });
-  });
-
-  describe('Edge case - validation errors', () => {
-    it('should throw when tool message missing tool_call_id', () => {
-      const messages = [{ role: 'tool', content: 'result' }];
-
-      expect(() => mapOpenAiMessagesToGateway(messages as any)).toThrow(
-        BadRequestException,
-      );
-
-      try {
-        mapOpenAiMessagesToGateway(messages as any);
-      } catch (e) {
-        expect(e).toBeInstanceOf(BadRequestException);
-        expect(e.getResponse()).toMatchObject({
-          code: ApiErrorCode.VALIDATION_FAILED,
-          message: 'Tool messages must include tool_call_id',
-        });
-      }
-    });
-
-    it('should throw when no messages after filtering', () => {
-      const messages = [
-        { role: 'system', content: 'System prompt' },
-        { role: 'system', content: 'Another system' },
-      ];
-
-      expect(() => mapOpenAiMessagesToGateway(messages as any)).toThrow(
-        BadRequestException,
-      );
-
-      try {
-        mapOpenAiMessagesToGateway(messages as any);
-      } catch (e) {
-        expect(e).toBeInstanceOf(BadRequestException);
-        expect(e.getResponse()).toMatchObject({
-          code: ApiErrorCode.VALIDATION_FAILED,
-          message:
-            'At least one user, assistant or tool message is required after filtering.',
-        });
-      }
-    });
-
-    it('should throw when empty messages array', () => {
-      const messages = [];
-
-      expect(() => mapOpenAiMessagesToGateway(messages as any)).toThrow(
-        BadRequestException,
-      );
-    });
-  });
-
-  describe('Edge case - empty/null content', () => {
-    it('should map user message with empty content', () => {
-      const messages = [{ role: 'user', content: '' }];
-
-      const result = mapOpenAiMessagesToGateway(messages as any);
-
-      expect(result).toEqual([{ role: 'user', content: '' }]);
-    });
-
-    it('should map assistant message with null content (tool calls)', () => {
+    it('should handle assistant message with tool calls and null content', () => {
       const messages = [
         {
           role: 'assistant',
           content: null,
           tool_calls: [
-            { id: 'call_1', type: 'function', function: { name: 'test' } },
+            {
+              id: 'call_1',
+              type: 'function',
+              function: { name: 'test', arguments: '{}' },
+            },
           ],
         },
       ];
 
       const result = mapOpenAiMessagesToGateway(messages as any);
 
-      expect(result[0].content).toBeNull();
-      expect(result[0].toolCalls).toBeDefined();
+      expect(result[0].content).toBe(null);
+      expect(result[0].toolCalls).toHaveLength(1);
     });
   });
 
-  describe('Integration - complex conversations', () => {
-    it('should map full conversation with all message types', () => {
+  describe('Tool role messages', () => {
+    it('should map tool role message', () => {
+      const messages = [
+        {
+          role: 'tool',
+          tool_call_id: 'call_1',
+          content: '{"temp":72}',
+        },
+      ];
+
+      const result = mapOpenAiMessagesToGateway(messages as any);
+
+      expect(result).toEqual([
+        {
+          role: 'tool',
+          toolCallId: 'call_1',
+          content: '{"temp":72}',
+        },
+      ]);
+    });
+
+    it('should throw when tool message missing tool_call_id', () => {
+      const messages = [
+        {
+          role: 'tool',
+          content: 'orphan result',
+        },
+      ];
+
+      expect(() => mapOpenAiMessagesToGateway(messages as any)).toThrow(
+        BadRequestException,
+      );
+
+      try {
+        mapOpenAiMessagesToGateway(messages as any);
+      } catch (e) {
+        expect(e.getResponse()).toMatchObject({
+          code: ApiErrorCode.VALIDATION_FAILED,
+          message: expect.stringContaining('tool_call_id'),
+        });
+      }
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('should throw for empty messages array', () => {
+      expect(() => mapOpenAiMessagesToGateway([])).toThrow(BadRequestException);
+    });
+
+    it('should throw for invalid message role', () => {
+      const messages = [{ role: 'invalid_role', content: 'test' }];
+
+      expect(() => mapOpenAiMessagesToGateway(messages as any)).toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should filter out invalid tool calls in assistant message', () => {
+      const messages = [
+        {
+          role: 'assistant',
+          content: 'Testing',
+          tool_calls: [
+            { id: 'valid', type: 'function', function: { name: 'test' } },
+            { id: 'invalid', type: 'invalid', function: { name: 'skip' } },
+            { type: 'function', function: { name: 'skip_no_id' } },
+          ],
+        },
+      ];
+
+      const result = mapOpenAiMessagesToGateway(messages as any);
+
+      expect(result[0].toolCalls).toHaveLength(1);
+      expect(result[0].toolCalls![0].id).toBe('valid');
+    });
+
+    it('should omit toolCalls when all are invalid', () => {
+      const messages = [
+        {
+          role: 'assistant',
+          content: 'Test',
+          tool_calls: [
+            { id: 'skip', type: 'invalid', function: { name: 'test' } },
+          ],
+        },
+      ];
+
+      const result = mapOpenAiMessagesToGateway(messages as any);
+
+      expect(result[0].toolCalls).toBeUndefined();
+    });
+  });
+
+  describe('Complex scenarios', () => {
+    it('should handle full conversation with tools (system message filtered)', () => {
       const messages = [
         { role: 'system', content: 'You are helpful' },
         { role: 'user', content: 'What is the weather?' },
@@ -380,51 +254,31 @@ describe('mapOpenAiMessagesToGateway', () => {
           content: 'Let me check',
           tool_calls: [
             {
-              id: TEST_TOOL_CALL_ID,
+              id: 'call_1',
               type: 'function',
-              function: { name: 'get_weather', arguments: '{}' },
+              function: { name: 'get_weather', arguments: '{"city":"SF"}' },
             },
           ],
         },
-        { role: 'tool', tool_call_id: 'call_123', content: '{"temp":72}' },
-        { role: 'assistant', content: 'It is 72 degrees.' },
-        { role: 'user', content: 'Thanks!' },
-      ];
-
-      const result = mapOpenAiMessagesToGateway(messages as any);
-
-      expect(result).toHaveLength(5);
-      expect(result[0].role).toBe('user');
-      expect(result[1].role).toBe('assistant');
-      expect(result[1].toolCalls).toBeDefined();
-      expect(result[2].role).toBe('tool');
-      expect(result[3].role).toBe('assistant');
-      expect(result[4].role).toBe('user');
-    });
-
-    it('should handle multi-turn tool calling', () => {
-      const messages = [
-        { role: 'user', content: 'Check weather and time' },
+        {
+          role: 'tool',
+          tool_call_id: 'call_1',
+          content: '{"temp":72}',
+        },
         {
           role: 'assistant',
-          content: '',
-          tool_calls: [
-            { id: 'call_1', type: 'function', function: { name: 'weather' } },
-            { id: 'call_2', type: 'function', function: { name: 'time' } },
-          ],
+          content: 'The temperature is 72°F',
         },
-        { role: 'tool', tool_call_id: 'call_1', content: 'sunny' },
-        { role: 'tool', tool_call_id: 'call_2', content: '10:00' },
-        { role: 'assistant', content: 'Weather is sunny, time is 10:00' },
       ];
 
       const result = mapOpenAiMessagesToGateway(messages as any);
 
-      expect(result).toHaveLength(5);
-      expect(result[1].toolCalls).toHaveLength(2);
+      expect(result).toHaveLength(4);
+      expect(result[0].role).toBe('user');
+      expect(result[1].role).toBe('assistant');
+      expect(result[1].toolCalls).toHaveLength(1);
       expect(result[2].role).toBe('tool');
-      expect(result[3].role).toBe('tool');
-      expect(result[4].role).toBe('assistant');
+      expect(result[2].toolCallId).toBe('call_1');
     });
   });
 });

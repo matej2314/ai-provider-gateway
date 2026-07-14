@@ -2,14 +2,14 @@ import { Injectable } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
 import type { Span } from '@sentry/core';
 import type {
-  MetricsBackend,
+  AiMetricsBackend,
   LlmCallContext,
   LlmCallObservation,
-  llmStreamSpanController,
+  LlmStreamSpanController,
   LlmCallMessage,
   LlmRequestMetadata,
-} from '../interfaces/metrics-backend.interface';
-import { ConversationId } from '../../common/types/branded.types';
+} from '../interfaces/ai-metrics-backend.interface';
+import { ConversationId } from '../../../common/types/branded.types';
 
 function toGenAiProviderName(provider: string): string {
   const map: Record<string, string> = {
@@ -143,7 +143,7 @@ function buildGenAiChatSpanAttributes(
 }
 
 @Injectable()
-export class SentryAiMetricsAdapter implements MetricsBackend {
+export class SentryAiMetricsAdapter implements AiMetricsBackend {
   async observeLlmCall<T>(
     context: LlmCallContext,
     fn: () => Promise<T>,
@@ -183,7 +183,7 @@ export class SentryAiMetricsAdapter implements MetricsBackend {
     }
   }
 
-  observeLlmStream(context: LlmCallContext): llmStreamSpanController {
+  observeLlmStream(context: LlmCallContext): LlmStreamSpanController {
     if (context.conversationId) {
       Sentry.setConversationId(context.conversationId);
     }

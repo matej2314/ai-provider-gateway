@@ -1,13 +1,13 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **1.5**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat + **models**, fasada OpenAI, fasada Anthropic) oraz health. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
+Wersja dokumentu: **1.6**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat + **models**, fasada OpenAI, fasada Anthropic) oraz health. **Metryki Prometheus** (`GET /metrics`) są poza OpenAPI — opis w tym dokumencie i w `deployment.md`. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
 
 ## Źródła prawdy (kolejność)
 
 1. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — dekoratory `@nestjs/swagger` na kontrolerach i klasach odpowiedzi (`@ApiProperty`, `@ApiOperation`, `@ApiGatewayChatErrorResponses`, `@ApiGatewayModelsErrorResponses`, `@ApiOpenAiErrorResponses`, `@ApiAnthropicErrorResponses`, `@ApiRequestIdHeader`, …). Konfiguracja dokumentu: `src/swagger/swagger.setup.ts` (`extraModels`, trzy `securitySchemes`).
 2. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) **generowany z kodu** (`npm run openapi:export` → `src/swagger/export-openapi.ts`). W runtime ten sam dokument serwowany jako `/api/v1/swagger.json` (gdy Swagger włączony).
 3. **Swagger UI** — interaktywna dokumentacja pod `/api/v1/api-docs` (`setupSwagger` w `src/main.ts`; wyłączanie: `SWAGGER_ENABLED` — `konfiguracja.md`).
-4. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1. **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging/metrics (Pino, Sentry opcjonalnie), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` (YAML + runtime) lub **`gateway config:validate`** (+ format legacy env) — `konfiguracja.md`.
+4. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1. **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging + **observability** (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` (YAML + runtime) lub **`gateway config:validate`** (+ format legacy env) — `konfiguracja.md`.
 5. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis`, odczyt walidowany `CachedChatResponseSchema` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
 6. **System prompt po stronie serwera** — wczytanie plików w `configuration.ts`, składanie w `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`).
 7. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
@@ -195,6 +195,22 @@ Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), 
 | **`checks.cache`**  | Stan **feature** cache: wyłączony → **`healthy`** („Cache disabled (noop)”). Backend **`redis`** → status zależy od **`checks.redis`** (bez osobnego probe przez `CacheRegistryService`). Inne backendy → probe przez registry jak dotychczas. **`degraded`** nie blokuje `ready`.                                                                                                   |
 
 Orchestrator powinien traktować instancję jako gotową tylko przy `status === "ready"` w JSON.
+
+Po każdej ewaluacji readiness (`getReadiness()` lub hook przy `GET /metrics`) wywoływane jest `HealthService.publishMetrics()` — aktualizacja gauge'ów `gateway_readiness` i `gateway_health_status` w Prometheus (log tylko przy zmianie agregatu `ready` ↔ `not_ready`).
+
+---
+
+## `GET /metrics` — Prometheus (poza `/api/v1`)
+
+**Kontroler:** `MetricsController` (`src/observability/app-metrics/metrics.controller.ts`). **Bez** `X-Gateway-Key` — wyłączone z globalnego prefiksu w `setup.app.ts`.
+
+| Aspekt | Zachowanie |
+|--------|------------|
+| **Format** | Prometheus text exposition (`Content-Type: text/plain; version=0.0.4`) |
+| **Backend** | `PrometheusAppMetricsAdapter` w production / `METRICS_BACKEND=prometheus`; dev domyślnie noop (pusty body) |
+| **Health gauges** | Przed `getMetricsSnapshot()` — `PreMetricsScrapeRegistry.runAll()` → `HealthService.refreshMetricsForScrape()` (throttle 5s; pełny check bez throttle na `GET /ready`) |
+| **Przykładowe metryki** | `gateway_readiness`, `gateway_health_status{component="config\|redis\|cache"}`, `gateway_requests_total`, `gateway_tokens_total`, `gateway_nodejs_*` |
+| **Monitoring stack** | `deployment/monitoring/prometheus.yml`, alerty: `alerts.yml` — `deployment.md` |
 
 ---
 

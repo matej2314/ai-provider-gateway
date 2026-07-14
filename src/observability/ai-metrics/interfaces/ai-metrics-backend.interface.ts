@@ -8,7 +8,7 @@ import type {
   InputTokens,
   OutputTokens,
   CostUsd,
-} from '../../common/types/branded.types';
+} from '../../../common/types/branded.types';
 
 export interface LlmCallMessage {
   role: 'user' | 'assistant' | 'tool';
@@ -39,18 +39,18 @@ export interface LlmCallObservation {
   costUsd?: CostUsd;
 }
 
-export interface llmStreamSpanController {
+export interface LlmStreamSpanController {
   withActiveSpan<T>(fn: () => T): T;
   end(observation: LlmCallObservation): void;
   fail(observation?: LlmCallObservation): void;
 }
 
-export interface MetricsBackend {
+export interface AiMetricsBackend {
   observeLlmCall<T>(
     context: LlmCallContext,
     fn: () => Promise<T>,
     mapResult?: (result: T) => LlmCallObservation,
   ): Promise<T>;
 
-  observeLlmStream(context: LlmCallContext): llmStreamSpanController;
+  observeLlmStream(context: LlmCallContext): LlmStreamSpanController;
 }

@@ -314,7 +314,9 @@ export class ClientManagerService {
         row.rateLimit = buildClientRateLimitConfig({
           rps: asRateLimitRps(rateLimitAnswers.rps),
           burst: asRateLimitBurst(rateLimitAnswers.burst),
-          maxConcurrentStreams: asMaxConcurrentStreams(rateLimitAnswers.maxConcurrentStreams),
+          maxConcurrentStreams: asMaxConcurrentStreams(
+            rateLimitAnswers.maxConcurrentStreams,
+          ),
         });
         await this.persistence.persistConfig(config, cwd);
         CliLogger.success(`Rate limit updated for client ${clientId}.`);

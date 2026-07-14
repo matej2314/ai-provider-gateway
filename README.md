@@ -6,6 +6,7 @@ Gateway HTTP dla LLM, który **ukrywa SDK providerów** i wystawia spójny kontr
 - streamingu SSE (`POST /api/v1/chat/stream`),
 - katalogu aliasów modeli (`GET /api/v1/models`, `GET /api/v1/models/:modelAlias`),
 - healthchecka (`GET /api/v1/health`, `GET /api/v1/health/ready`),
+- metryk Prometheusa (`GET /metrics` — poza prefiksem `/api/v1`),
 - odporności (retry, timeout, opcjonalny fallback aliasu z `gateway.config.yaml`) — **`ResilientExecutor`**.
 
 Aktualnie wspierani **adaptery runtime** (`src/providers/`):
@@ -106,7 +107,7 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 - **Multi-provider (runtime)**: adaptery SDK w `src/providers/` — Anthropic, Google Gemini, OpenAI, OpenAI-compatible — [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)
 - **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
 - **Models catalog**: natywny `GET /api/v1/models` + fasady — wspólny `GatewayModelsCatalogService`, ten sam zestaw aliasów z YAML
-- **Production-ready**: Helmet.js security headers, Pino logging, Sentry observability, graceful shutdown, readiness probes, Docker Compose (`deployment/`)
+- **Production-ready**: Helmet.js security headers, Pino logging, Sentry AI observability, **Prometheus app metrics** (`GET /metrics`, health gauges odświeżane przy scrape), reguły alertów w `deployment/monitoring/alerts.yml`, graceful shutdown, readiness probes, Docker Compose (`deployment/`)
 - **Type safety (brand types)**: nominalne typy TS dla kluczy, identyfikatorów, metryk i policy (`src/common/types/`) — compile-time bez kosztu runtime; przewodnik: [`docs/brand-types.md`](docs/brand-types.md)
 - **CLI wizard**: `gateway config:init` — interaktywna konfiguracja, `provider:test`, model/client management
 
@@ -195,7 +196,15 @@ curl -i http://localhost:3000/api/v1/health
 curl -i http://localhost:3000/api/v1/health/ready
 ```
 
-Readiness: HTTP zawsze **200** — sprawdzaj `body.status` (`ready` / `not_ready`). Pola w `checks`: **`config`**, **`redis`** (współdzielona infrastruktura; probe tylko gdy `required: true`), **`cache`** (stan feature cache).
+Readiness: HTTP zawsze **200** — sprawdzaj `body.status` (`ready` / `not_ready`). Pola w `checks`: **`config`**, **`redis`** (współdzielona infrastruktura; probe tylko gdy `required: true`), **`cache`** (stan feature cache). Metryki readiness są też eksportowane do Prometheusa — patrz `/metrics` poniżej.
+
+### Metryki Prometheus (bez `X-Gateway-Key`)
+
+```bash
+curl -s http://localhost:3000/metrics | grep -E 'gateway_readiness|gateway_health_status'
+```
+
+Endpoint **`GET /metrics`** jest **poza** prefiksem `/api/v1` (`src/setup.app.ts`). Przed zwróceniem snapshotu aplikacja odświeża gauge'e health (`gateway_readiness`, `gateway_health_status{component=...}`) przez hook w `HealthService` — bez osobnego schedulera. W production backend Prometheus wybierany automatycznie (`METRICS_BACKEND=prometheus` lub `NODE_ENV=production`). Stack monitoring: `npm run docker:up:monitoring` — [`docs/deployment.md`](docs/deployment.md).
 
 ### Models (wymaga `X-Gateway-Key`)
 
@@ -270,6 +279,7 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 | Wywołania providerów + SSE  | [`ChatProviderCallService`](src/chat/services/chat-provider-call.service.ts)                                                                    |
 | Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`, `openai/` — Chat Completions + Responses)            |
 | Błędy / `requestId`         | [`GlobalExceptionFilter`](src/common/filters/http-exception.filter.ts), [`RequestIdMiddleware`](src/common/middleware/request-id.middleware.ts) |
+| Observability               | [`src/observability/`](src/observability/) — `AiMetricsModule` (Sentry LLM), `AppMetricsModule` (Prometheus RED + health gauges, `GET /metrics`) |
 | Brand types (TS)            | [`src/common/types/`](src/common/types/) — `Brand`, guardy, helpery `as*` / `create*`; barrel: `index.ts`                                       |
 
 Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md). Wdrożenie Docker: [`deployment/`](deployment/), [`docs/deployment.md`](docs/deployment.md).
@@ -278,7 +288,7 @@ Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalog
 
 Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
 
-Aktualne liczniki: `npm test` — **87** zestawów / **1314** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105** (źródło: [`docs/testy.md`](docs/testy.md)).
+Aktualne liczniki: `npm test` — **91** zestawów / **1220** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105** (źródło: [`docs/testy.md`](docs/testy.md)).
 
 Uruchomienie:
 

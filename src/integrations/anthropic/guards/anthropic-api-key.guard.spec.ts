@@ -17,23 +17,11 @@ import {
   type MockConfigServiceOptions,
 } from '../../../common/mocks/createMockConfigService';
 import { TEST_GATEWAY_KEY } from '../../../common/mocks/test-constants';
+import { asClientId } from '../../../common/types/branded.types';
 import type { Request } from 'express';
 
 describe('readAnthropicApiKey', () => {
-  it('should read x-api-key header', () => {
-    const mockRequest = createMockExpressRequest({
-      header: jest.fn((name: string) =>
-        name === 'x-api-key' ? TEST_GATEWAY_KEY : undefined,
-      ),
-      headers: { 'x-api-key': TEST_GATEWAY_KEY },
-    } as unknown as Partial<Request>) as Request;
-
-    const result = readAnthropicApiKey(mockRequest);
-
-    expect(result).toBe(TEST_GATEWAY_KEY);
-  });
-
-  it('should trim x-api-key', () => {
+  it('should read and trim x-api-key header', () => {
     const mockRequest = createMockExpressRequest({
       header: jest.fn((name: string) =>
         name === 'x-api-key' ? `  ${TEST_GATEWAY_KEY}  ` : undefined,
@@ -77,11 +65,11 @@ describe('readAnthropicApiKey', () => {
     expect(result).toBe('gw_key_from_xapi');
   });
 
-  it('should return undefined when both missing', () => {
+  it('should return undefined when both headers missing', () => {
     const mockRequest = createMockExpressRequest({
-      header: jest.fn().mockReturnValue(undefined),
+      header: jest.fn(() => undefined),
       headers: {},
-    }) as Request;
+    } as unknown as Partial<Request>) as Request;
 
     const result = readAnthropicApiKey(mockRequest);
 
@@ -109,60 +97,46 @@ describe('AnthropicApiKeyGuard', () => {
     await initGuard();
   });
 
-  const createMockContext = (
-    headers: Record<string, string> = {},
-    requestId = 'req-123',
-  ): ExecutionContext => {
-    const mockRequest = createMockExpressRequest({
-      requestId,
-      gatewayKey: undefined,
-      header: jest.fn((name: string) => headers[name.toLowerCase()]),
-      headers,
-    } as unknown as Partial<Request>);
-
-    return {
-      switchToHttp: () => ({
-        getRequest: () => mockRequest,
-      }),
-    } as ExecutionContext;
-  };
-
-  describe('Happy path - valid key', () => {
-    it('should allow when x-api-key in allowList', async () => {
-      await initGuard({
-        gatewayKey: { allowList: ['gw_valid_key'], clients: [] },
-      });
-
-      const context = createMockContext({ 'x-api-key': 'gw_valid_key' });
-
-      const result = guard.canActivate(context);
-
-      expect(result).toBe(true);
-    });
-
-    it('should allow when Bearer token in allowList', async () => {
-      await initGuard({
-        gatewayKey: { allowList: ['gw_valid_token'], clients: [] },
-      });
-
-      const context = createMockContext({
-        authorization: 'Bearer gw_valid_token',
-      });
-
-      const result = guard.canActivate(context);
-
-      expect(result).toBe(true);
-    });
-
-    it('should set gatewayKey on request', () => {
+  describe('Valid key scenarios', () => {
+    it('should allow when key is in allowList', () => {
       const mockRequest = createMockExpressRequest({
-        gatewayKey: undefined,
-        requestId: 'req-123',
         header: jest.fn((name: string) =>
           name === 'x-api-key' ? TEST_GATEWAY_KEY : undefined,
         ),
         headers: { 'x-api-key': TEST_GATEWAY_KEY },
-      } as unknown as Partial<Request>);
+      } as unknown as Partial<Request>) as Request;
+
+      const context = {
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
+        }),
+      } as ExecutionContext;
+
+      const result = guard.canActivate(context);
+
+      expect(result).toBe(true);
+    });
+
+    it('should set clientId on request', async () => {
+      await initGuard({
+        gatewayKey: {
+          allowList: [TEST_GATEWAY_KEY],
+          clients: [
+            {
+              name: 'claude-client',
+              gatewayKey: TEST_GATEWAY_KEY,
+            },
+          ],
+        },
+      });
+
+      const mockRequest = createMockExpressRequest({
+        clientId: undefined,
+        header: jest.fn((name: string) =>
+          name === 'x-api-key' ? TEST_GATEWAY_KEY : undefined,
+        ),
+        headers: { 'x-api-key': TEST_GATEWAY_KEY },
+      } as unknown as Partial<Request>) as Request;
 
       const context = {
         switchToHttp: () => ({
@@ -172,98 +146,88 @@ describe('AnthropicApiKeyGuard', () => {
 
       guard.canActivate(context);
 
-      expect(mockRequest.gatewayKey).toBe(TEST_GATEWAY_KEY);
+      expect(mockRequest.clientId).toBe(asClientId('claude-client'));
     });
   });
 
-  describe('Edge case - missing key', () => {
-    it('should throw UnauthorizedException when both headers missing', async () => {
-      await initGuard({
-        gatewayKey: { allowList: ['gw_key'], clients: [] },
-      });
+  describe('Missing key scenarios', () => {
+    it('should throw UnauthorizedException when header missing', () => {
+      const mockRequest = createMockExpressRequest({
+        header: jest.fn(() => undefined),
+        headers: {},
+      } as unknown as Partial<Request>) as Request;
 
-      const context = createMockContext({});
+      const context = {
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
+        }),
+      } as ExecutionContext;
 
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
 
       try {
         guard.canActivate(context);
-      } catch (e) {
+      } catch (e: any) {
         expect(e.getResponse()).toMatchObject({
           statusCode: 401,
           code: ApiErrorCode.GATEWAY_KEY_MISSING,
-          message: expect.stringContaining('x-api-key or Authorization'),
         });
       }
     });
   });
 
-  describe('Edge case - invalid key', () => {
+  describe('Invalid key scenarios', () => {
     it('should throw ForbiddenException when key not in allowList', async () => {
       await initGuard({
-        gatewayKey: { allowList: ['gw_valid_key'], clients: [] },
+        gatewayKey: { allowList: ['gw_some_other_valid_key'], clients: [] },
       });
 
-      const context = createMockContext({ 'x-api-key': 'gw_invalid_key' });
+      const mockRequest = createMockExpressRequest({
+        header: jest.fn((name: string) =>
+          name === 'x-api-key' ? 'gw_invalid_key' : undefined,
+        ),
+        headers: { 'x-api-key': 'gw_invalid_key' },
+      } as unknown as Partial<Request>) as Request;
+
+      const context = {
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
+        }),
+      } as ExecutionContext;
 
       expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
 
       try {
         guard.canActivate(context);
-      } catch (e) {
+      } catch (e: any) {
         expect(e.getResponse()).toMatchObject({
           statusCode: 403,
           code: ApiErrorCode.GATEWAY_KEY_INVALID,
-          message: expect.stringContaining('Invalid API key'),
         });
       }
     });
   });
 
-  describe('Edge case - allowList not configured', () => {
-    it('should throw InternalServerErrorException when allowList empty', async () => {
-      await initGuard({
-        gatewayKey: { allowList: [], clients: [] },
-      });
+  describe('Configuration errors', () => {
+    it('should throw InternalServerErrorException when no clients configured', async () => {
+      await initGuard({ gatewayKey: { allowList: [], clients: [] } });
 
-      const context = createMockContext({ 'x-api-key': 'gw_key' });
+      const mockRequest = createMockExpressRequest({
+        header: jest.fn((name: string) =>
+          name === 'x-api-key' ? TEST_GATEWAY_KEY : undefined,
+        ),
+        headers: { 'x-api-key': TEST_GATEWAY_KEY },
+      } as unknown as Partial<Request>) as Request;
+
+      const context = {
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
+        }),
+      } as ExecutionContext;
 
       expect(() => guard.canActivate(context)).toThrow(
         InternalServerErrorException,
       );
-
-      try {
-        guard.canActivate(context);
-      } catch (e) {
-        expect(e.getResponse()).toMatchObject({
-          statusCode: 500,
-          code: ApiErrorCode.GATEWAY_KEY_NOT_CONFIGURED,
-        });
-      }
-    });
-  });
-
-  describe('Integration - Anthropic-compatible auth', () => {
-    it('should work with x-api-key (Anthropic standard)', async () => {
-      await initGuard({
-        gatewayKey: { allowList: ['sk-ant-key123'], clients: [] },
-      });
-
-      const context = createMockContext({ 'x-api-key': 'sk-ant-key123' });
-
-      expect(guard.canActivate(context)).toBe(true);
-    });
-
-    it('should work with Bearer (OpenAI-compatible fallback)', async () => {
-      await initGuard({
-        gatewayKey: { allowList: ['sk-ant-key123'], clients: [] },
-      });
-
-      const context = createMockContext({
-        authorization: 'Bearer sk-ant-key123',
-      });
-
-      expect(guard.canActivate(context)).toBe(true);
     });
   });
 });

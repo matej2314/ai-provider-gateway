@@ -15,10 +15,8 @@ import {
   type MockConfigServiceOptions,
 } from '../common/mocks/createMockConfigService';
 import { TEST_GATEWAY_KEY } from '../common/mocks/test-constants';
-import { asGatewayKey, type GatewayKey } from '../common/types';
+import { asClientId, asGatewayKey, type GatewayKey } from '../common/types/branded.types';
 import type { Request } from 'express';
-
-// Compile-time brand checks: gateway-key.guard.branded-types.test-d.ts
 
 describe('GatewayKeyGuard', () => {
   let guard: GatewayKeyGuard;
@@ -40,7 +38,7 @@ describe('GatewayKeyGuard', () => {
     await initGuard();
   });
 
-  describe('Happy path - valid key', () => {
+  describe('Valid key scenarios', () => {
     it('should allow when key is in allowList', () => {
       const context = createMockContext({
         'x-gateway-key': 'gw_valid_key_123',
@@ -73,7 +71,63 @@ describe('GatewayKeyGuard', () => {
       expect(key).toBe(asGatewayKey('gw_valid_key_123'));
     });
 
-    it('should allow when key has whitespace (trimmed)', () => {
+    it('should set clientId from gateway clients config', async () => {
+      await initGuard({
+        gatewayKey: {
+          allowList: [asGatewayKey('gw_valid_key_123')],
+          clients: [
+            {
+              name: 'ide-client',
+              gatewayKey: asGatewayKey('gw_valid_key_123'),
+            },
+          ],
+        },
+      });
+
+      const mockRequest = createMockExpressRequest({
+        gatewayKey: undefined,
+        clientId: undefined,
+        requestId: 'req-123',
+        header: jest.fn((name: string) =>
+          name === 'x-gateway-key' ? 'gw_valid_key_123' : undefined,
+        ),
+        headers: { 'x-gateway-key': 'gw_valid_key_123' },
+      } as unknown as Partial<Request>);
+
+      const context = {
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
+        }),
+      } as ExecutionContext;
+
+      guard.canActivate(context);
+
+      expect(mockRequest.clientId).toBe(asClientId('ide-client'));
+    });
+
+    it('should set clientId to unknown when key not in clients list', () => {
+      const mockRequest = createMockExpressRequest({
+        gatewayKey: undefined,
+        clientId: undefined,
+        requestId: 'req-123',
+        header: jest.fn((name: string) =>
+          name === 'x-gateway-key' ? 'gw_valid_key_123' : undefined,
+        ),
+        headers: { 'x-gateway-key': 'gw_valid_key_123' },
+      } as unknown as Partial<Request>);
+
+      const context = {
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
+        }),
+      } as ExecutionContext;
+
+      guard.canActivate(context);
+
+      expect(mockRequest.clientId).toBe(asClientId('unknown'));
+    });
+
+    it('should trim whitespace from key', () => {
       const context = createMockContext({
         'x-gateway-key': `  ${TEST_GATEWAY_KEY}  `,
       });
@@ -84,7 +138,7 @@ describe('GatewayKeyGuard', () => {
     });
   });
 
-  describe('Edge case - missing key', () => {
+  describe('Missing key scenarios', () => {
     it('should throw UnauthorizedException when header missing', () => {
       const context = createMockContext({});
 
@@ -101,20 +155,17 @@ describe('GatewayKeyGuard', () => {
       }
     });
 
-    it('should throw when header is empty', () => {
-      const context = createMockContext({ 'x-gateway-key': '' });
-
-      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
-    });
-
-    it('should throw when header is whitespace only', () => {
-      const context = createMockContext({ 'x-gateway-key': '   ' });
-
-      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    it('should throw when header is empty or whitespace only', () => {
+      expect(() => guard.canActivate(createMockContext({ 'x-gateway-key': '' }))).toThrow(
+        UnauthorizedException,
+      );
+      expect(() => guard.canActivate(createMockContext({ 'x-gateway-key': '   ' }))).toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
-  describe('Edge case - invalid key', () => {
+  describe('Invalid key scenarios', () => {
     it('should throw ForbiddenException when key not in allowList', async () => {
       await initGuard({
         gatewayKey: { allowList: [asGatewayKey('gw_valid_key')], clients: [] },
@@ -146,7 +197,7 @@ describe('GatewayKeyGuard', () => {
     });
   });
 
-  describe('Edge case - allowList not configured', () => {
+  describe('Configuration errors', () => {
     it('should throw InternalServerErrorException when allowList empty', async () => {
       await initGuard({
         gatewayKey: { allowList: [], clients: [] },
@@ -179,7 +230,7 @@ describe('GatewayKeyGuard', () => {
     });
   });
 
-  describe('Edge case - multiple keys in allowList', () => {
+  describe('Multiple keys', () => {
     it('should allow any key from allowList', async () => {
       await initGuard({
         gatewayKey: {
@@ -204,7 +255,7 @@ describe('GatewayKeyGuard', () => {
     });
   });
 
-  describe('Edge case - requestId propagation', () => {
+  describe('Error context', () => {
     it('should include requestId in error response', async () => {
       await initGuard({
         gatewayKey: { allowList: [asGatewayKey('gw_valid')], clients: [] },

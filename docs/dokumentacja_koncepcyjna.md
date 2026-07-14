@@ -138,7 +138,7 @@ Szczegóły: `integracje.md`, `dictionary.md` (sekcja „Fasada vs provider runt
 
 - **Fasady IDE** — **wdrożone** (`src/integrations/`); rozszerzenia kontraktu (tools, pełny `usage`, …) — kolejne iteracje.
 - **System prompt po stronie serwera** — **wdrożone**: pliki w `src/config/system-prompt/`, brak roli `system` w API; szczegóły w `konfiguracja.md` i `architektura.md`.
-- **Cache / Redis** — cache odpowiedzi (`src/cache/`) i smart rate limit (`src/rate-limit/`, wspólny `RedisConnectionService` gdy Redis załadowany) — `konfiguracja.md`. Metryki LLM — `MetricsService` / Sentry (Faza 6 wdrożona).
+- **Cache / Redis** — cache odpowiedzi (`src/cache/`) i smart rate limit (`src/rate-limit/`, wspólny `RedisConnectionService` gdy Redis załadowany) — `konfiguracja.md`. Observability: `src/observability/` — **AiMetrics** (Sentry LLM) + **AppMetrics** (Prometheus, health gauges na `/metrics`).
 - **Adapter runtime OpenAI** — **wdrożony** (`type: openai`, `openai-compatible`; Chat Completions + Responses API) — `provider-openai-runtime.md`.
 - Retry/circuit‑breaker i metryki per provider.
 - **CLI developerskie** — pełny zestaw komend v1 wdrożony (`CLI.md`): wizard `config:init`, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli, klientów, `provider:test`, `key:generate`. Walidacja offline także: `npm run config:validate`.

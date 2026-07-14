@@ -1,6 +1,6 @@
 # Testy — AI Provider Gateway
 
-Wersja dokumentu: **2.0** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
+Wersja dokumentu: **2.1** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
 
 ## Przegląd
 
@@ -16,7 +16,7 @@ Wersja dokumentu: **2.0** (zsynchronizowana z `package.json`, `test/` i `src/**/
 
 | Skrypt             | Zestawy | Przypadki |
 | ------------------ | ------- | --------- |
-| `npm test`         | 87      | 1314      |
+| `npm test`         | 91      | 1220      |
 | `npm run test:cli` | 12      | 62        |
 | `npm run test:e2e` | 10      | 105       |
 
@@ -50,7 +50,7 @@ Konfiguracja: sekcja `"jest"` w `package.json` (`testRegex: .*\.spec\.ts$`, `roo
 | **Fasady** (`src/integrations/`) | kontrolery fasad, filtry błędów, mapery modeli (`openai-models.mapper`, `anthropic-models.mapper`), mapery czatu (w tym `anthropic-stop-reason`, `anthropic-usage.mapper`)                                                                                                                                                                                                                                                                                                                                                |
 | **Odporność**                    | `resilient-executor.spec.ts`, `fallback-chain.spec.ts`, `is-retryable-http-error.spec.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | **Błędy**                        | `provider-error.mapper.spec.ts`, `provider-error-mapper.helpers.spec.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| **Health / logging / metrics**   | `health.*.spec.ts`, `logging.service.spec.ts`, `metrics.service.spec.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **Health / logging / observability** | `health.*.spec.ts`, `logging.service.spec.ts`, `observability/app-metrics/*.spec.ts`, `observability/ai-metrics/*.spec.ts`, `pre-metrics-scrape.registry.spec.ts` |
 | **Wspólne**                      | `common/types/branded.spec.ts` (brand utilities — target 100% coverage), `readGatewayKeyHeader.spec.ts` |
 | **Mocki współdzielone**          | `src/common/mocks/` — `createMockContext.ts`, `createTestGatewayConfig.ts`, `createMockConfigService.ts`, `test-constants.ts` (branded types w fixture'ach) |
 
@@ -92,7 +92,7 @@ Konwencja nazw: `*-facade*.e2e-spec.ts` = test **fasady HTTP** (`src/integration
 **`helpers/create-e2e-app.ts`** — `createE2eApp()` / `withE2eApp()`:
 
 - `Test.createTestingModule({ imports: [AppModule] })` + `setupApp(app)`.
-- **Override'y** (bez Redis / bez realnych SDK): `ConfigService`, `ProviderRegistryService`, `RedisConnectionService`, `ProviderInstancesBootstrap`, `LoggingService`; opcjonalnie `SmartRateLimiterService`.
+- **Override'y** (bez Redis / bez realnych SDK): `ConfigService`, `ProviderRegistryService`, `RedisConnectionService` (mock z `ping()` i `isReady()` — wymagane przez warm-up health przy starcie), `ProviderInstancesBootstrap`, `LoggingService`; opcjonalnie `SmartRateLimiterService`.
 
 **`helpers/e2e-provider-registry.ts`** — mock `AIProvider` per alias; wariant fallback; wsparcie `providerType: openai`.
 

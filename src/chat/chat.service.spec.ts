@@ -19,12 +19,13 @@ import {
 } from './services/chat-response-builder.service';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
 import { ResilientExecutor } from '../common/resilience/resilient-executor';
+import { ActiveStreamsTracker } from '../observability/app-metrics/active-streams.tracker';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockResilientExecutor } from '../common/mocks/createMockResilientExecutor';
 import { createMockProviderRegistryService } from '../common/mocks/createMockProviderRegistryService';
 import { createMockDefaultResolvedConfig } from '../common/mocks/createMockResolvedProviderConfig';
 import { createMockConfigService } from '../common/mocks/createMockConfigService';
-import { asGatewayKey } from '../common/types/branded.types';
+import { asGatewayKey, asClientId } from '../common/types/branded.types';
 import {
   TEST_CONVERSATION_ID,
   TEST_GATEWAY_KEY_BRANDED,
@@ -46,7 +47,10 @@ describe('ChatService', () => {
   let mockValidation: Partial<ChatValidationService>;
   let mockErrorHandler: Partial<ChatErrorHandlerService>;
   let mockResponseBuilder: Partial<ChatResponseBuilderService>;
+  let mockActiveStreams: Partial<ActiveStreamsTracker>;
   let resolvedConfig: ResolvedProviderConfig;
+
+  const TEST_CLIENT_ID = asClientId('test-client');
 
   function mockExecutorChatSuccess(
     responseOverrides: Record<string, unknown> = {},
@@ -160,6 +164,10 @@ describe('ChatService', () => {
       streamOnce: jest.fn(),
     };
 
+    mockActiveStreams = {
+      trackStream: jest.fn((_client, fn) => fn()),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         ChatService,
@@ -172,6 +180,7 @@ describe('ChatService', () => {
         { provide: ChatValidationService, useValue: mockValidation },
         { provide: ChatErrorHandlerService, useValue: mockErrorHandler },
         { provide: ChatResponseBuilderService, useValue: mockResponseBuilder },
+        { provide: ActiveStreamsTracker, useValue: mockActiveStreams },
       ],
     }).compile();
 
@@ -271,6 +280,7 @@ describe('ChatService', () => {
 
       const result = await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -306,6 +316,7 @@ describe('ChatService', () => {
 
       const result = await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -329,6 +340,7 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           baseRequest,
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -348,6 +360,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         toolingRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -371,6 +384,7 @@ describe('ChatService', () => {
             ...baseRequest,
             tooling: { definitions: [{ name: 'test', parameters: {} }] },
           },
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -387,6 +401,7 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           baseRequest,
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -404,6 +419,7 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           oversizedRequest,
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -425,6 +441,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         largeRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'facade-openai',
@@ -442,6 +459,7 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           longContentRequest,
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -467,6 +485,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         request,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -489,6 +508,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -508,6 +528,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         asGatewayKey(''),
         'native',
@@ -543,6 +564,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -571,6 +593,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         toolingRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -594,6 +617,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -616,6 +640,7 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           baseRequest,
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -649,6 +674,7 @@ describe('ChatService', () => {
       await service.executeStream(
         baseRequest,
         TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
         (event) => {
           emitted.push(event);
         },
@@ -692,6 +718,7 @@ describe('ChatService', () => {
         service.executeStream(
           oversizedRequest,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           jest.fn(),
           'native',
           TEST_GATEWAY_KEY_BRANDED,
@@ -725,6 +752,7 @@ describe('ChatService', () => {
       await service.executeStream(
         baseRequest,
         TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
         jest.fn(),
         'native',
         TEST_GATEWAY_KEY_BRANDED,
@@ -756,6 +784,7 @@ describe('ChatService', () => {
         service.executeStream(
           baseRequest,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           jest.fn(),
           'native',
           TEST_GATEWAY_KEY_BRANDED,
@@ -774,6 +803,7 @@ describe('ChatService', () => {
         service.executeStream(
           baseRequest,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           jest.fn(),
           'native',
           TEST_GATEWAY_KEY_BRANDED,
@@ -794,6 +824,7 @@ describe('ChatService', () => {
       await service.executeStream(
         toolingRequest,
         TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
         jest.fn(),
         'native',
         TEST_GATEWAY_KEY_BRANDED,
@@ -829,6 +860,7 @@ describe('ChatService', () => {
       await service.executeStream(
         baseRequest,
         TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
         jest.fn(),
         'native',
         TEST_GATEWAY_KEY_BRANDED,
@@ -858,6 +890,7 @@ describe('ChatService', () => {
       await service.executeStream(
         baseRequest,
         TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
         jest.fn(),
         'native',
         TEST_GATEWAY_KEY_BRANDED,
@@ -881,6 +914,7 @@ describe('ChatService', () => {
         service.executeStream(
           baseRequest,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           jest.fn(),
           'native',
           TEST_GATEWAY_KEY_BRANDED,

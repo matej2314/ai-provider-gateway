@@ -23,7 +23,7 @@ describe('ChatStreamController', () => {
   beforeEach(async () => {
     mockChatService = {
       validateForStreaming: jest.fn(),
-      executeStream: jest.fn().mockImplementation((_body, _reqId, emit) => {
+      executeStream: jest.fn().mockImplementation((_body, _reqId, _clientId, emit) => {
         emit({ name: 'delta', data: { delta: 'Hello' } });
         emit({ name: 'done', data: { finishReason: 'stop' } });
       }),
@@ -86,6 +86,7 @@ describe('ChatStreamController', () => {
       expect(mockChatService.executeStream).toHaveBeenCalledWith(
         requestBody,
         'req-123',
+        'unknown',
         expect.any(Function),
         'native',
         'gw_key_123',

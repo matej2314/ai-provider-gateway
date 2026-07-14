@@ -3,10 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { HealthService } from './health.service';
 import { CacheRegistryService } from '../cache/cache-registry.service';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
+import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
+import { PreMetricsScrapeRegistry } from '../observability/app-metrics/pre-metrics-scrape.registry';
+import { LoggingService } from '../logging/logging.service';
 import {
   createMockConfigService,
   type MockConfigServiceOptions,
 } from '../common/mocks/createMockConfigService';
+import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 
 const healthyReadinessConfig: MockConfigServiceOptions = {
   gatewayOptions: { models: {} },
@@ -19,6 +23,9 @@ describe('HealthService', () => {
   let service: HealthService;
   let mockCacheRegistry: Partial<CacheRegistryService>;
   let mockRedisConnection: Partial<RedisConnectionService>;
+  let mockAppMetrics: Partial<AppMetricsService>;
+  let mockLogger: Partial<LoggingService>;
+  let preMetricsScrapeRegistry: PreMetricsScrapeRegistry;
 
   async function initService(
     configOptions: MockConfigServiceOptions = healthyReadinessConfig,
@@ -34,12 +41,26 @@ describe('HealthService', () => {
       ping: jest.fn().mockResolvedValue(false),
     };
 
+    mockAppMetrics = {
+      syncHealthMetrics: jest.fn(),
+      setProcessUpTime: jest.fn(),
+    };
+
+    mockLogger = createMockLoggingService();
+    preMetricsScrapeRegistry = new PreMetricsScrapeRegistry();
+
     const module = await Test.createTestingModule({
       providers: [
         HealthService,
         { provide: ConfigService, useValue: mockConfigService },
         { provide: CacheRegistryService, useValue: mockCacheRegistry },
         { provide: RedisConnectionService, useValue: mockRedisConnection },
+        { provide: AppMetricsService, useValue: mockAppMetrics },
+        {
+          provide: PreMetricsScrapeRegistry,
+          useValue: preMetricsScrapeRegistry,
+        },
+        { provide: LoggingService, useValue: mockLogger },
       ],
     }).compile();
 
@@ -113,6 +134,70 @@ describe('HealthService', () => {
       expect(result.status).toBe('ready');
       expect(result.checks.cache.status).toBe('degraded');
       expect(mockCacheRegistry.resolve).not.toHaveBeenCalled();
+    });
+
+    it('should sync health metrics after evaluation', async () => {
+      await initService(healthyReadinessConfig);
+
+      const result = await service.getReadiness();
+
+      expect(mockAppMetrics.syncHealthMetrics).toHaveBeenCalledWith({
+        ready: true,
+        components: {
+          config: 'healthy',
+          redis: 'healthy',
+          cache: 'healthy',
+        },
+      });
+      expect(mockAppMetrics.setProcessUpTime).toHaveBeenCalledWith(
+        result.uptime,
+      );
+    });
+
+    it('should log error once on first not_ready evaluation', async () => {
+      await initService({
+        gateway: null,
+        cache: { enabled: false },
+        extra: { RATE_LIMIT_SMART_ENABLED: false },
+      });
+
+      await service.getReadiness();
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Readiness status changed',
+        undefined,
+        expect.objectContaining({
+          previous: undefined,
+          current: 'not_ready',
+        }),
+      );
+    });
+
+    it('should log info on first ready evaluation', async () => {
+      await initService(healthyReadinessConfig);
+
+      await service.getReadiness();
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Readiness status changed',
+        expect.objectContaining({
+          previous: undefined,
+          current: 'ready',
+        }),
+      );
+    });
+
+    it('should not log again when aggregate status unchanged', async () => {
+      await initService({
+        gateway: null,
+        cache: { enabled: false },
+        extra: { RATE_LIMIT_SMART_ENABLED: false },
+      });
+
+      await service.getReadiness();
+      await service.getReadiness();
+
+      expect(mockLogger.error).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -279,6 +364,55 @@ describe('HealthService', () => {
       const result = await service.getReadiness();
 
       expect(result.checks.cache.status).toBe('healthy');
+    });
+  });
+
+  describe('refreshMetricsForScrape', () => {
+    it('should sync health metrics on scrape refresh', async () => {
+      await initService(healthyReadinessConfig);
+
+      await service.refreshMetricsForScrape();
+
+      expect(mockAppMetrics.syncHealthMetrics).toHaveBeenCalledWith({
+        ready: true,
+        components: {
+          config: 'healthy',
+          redis: 'healthy',
+          cache: 'healthy',
+        },
+      });
+    });
+
+    it('should skip refresh when called again within throttle window', async () => {
+      await initService(healthyReadinessConfig);
+
+      await service.refreshMetricsForScrape();
+      await service.refreshMetricsForScrape();
+
+      expect(mockAppMetrics.syncHealthMetrics).toHaveBeenCalledTimes(1);
+    });
+
+    it('should warm up metrics on module init', async () => {
+      await initService(healthyReadinessConfig);
+      await service.onModuleInit();
+
+      expect(mockAppMetrics.syncHealthMetrics).toHaveBeenCalled();
+    });
+
+    it('should run registered hook after throttle window', async () => {
+      jest.useFakeTimers();
+      try {
+        await initService(healthyReadinessConfig);
+        await service.onModuleInit();
+        (mockAppMetrics.syncHealthMetrics as jest.Mock).mockClear();
+
+        jest.advanceTimersByTime(5_000);
+        await preMetricsScrapeRegistry.runAll();
+
+        expect(mockAppMetrics.syncHealthMetrics).toHaveBeenCalled();
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 });

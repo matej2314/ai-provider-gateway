@@ -51,9 +51,20 @@ USER gateway
 # Expose port
 EXPOSE 3000
 
-# Health check
+# Health check (readiness: HTTP 200 + body.status === 'ready')
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health/liveness', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "\
+    require('http').get('http://localhost:3000/api/v1/health/ready', (r) => { \
+      let body = ''; \
+      r.on('data', (c) => body += c); \
+      r.on('end', () => { \
+        try { \
+          const j = JSON.parse(body); \
+          process.exit(r.statusCode === 200 && j.status === 'ready' ? 0 : 1); \
+        } catch { process.exit(1); } \
+      }); \
+    }).on('error', () => process.exit(1)); \
+  "
 
 # Start application
 CMD ["node", "dist/main"]

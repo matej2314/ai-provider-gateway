@@ -18,6 +18,7 @@ import { ChatCacheGuardService } from './services/chat-cache-guard.service';
 import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
+import { ActiveStreamsTracker } from '../observability/app-metrics/active-streams.tracker';
 import { validateChatIngress } from './validation/chat-ingress.validator';
 import type { ChatIngressProfile } from './validation/chat-ingress.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
@@ -28,6 +29,7 @@ import {
   type GatewayKey,
   type RequestId,
   type ModelAlias,
+  ClientId,
 } from '../common/types/branded.types';
 
 @Injectable()
@@ -42,6 +44,7 @@ export class ChatService {
     private readonly errorHandlerService: ChatErrorHandlerService,
     private readonly responseBuilderService: ChatResponseBuilderService,
     private readonly validationService: ChatValidationService,
+    private readonly activeStreams: ActiveStreamsTracker,
   ) {}
 
   validateForStreaming(modelAlias: string) {
@@ -92,6 +95,7 @@ export class ChatService {
 
   async executeChat(
     requestBody: ChatRequestDto,
+    clientId: ClientId,
     requestId: RequestId,
     gatewayKey: GatewayKey,
     ingressProfile: ChatIngressProfile,
@@ -132,14 +136,13 @@ export class ChatService {
     const startedAt = Date.now();
 
     const runOnce = async (alias: ModelAlias, _attemptNo: number) => {
-      const { response, resolved } =
-        await this.providerCallService.completeOnce(
-          requestBody,
-          alias,
-          requestId,
-          resolvedPrompts,
-        );
-      return { response, resolved };
+      return this.providerCallService.completeOnce(
+        requestBody,
+        alias,
+        requestId,
+        clientId,
+        resolvedPrompts,
+      );
     };
 
     try {
@@ -214,6 +217,7 @@ export class ChatService {
   async executeStream(
     requestBody: ChatRequestDto,
     requestId: RequestId,
+    clientId: ClientId,
     emit: (event: SseEvent) => void,
     ingressProfile: ChatIngressProfile,
     gatewayKey: GatewayKey,
@@ -245,6 +249,7 @@ export class ChatService {
         requestBody,
         alias,
         requestId,
+        clientId,
         resolvedPrompts,
         emit,
         streamMeta: {
@@ -263,15 +268,17 @@ export class ChatService {
     };
 
     try {
-      const result = await this.resilientExecutor.executeWithRetryAndFallback({
-        primaryAlias: asModelAlias(requestBody.modelAlias),
-        fallbackAlias: isToolingRequest(requestBody)
-          ? undefined
-          : primaryResolved.fallbackAlias,
-        retry: buildRetryPolicyFromResolved(primaryResolved),
-        runOnce,
-        requestId,
-      });
+      const result = await this.activeStreams.trackStream(clientId, () =>
+        this.resilientExecutor.executeWithRetryAndFallback({
+          primaryAlias: asModelAlias(requestBody.modelAlias),
+          fallbackAlias: isToolingRequest(requestBody)
+            ? undefined
+            : primaryResolved.fallbackAlias,
+          retry: buildRetryPolicyFromResolved(primaryResolved),
+          runOnce,
+          requestId,
+        }),
+      );
 
       const {
         resolved,

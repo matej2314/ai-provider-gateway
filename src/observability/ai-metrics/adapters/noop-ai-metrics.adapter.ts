@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import type {
-  MetricsBackend,
+  AiMetricsBackend,
   LlmCallContext,
   LlmCallObservation,
-  llmStreamSpanController,
-} from '../interfaces/metrics-backend.interface';
+  LlmStreamSpanController,
+} from '../interfaces/ai-metrics-backend.interface';
 
 @Injectable()
-export class NoopAiMetricsAdapter implements MetricsBackend {
+export class NoopAiMetricsAdapter implements AiMetricsBackend {
   async observeLlmCall<T>(
     context: LlmCallContext,
     fn: () => Promise<T>,
@@ -19,7 +19,7 @@ export class NoopAiMetricsAdapter implements MetricsBackend {
   observeLlmStream(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     context: LlmCallContext,
-  ): llmStreamSpanController {
+  ): LlmStreamSpanController {
     return {
       withActiveSpan: <T>(fn: () => T): T => fn(),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

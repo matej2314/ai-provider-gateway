@@ -60,6 +60,7 @@ describe('ChatController', () => {
 
       expect(mockChatService.executeChat).toHaveBeenCalledWith(
         requestBody,
+        'unknown',
         'req-123',
         'gw_key_123',
         'native',

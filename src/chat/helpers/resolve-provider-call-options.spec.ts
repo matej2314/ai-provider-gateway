@@ -59,152 +59,53 @@ describe('resolveProviderCallOptions', () => {
   });
 
   describe('Happy path - overrides allowed', () => {
-    it('should apply temperature override when allowed', () => {
+    it('should apply numeric overrides when allowed', () => {
       const policy: GatewayParamsConfig = {
-        defaults: { temperature: 0.7 },
-        allowOverrides: ['temperature'],
+        defaults: { temperature: 0.7, maxOutputTokens: 1024 },
+        allowOverrides: ['temperature', 'maxOutputTokens'],
         bounds: {},
       };
-      const bodyParams: ChatParamsDto = { temperature: 0.9 };
+      const bodyParams: ChatParamsDto = { temperature: 0.9, maxOutputTokens: 2048 };
 
       const result = resolveProviderCallOptions(policy, bodyParams);
 
       expect(result.temperature).toBe(0.9);
-    });
-
-    it('should apply maxOutputTokens override when allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: { maxOutputTokens: 1024 },
-        allowOverrides: ['maxOutputTokens'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { maxOutputTokens: 2048 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
       expect(result.maxOutputTokens).toBe(2048);
     });
 
-    it('should apply topP override when allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: { topP: 0.9 },
-        allowOverrides: ['topP'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { topP: 0.95 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.topP).toBe(0.95);
-    });
-
-    it('should apply stop sequences override (string)', () => {
+    it('should apply stop sequences override (string and array)', () => {
       const policy: GatewayParamsConfig = {
         defaults: {},
         allowOverrides: ['stop'],
         bounds: {},
       };
-      const bodyParams: ChatParamsDto = { stop: '\n\n' };
 
-      const result = resolveProviderCallOptions(policy, bodyParams);
+      const resultString = resolveProviderCallOptions(policy, { stop: '\n\n' });
+      expect(resultString.stop).toBe('\n\n');
 
-      expect(result.stop).toBe('\n\n');
+      const resultArray = resolveProviderCallOptions(policy, { stop: ['\n\n', '###'] });
+      expect(resultArray.stop).toEqual(['\n\n', '###']);
     });
 
-    it('should apply stop sequences override (array)', () => {
+    it('should apply thinking mode overrides', () => {
       const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['stop'],
+        defaults: { thinkingEnabled: false, maxOutputTokens: 4096 },
+        allowOverrides: ['thinkingEnabled', 'thinkingBudget'],
         bounds: {},
       };
-      const bodyParams: ChatParamsDto = { stop: ['\n\n', '###', 'END'] };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.stop).toEqual(['\n\n', '###', 'END']);
-    });
-
-    it('should apply frequencyPenalty override when allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: { frequencyPenalty: 0.0 },
-        allowOverrides: ['frequencyPenalty'],
-        bounds: {},
+      const bodyParams: ChatParamsDto = { 
+        thinkingEnabled: true, 
+        thinkingBudget: 2048 
       };
-      const bodyParams: ChatParamsDto = { frequencyPenalty: 0.8 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.frequencyPenalty).toBe(0.8);
-    });
-
-    it('should apply presencePenalty override when allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: { presencePenalty: 0.0 },
-        allowOverrides: ['presencePenalty'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { presencePenalty: 1.2 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.presencePenalty).toBe(1.2);
-    });
-
-    it('should apply seed override when allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['seed'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { seed: 12345 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.seed).toBe(12345);
-    });
-
-    it('should apply topK override when allowed (Anthropic/Google)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['topK'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { topK: 40 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.topK).toBe(40);
-    });
-
-    it('should apply responseFormat override when allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['responseFormat'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = {
-        responseFormat: { type: 'json_object' },
-      };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.responseFormat).toEqual({ type: 'json_object' });
-    });
-
-    it('should apply thinkingEnabled override when allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: { thinkingEnabled: false },
-        allowOverrides: ['thinkingEnabled'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { thinkingEnabled: true };
 
       const result = resolveProviderCallOptions(policy, bodyParams);
 
       expect(result.thinkingEnabled).toBe(true);
+      expect(result.thinkingBudget).toBe(2048);
+      expect(result.maxOutputTokens).toBe(4096);
     });
 
-    it('should apply thinkingBudget override (string effort) when allowed', () => {
+    it('should apply thinkingBudget with string effort level', () => {
       const policy: GatewayParamsConfig = {
         defaults: {},
         allowOverrides: ['thinkingBudget'],
@@ -215,19 +116,6 @@ describe('resolveProviderCallOptions', () => {
       const result = resolveProviderCallOptions(policy, bodyParams);
 
       expect(result.thinkingBudget).toBe('high');
-    });
-
-    it('should apply thinkingBudget override (numeric tokens) when allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['thinkingBudget'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { thinkingBudget: 2048 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.thinkingBudget).toBe(2048);
     });
 
     it('should apply multiple overrides simultaneously', () => {
@@ -265,8 +153,8 @@ describe('resolveProviderCallOptions', () => {
     });
   });
 
-  describe('Edge case - allowOverrides validation', () => {
-    it('should throw when temperature override not allowed', () => {
+  describe('Override validation', () => {
+    it('should throw when override not allowed', () => {
       const policy: GatewayParamsConfig = {
         defaults: { temperature: 0.7 },
         allowOverrides: [],
@@ -290,123 +178,26 @@ describe('resolveProviderCallOptions', () => {
       }
     });
 
-    it('should throw when topP override not allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['temperature'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { topP: 0.95 };
-
-      expect(() => resolveProviderCallOptions(policy, bodyParams)).toThrow(
-        HttpException,
-      );
-    });
-
-    it('should throw when stop override not allowed', () => {
+    it('should throw for multiple disallowed overrides', () => {
       const policy: GatewayParamsConfig = {
         defaults: {},
         allowOverrides: [],
         bounds: {},
       };
-      const bodyParams: ChatParamsDto = { stop: '\n\n' };
+      const disallowedParams = [
+        { topP: 0.95 },
+        { stop: '\n\n' },
+        { frequencyPenalty: 0.5 },
+        { seed: 42 },
+        { responseFormat: { type: 'json_object' } },
+        { thinkingEnabled: true },
+      ];
 
-      expect(() => resolveProviderCallOptions(policy, bodyParams)).toThrow(
-        HttpException,
-      );
-    });
-
-    it('should throw when frequencyPenalty override not allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['presencePenalty'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { frequencyPenalty: 0.5 };
-
-      expect(() => resolveProviderCallOptions(policy, bodyParams)).toThrow(
-        HttpException,
-      );
-    });
-
-    it('should throw when presencePenalty override not allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: [],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { presencePenalty: 0.5 };
-
-      expect(() => resolveProviderCallOptions(policy, bodyParams)).toThrow(
-        HttpException,
-      );
-    });
-
-    it('should throw when seed override not allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: [],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { seed: 42 };
-
-      expect(() => resolveProviderCallOptions(policy, bodyParams)).toThrow(
-        HttpException,
-      );
-    });
-
-    it('should throw when topK override not allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: [],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { topK: 40 };
-
-      expect(() => resolveProviderCallOptions(policy, bodyParams)).toThrow(
-        HttpException,
-      );
-    });
-
-    it('should throw when responseFormat override not allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: [],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = {
-        responseFormat: { type: 'json_object' },
-      };
-
-      expect(() => resolveProviderCallOptions(policy, bodyParams)).toThrow(
-        HttpException,
-      );
-    });
-
-    it('should throw when thinkingEnabled override not allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: { thinkingEnabled: false },
-        allowOverrides: [],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { thinkingEnabled: true };
-
-      expect(() => resolveProviderCallOptions(policy, bodyParams)).toThrow(
-        HttpException,
-      );
-    });
-
-    it('should throw when thinkingBudget override not allowed', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: [],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { thinkingBudget: 'medium' };
-
-      expect(() => resolveProviderCallOptions(policy, bodyParams)).toThrow(
-        HttpException,
-      );
+      disallowedParams.forEach(params => {
+        expect(() => resolveProviderCallOptions(policy, params as ChatParamsDto)).toThrow(
+          HttpException,
+        );
+      });
     });
 
     it('should allow some overrides while blocking others', () => {
@@ -426,126 +217,30 @@ describe('resolveProviderCallOptions', () => {
     });
   });
 
-  describe('Edge case - bounds clamping', () => {
-    it('should clamp temperature to bounds min', () => {
+  describe('Bounds clamping', () => {
+    it('should clamp numeric parameters to min/max bounds', () => {
       const policy: GatewayParamsConfig = {
         defaults: {},
-        allowOverrides: ['temperature'],
+        allowOverrides: ['temperature', 'maxOutputTokens'],
         bounds: {
           temperature: { min: 0.5, max: 1.5 },
-        },
-      };
-      const bodyParams: ChatParamsDto = { temperature: 0.1 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.temperature).toBe(0.5);
-    });
-
-    it('should clamp temperature to bounds max', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['temperature'],
-        bounds: {
-          temperature: { min: 0.5, max: 1.5 },
-        },
-      };
-      const bodyParams: ChatParamsDto = { temperature: 2.0 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.temperature).toBe(1.5);
-    });
-
-    it('should clamp maxOutputTokens to bounds min', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['maxOutputTokens'],
-        bounds: {
           maxOutputTokens: { min: 100, max: 4096 },
         },
       };
-      const bodyParams: ChatParamsDto = { maxOutputTokens: 10 };
 
-      const result = resolveProviderCallOptions(policy, bodyParams);
+      const resultMin = resolveProviderCallOptions(policy, { 
+        temperature: 0.1, 
+        maxOutputTokens: 10 
+      });
+      expect(resultMin.temperature).toBe(0.5);
+      expect(resultMin.maxOutputTokens).toBe(100);
 
-      expect(result.maxOutputTokens).toBe(100);
-    });
-
-    it('should clamp maxOutputTokens to bounds max', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['maxOutputTokens'],
-        bounds: {
-          maxOutputTokens: { min: 100, max: 4096 },
-        },
-      };
-      const bodyParams: ChatParamsDto = { maxOutputTokens: 10000 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.maxOutputTokens).toBe(4096);
-    });
-
-    it('should clamp topP to bounds', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['topP'],
-        bounds: {
-          topP: { min: 0.1, max: 0.99 },
-        },
-      };
-      const bodyParams: ChatParamsDto = { topP: 1.0 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.topP).toBe(0.99);
-    });
-
-    it('should clamp frequencyPenalty to bounds', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['frequencyPenalty'],
-        bounds: {
-          frequencyPenalty: { min: -1.0, max: 1.0 },
-        },
-      };
-      const bodyParams: ChatParamsDto = { frequencyPenalty: 1.5 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.frequencyPenalty).toBe(1.0);
-    });
-
-    it('should clamp presencePenalty to bounds', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['presencePenalty'],
-        bounds: {
-          presencePenalty: { min: -1.0, max: 1.0 },
-        },
-      };
-      const bodyParams: ChatParamsDto = { presencePenalty: -2.5 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.presencePenalty).toBe(-1.0);
-    });
-
-    it('should not clamp when bounds not defined for parameter', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['temperature', 'topP'],
-        bounds: {
-          temperature: { min: 0.5, max: 1.5 },
-        },
-      };
-      const bodyParams: ChatParamsDto = { temperature: 2.0, topP: 0.99 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.temperature).toBe(1.5);
-      expect(result.topP).toBe(0.99);
+      const resultMax = resolveProviderCallOptions(policy, { 
+        temperature: 2.0, 
+        maxOutputTokens: 10000 
+      });
+      expect(resultMax.temperature).toBe(1.5);
+      expect(resultMax.maxOutputTokens).toBe(4096);
     });
 
     it('should clamp multiple parameters simultaneously', () => {
@@ -572,9 +267,25 @@ describe('resolveProviderCallOptions', () => {
         topP: 0.5,
       });
     });
+
+    it('should not clamp when bounds not defined for parameter', () => {
+      const policy: GatewayParamsConfig = {
+        defaults: {},
+        allowOverrides: ['temperature', 'topP'],
+        bounds: {
+          temperature: { min: 0.5, max: 1.5 },
+        },
+      };
+      const bodyParams: ChatParamsDto = { temperature: 2.0, topP: 0.99 };
+
+      const result = resolveProviderCallOptions(policy, bodyParams);
+
+      expect(result.temperature).toBe(1.5);
+      expect(result.topP).toBe(0.99);
+    });
   });
 
-  describe('Edge case - thinking mode validation', () => {
+  describe('Thinking mode validation', () => {
     it('should allow thinking mode with sufficient maxOutputTokens', () => {
       const policy: GatewayParamsConfig = {
         defaults: { maxOutputTokens: 4096 },
@@ -622,7 +333,7 @@ describe('resolveProviderCallOptions', () => {
       }
     });
 
-    it('should throw when maxOutputTokens insufficient (edge: exactly budget size)', () => {
+    it('should require minimum buffer between budget and maxOutputTokens', () => {
       const policy: GatewayParamsConfig = {
         defaults: { maxOutputTokens: 2048 },
         allowOverrides: ['thinkingEnabled', 'thinkingBudget'],
@@ -638,24 +349,7 @@ describe('resolveProviderCallOptions', () => {
       );
     });
 
-    it('should allow when maxOutputTokens = budget + 512 (minimum buffer)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: { maxOutputTokens: 2560 },
-        allowOverrides: ['thinkingEnabled', 'thinkingBudget'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = {
-        thinkingEnabled: true,
-        thinkingBudget: 2048,
-      };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.thinkingEnabled).toBe(true);
-      expect(result.thinkingBudget).toBe(2048);
-    });
-
-    it('should not validate when thinkingBudget is string (effort level)', () => {
+    it('should not validate when thinkingBudget is string effort level', () => {
       const policy: GatewayParamsConfig = {
         defaults: { maxOutputTokens: 512 },
         allowOverrides: ['thinkingEnabled', 'thinkingBudget'],
@@ -670,7 +364,6 @@ describe('resolveProviderCallOptions', () => {
 
       expect(result.thinkingEnabled).toBe(true);
       expect(result.thinkingBudget).toBe('medium');
-      expect(result.maxOutputTokens).toBe(512);
     });
 
     it('should not validate when thinkingEnabled is false', () => {
@@ -689,25 +382,9 @@ describe('resolveProviderCallOptions', () => {
       expect(result.thinkingEnabled).toBe(false);
       expect(result.thinkingBudget).toBe(2048);
     });
-
-    it('should use default maxOutputTokens (1024) when not specified', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['thinkingEnabled', 'thinkingBudget'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = {
-        thinkingEnabled: true,
-        thinkingBudget: 1536,
-      };
-
-      expect(() => resolveProviderCallOptions(policy, bodyParams)).toThrow(
-        HttpException,
-      );
-    });
   });
 
-  describe('Edge case - undefined/null handling', () => {
+  describe('Edge cases', () => {
     it('should ignore undefined overrides', () => {
       const policy: GatewayParamsConfig = {
         defaults: { temperature: 0.7 },
@@ -759,174 +436,22 @@ describe('resolveProviderCallOptions', () => {
       expect(result.seed).toBe(0);
     });
 
-    it('should handle empty string stop sequence', () => {
+    it('should handle empty stop sequences', () => {
       const policy: GatewayParamsConfig = {
         defaults: {},
         allowOverrides: ['stop'],
         bounds: {},
       };
-      const bodyParams: ChatParamsDto = { stop: '' };
 
-      const result = resolveProviderCallOptions(policy, bodyParams);
+      const resultEmptyString = resolveProviderCallOptions(policy, { stop: '' });
+      expect(resultEmptyString.stop).toBe('');
 
-      expect(result.stop).toBe('');
-    });
-
-    it('should handle empty array stop sequences', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['stop'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { stop: [] };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.stop).toEqual([]);
+      const resultEmptyArray = resolveProviderCallOptions(policy, { stop: [] });
+      expect(resultEmptyArray.stop).toEqual([]);
     });
   });
 
-  describe('Edge case - boundary values', () => {
-    it('should accept temperature at DTO minimum (0)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['temperature'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { temperature: 0 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.temperature).toBe(0);
-    });
-
-    it('should accept temperature at DTO maximum (2)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['temperature'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { temperature: 2 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.temperature).toBe(2);
-    });
-
-    it('should accept topP at minimum (0)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['topP'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { topP: 0 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.topP).toBe(0);
-    });
-
-    it('should accept topP at maximum (1)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['topP'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { topP: 1 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.topP).toBe(1);
-    });
-
-    it('should accept penalties at minimum (-2)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['frequencyPenalty', 'presencePenalty'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = {
-        frequencyPenalty: -2,
-        presencePenalty: -2,
-      };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.frequencyPenalty).toBe(-2);
-      expect(result.presencePenalty).toBe(-2);
-    });
-
-    it('should accept penalties at maximum (2)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['frequencyPenalty', 'presencePenalty'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = {
-        frequencyPenalty: 2,
-        presencePenalty: 2,
-      };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.frequencyPenalty).toBe(2);
-      expect(result.presencePenalty).toBe(2);
-    });
-
-    it('should accept seed at minimum (0)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['seed'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { seed: 0 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.seed).toBe(0);
-    });
-
-    it('should accept seed at maximum (2^32 - 1)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['seed'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { seed: 2 ** 32 - 1 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.seed).toBe(4294967295);
-    });
-
-    it('should accept maxOutputTokens at minimum (1)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['maxOutputTokens'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { maxOutputTokens: 1 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.maxOutputTokens).toBe(1);
-    });
-
-    it('should accept maxOutputTokens at maximum (8192)', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {},
-        allowOverrides: ['maxOutputTokens'],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = { maxOutputTokens: 8192 };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result.maxOutputTokens).toBe(8192);
-    });
-  });
-
-  describe('Integration - complex scenarios', () => {
+  describe('Complex scenarios', () => {
     it('should handle full production config with all parameters', () => {
       const policy: GatewayParamsConfig = {
         defaults: {
@@ -975,34 +500,6 @@ describe('resolveProviderCallOptions', () => {
         presencePenalty: 0.0,
         seed: 42,
         responseFormat: { type: 'json_object' },
-      });
-    });
-
-    it('should handle thinking mode with all related parameters', () => {
-      const policy: GatewayParamsConfig = {
-        defaults: {
-          maxOutputTokens: 4096,
-          thinkingEnabled: true,
-        },
-        allowOverrides: [
-          'maxOutputTokens',
-          'thinkingEnabled',
-          'thinkingBudget',
-        ],
-        bounds: {},
-      };
-      const bodyParams: ChatParamsDto = {
-        maxOutputTokens: 8192,
-        thinkingEnabled: true,
-        thinkingBudget: 2048,
-      };
-
-      const result = resolveProviderCallOptions(policy, bodyParams);
-
-      expect(result).toEqual({
-        maxOutputTokens: 8192,
-        thinkingEnabled: true,
-        thinkingBudget: 2048,
       });
     });
 

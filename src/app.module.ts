@@ -17,14 +17,17 @@ import { CacheModule } from './cache/cache.module';
 import { isRedisRequiredFromEnv } from './cache/should-include-redis-stack';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { HttpMetricsMiddleware } from './common/middleware/http-metrics.middleware';
 import { LoggingModule } from './logging/logging.module';
-import { MetricsModule } from './metrics/metrics.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { ModelsModule } from './models/models.module';
+import { AiMetricsModule } from './observability/ai-metrics/ai-metrics.module';
+import { AppMetricsModule } from './observability/app-metrics/app-metrics.module';
 
 @Module({
   providers: [
     RequestIdMiddleware,
+    HttpMetricsMiddleware,
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
   ],
   imports: [
@@ -45,13 +48,19 @@ import { ModelsModule } from './models/models.module';
     RateLimitModule.register({
       smartRateLimitEnabled: process.env.RATE_LIMIT_SMART_ENABLED === 'true',
     }),
-    MetricsModule,
+    AiMetricsModule,
+    AppMetricsModule,
     IntegrationsModule,
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(RequestIdMiddleware).forRoutes({
+      path: '{*splat}',
+      method: RequestMethod.ALL,
+    });
+
+    consumer.apply(HttpMetricsMiddleware).forRoutes({
       path: '{*splat}',
       method: RequestMethod.ALL,
     });

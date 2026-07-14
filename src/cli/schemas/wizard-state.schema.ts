@@ -130,7 +130,9 @@ function convertClient(
     type: client.type,
     gatewayKeyRef: asEnvRef(client.gatewayKeyRef),
     gatewayKey: asGatewayKey(client.gatewayKey),
-    rateLimit: client.rateLimit ? convertRateLimit(client.rateLimit) : undefined,
+    rateLimit: client.rateLimit
+      ? convertRateLimit(client.rateLimit)
+      : undefined,
   };
 }
 

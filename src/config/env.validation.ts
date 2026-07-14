@@ -162,9 +162,13 @@ class EnvironmentVariables {
   @IsOptional()
   ERROR_REPORTING_ADAPTER?: string = 'noop';
 
-  @IsString()
+  @IsIn(['prometheus', 'noop'])
   @IsOptional()
-  METRICS_BACKEND?: string = 'noop';
+  METRICS_BACKEND?: 'prometheus' | 'noop' = 'noop';
+
+  @IsIn(['sentry', 'noop'])
+  @IsOptional()
+  AI_METRICS_BACKEND?: 'sentry' | 'noop' = 'noop';
 }
 
 const CACHE_BACKEND_VALUES = ['noop', 'redis', 'memory', 'other'] as const;

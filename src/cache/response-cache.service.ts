@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { createHash } from 'crypto';
 import { ChatRequestDto } from '../chat/dto/chat-request.dto';
 import { CACHE_BACKEND } from './cache.tokens';
@@ -16,6 +17,7 @@ import {
   asOutputTokens,
   asCacheKey,
   asCacheTtlSeconds,
+  asModelAlias,
   type CacheKey,
   type CacheTtlSeconds,
 } from '../common/types/branded.types';
@@ -30,6 +32,7 @@ export class ResponseCacheService {
     @Inject(CACHE_BACKEND) private readonly cache: CacheBackend,
     private readonly config: ConfigService,
     private readonly loggingService: LoggingService,
+    private readonly appMetrics: AppMetricsService,
   ) {
     const logger = this.loggingService.child({
       module: 'ResponseCacheService',
@@ -64,6 +67,10 @@ export class ResponseCacheService {
     return asCacheKey(`${prefix}cache:chat:${hash}`);
   }
 
+  private recordCacheAccess(request: ChatRequestDto, hit: boolean): void {
+    this.appMetrics.recordCacheAccess(asModelAlias(request.modelAlias), hit);
+  }
+
   private serializeCallParamsForCache(
     effectiveCallParams?: ProviderCallOptions,
   ): Record<string, unknown> {
@@ -91,6 +98,7 @@ export class ResponseCacheService {
 
     if (!cached) {
       this.logger.debug(`Cache MISS for key: ${key}`);
+      this.recordCacheAccess(request, false);
       return null;
     }
 
@@ -100,9 +108,11 @@ export class ResponseCacheService {
       if (!parsed) {
         this.logger.warn(`Invalid cached response shape for key: ${key}`);
         await this.cache.delete(key);
+        this.recordCacheAccess(request, false);
         return null;
       }
       this.logger.info(`Cache HIT for key: ${key}`);
+      this.recordCacheAccess(request, true);
       return parsed;
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -111,6 +121,7 @@ export class ResponseCacheService {
         err,
       );
       await this.cache.delete(key);
+      this.recordCacheAccess(request, false);
       return null;
     }
   }

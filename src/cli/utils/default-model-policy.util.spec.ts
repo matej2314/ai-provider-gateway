@@ -1,9 +1,5 @@
 import { GatewayConfigSchema } from 'src/config/gateway-config.schema';
-import {
-  asEnvRef,
-  asModelId,
-  asProviderInstanceId,
-} from '../../common/types';
+import { asEnvRef, asModelId, asProviderInstanceId } from '../../common/types';
 import {
   buildDefaultModelPolicy,
   getMaxOutputTokensBound,

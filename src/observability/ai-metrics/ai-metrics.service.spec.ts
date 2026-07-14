@@ -1,23 +1,23 @@
-import { Test } from '@nestjs/testing';
-import { MetricsService } from './metrics.service';
-import { METRICS_BACKEND } from './metrics.tokens';
-import type { MetricsBackend } from './interfaces/metrics-backend.interface';
+import { Test, TestingModule } from '@nestjs/testing';
+import { AiMetricsService } from './ai-metrics.service';
+import { AI_METRICS_BACKEND } from './ai-metrics.tokens';
+import type { AiMetricsBackend } from './interfaces/ai-metrics-backend.interface';
 import {
   TEST_CONVERSATION_ID,
   TEST_MODEL_ALIAS_BRANDED,
   TEST_MODEL_ID,
   TEST_PROVIDER_INSTANCE_BRANDED,
   TEST_REQUEST_ID,
-} from '../common/mocks/test-constants';
+} from '../../common/mocks/test-constants';
 import {
   asInputTokens,
   asOutputTokens,
   asCostUsd,
-} from '../common/types/branded.types';
+} from '../../common/types/branded.types';
 
-describe('MetricsService', () => {
-  let service: MetricsService;
-  let mockBackend: Partial<MetricsBackend>;
+describe('AiMetricsService', () => {
+  let service: AiMetricsService;
+  let mockBackend: Partial<AiMetricsBackend>;
 
   beforeEach(async () => {
     mockBackend = {
@@ -25,14 +25,18 @@ describe('MetricsService', () => {
       observeLlmStream: jest.fn(),
     };
 
-    const module = await Test.createTestingModule({
+    const module: TestingModule = await Test.createTestingModule({
       providers: [
-        MetricsService,
-        { provide: METRICS_BACKEND, useValue: mockBackend },
+        AiMetricsService,
+        { provide: AI_METRICS_BACKEND, useValue: mockBackend },
       ],
     }).compile();
 
-    service = module.get(MetricsService);
+    service = module.get<AiMetricsService>(AiMetricsService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
   });
 
   describe('observeLlmCall', () => {
@@ -149,10 +153,12 @@ describe('MetricsService', () => {
         mockController,
       );
 
-      service.observeLlmStream(context);
+      const controller = service.observeLlmStream(context);
 
-      expect(endMock).toBeDefined();
-      expect(typeof endMock).toBe('function');
+      expect(controller).toBeDefined();
+      expect(controller.withActiveSpan).toBeDefined();
+      expect(controller.end).toBeDefined();
+      expect(controller.fail).toBeDefined();
     });
   });
 });

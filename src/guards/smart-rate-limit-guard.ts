@@ -12,7 +12,10 @@ import { Request } from 'express';
 import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.service';
 import { readClientGatewayKey } from '../common/readClientGatewayKey';
 import { ApiErrorCode } from '../common/errors/api-error.code';
+import { resolveClientIdFromKey } from '../common/resolveClientIdFromKey';
 import { type GatewayKey } from '../common/types';
+import type { ClientId } from '../common/types/branded.types';
+import type { ResolvedGatewayClient } from '../config/configuration.types';
 
 @Injectable()
 export class SmartRateLimitGuard implements CanActivate {
@@ -34,6 +37,15 @@ export class SmartRateLimitGuard implements CanActivate {
       });
     }
     return gatewayKey;
+  }
+
+  private getGatewayClients(): ResolvedGatewayClient[] {
+    return getAppConfig(this.config, 'gatewayKey')?.clients ?? [];
+  }
+
+  private resolveClientId(gatewayKey: GatewayKey): ClientId {
+    const clients = this.getGatewayClients();
+    return resolveClientIdFromKey(gatewayKey, clients);
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -69,8 +81,10 @@ export class SmartRateLimitGuard implements CanActivate {
     }
 
     if (isStreaming) {
-      const streamsResult =
-        await this.smartRateLimiter.checkConcurrentStreams(gatewayKey);
+      const streamsResult = await this.smartRateLimiter.checkConcurrentStreams(
+        gatewayKey,
+        this.resolveClientId(gatewayKey),
+      );
 
       if (!streamsResult.allowed) {
         throw new HttpException(

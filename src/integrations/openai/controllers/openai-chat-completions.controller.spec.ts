@@ -12,6 +12,7 @@ import type { RateLimitResult } from '../../../rate-limit/smart-rate-limiter.ser
 import { createMockSmartRateLimiter } from '../../../common/mocks/createMockSmartRateLimiter';
 import { createMockExpressRequest } from '../../../common/mocks/http-mocks';
 import { asGatewayKey, asRequestId } from '../../../common/types';
+import { asClientId } from '../../../common/types/branded.types';
 import { OpenAiBearerAuthGuard } from '../guards/openai-bearer-auth.guard';
 import { SmartRateLimitGuard } from '../../../guards/smart-rate-limit-guard';
 import { createOpenAiStreamState } from '../mappers/openai-stream.mapper';
@@ -139,6 +140,7 @@ describe('OpenAiChatCompletionsController', () => {
     expect(validateForStreamingMock).not.toHaveBeenCalled();
     expect(executeChatMock).toHaveBeenCalledWith(
       expect.objectContaining({ modelAlias: 'claude-sonnet-4-5' }),
+      asClientId('unknown'),
       REQ_ID,
       GW_APP_KEY,
       'facade-openai',
@@ -201,7 +203,7 @@ describe('OpenAiChatCompletionsController', () => {
       const { res, status, setHeader, write, end, flushHeaders } =
         mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      executeStreamMock.mockImplementation((_req, _id, onEvent) => {
+      executeStreamMock.mockImplementation((_req, _id, _clientId, onEvent) => {
         onEvent({ name: 'delta', data: { text: 'Hi' } });
       });
 

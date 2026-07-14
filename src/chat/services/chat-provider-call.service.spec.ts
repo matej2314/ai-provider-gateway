@@ -5,16 +5,30 @@ jest.mock('uuid', () => ({
 import { Test } from '@nestjs/testing';
 import { ChatProviderCallService } from './chat-provider-call.service';
 import { ProviderRegistryService } from '../../providers/provider-registry.service';
-import { MetricsService } from '../../metrics/metrics.service';
+import { AiMetricsService } from '../../observability/ai-metrics/ai-metrics.service';
+import { AppMetricsService } from '../../observability/app-metrics/app-metrics.service';
 import { createMockProviderRegistryService } from '../../common/mocks/createMockProviderRegistryService';
 import { createMockDefaultResolvedConfig } from '../../common/mocks/createMockResolvedProviderConfig';
 import { createMockAIProvider } from '../../common/mocks/createMockAIProvider';
 import {
   TEST_MODEL_ALIAS,
   TEST_MODEL_ALIAS_BRANDED,
+  TEST_MODEL_ID,
   TEST_REQUEST_ID,
   TEST_CONVERSATION_ID,
+  TEST_INPUT_TOKENS,
+  TEST_OUTPUT_TOKENS,
+  TEST_INPUT_TOKENS_SMALL,
+  TEST_OUTPUT_TOKENS_SMALL,
+  TEST_PROMPT_CACHE_HIT_TOKENS,
+  TEST_PROMPT_CACHE_CREATION_TOKENS,
 } from '../../common/mocks/test-constants';
+import {
+  asModelAlias,
+  asResponseId,
+  asSystemFingerprint,
+  asClientId,
+} from '../../common/types/branded.types';
 import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { SseEvent } from '../sse/sse-event.type';
@@ -22,9 +36,12 @@ import type { SseEvent } from '../sse/sse-event.type';
 describe('ChatProviderCallService', () => {
   let service: ChatProviderCallService;
   let mockRegistry: Partial<ProviderRegistryService>;
-  let mockMetrics: Partial<MetricsService>;
+  let mockMetrics: Partial<AiMetricsService>;
+  let mockAppMetrics: Partial<AppMetricsService>;
   let resolvedConfig: ResolvedProviderConfig;
   let mockProvider: ReturnType<typeof createMockAIProvider>;
+
+  const TEST_CLIENT_ID = asClientId('test-client');
 
   const baseRequest: ChatRequestDto = {
     modelAlias: TEST_MODEL_ALIAS,
@@ -54,11 +71,20 @@ describe('ChatProviderCallService', () => {
       }),
     };
 
+    mockAppMetrics = {
+      observeProviderCall: jest.fn((_ctx, fn) => fn() as Promise<unknown>),
+      observeProviderStream: jest.fn().mockReturnValue({
+        end: jest.fn(),
+        fail: jest.fn(),
+      }),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         ChatProviderCallService,
         { provide: ProviderRegistryService, useValue: mockRegistry },
-        { provide: MetricsService, useValue: mockMetrics },
+        { provide: AiMetricsService, useValue: mockMetrics },
+        { provide: AppMetricsService, useValue: mockAppMetrics },
       ],
     }).compile();
 
@@ -68,8 +94,11 @@ describe('ChatProviderCallService', () => {
   describe('completeOnce', () => {
     const providerResponse = {
       text: 'Hello from provider',
-      model: 'claude-sonnet-4-5',
-      usage: { inputTokens: 10, outputTokens: 20 },
+      model: TEST_MODEL_ID,
+      usage: {
+        inputTokens: TEST_INPUT_TOKENS,
+        outputTokens: TEST_OUTPUT_TOKENS,
+      },
       stopReason: 'end_turn' as const,
     };
 
@@ -83,6 +112,7 @@ describe('ChatProviderCallService', () => {
           baseRequest,
           TEST_MODEL_ALIAS_BRANDED,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           resolvedPrompts,
         );
 
@@ -92,8 +122,54 @@ describe('ChatProviderCallService', () => {
         expect(result).toEqual({
           response: providerResponse,
           providerName: 'anthropic',
-          modelId: 'claude-sonnet-4-5',
+          modelId: TEST_MODEL_ID,
           resolved: resolvedConfig,
+        });
+      });
+
+      it('should observe provider call with success context', async () => {
+        (mockProvider.complete as jest.Mock).mockResolvedValue(
+          providerResponse,
+        );
+
+        await service.completeOnce(
+          baseRequest,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
+          resolvedPrompts,
+        );
+
+        expect(mockAppMetrics.observeProviderCall).toHaveBeenCalledWith(
+          expect.objectContaining({
+            method: 'chat',
+            client: TEST_CLIENT_ID,
+            model: TEST_MODEL_ALIAS_BRANDED,
+            provider: 'anthropic',
+          }),
+          expect.any(Function),
+          expect.any(Function),
+        );
+      });
+
+      it('should pass mapUsage callback to observeProviderCall', async () => {
+        (mockProvider.complete as jest.Mock).mockResolvedValue(
+          providerResponse,
+        );
+
+        await service.completeOnce(
+          baseRequest,
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
+          resolvedPrompts,
+        );
+
+        const mapUsage = (mockAppMetrics.observeProviderCall as jest.Mock).mock
+          .calls[0][2];
+        expect(mapUsage(providerResponse)).toEqual({
+          inputTokens: TEST_INPUT_TOKENS,
+          outputTokens: TEST_OUTPUT_TOKENS,
         });
       });
 
@@ -106,15 +182,19 @@ describe('ChatProviderCallService', () => {
           baseRequest,
           TEST_MODEL_ALIAS_BRANDED,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           resolvedPrompts,
         );
 
         const mapResult = (mockMetrics.observeLlmCall as jest.Mock).mock
           .calls[0][2];
         expect(mapResult(providerResponse)).toEqual({
-          responseModel: 'claude-sonnet-4-5',
+          responseModel: TEST_MODEL_ID,
           outputText: 'Hello from provider',
-          usage: { inputTokens: 10, outputTokens: 20 },
+          usage: {
+            inputTokens: TEST_INPUT_TOKENS,
+            outputTokens: TEST_OUTPUT_TOKENS,
+          },
         });
       });
     });
@@ -130,6 +210,7 @@ describe('ChatProviderCallService', () => {
             baseRequest,
             TEST_MODEL_ALIAS_BRANDED,
             TEST_REQUEST_ID,
+            TEST_CLIENT_ID,
             resolvedPrompts,
           ),
         ).rejects.toThrow('Provider unavailable');
@@ -148,6 +229,7 @@ describe('ChatProviderCallService', () => {
           baseRequest,
           TEST_MODEL_ALIAS_BRANDED,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           resolvedPrompts,
         );
 
@@ -173,6 +255,7 @@ describe('ChatProviderCallService', () => {
           requestWithParams,
           TEST_MODEL_ALIAS_BRANDED,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           resolvedPrompts,
         );
 
@@ -185,10 +268,13 @@ describe('ChatProviderCallService', () => {
   });
 
   describe('streamOnce', () => {
+    const TEST_STREAM_RESPONSE_ID = asResponseId('gw_stream_1');
+    const TEST_EFFECTIVE_MODEL_ALIAS = asModelAlias('fallback-model');
+
     const emittedEvents: SseEvent[] = [];
     const emit = (event: SseEvent) => emittedEvents.push(event);
     const streamMeta = {
-      gatewayId: 'gw_stream_1',
+      gatewayId: TEST_STREAM_RESPONSE_ID,
       primaryModelAlias: TEST_MODEL_ALIAS_BRANDED,
       responseConversationId: TEST_CONVERSATION_ID,
       metaEmitted: { value: false },
@@ -202,12 +288,15 @@ describe('ChatProviderCallService', () => {
 
       return {
         textStream: textStream(),
-        getUsageMetadata: jest
-          .fn()
-          .mockResolvedValue({ inputTokens: 5, outputTokens: 7 }),
+        getUsageMetadata: jest.fn().mockResolvedValue({
+          inputTokens: TEST_INPUT_TOKENS_SMALL,
+          outputTokens: TEST_OUTPUT_TOKENS_SMALL,
+        }),
         getFinalToolCalls: jest.fn().mockResolvedValue([]),
         getStopReason: jest.fn().mockResolvedValue('end_turn'),
-        getSystemFingerprint: jest.fn().mockResolvedValue('fp_abc'),
+        getSystemFingerprint: jest
+          .fn()
+          .mockResolvedValue(asSystemFingerprint('fp_abc')),
         getThinkingContent: jest.fn().mockResolvedValue('thinking...'),
         getUsageDetails: jest.fn().mockResolvedValue(undefined),
         ...overrides,
@@ -224,16 +313,22 @@ describe('ChatProviderCallService', () => {
         const streamResult = createMockStreamResult();
         (mockProvider.stream as jest.Mock).mockReturnValue(streamResult);
         const spanEnd = jest.fn();
+        const appEnd = jest.fn();
         (mockMetrics.observeLlmStream as jest.Mock).mockReturnValue({
           withActiveSpan: <T>(fn: () => T) => fn(),
           end: spanEnd,
+          fail: jest.fn(),
+        });
+        (mockAppMetrics.observeProviderStream as jest.Mock).mockReturnValue({
+          end: appEnd,
           fail: jest.fn(),
         });
 
         const result = await service.streamOnce({
           requestBody: baseRequest,
           alias: TEST_MODEL_ALIAS_BRANDED,
-          requestId: 'req-stream-1',
+          requestId: TEST_REQUEST_ID,
+          clientId: TEST_CLIENT_ID,
           resolvedPrompts,
           emit,
           streamMeta,
@@ -242,10 +337,10 @@ describe('ChatProviderCallService', () => {
         expect(emittedEvents[0]).toEqual({
           name: 'meta',
           data: {
-            id: 'gw_stream_1',
+            id: TEST_STREAM_RESPONSE_ID,
             provider: 'anthropic',
             model: TEST_MODEL_ALIAS,
-            requestId: 'req-stream-1',
+            requestId: TEST_REQUEST_ID,
             conversationId: TEST_CONVERSATION_ID,
           },
         });
@@ -255,11 +350,27 @@ describe('ChatProviderCallService', () => {
         ]);
         expect(result.assembledText).toBe('Hello world');
         expect(result.providerName).toBe('anthropic');
-        expect(result.modelId).toBe('claude-sonnet-4-5');
+        expect(result.modelId).toBe(TEST_MODEL_ID);
         expect(streamMeta.metaEmitted.value).toBe(true);
+        expect(mockAppMetrics.observeProviderStream).toHaveBeenCalledWith(
+          expect.objectContaining({
+            method: 'stream',
+            client: TEST_CLIENT_ID,
+            model: TEST_MODEL_ALIAS_BRANDED,
+            provider: 'anthropic',
+          }),
+        );
+        expect(appEnd).toHaveBeenCalledWith({
+          inputTokens: TEST_INPUT_TOKENS_SMALL,
+          outputTokens: TEST_OUTPUT_TOKENS_SMALL,
+        });
         expect(spanEnd).toHaveBeenCalledWith({
+          responseModel: undefined,
           outputText: 'Hello world',
-          usage: { inputTokens: 5, outputTokens: 7 },
+          usage: {
+            inputTokens: TEST_INPUT_TOKENS_SMALL,
+            outputTokens: TEST_OUTPUT_TOKENS_SMALL,
+          },
         });
       });
 
@@ -270,8 +381,9 @@ describe('ChatProviderCallService', () => {
 
         await service.streamOnce({
           requestBody: baseRequest,
-          alias: 'fallback-model',
-          requestId: 'req-stream-2',
+          alias: TEST_EFFECTIVE_MODEL_ALIAS,
+          requestId: TEST_REQUEST_ID,
+          clientId: TEST_CLIENT_ID,
           resolvedPrompts,
           emit,
           streamMeta,
@@ -279,7 +391,7 @@ describe('ChatProviderCallService', () => {
 
         expect(emittedEvents[0].data).toEqual(
           expect.objectContaining({
-            effectiveModelAlias: 'fallback-model',
+            effectiveModelAlias: TEST_EFFECTIVE_MODEL_ALIAS,
           }),
         );
       });
@@ -298,7 +410,8 @@ describe('ChatProviderCallService', () => {
         const result = await service.streamOnce({
           requestBody: baseRequest,
           alias: TEST_MODEL_ALIAS_BRANDED,
-          requestId: 'req-stream-3',
+          requestId: TEST_REQUEST_ID,
+          clientId: TEST_CLIENT_ID,
           resolvedPrompts,
           emit,
           streamMeta,
@@ -306,18 +419,18 @@ describe('ChatProviderCallService', () => {
 
         expect(result.toolCalls).toEqual(toolCalls);
         expect(result.stopReason).toBe('tool_use');
-        expect(result.systemFingerprint).toBe('fp_abc');
+        expect(result.systemFingerprint).toBe(asSystemFingerprint('fp_abc'));
         expect(result.thinkingContent).toBe('thinking...');
         expect(result.usageMetadata).toEqual({
-          inputTokens: 5,
-          outputTokens: 7,
+          inputTokens: TEST_INPUT_TOKENS_SMALL,
+          outputTokens: TEST_OUTPUT_TOKENS_SMALL,
         });
       });
 
       it('should return usageDetails when stream provides getUsageDetails', async () => {
         const usageDetails = {
-          promptCacheHitTokens: 100,
-          promptCacheCreationTokens: 50,
+          promptCacheHitTokens: TEST_PROMPT_CACHE_HIT_TOKENS,
+          promptCacheCreationTokens: TEST_PROMPT_CACHE_CREATION_TOKENS,
         };
         (mockProvider.stream as jest.Mock).mockReturnValue(
           createMockStreamResult({
@@ -328,7 +441,8 @@ describe('ChatProviderCallService', () => {
         const result = await service.streamOnce({
           requestBody: baseRequest,
           alias: TEST_MODEL_ALIAS_BRANDED,
-          requestId: 'req-stream-usage-details',
+          requestId: TEST_REQUEST_ID,
+          clientId: TEST_CLIENT_ID,
           resolvedPrompts,
           emit,
           streamMeta,
@@ -348,7 +462,8 @@ describe('ChatProviderCallService', () => {
         await service.streamOnce({
           requestBody: baseRequest,
           alias: TEST_MODEL_ALIAS_BRANDED,
-          requestId: 'req-stream-4',
+          requestId: TEST_REQUEST_ID,
+          clientId: TEST_CLIENT_ID,
           resolvedPrompts,
           emit,
           streamMeta,
@@ -370,7 +485,8 @@ describe('ChatProviderCallService', () => {
         const result = await service.streamOnce({
           requestBody: baseRequest,
           alias: TEST_MODEL_ALIAS_BRANDED,
-          requestId: 'req-stream-5',
+          requestId: TEST_REQUEST_ID,
+          clientId: TEST_CLIENT_ID,
           resolvedPrompts,
           emit,
           streamMeta,
@@ -391,7 +507,8 @@ describe('ChatProviderCallService', () => {
         const result = await service.streamOnce({
           requestBody: baseRequest,
           alias: TEST_MODEL_ALIAS_BRANDED,
-          requestId: 'req-stream-6',
+          requestId: TEST_REQUEST_ID,
+          clientId: TEST_CLIENT_ID,
           resolvedPrompts,
           emit,
           streamMeta,
@@ -412,7 +529,8 @@ describe('ChatProviderCallService', () => {
         const result = await service.streamOnce({
           requestBody: baseRequest,
           alias: TEST_MODEL_ALIAS_BRANDED,
-          requestId: 'req-stream-7',
+          requestId: TEST_REQUEST_ID,
+          clientId: TEST_CLIENT_ID,
           resolvedPrompts,
           emit,
           streamMeta,
@@ -440,13 +558,15 @@ describe('ChatProviderCallService', () => {
         await service.streamOnce({
           requestBody: baseRequest,
           alias: TEST_MODEL_ALIAS_BRANDED,
-          requestId: 'req-stream-8',
+          requestId: TEST_REQUEST_ID,
+          clientId: TEST_CLIENT_ID,
           resolvedPrompts,
           emit,
           streamMeta,
         });
 
         expect(spanEnd).toHaveBeenCalledWith({
+          responseModel: undefined,
           outputText: undefined,
           usage: undefined,
         });
@@ -461,10 +581,16 @@ describe('ChatProviderCallService', () => {
         }
         const spanEnd = jest.fn();
         const spanFail = jest.fn();
+        const appEnd = jest.fn();
+        const appFail = jest.fn();
         (mockMetrics.observeLlmStream as jest.Mock).mockReturnValue({
           withActiveSpan: <T>(fn: () => T) => fn(),
           end: spanEnd,
           fail: spanFail,
+        });
+        (mockAppMetrics.observeProviderStream as jest.Mock).mockReturnValue({
+          end: appEnd,
+          fail: appFail,
         });
         (mockProvider.stream as jest.Mock).mockReturnValue({
           textStream: failingStream(),
@@ -475,23 +601,31 @@ describe('ChatProviderCallService', () => {
           service.streamOnce({
             requestBody: baseRequest,
             alias: TEST_MODEL_ALIAS_BRANDED,
-            requestId: 'req-stream-9',
+            requestId: TEST_REQUEST_ID,
+            clientId: TEST_CLIENT_ID,
             resolvedPrompts,
             emit,
             streamMeta,
           }),
         ).rejects.toThrow('Stream interrupted');
 
+        expect(appFail).toHaveBeenCalledWith(expect.any(Error));
         expect(spanFail).toHaveBeenCalledWith({ outputText: 'partial' });
+        expect(appEnd).not.toHaveBeenCalled();
         expect(spanEnd).not.toHaveBeenCalled();
       });
 
       it('should call spanController.fail when provider.stream throws', async () => {
         const spanFail = jest.fn();
+        const appFail = jest.fn();
         (mockMetrics.observeLlmStream as jest.Mock).mockReturnValue({
           withActiveSpan: <T>(fn: () => T) => fn(),
           end: jest.fn(),
           fail: spanFail,
+        });
+        (mockAppMetrics.observeProviderStream as jest.Mock).mockReturnValue({
+          end: jest.fn(),
+          fail: appFail,
         });
         (mockProvider.stream as jest.Mock).mockImplementation(() => {
           throw new Error('Stream setup failed');
@@ -501,13 +635,15 @@ describe('ChatProviderCallService', () => {
           service.streamOnce({
             requestBody: baseRequest,
             alias: TEST_MODEL_ALIAS_BRANDED,
-            requestId: 'req-stream-10',
+            requestId: TEST_REQUEST_ID,
+            clientId: TEST_CLIENT_ID,
             resolvedPrompts,
             emit,
             streamMeta,
           }),
         ).rejects.toThrow('Stream setup failed');
 
+        expect(appFail).toHaveBeenCalledWith(expect.any(Error));
         expect(spanFail).toHaveBeenCalledWith({ outputText: undefined });
       });
     });

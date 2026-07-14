@@ -28,7 +28,10 @@ deployment/
 │   ├── docker-compose.ollama.yml          # Rozszerzenie: + Ollama (lokalny LLM)
 │   ├── docker-compose.dev.yml             # Override: tryb dev (hot reload)
 │   └── docker-compose.override.yml.example
-├── monitoring/                            # Konfiguracja Prometheus / Grafana
+├── monitoring/                            # Prometheus, Grafana, reguły alertów
+│   ├── prometheus.yml                     # Scrape /metrics co 10s
+│   ├── alerts.yml                         # GatewayDown, GatewayNotReady, …
+│   └── grafana/
 ├── scripts/                               # Skrypty deploy / rollback (w przygotowaniu)
 └── templates/
     ├── .env.example                       # Szablon zmiennych środowiskowych
@@ -292,7 +295,8 @@ Pełny szablon: `deployment/templates/.env.example`.
 | `CACHE_ENABLED` | `false` | Włączenie cache odpowiedzi |
 | `CACHE_BACKEND` | `noop` | `redis` wymaga Redis |
 | `RATE_LIMIT_SMART_ENABLED` | `false` | Smart rate limit per klucz (wymaga Redis) |
-| `SENTRY_DSN` | pusty | Error reporting / metryki Sentry |
+| `SENTRY_DSN` | pusty | Error reporting / AI metrics (Sentry) |
+| `METRICS_BACKEND` | auto | `prometheus` / `noop` — w production domyślnie Prometheus |
 | `LOG_LEVEL` | `info` | Poziom logów Pino |
 | `GRAFANA_USER` / `GRAFANA_PASSWORD` | admin/admin | Panel Grafana w stacku monitoring |
 
@@ -331,9 +335,44 @@ make docker-logs
 - **Logi kontenera:** `docker logs ai-gateway -f` lub `make docker-logs`
 - **Prometheus:** http://localhost:9090 (po włączeniu rozszerzenia monitoring)
 - **Grafana:** http://localhost:3001 — `make dashboard`
-- **Health:**
+- **Metryki aplikacji:** `GET /metrics` (publiczne, **bez** prefiksu `/api/v1`) — format Prometheus text; przed exportem odświeżane są gauge'e readiness (`gateway_readiness`, `gateway_health_status{component="config|redis|cache"}`) oraz `gateway_process_uptime_seconds`
+- **Health HTTP:**
   - Liveness: `GET /api/v1/health`
-  - Readiness: `GET /api/v1/health/ready`
+  - Readiness: `GET /api/v1/health/ready` (Docker HEALTHCHECK parsuje `body.status`)
+
+### Weryfikacja metryk (lokalnie / po deployu)
+
+```bash
+# Readiness w Prometheus (bez curl na /ready)
+curl -s http://localhost:3000/metrics | grep -E 'gateway_readiness|gateway_health_status'
+
+# Oczekiwany przykład (gdy gateway gotowy):
+# gateway_readiness 1
+# gateway_health_status{component="config"} 1
+# gateway_health_status{component="redis"} 1
+# gateway_health_status{component="cache"} 1
+```
+
+### Prometheus i alerty
+
+Konfiguracja: `deployment/monitoring/prometheus.yml` (scrape co **10s**, job `ai-gateway`, ścieżka `/metrics`). Reguły alertów: `deployment/monitoring/alerts.yml`:
+
+| Alert | Opis |
+|-------|------|
+| `GatewayDown` | Brak scrape targetu (`up == 0`) |
+| `GatewayNotReady` | `gateway_readiness == 0` przez 2m |
+| `GatewayConfigUnhealthy` | `gateway_health_status{component="config"} == 0` |
+| `GatewayRedisDegraded` | Redis `< 1` (degraded/unhealthy) |
+| `GatewayCacheDegraded` | Cache `< 1` |
+| `GatewayHighEventLoopLag` | `gateway_nodejs_eventloop_lag_seconds > 0.5` |
+
+Walidacja reguł (Docker):
+
+```bash
+docker run --rm --entrypoint promtool -v "%cd%/deployment/monitoring:/etc/prometheus:ro" prom/prometheus:latest check rules /etc/prometheus/alerts.yml
+```
+
+Na Linux/macOS zamień `%cd%` na `$(pwd)`.
 
 ---
 
@@ -396,7 +435,8 @@ Przed wdrożeniem na produkcję:
 - [ ] Limity rate limit — dopasowane do tierów API providerów i ruchu
 - [ ] Redis — jeśli włączony cache (`CACHE_BACKEND=redis`) lub smart rate limit
 - [ ] `gateway config:validate` — sukces na serwerze docelowym (pełniejsza niż sam `npm run config:validate`)
-- [ ] `npm run test:all` — przed deployem produkcyjnym (`deploy:production` w planie obejmuje też testy security — Faza 3)
+- [ ] `npm run test:all` — przed deployem produkcyjnym
+- [ ] `curl http://localhost:3000/metrics` — gauge `gateway_readiness` zgodny ze stanem aplikacji (po włączeniu stacku monitoring)
 - [ ] Backup zaszyfrowanych plików konfiguracyjnych
 
 ---

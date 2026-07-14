@@ -11,13 +11,13 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **Klient** | Dowolny klient HTTP (aplikacja, serwis, BFF). |
 | **HTTP** | Kontroler + walidacja DTO + odpowiedź. |
 | **ChatService** | Wspólne `prepareRequestForExecution` (ingress, tooling/thinking, cooldown check). Cache tylko w `executeChat`. `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
-| **ChatProviderCallService** | Pojedyncze wywołanie adaptera: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `MetricsService.observeLlmCall` / `observeLlmStream`, emisja SSE `meta`/`delta`. |
+| **ChatProviderCallService** | Pojedyncze wywołanie adaptera: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `AiMetricsService.observeProviderCall` / `observeProviderStream`, `AppMetricsService` (RED), emisja SSE `meta`/`delta`. |
 | **ResilientExecutor** | Retry na aliasie żądanym (`policy.retry`, `policy.timeoutMs`), potem opcjonalnie alias `fallback` z YAML. |
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na **`providerInstance`** → `AIProvider` + `modelId`. |
 | **Provider** | Instancja `AIProvider` (fabryka + klucz API per wpis w YAML). |
 | **LLM API** | Zewnętrzny serwis providera. |
 | **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha: `modelAlias`, `messages`, sygnatura system promptu, efektywne parametry wywołania); odczyt walidowany `CachedChatResponseSchema`; brak wpływu na streaming. |
-| **Metrics** | `MetricsService` + Sentry/noop — span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId`; `messages[]` → atrybuty input/output przy `SENTRY_INCLUDE_PROMPTS` (`conversation-tracking.md`). |
+| **Metrics** | **`AiMetricsService`** (Sentry LLM spans) + **`AppMetricsService`** (Prometheus RED); span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId` (`conversation-tracking.md`). Health gauges odświeżane przy `GET /metrics`. |
 | **Fasada integracji** | Kontroler `src/integrations/openai` lub `anthropic` + mappery — tłumaczenie kontraktu vendora na `ChatRequestDto`, potem ten sam `ChatService` co natywny czat (`integracje.md`). |
 
 ---
@@ -60,7 +60,7 @@ sequenceDiagram
   participant PC as ChatProviderCallService
   participant C as ResponseCache
   participant R as ProviderRegistry
-  participant M as MetricsService
+  participant M as AiMetricsService
   participant P as Provider Adapter
   participant A as LLM API
 
@@ -132,7 +132,7 @@ sequenceDiagram
   participant S as ChatService
   participant PC as ChatProviderCallService
   participant R as ProviderRegistry
-  participant M as MetricsService
+  participant M as AiMetricsService
   participant P as Provider Adapter
   participant A as LLM API
 
