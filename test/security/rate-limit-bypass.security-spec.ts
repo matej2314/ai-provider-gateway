@@ -124,21 +124,26 @@ describe('Security: Rate Limit Bypass Attempts', () => {
     it('should enforce burst sequentially without allowing an extra request', async () => {
       const rateLimiter = createE2eBurstRateLimiter(BURST_LIMIT);
 
-      await withSecurityApp(securityAppOptions(rateLimiter), async ({ app }) => {
-        const send = () =>
-          request(app.getHttpServer())
-            .post(E2E_ROUTES.chat)
-            .set('x-gateway-key', E2E_GATEWAY_KEY)
-            .send(chatBody);
+      await withSecurityApp(
+        securityAppOptions(rateLimiter),
+        async ({ app }) => {
+          const send = () =>
+            request(app.getHttpServer())
+              .post(E2E_ROUTES.chat)
+              .set('x-gateway-key', E2E_GATEWAY_KEY)
+              .send(chatBody);
 
-        for (let i = 0; i < BURST_LIMIT; i += 1) {
-          await send().expect(E2E_POST_SUCCESS_STATUS);
-        }
+          for (let i = 0; i < BURST_LIMIT; i += 1) {
+            await send().expect(E2E_POST_SUCCESS_STATUS);
+          }
 
-        await send().expect(429);
+          await send().expect(429);
 
-        expect(rateLimiter.checkRateLimit).toHaveBeenCalledTimes(BURST_LIMIT + 1);
-      });
+          expect(rateLimiter.checkRateLimit).toHaveBeenCalledTimes(
+            BURST_LIMIT + 1,
+          );
+        },
+      );
     });
   });
 

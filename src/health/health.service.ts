@@ -44,7 +44,9 @@ export class HealthService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    this.preMetricsScrapeRegistry.register(() => this.refreshMetricsForScrape());
+    this.preMetricsScrapeRegistry.register(() =>
+      this.refreshMetricsForScrape(),
+    );
     await this.refreshMetricsForScrape();
   }
 

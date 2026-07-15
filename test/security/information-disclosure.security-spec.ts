@@ -36,7 +36,7 @@ const anthropicBody = createAnthropicRequestBody(TEST_MODEL_ALIAS);
 
 function assertSafeErrorBody(response: Response): void {
   expectNoSecretsDisclosed(response.body);
-  expectNoSecretsInHeaders(response.headers as Record<string, unknown>);
+  expectNoSecretsInHeaders(response.headers);
 }
 
 describe('Security: Information Disclosure', () => {
@@ -106,11 +106,13 @@ describe('Security: Information Disclosure', () => {
         {
           providerRegistry: (() => {
             const registry = createE2eProviderRegistry();
-            registry.provider.complete = jest.fn().mockRejectedValue(
-              new Error(
-                'Provider failure sk-test-api-key at src/providers/anthropic/secret.adapter.ts:99',
-              ),
-            );
+            registry.provider.complete = jest
+              .fn()
+              .mockRejectedValue(
+                new Error(
+                  'Provider failure sk-test-api-key at src/providers/anthropic/secret.adapter.ts:99',
+                ),
+              );
             return registry;
           })(),
         },
@@ -264,7 +266,9 @@ describe('Security: Information Disclosure', () => {
         anthropicMissingKey,
       ]) {
         assertSafeErrorBody(response);
-        expect(JSON.stringify(response.body)).not.toMatch(/node_modules|\.ts:\d+/);
+        expect(JSON.stringify(response.body)).not.toMatch(
+          /node_modules|\.ts:\d+/,
+        );
       }
     });
   });

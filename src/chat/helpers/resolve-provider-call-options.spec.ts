@@ -65,7 +65,10 @@ describe('resolveProviderCallOptions', () => {
         allowOverrides: ['temperature', 'maxOutputTokens'],
         bounds: {},
       };
-      const bodyParams: ChatParamsDto = { temperature: 0.9, maxOutputTokens: 2048 };
+      const bodyParams: ChatParamsDto = {
+        temperature: 0.9,
+        maxOutputTokens: 2048,
+      };
 
       const result = resolveProviderCallOptions(policy, bodyParams);
 
@@ -83,7 +86,9 @@ describe('resolveProviderCallOptions', () => {
       const resultString = resolveProviderCallOptions(policy, { stop: '\n\n' });
       expect(resultString.stop).toBe('\n\n');
 
-      const resultArray = resolveProviderCallOptions(policy, { stop: ['\n\n', '###'] });
+      const resultArray = resolveProviderCallOptions(policy, {
+        stop: ['\n\n', '###'],
+      });
       expect(resultArray.stop).toEqual(['\n\n', '###']);
     });
 
@@ -93,9 +98,9 @@ describe('resolveProviderCallOptions', () => {
         allowOverrides: ['thinkingEnabled', 'thinkingBudget'],
         bounds: {},
       };
-      const bodyParams: ChatParamsDto = { 
-        thinkingEnabled: true, 
-        thinkingBudget: 2048 
+      const bodyParams: ChatParamsDto = {
+        thinkingEnabled: true,
+        thinkingBudget: 2048,
       };
 
       const result = resolveProviderCallOptions(policy, bodyParams);
@@ -193,10 +198,10 @@ describe('resolveProviderCallOptions', () => {
         { thinkingEnabled: true },
       ];
 
-      disallowedParams.forEach(params => {
-        expect(() => resolveProviderCallOptions(policy, params as ChatParamsDto)).toThrow(
-          HttpException,
-        );
+      disallowedParams.forEach((params) => {
+        expect(() =>
+          resolveProviderCallOptions(policy, params as ChatParamsDto),
+        ).toThrow(HttpException);
       });
     });
 
@@ -228,16 +233,16 @@ describe('resolveProviderCallOptions', () => {
         },
       };
 
-      const resultMin = resolveProviderCallOptions(policy, { 
-        temperature: 0.1, 
-        maxOutputTokens: 10 
+      const resultMin = resolveProviderCallOptions(policy, {
+        temperature: 0.1,
+        maxOutputTokens: 10,
       });
       expect(resultMin.temperature).toBe(0.5);
       expect(resultMin.maxOutputTokens).toBe(100);
 
-      const resultMax = resolveProviderCallOptions(policy, { 
-        temperature: 2.0, 
-        maxOutputTokens: 10000 
+      const resultMax = resolveProviderCallOptions(policy, {
+        temperature: 2.0,
+        maxOutputTokens: 10000,
       });
       expect(resultMax.temperature).toBe(1.5);
       expect(resultMax.maxOutputTokens).toBe(4096);
@@ -443,7 +448,9 @@ describe('resolveProviderCallOptions', () => {
         bounds: {},
       };
 
-      const resultEmptyString = resolveProviderCallOptions(policy, { stop: '' });
+      const resultEmptyString = resolveProviderCallOptions(policy, {
+        stop: '',
+      });
       expect(resultEmptyString.stop).toBe('');
 
       const resultEmptyArray = resolveProviderCallOptions(policy, { stop: [] });

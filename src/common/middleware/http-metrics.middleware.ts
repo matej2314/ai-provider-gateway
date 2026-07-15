@@ -1,11 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { AppMetricsService } from '../../observability/app-metrics/app-metrics.service';
-import type {
-  HttpMethod,
-  HttpRequestLabels,
-} from '../../observability/app-metrics/interfaces/app-metrics-backend.interface';
-import path from 'path';
+import type { HttpMethod } from '../../observability/app-metrics/interfaces/app-metrics-backend.interface';
 
 @Injectable()
 export class HttpMetricsMiddleware implements NestMiddleware {

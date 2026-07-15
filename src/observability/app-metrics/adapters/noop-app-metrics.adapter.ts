@@ -115,7 +115,7 @@ export class NoopAppMetricsAdapter implements AppMetricsBackend {
   }
 
   async getMetricsSnapshot(): Promise<string> {
-    return '';
+    return Promise.resolve('');
   }
 
   async observeProviderCall<T>(
@@ -126,9 +126,7 @@ export class NoopAppMetricsAdapter implements AppMetricsBackend {
     return fn();
   }
 
-  observeProviderStream(
-    _ctx: AppProviderCallContext,
-  ): AppProviderStreamScope {
+  observeProviderStream(_ctx: AppProviderCallContext): AppProviderStreamScope {
     return {
       end: () => {
         return;

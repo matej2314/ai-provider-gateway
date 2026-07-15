@@ -155,10 +155,7 @@ describe('AiMetricsService', () => {
 
       const controller = service.observeLlmStream(context);
 
-      expect(controller).toBeDefined();
-      expect(controller.withActiveSpan).toBeDefined();
-      expect(controller.end).toBeDefined();
-      expect(controller.fail).toBeDefined();
+      expect(controller).toBe(mockController);
     });
   });
 });

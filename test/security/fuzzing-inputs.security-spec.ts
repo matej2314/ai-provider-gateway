@@ -2,10 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import * as fc from 'fast-check';
 import request from 'supertest';
 import { TEST_MODEL_ALIAS } from '../../src/common/mocks/test-constants';
-import {
-  E2E_GATEWAY_KEY,
-  E2E_ROUTES,
-} from '../e2e/helpers/e2e-constants';
+import { E2E_GATEWAY_KEY, E2E_ROUTES } from '../e2e/helpers/e2e-constants';
 import { createE2eProviderRegistry } from '../e2e/helpers/e2e-provider-registry';
 import {
   closeSecurityApp,
@@ -97,10 +94,7 @@ describe('Security: Fuzzing Inputs (Property-Based)', () => {
     it('should return 400 for messages array size violations (0 or >150 elements)', async () => {
       await fc.assert(
         fc.asyncProperty(
-          fc.oneof(
-            fc.constant(0),
-            fc.integer({ min: 151, max: 200 }),
-          ),
+          fc.oneof(fc.constant(0), fc.integer({ min: 151, max: 200 })),
           async (messageCount) => {
             const messages = Array.from({ length: messageCount }, () => ({
               ...VALID_USER_MESSAGE,
@@ -257,10 +251,9 @@ describe('Security: Fuzzing Inputs (Property-Based)', () => {
             { minLength: 1, maxLength: 160 },
           ),
         ),
-        temperature: fc.option(
-          fc.double({ min: -5, max: 5, noNaN: true }),
-          { nil: undefined },
-        ),
+        temperature: fc.option(fc.double({ min: -5, max: 5, noNaN: true }), {
+          nil: undefined,
+        }),
         max_tokens: fc.option(fc.integer({ min: -10, max: 10_000_000 }), {
           nil: undefined,
         }),

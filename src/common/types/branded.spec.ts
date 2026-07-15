@@ -12,7 +12,6 @@ import {
   asAttemptNumber,
   asSchemaVersion,
   type RequestId,
-  type ConversationId,
 } from './branded.types';
 import {
   createConversationId,
@@ -84,7 +83,9 @@ describe('Brand type utilities', () => {
     });
 
     it('should reject invalid format', () => {
-      expect(() => createRequestId('req_1')).toThrow(/Invalid RequestId format/);
+      expect(() => createRequestId('req_1')).toThrow(
+        /Invalid RequestId format/,
+      );
     });
 
     it('should reject wrong prefix', () => {
@@ -128,21 +129,33 @@ describe('Configuration validators', () => {
     });
 
     it('should throw outside 1-5 range', () => {
-      expect(() => asMaxAttempts(0)).toThrow(/MaxAttempts must be between 1 and 5/);
-      expect(() => asMaxAttempts(6)).toThrow(/MaxAttempts must be between 1 and 5/);
-      expect(() => asMaxAttempts(-1)).toThrow(/MaxAttempts must be between 1 and 5/);
+      expect(() => asMaxAttempts(0)).toThrow(
+        /MaxAttempts must be between 1 and 5/,
+      );
+      expect(() => asMaxAttempts(6)).toThrow(
+        /MaxAttempts must be between 1 and 5/,
+      );
+      expect(() => asMaxAttempts(-1)).toThrow(
+        /MaxAttempts must be between 1 and 5/,
+      );
     });
   });
 
   describe('asBaseUrl', () => {
     it('should accept http and https URLs', () => {
       expect(asBaseUrl('http://localhost:3000')).toBe('http://localhost:3000');
-      expect(asBaseUrl('https://api.example.com/v1')).toBe('https://api.example.com/v1');
+      expect(asBaseUrl('https://api.example.com/v1')).toBe(
+        'https://api.example.com/v1',
+      );
     });
 
     it('should throw for non-http(s) URLs', () => {
-      expect(() => asBaseUrl('ftp://files.example.com')).toThrow(/BaseUrl must start with http/);
-      expect(() => asBaseUrl('localhost')).toThrow(/BaseUrl must start with http/);
+      expect(() => asBaseUrl('ftp://files.example.com')).toThrow(
+        /BaseUrl must start with http/,
+      );
+      expect(() => asBaseUrl('localhost')).toThrow(
+        /BaseUrl must start with http/,
+      );
       expect(() => asBaseUrl('')).toThrow(/BaseUrl must start with http/);
     });
   });
@@ -170,8 +183,12 @@ describe('Configuration validators', () => {
     });
 
     it('should throw for negative values', () => {
-      expect(() => asCacheTtlSeconds(-1)).toThrow(/CacheTtlSeconds must be >=0/);
-      expect(() => asCacheTtlSeconds(-0.1)).toThrow(/CacheTtlSeconds must be >=0/);
+      expect(() => asCacheTtlSeconds(-1)).toThrow(
+        /CacheTtlSeconds must be >=0/,
+      );
+      expect(() => asCacheTtlSeconds(-0.1)).toThrow(
+        /CacheTtlSeconds must be >=0/,
+      );
     });
   });
 
@@ -208,8 +225,12 @@ describe('Configuration validators', () => {
     });
 
     it('should throw when value < 1', () => {
-      expect(() => asMaxConcurrentStreams(0)).toThrow(/MaxConcurrentStreams must be >=1/);
-      expect(() => asMaxConcurrentStreams(0.5)).toThrow(/MaxConcurrentStreams must be >=1/);
+      expect(() => asMaxConcurrentStreams(0)).toThrow(
+        /MaxConcurrentStreams must be >=1/,
+      );
+      expect(() => asMaxConcurrentStreams(0.5)).toThrow(
+        /MaxConcurrentStreams must be >=1/,
+      );
     });
   });
 

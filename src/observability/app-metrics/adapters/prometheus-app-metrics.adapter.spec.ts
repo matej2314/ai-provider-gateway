@@ -97,15 +97,9 @@ describe('PrometheusAppMetricsAdapter', () => {
       const snapshot = await adapter.getMetricsSnapshot();
 
       expect(snapshot).toMatch(/gateway_readiness 0/);
-      expect(snapshot).toMatch(
-        /gateway_health_status\{component="config"\} 0/,
-      );
-      expect(snapshot).toMatch(
-        /gateway_health_status\{component="redis"\} 1/,
-      );
-      expect(snapshot).toMatch(
-        /gateway_health_status\{component="cache"\} 1/,
-      );
+      expect(snapshot).toMatch(/gateway_health_status\{component="config"\} 0/);
+      expect(snapshot).toMatch(/gateway_health_status\{component="redis"\} 1/);
+      expect(snapshot).toMatch(/gateway_health_status\{component="cache"\} 1/);
     });
   });
 

@@ -4,7 +4,6 @@ import {
   mapAnthropicContentBlockToGateway,
 } from './anthropic-tools.mapper';
 import { BadRequestException } from '@nestjs/common';
-import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { asToolCallId } from '../../../common/types/branded.types';
 
 const TEST_TOOL = {
@@ -109,9 +108,9 @@ describe('mapAnthropicContentBlockToGateway', () => {
         { role: 'user', content: 'Hello' },
       ]);
 
-      expect(mapAnthropicContentBlockToGateway('assistant', blocks as any)).toEqual([
-        { role: 'assistant', content: 'Hello' },
-      ]);
+      expect(
+        mapAnthropicContentBlockToGateway('assistant', blocks as any),
+      ).toEqual([{ role: 'assistant', content: 'Hello' }]);
     });
 
     it('should concatenate multiple text blocks', () => {
@@ -138,7 +137,10 @@ describe('mapAnthropicContentBlockToGateway', () => {
         },
       ];
 
-      const result = mapAnthropicContentBlockToGateway('assistant', blocks as any);
+      const result = mapAnthropicContentBlockToGateway(
+        'assistant',
+        blocks as any,
+      );
 
       expect(result).toEqual([
         {
@@ -161,7 +163,10 @@ describe('mapAnthropicContentBlockToGateway', () => {
         { type: 'tool_use', id: 'call_2', name: 'time', input: {} },
       ];
 
-      const result = mapAnthropicContentBlockToGateway('assistant', blocks as any);
+      const result = mapAnthropicContentBlockToGateway(
+        'assistant',
+        blocks as any,
+      );
 
       expect(result[0].toolCalls).toHaveLength(2);
     });
@@ -169,7 +174,10 @@ describe('mapAnthropicContentBlockToGateway', () => {
     it('should handle tool_use without input', () => {
       const blocks = [{ type: 'tool_use', id: 'call_1', name: 'test' }];
 
-      const result = mapAnthropicContentBlockToGateway('assistant', blocks as any);
+      const result = mapAnthropicContentBlockToGateway(
+        'assistant',
+        blocks as any,
+      );
 
       expect(result[0].toolCalls![0].arguments).toBe('{}');
     });
@@ -180,7 +188,10 @@ describe('mapAnthropicContentBlockToGateway', () => {
         { type: 'tool_use', id: 'call_1', input: {} },
       ];
 
-      const result = mapAnthropicContentBlockToGateway('assistant', blocks as any);
+      const result = mapAnthropicContentBlockToGateway(
+        'assistant',
+        blocks as any,
+      );
 
       expect(result).toEqual([{ role: 'assistant', content: '' }]);
     });
@@ -244,7 +255,10 @@ describe('mapAnthropicContentBlockToGateway', () => {
         { type: 'tool_use', id: 'call_1', name: 'weather', input: {} },
       ];
 
-      const result = mapAnthropicContentBlockToGateway('assistant', blocks as any);
+      const result = mapAnthropicContentBlockToGateway(
+        'assistant',
+        blocks as any,
+      );
 
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe('Let me check');
@@ -272,7 +286,9 @@ describe('mapAnthropicContentBlockToGateway', () => {
   describe('validation errors', () => {
     it('should throw for unsupported block types', () => {
       expect(() =>
-        mapAnthropicContentBlockToGateway('user', [{ type: 'image', source: {} }] as any),
+        mapAnthropicContentBlockToGateway('user', [
+          { type: 'image', source: {} },
+        ] as any),
       ).toThrow(BadRequestException);
     });
 
@@ -282,7 +298,9 @@ describe('mapAnthropicContentBlockToGateway', () => {
       ).toThrow(BadRequestException);
 
       expect(() =>
-        mapAnthropicContentBlockToGateway('user', [{ type: 'text', text: '' }] as any),
+        mapAnthropicContentBlockToGateway('user', [
+          { type: 'text', text: '' },
+        ] as any),
       ).toThrow(BadRequestException);
     });
 
@@ -295,7 +313,10 @@ describe('mapAnthropicContentBlockToGateway', () => {
     it('should return assistant with empty content for only empty text', () => {
       const blocks = [{ type: 'text', text: '' }];
 
-      const result = mapAnthropicContentBlockToGateway('assistant', blocks as any);
+      const result = mapAnthropicContentBlockToGateway(
+        'assistant',
+        blocks as any,
+      );
 
       expect(result).toEqual([{ role: 'assistant', content: '' }]);
     });

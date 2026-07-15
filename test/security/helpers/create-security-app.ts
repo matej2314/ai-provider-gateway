@@ -20,7 +20,9 @@ export type CreateSecurityAppOptions = {
 
 export type SecurityAppContext = E2eAppContext;
 
-function toE2eOptions(options: CreateSecurityAppOptions = {}): CreateE2eAppOptions {
+function toE2eOptions(
+  options: CreateSecurityAppOptions = {},
+): CreateE2eAppOptions {
   return {
     config: options.config,
     providerRegistry: options.providerRegistry,

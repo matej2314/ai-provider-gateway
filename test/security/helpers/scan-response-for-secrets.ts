@@ -34,7 +34,10 @@ export function scanResponseForSecrets(
   options: { extraSecrets?: string[] } = {},
 ): SecretScanResult {
   const serialized = JSON.stringify(payload);
-  const literals = [...DEFAULT_LITERAL_SECRETS, ...(options.extraSecrets ?? [])];
+  const literals = [
+    ...DEFAULT_LITERAL_SECRETS,
+    ...(options.extraSecrets ?? []),
+  ];
   const findings: string[] = [];
 
   for (const secret of literals) {
@@ -57,7 +60,10 @@ export function scanHeadersForSecrets(
   options: { extraSecrets?: string[] } = {},
 ): SecretScanResult {
   const serialized = JSON.stringify(headers);
-  const literals = [...DEFAULT_LITERAL_SECRETS, ...(options.extraSecrets ?? [])];
+  const literals = [
+    ...DEFAULT_LITERAL_SECRETS,
+    ...(options.extraSecrets ?? []),
+  ];
   const findings: string[] = [];
 
   for (const secret of literals) {

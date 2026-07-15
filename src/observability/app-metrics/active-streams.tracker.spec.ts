@@ -17,7 +17,7 @@ describe('ActiveStreamsTracker', () => {
   });
 
   it('should increment on start and decrement on completion', async () => {
-    await tracker.trackStream(TEST_CLIENT, async () => 'done');
+    await tracker.trackStream(TEST_CLIENT, () => Promise.resolve('done'));
 
     expect(mockAppMetrics.setActiveStreams).toHaveBeenNthCalledWith(
       1,
@@ -32,9 +32,9 @@ describe('ActiveStreamsTracker', () => {
 
   it('should decrement even when fn throws', async () => {
     await expect(
-      tracker.trackStream(TEST_CLIENT, async () => {
-        throw new Error('stream failed');
-      }),
+      tracker.trackStream(TEST_CLIENT, () =>
+        Promise.reject(new Error('stream failed')),
+      ),
     ).rejects.toThrow('stream failed');
 
     expect(mockAppMetrics.setActiveStreams).toHaveBeenNthCalledWith(
@@ -60,7 +60,9 @@ describe('ActiveStreamsTracker', () => {
       1,
     );
 
-    const second = tracker.trackStream(TEST_CLIENT, async () => 'ok');
+    const second = tracker.trackStream(TEST_CLIENT, () =>
+      Promise.resolve('ok'),
+    );
     expect(mockAppMetrics.setActiveStreams).toHaveBeenLastCalledWith(
       TEST_CLIENT,
       2,
@@ -87,7 +89,7 @@ describe('ActiveStreamsTracker', () => {
     });
 
     const first = tracker.trackStream(TEST_CLIENT, () => firstBlocked);
-    await tracker.trackStream(OTHER_CLIENT, async () => 'ok');
+    await tracker.trackStream(OTHER_CLIENT, () => Promise.resolve('ok'));
 
     expect(mockAppMetrics.setActiveStreams).toHaveBeenCalledWith(
       TEST_CLIENT,

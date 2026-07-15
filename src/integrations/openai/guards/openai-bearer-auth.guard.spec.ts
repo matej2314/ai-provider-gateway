@@ -6,9 +6,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  OpenAiBearerAuthGuard,
-} from './openai-bearer-auth.guard';
+import { OpenAiBearerAuthGuard } from './openai-bearer-auth.guard';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { createMockExpressRequest } from '../../../common/mocks/http-mocks';
 import {
@@ -97,7 +95,7 @@ describe('OpenAiBearerAuthGuard', () => {
       const mockRequest = createMockExpressRequest({
         header: jest.fn(() => undefined),
         headers: {},
-      } as unknown as Partial<Request>) as Request;
+      }) as Request;
 
       const context = {
         switchToHttp: () => ({

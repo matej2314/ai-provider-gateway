@@ -169,21 +169,24 @@ describe('AppMetricsService', () => {
       const hook = jest.fn().mockResolvedValue(undefined);
       preMetricsScrapeRegistry.register(hook);
 
-      const snapshot = 'gateway_llm_requests_total 1\ngateway_http_requests_total 5\n';
+      const snapshot =
+        'gateway_llm_requests_total 1\ngateway_http_requests_total 5\n';
       mockBackend.getMetricsSnapshot!.mockResolvedValue(snapshot);
 
       const result = await service.getMetricsSnapshot();
 
       expect(hook).toHaveBeenCalled();
       expect(hook.mock.invocationCallOrder[0]).toBeLessThan(
-        (mockBackend.getMetricsSnapshot as jest.Mock).mock.invocationCallOrder[0],
+        (mockBackend.getMetricsSnapshot as jest.Mock).mock
+          .invocationCallOrder[0],
       );
       expect(mockBackend.getMetricsSnapshot).toHaveBeenCalled();
       expect(result).toBe(snapshot);
     });
 
     it('should delegate metrics export to backend when no hooks registered', async () => {
-      const snapshot = 'gateway_llm_requests_total 1\ngateway_http_requests_total 5\n';
+      const snapshot =
+        'gateway_llm_requests_total 1\ngateway_http_requests_total 5\n';
       mockBackend.getMetricsSnapshot!.mockResolvedValue(snapshot);
 
       const result = await service.getMetricsSnapshot();

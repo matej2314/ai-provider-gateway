@@ -15,7 +15,11 @@ import {
   type MockConfigServiceOptions,
 } from '../common/mocks/createMockConfigService';
 import { TEST_GATEWAY_KEY } from '../common/mocks/test-constants';
-import { asClientId, asGatewayKey, type GatewayKey } from '../common/types/branded.types';
+import {
+  asClientId,
+  asGatewayKey,
+  type GatewayKey,
+} from '../common/types/branded.types';
 import type { Request } from 'express';
 
 describe('GatewayKeyGuard', () => {
@@ -156,12 +160,12 @@ describe('GatewayKeyGuard', () => {
     });
 
     it('should throw when header is empty or whitespace only', () => {
-      expect(() => guard.canActivate(createMockContext({ 'x-gateway-key': '' }))).toThrow(
-        UnauthorizedException,
-      );
-      expect(() => guard.canActivate(createMockContext({ 'x-gateway-key': '   ' }))).toThrow(
-        UnauthorizedException,
-      );
+      expect(() =>
+        guard.canActivate(createMockContext({ 'x-gateway-key': '' })),
+      ).toThrow(UnauthorizedException);
+      expect(() =>
+        guard.canActivate(createMockContext({ 'x-gateway-key': '   ' })),
+      ).toThrow(UnauthorizedException);
     });
   });
 

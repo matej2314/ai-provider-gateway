@@ -69,7 +69,7 @@ describe('readAnthropicApiKey', () => {
     const mockRequest = createMockExpressRequest({
       header: jest.fn(() => undefined),
       headers: {},
-    } as unknown as Partial<Request>) as Request;
+    }) as Request;
 
     const result = readAnthropicApiKey(mockRequest);
 
@@ -155,7 +155,7 @@ describe('AnthropicApiKeyGuard', () => {
       const mockRequest = createMockExpressRequest({
         header: jest.fn(() => undefined),
         headers: {},
-      } as unknown as Partial<Request>) as Request;
+      }) as Request;
 
       const context = {
         switchToHttp: () => ({

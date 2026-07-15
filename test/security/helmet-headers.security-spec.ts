@@ -1,10 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { TEST_MODEL_ALIAS } from '../../src/common/mocks/test-constants';
-import {
-  E2E_API_PREFIX,
-  E2E_ROUTES,
-} from '../e2e/helpers/e2e-constants';
+import { E2E_API_PREFIX, E2E_ROUTES } from '../e2e/helpers/e2e-constants';
 import { createE2eProviderRegistry } from '../e2e/helpers/e2e-provider-registry';
 import {
   closeSecurityApp,
@@ -23,7 +20,7 @@ const nativeChatBody = {
 function getResponseHeaders(
   headers: request.Response['headers'],
 ): Record<string, string | string[] | undefined> {
-  return headers as Record<string, string | string[] | undefined>;
+  return headers;
 }
 
 function expectHelmetSecurityHeaders(
@@ -69,9 +66,9 @@ describe('Security: Helmet Headers', () => {
         .get(HEALTH_ROUTE)
         .expect(200);
 
-      expect(getResponseHeaders(response.headers)['x-content-type-options']).toBe(
-        'nosniff',
-      );
+      expect(
+        getResponseHeaders(response.headers)['x-content-type-options'],
+      ).toBe('nosniff');
     });
 
     it('should include Strict-Transport-Security on GET /api/v1/health', async () => {
@@ -93,8 +90,12 @@ describe('Security: Helmet Headers', () => {
         .get(METRICS_ROUTE)
         .expect(200);
 
-      expect(getResponseHeaders(health.headers)['x-powered-by']).toBeUndefined();
-      expect(getResponseHeaders(metrics.headers)['x-powered-by']).toBeUndefined();
+      expect(
+        getResponseHeaders(health.headers)['x-powered-by'],
+      ).toBeUndefined();
+      expect(
+        getResponseHeaders(metrics.headers)['x-powered-by'],
+      ).toBeUndefined();
     });
 
     it('should not set Content-Security-Policy (disabled in main.ts for API)', async () => {

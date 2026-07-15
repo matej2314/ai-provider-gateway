@@ -115,8 +115,7 @@ export function generateEnvTemplate(
   const isSentryEnabled = aiMetricsBackend === 'sentry';
 
   env.AI_METRICS_BACKEND = aiMetricsBackend;
-  env.METRICS_BACKEND =
-    input.nodeEnv === 'production' ? 'prometheus' : 'noop';
+  env.METRICS_BACKEND = input.nodeEnv === 'production' ? 'prometheus' : 'noop';
   env.ERROR_REPORTING_ADAPTER = isSentryEnabled ? 'sentry' : 'noop';
 
   env.SENTRY_ENABLED = String(isSentryEnabled);

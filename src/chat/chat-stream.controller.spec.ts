@@ -23,10 +23,12 @@ describe('ChatStreamController', () => {
   beforeEach(async () => {
     mockChatService = {
       validateForStreaming: jest.fn(),
-      executeStream: jest.fn().mockImplementation((_body, _reqId, _clientId, emit) => {
-        emit({ name: 'delta', data: { delta: 'Hello' } });
-        emit({ name: 'done', data: { finishReason: 'stop' } });
-      }),
+      executeStream: jest
+        .fn()
+        .mockImplementation((_body, _reqId, _clientId, emit) => {
+          emit({ name: 'delta', data: { delta: 'Hello' } });
+          emit({ name: 'done', data: { finishReason: 'stop' } });
+        }),
     };
 
     const module = await Test.createTestingModule({
