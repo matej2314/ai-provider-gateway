@@ -145,8 +145,11 @@ Szczegóły: `konfiguracja.md`.
 
 - Gateway nie jest “open proxy”: endpointy providerów są zaszyte w fabrykach SDK (`src/providers/factories/`).
 - **Dwa poziomy kluczy:** klient (IDE / aplikacja → allowlista gateway) vs provider (`.env` → SDK). Fasady używają tej samej allowlisty co `X-Gateway-Key`, ale innego nagłówka HTTP (`integracje.md`).
+- **Helmet** w `src/main.ts` (przed `setupApp`): `x-frame-options`, `x-content-type-options`, HSTS; CSP i COEP wyłączone (Swagger UI). **`x-powered-by`** wyłączone w `setup.app.ts` (`disable('x-powered-by')`).
+- Limit rozmiaru body JSON: **1 MB** (`express.json` w `setup.app.ts`); przekroczenie → **413** + `VALIDATION_FAILED` (`GlobalExceptionFilter` obsługuje `entity.too.large`).
 - Brak logowania sekretów: klucze i wrażliwe nagłówki są redagowane.
 - Ustandaryzowane błędy nie zawierają surowych treści wyjątków SDK na produkcji (natywne API: `ErrorEnvelope`; fasady: format vendora).
+- **Testy security** (`test/security/`, `npm run test:security`): auth bypass, nagłówki Helmet, information disclosure, rate-limit bypass, fuzzing property-based (`fast-check`) — szczegóły: [`testy.md`](testy.md).
 
 Szczegóły: `architektura_api.md` + `anty-patterny.md` + `integracje.md`.
 
@@ -176,7 +179,8 @@ Warstwa `src/common/types/` dostarcza **nominalne typy TypeScript** (`Brand<K, T
 ## Testy
 
 - **Jednostkowe:** `src/**/*.spec.ts` — logika czatu, mapery integracji, cache, rate limit, guardy, `ResilientExecutor`, health; mocki w `src/common/mocks/`. Uruchomienie: `npm test` (liczniki: [`testy.md`](testy.md)).
-- **E2E HTTP:** `test/e2e/` — pełny `AppModule` z override mocków (`createE2eApp`); scenariusze kontraktu dla natywnego czatu (w tym cache i stream), fasad OpenAI/Anthropic (w tym tooling i thinking) bez realnych kluczy API i Redis. Uruchomienie: `npm run test:e2e`; `npm run test:all` łączy oba poziomy — szczegóły i liczniki: [`testy.md`](testy.md).
+- **E2E HTTP:** `test/e2e/` — pełny `AppModule` z override mocków (`createE2eApp`); scenariusze kontraktu dla natywnego czatu (w tym cache i stream), fasad OpenAI/Anthropic (w tym tooling i thinking) bez realnych kluczy API i Redis. Uruchomienie: `npm run test:e2e`; `npm run test:all` łączy runtime + E2E.
+- **Security HTTP:** `test/security/` — auth bypass, Helmet, disclosure, rate limit, fuzzing (`fast-check`); bootstrap przez `create-security-app.ts` (wrapper `createE2eApp`). Uruchomienie: `npm run test:security`; w pipeline produkcyjnym: `npm run deploy:production`.
 - Szczegóły struktury, helperów i ograniczeń: **`testy.md`**.
 
 ## Struktura repo (orientacyjnie)

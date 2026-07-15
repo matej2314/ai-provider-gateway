@@ -32,9 +32,15 @@ ai-provider-gateway/
 ├── .gateway-wizard-state.json      # lokalnie — stan niedokończonego config:init (resume)
 ├── backup/                         # lokalnie — backupi YAML/.env z CLI (backup/* w .gitignore)
 ├── .gitignore
-├── Dockerfile
-├── docker-compose.yml
 ├── mcp.json                        # konfiguracja MCP dla IDE (Cursor) — nie wczytywany przez gateway przy starcie
+│
+├── deployment/                     # Docker, monitoring, szablony wdrożenia
+│   ├── docker/
+│   │   ├── Dockerfile              # Multi-stage build (production)
+│   │   ├── docker-compose.yml      # MVP: sam gateway
+│   │   └── docker-compose.*.yml    # redis, monitoring, ollama, dev
+│   ├── monitoring/                 # Prometheus, Grafana, alerty
+│   └── templates/                  # gateway.config.example.yaml, .env.example
 │
 ├── bin/                            # entry point CLI (osobny od HTTP app)
 │   ├── gateway-cli-wrapper.js      # npm bin — compiled dist/ lub fallback ts-node (bez build)
@@ -48,6 +54,7 @@ ai-provider-gateway/
 ├── test/
 │   ├── jest-e2e.json
 │   ├── jest-cli.json                 # npm run test:cli — src/cli/**/*.spec.ts
+│   ├── jest-security.json            # npm run test:security — test/security/**/*.security-spec.ts
 │   ├── jest-integration.json         # npm run test:integration — live SDK + Redis
 │   ├── fixtures/cli/                 # oczekiwane wyjścia wizarda (testy)
 │   ├── e2e/
@@ -62,7 +69,17 @@ ai-provider-gateway/
 │   │   ├── anthropic-facade.e2e-spec.ts
 │   │   ├── anthropic-facade-extended.e2e-spec.ts
 │   │   ├── helpers/
+│   │   │   └── create-e2e-app.ts   # applyHelmet, mocki infra
 │   │   └── setup/
+│   ├── security/                     # npm run test:security — hardening HTTP
+│   │   ├── auth-bypass.security-spec.ts
+│   │   ├── helmet-headers.security-spec.ts
+│   │   ├── information-disclosure.security-spec.ts
+│   │   ├── rate-limit-bypass.security-spec.ts
+│   │   ├── fuzzing-inputs.security-spec.ts
+│   │   └── helpers/
+│   │       ├── create-security-app.ts
+│   │       └── scan-response-for-secrets.ts
 │   └── integration/                  # live SDK + Redis (Docker); README.md — 15 plików *.integration-spec.ts
 │       ├── docker-compose.redis.yml
 │       ├── fixtures/
@@ -91,8 +108,8 @@ ai-provider-gateway/
 │       └── setup/
 │
 ├── src/
-│   ├── main.ts                     # bootstrap NestJS, Swagger, graceful shutdown
-│   ├── setup.app.ts                # global prefix api/v1, ValidationPipe, json 1mb, shutdown hooks
+│   ├── main.ts                     # bootstrap NestJS, helmet, Swagger, graceful shutdown
+│   ├── setup.app.ts                # global prefix api/v1, ValidationPipe, json 1mb, disable x-powered-by, shutdown hooks
 │   ├── instrument.ts               # inicjalizacja Sentry (import przed app)
 │   ├── app.module.ts
 │   │
@@ -480,7 +497,7 @@ ai-provider-gateway/
 │       ├── exceptions/
 │       │   └── unsupported-provider.exception.ts
 │       ├── filters/
-│       │   └── http-exception.filter.ts    # GlobalExceptionFilter
+│       │   └── http-exception.filter.ts    # GlobalExceptionFilter (+ entity.too.large → 413)
 │       ├── interceptors/
 │       │   └── stream-cleanup.interceptor.ts
 │       ├── middleware/
@@ -556,7 +573,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`bin/`**                               | Entry point CLI: wrapper JS (`gateway-cli-wrapper.js`) uruchamia skompilowany `dist/bin/gateway-cli.js` lub — gdy brak build — TypeScript przez `ts-node` (`gateway-cli.ts` → `CliModule`). Dostęp: `npm run cli`, `npx gateway`, bin **`gateway`** z `package.json` (po `npm link` lub instalacji globalnej).                                                                                                                                                                                                                                                                                                          |
 | **`src/cli/`**                           | Warstwa CLI: **nie importuje** `ConfigModule`. NestJS tylko dla DI. Wizard (`config:init`), walidacja/wyświetlanie configu, CRUD providerów (multi-instance), modeli, klientów, testy SDK, generowanie kluczy. Szczegóły: `CLI.md`, `architektura.md`.                                                                                                                                                                                                                                                                                                                                                                  |
 | **`scripts/`**                           | Walidacja konfiguracji offline (`npm run config:validate` → `validateGatewayConfig()`); generowanie kluczy — **`gateway key:generate`**.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| **`test/`**                              | Testy: E2E HTTP (`test/e2e/`, mocki), jednostkowe CLI (`test/jest-cli.json`), integracyjne live (`test/integration/`). Skrypty: `npm run test:e2e`, `npm run test:cli`, `npm run test:integration`, `npm run test:all` (runtime + E2E). Szczegóły: **`testy.md`**.                                                                                                                                                                                                                                                                                                                                                      |
+| **`test/`**                              | Testy: E2E HTTP (`test/e2e/`, mocki), **security** (`test/security/`), jednostkowe CLI (`test/jest-cli.json`), integracyjne live (`test/integration/`). Skrypty: `npm run test:e2e`, `npm run test:security`, `npm run test:cli`, `npm run test:integration`, `npm run test:all` (runtime + E2E), `npm run deploy:production`. Szczegóły: **`testy.md`**.                                                                                                                                                                                                                                                                                                                                                      |
 | **`docs/`**                              | Dokumentacja i specyfikacje SDD (`spec/`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ---

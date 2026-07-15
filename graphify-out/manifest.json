@@ -25,8 +25,8 @@
     "semantic_hash": "e4f9ea8d975b51da6b1c67892edbad84"
   },
   "package.json": {
-    "mtime": 1783967724.7078655,
-    "ast_hash": "5ba666a1d862a73eba34ccc98a9984a7",
+    "mtime": 1784108374.375033,
+    "ast_hash": "d7a907967c3b237095b324991b9e14a1",
     "semantic_hash": ""
   },
   "scripts/generate-key.ps1": {
@@ -45,8 +45,8 @@
     "semantic_hash": "c232428c56f0f1ffb6a0ff9592599f53"
   },
   "src/app.module.ts": {
-    "mtime": 1783875203.1750212,
-    "ast_hash": "faa4b2c1651f639f16610b6575b010cf",
+    "mtime": 1784039685.4027047,
+    "ast_hash": "70fa6c1ffa5437c0ab96934009f19ca5",
     "semantic_hash": ""
   },
   "src/cache/adapters/noop-cache/noop-cache.adapter.spec.ts": {
@@ -320,7 +320,7 @@
     "semantic_hash": "2acaca523de342b793eb9bedc3973b9c"
   },
   "src/chat/helpers/system-prompt.ts": {
-    "mtime": 1779440091.9312618,
+    "mtime": 1784113356.8967347,
     "ast_hash": "47fa4ddc58674a95d1c5d7248544d122",
     "semantic_hash": "47fa4ddc58674a95d1c5d7248544d122"
   },
@@ -870,9 +870,9 @@
     "semantic_hash": "6da97dba4f8cda5b5b9822d3c1392041"
   },
   "src/common/filters/http-exception.filter.ts": {
-    "mtime": 1783606186.4807127,
-    "ast_hash": "df12aa8510400a88b08f86788a30c4f0",
-    "semantic_hash": "df12aa8510400a88b08f86788a30c4f0"
+    "mtime": 1784114204.776499,
+    "ast_hash": "dfab39f4f3b738b80b1aca2ca4b69b3d",
+    "semantic_hash": ""
   },
   "src/common/interceptors/stream-cleanup.interceptor.spec.ts": {
     "mtime": 1783606186.4819684,
@@ -1890,7 +1890,7 @@
     "semantic_hash": ""
   },
   "src/setup.app.ts": {
-    "mtime": 1783958016.7949972,
+    "mtime": 1784114035.2142491,
     "ast_hash": "90e524d71b0cd48122a935d9aebe341b",
     "semantic_hash": ""
   },
@@ -1945,9 +1945,9 @@
     "semantic_hash": "1dce147f014466a93042c065750711d9"
   },
   "test/e2e/helpers/create-e2e-app.ts": {
-    "mtime": 1783606186.5405416,
-    "ast_hash": "102c537f70850ea5983cdd8e428f350e",
-    "semantic_hash": "102c537f70850ea5983cdd8e428f350e"
+    "mtime": 1784111975.930832,
+    "ast_hash": "15301cd32ab42d05c306db612993278d",
+    "semantic_hash": ""
   },
   "test/e2e/helpers/e2e-constants.ts": {
     "mtime": 1783606186.5416765,
@@ -2194,11 +2194,6 @@
     "ast_hash": "d35d624bfb634784b2f9376a1ffea8c1",
     "semantic_hash": "d35d624bfb634784b2f9376a1ffea8c1"
   },
-  "deployment/monitoring/grafana/dashboards/ai-gateway-overview.json": {
-    "mtime": 1783684752.8587985,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
-    "semantic_hash": ""
-  },
   "deployment/scripts/deploy-production.sh": {
     "mtime": 1783684801.6073446,
     "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
@@ -2235,8 +2230,8 @@
     "semantic_hash": ""
   },
   "deployment/docker/docker-compose.monitoring.yml": {
-    "mtime": 1783694771.3342612,
-    "ast_hash": "c950b526bb7ddacf550bf7d934a9b3bb",
+    "mtime": 1784043145.7746623,
+    "ast_hash": "63bf9ff6ea1069c573532d9f7709d781",
     "semantic_hash": ""
   },
   "deployment/docker/docker-compose.ollama.yml": {
@@ -2250,7 +2245,7 @@
     "semantic_hash": ""
   },
   "deployment/docker/docker-compose.yml": {
-    "mtime": 1784030092.0072367,
+    "mtime": 1784105978.025111,
     "ast_hash": "3c300986749e3ec721eddb1e51a14c8a",
     "semantic_hash": ""
   },
@@ -2260,13 +2255,13 @@
     "semantic_hash": ""
   },
   "deployment/monitoring/grafana/provisioning/dashboards/dashboard.yml": {
-    "mtime": 1783684714.685287,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1784032591.961728,
+    "ast_hash": "23d4e1c1c37afd12f07642add148495d",
     "semantic_hash": ""
   },
   "deployment/monitoring/grafana/provisioning/datasources/prometheus.yml": {
-    "mtime": 1783684692.3274775,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1784033255.925612,
+    "ast_hash": "28806f05b64f2b436ea6f5dbf1675882",
     "semantic_hash": ""
   },
   "deployment/monitoring/prometheus.yml": {
@@ -2525,8 +2520,8 @@
     "semantic_hash": ""
   },
   "src/observability/app-metrics/app-metrics.service.ts": {
-    "mtime": 1784030895.9600372,
-    "ast_hash": "8464e7d62205b8763064f85db76d983d",
+    "mtime": 1784038727.8431745,
+    "ast_hash": "e73b0ccb4791458ba27f6799e36d5f1d",
     "semantic_hash": ""
   },
   "src/observability/app-metrics/metrics.controller.ts": {
@@ -2535,13 +2530,13 @@
     "semantic_hash": ""
   },
   "src/observability/app-metrics/prometheus.service.ts": {
-    "mtime": 1784028327.1430705,
-    "ast_hash": "25cf5a7311532dcfe10a0c7f0ae9c118",
+    "mtime": 1784038457.469474,
+    "ast_hash": "dd8e108d08d2a5020371799a4ea90fea",
     "semantic_hash": ""
   },
   "src/observability/app-metrics/prometheus.types.ts": {
-    "mtime": 1784028325.6424212,
-    "ast_hash": "a85cd253f2f7c4447e5ddda2280cb487",
+    "mtime": 1784038258.0345914,
+    "ast_hash": "af983d1c33fb2891db9181c056da0978",
     "semantic_hash": ""
   },
   "src/common/resolveClientIdFromKey.ts": {
@@ -2555,18 +2550,18 @@
     "semantic_hash": ""
   },
   "src/observability/app-metrics/adapters/noop-app-metrics.adapter.ts": {
-    "mtime": 1784028327.5420134,
-    "ast_hash": "f4366895874b8ca75b65c48d00ffe4fb",
+    "mtime": 1784038482.3655822,
+    "ast_hash": "b448276e3b3350b708e59a1852f3c0b9",
     "semantic_hash": ""
   },
   "src/observability/app-metrics/adapters/prometheus-app-metrics.adapter.ts": {
-    "mtime": 1784028327.3352737,
-    "ast_hash": "af8b124c5a36bae9ece501df61df6447",
+    "mtime": 1784038474.0973725,
+    "ast_hash": "b8ed67b826f4e5e1a9e3df25996f4513",
     "semantic_hash": ""
   },
   "src/observability/app-metrics/app-metrics.service.spec.ts": {
-    "mtime": 1784030925.0984693,
-    "ast_hash": "833abdc3bd4c2f06d701cdcf0d30647e",
+    "mtime": 1784040008.7124221,
+    "ast_hash": "2f354e002ba1783052978ce2b10165e0",
     "semantic_hash": ""
   },
   "src/observability/app-metrics/app-metrics.tokens.ts": {
@@ -2575,8 +2570,8 @@
     "semantic_hash": ""
   },
   "src/observability/app-metrics/interfaces/app-metrics-backend.interface.ts": {
-    "mtime": 1784028236.4804275,
-    "ast_hash": "a346caeb424f7c07ff2c9af2661079d6",
+    "mtime": 1784037919.9498105,
+    "ast_hash": "70c98a2f5b8f8d1cf2535e058215315c",
     "semantic_hash": ""
   },
   "src/observability/observability.module.ts": {
@@ -2595,8 +2590,8 @@
     "semantic_hash": ""
   },
   "src/observability/app-metrics/adapters/prometheus-app-metrics.adapter.spec.ts": {
-    "mtime": 1784028330.1060495,
-    "ast_hash": "02ad61cea25a56e9828ffedc71c8c458",
+    "mtime": 1784039991.2909012,
+    "ast_hash": "f27c26aa5752d3ad513521472dd99be1",
     "semantic_hash": ""
   },
   "src/observability/app-metrics/pre-metrics-scrape.registry.spec.ts": {
@@ -2607,6 +2602,66 @@
   "src/observability/app-metrics/pre-metrics-scrape.registry.ts": {
     "mtime": 1784030895.452926,
     "ast_hash": "4bea13243d7dcc7213c432a9da0f9079",
+    "semantic_hash": ""
+  },
+  "deployment/monitoring/grafana/dashboards/ai-gateway-health.json": {
+    "mtime": 1784043094.571893,
+    "ast_hash": "e4b6a0fc05a3260b5192aaea0878be01",
+    "semantic_hash": ""
+  },
+  "deployment/monitoring/grafana/dashboards/ai-gateway-llm.json": {
+    "mtime": 1784043145.6317635,
+    "ast_hash": "c57a552539f7fdec486356e99543c947",
+    "semantic_hash": ""
+  },
+  "deployment/monitoring/grafana/dashboards/ai-gateway-technical.json": {
+    "mtime": 1784044040.788634,
+    "ast_hash": "306663e06120fb8c3299565ccf330c92",
+    "semantic_hash": ""
+  },
+  "src/common/middleware/http-metrics.middleware.ts": {
+    "mtime": 1784039444.5504913,
+    "ast_hash": "871611dfb29cc692fdc416ac96be2174",
+    "semantic_hash": ""
+  },
+  "test/jest-security.json": {
+    "mtime": 1784108525.9352877,
+    "ast_hash": "90e344c3421ce7ccba5122039d0f1f43",
+    "semantic_hash": ""
+  },
+  "test/security/auth-bypass.security-spec.ts": {
+    "mtime": 1784112273.865036,
+    "ast_hash": "10b337fe4b306c29857bb64f71b31cb8",
+    "semantic_hash": ""
+  },
+  "test/security/fuzzing-inputs.security-spec.ts": {
+    "mtime": 1784114162.8705013,
+    "ast_hash": "6bce477d1f9c7ed6c0827ac28f7dbd10",
+    "semantic_hash": ""
+  },
+  "test/security/helmet-headers.security-spec.ts": {
+    "mtime": 1784114411.6158018,
+    "ast_hash": "305a1f38e002d94ae1079fff9a7fa405",
+    "semantic_hash": ""
+  },
+  "test/security/helpers/create-security-app.ts": {
+    "mtime": 1784112120.2848432,
+    "ast_hash": "f04aecc0fe9ff09e56dfa353dce9fb09",
+    "semantic_hash": ""
+  },
+  "test/security/helpers/scan-response-for-secrets.ts": {
+    "mtime": 1784112742.161736,
+    "ast_hash": "121b6c38923be0fc25f40e2f1246ec8c",
+    "semantic_hash": ""
+  },
+  "test/security/information-disclosure.security-spec.ts": {
+    "mtime": 1784112716.2078433,
+    "ast_hash": "8014b4a8fbd9465b3a7214ab188cf8e3",
+    "semantic_hash": ""
+  },
+  "test/security/rate-limit-bypass.security-spec.ts": {
+    "mtime": 1784112511.5477123,
+    "ast_hash": "12e9511e47accf1f4e6ca1bb4359e32f",
     "semantic_hash": ""
   }
 }

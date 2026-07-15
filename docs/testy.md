@@ -1,6 +1,6 @@
 # Testy — AI Provider Gateway
 
-Wersja dokumentu: **2.1** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
+Wersja dokumentu: **2.2** (zsynchronizowana z `package.json`, `test/` i `src/**/*.spec.ts`).
 
 ## Przegląd
 
@@ -9,16 +9,18 @@ Wersja dokumentu: **2.1** (zsynchronizowana z `package.json`, `test/` i `src/**/
 | **Jednostkowe (runtime)**           | `src/**/*.spec.ts` (obok modułów; **bez** `src/cli/`) | Jest (`rootDir: src`, `testPathIgnorePatterns: cli/`) | `npm test`                 |
 | **Jednostkowe (CLI)**               | `src/cli/**/*.spec.ts`                                | Jest (`test/jest-cli.json`)                           | `npm run test:cli`         |
 | **E2E (HTTP, mocki)**               | `test/e2e/*.e2e-spec.ts`                              | Jest (`test/jest-e2e.json`)                           | `npm run test:e2e`         |
+| **Security (HTTP, mocki)**          | `test/security/*.security-spec.ts`                    | Jest (`test/jest-security.json`)                      | `npm run test:security`    |
 | **Integracyjne (live SDK + Redis)** | `test/integration/*.integration-spec.ts`              | Jest (`test/jest-integration.json`)                   | `npm run test:integration` |
 | **Runtime + E2E**                   | —                                                     | `npm test` + `npm run test:e2e`                       | `npm run test:all`         |
 
 **Stan repozytorium (liczniki z ostatniego uruchomienia):**
 
-| Skrypt             | Zestawy | Przypadki |
-| ------------------ | ------- | --------- |
-| `npm test`         | 91      | 1220      |
-| `npm run test:cli` | 12      | 62        |
-| `npm run test:e2e` | 10      | 105       |
+| Skrypt                    | Zestawy | Przypadki |
+| ------------------------- | ------- | --------- |
+| `npm test`                | 91      | 1229      |
+| `npm run test:cli`        | 12      | 62        |
+| `npm run test:e2e`        | 10      | 105       |
+| `npm run test:security`   | 5       | 51        |
 
 Integracyjne wymagają Docker (Redis) i `.env.test` — patrz `test/integration/README.md`.
 
@@ -28,9 +30,12 @@ Dodatkowe skrypty z `package.json`:
 - `npm run test:cli:watch` — jednostkowe CLI w trybie watch
 - `npm run test:cov` — pokrycie kodu runtime (`coverage/`; CLI wyłączone z `collectCoverageFrom`)
 - `npm run test:debug` — debug jednostkowych runtime (Node inspect)
+- `npm run test:security:watch` — security w trybie watch (`maxWorkers: 1`)
+- `npm run test:security:ci` — security z `--ci` i pokryciem (`coverage-security/`)
 - `npm run test:integration:redis:up` / `:down` — kontener Redis testowy (port **6380**, DB **15**)
+- `npm run deploy:production` — `test:security` + `docker:build` + `docker:up:full`
 
-Testy **jednostkowe i E2E nie wymagają** uruchomionego serwera HTTP, Redis ani kluczy API providerów — E2E bootstrapują aplikację NestJS w procesie testowym z mockami infrastruktury.
+Testy **jednostkowe, E2E i security nie wymagają** uruchomionego serwera HTTP, Redis ani kluczy API providerów — E2E i security bootstrapują aplikację NestJS w procesie testowym z mockami infrastruktury.
 
 ## Testy jednostkowe — runtime (`src/`, bez CLI)
 
@@ -92,6 +97,7 @@ Konwencja nazw: `*-facade*.e2e-spec.ts` = test **fasady HTTP** (`src/integration
 **`helpers/create-e2e-app.ts`** — `createE2eApp()` / `withE2eApp()`:
 
 - `Test.createTestingModule({ imports: [AppModule] })` + `setupApp(app)`.
+- Opcja **`applyHelmet: true`** — `helmet()` przed `setupApp()` (ta sama kolejność co `src/main.ts`; używana w testach security nagłówków).
 - **Override'y** (bez Redis / bez realnych SDK): `ConfigService`, `ProviderRegistryService`, `RedisConnectionService` (mock z `ping()` i `isReady()` — wymagane przez warm-up health przy starcie), `ProviderInstancesBootstrap`, `LoggingService`; opcjonalnie `SmartRateLimiterService`.
 
 **`helpers/e2e-provider-registry.ts`** — mock `AIProvider` per alias; wariant fallback; wsparcie `providerType: openai`.
@@ -150,6 +156,22 @@ Pliki spec (`test/integration/*.integration-spec.ts`, **15** zestawów):
 
 Szczegóły setupu: **`test/integration/README.md`**.
 
+## Testy security (`test/security/`)
+
+Konfiguracja: `test/jest-security.json` — `testMatch: **/*.security-spec.ts`, `roots: test/security`, `maxWorkers: 1`, `setupFilesAfterEnv: test/e2e/setup/jest-e2e.setup.ts`, pokrycie → `coverage-security/`.
+
+Warstwa weryfikuje **hardening HTTP** (auth, nagłówki, disclosure, rate limit, odporność na złe wejście) bez live SDK i Redis. Bootstrap przez **`helpers/create-security-app.ts`** — cienki wrapper nad `createE2eApp` / `withE2eApp` z tymi samymi override'ami mocków.
+
+| Plik | Zakres |
+| ---- | ------ |
+| `auth-bypass.security-spec.ts` | Próby obejścia auth: injekcja tablic w nagłówkach, warianty wielkości liter, trim, puste wartości, Bearer/`x-api-key` na fasadach, health bez klucza |
+| `helmet-headers.security-spec.ts` | Nagłówki Helmet (`x-frame-options`, `x-content-type-options`, HSTS), brak `x-powered-by`, brak CSP/COEP (wyłączone w `main.ts`), spójność na health/chat/404/metrics |
+| `information-disclosure.security-spec.ts` | Brak wycieku sekretów/stack trace w body i nagłówkach błędów (natywny + fasady); helper `scan-response-for-secrets.ts` |
+| `rate-limit-bypass.security-spec.ts` | Smart rate limit: burst, równoległe streamy, izolacja kluczy klientów, health poza limitem |
+| `fuzzing-inputs.security-spec.ts` | Property-based (`fast-check`): losowe `modelAlias`, `messages`, pola JSON — brak **5xx**, brak disclosure przy **4xx** |
+
+**Czego security nie obejmują:** live Redis, realne SDK providerów, pełny łańcuch `configuration.ts` z dysku (jak E2E — mock w setup).
+
 ## Czego testy E2E nie obejmują
 
 - Rzeczywiste wywołania API Anthropic / Google / OpenAI (SDK mockowane).
@@ -165,11 +187,13 @@ Szczegóły setupu: **`test/integration/README.md`**.
 npm test                  # jednostkowe runtime
 npm run test:cli          # jednostkowe CLI
 npm run test:e2e          # E2E HTTP
+npm run test:security     # security HTTP (auth, helmet, fuzzing, disclosure)
 npm run test:all          # runtime + E2E
 npm run test:integration  # live (Docker + .env.test)
 npm run test:cov          # pokrycie runtime
+npm run deploy:production # test:security + build + docker:up:full
 ```
 
-Nie są wymagane zmienne env providerów ani działający Redis dla `npm test`, `npm run test:cli` i `npm run test:e2e`.
+Nie są wymagane zmienne env providerów ani działający Redis dla `npm test`, `npm run test:cli`, `npm run test:e2e` i `npm run test:security`.
 
 Powiązane: `architektura-katalogi-pliki.md` (drzewo `test/`), `architektura.md`, `CLI.md` (testy CLI).

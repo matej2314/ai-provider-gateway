@@ -41,7 +41,8 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 | Architektura fasad IDE                      | [`docs/integracje.md`](docs/integracje.md)                                                                                                                                          |
 | Gateway CLI                                 | [`docs/CLI.md`](docs/CLI.md)                                                                                                                                                        |
 | Wdrożenie (Docker Compose)                  | [`docs/deployment.md`](docs/deployment.md)                                                                                                                                          |
-| Testy (jednostkowe, CLI, E2E, integracyjne) | [`docs/testy.md`](docs/testy.md)                                                                                                                                                    |
+| Testy (jednostkowe, CLI, E2E, security, integracyjne) | [`docs/testy.md`](docs/testy.md)                                                                                                                                                    |
+| Bezpieczeństwo (polityka, klucze, scope)                | [`SECURITY.md`](SECURITY.md)                                                                                                                                                        |
 
 ## Dystrybucja
 
@@ -107,7 +108,7 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 - **Multi-provider (runtime)**: adaptery SDK w `src/providers/` — Anthropic, Google Gemini, OpenAI, OpenAI-compatible — [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)
 - **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
 - **Models catalog**: natywny `GET /api/v1/models` + fasady — wspólny `GatewayModelsCatalogService`, ten sam zestaw aliasów z YAML
-- **Production-ready**: Helmet.js security headers, Pino logging, Sentry AI observability, **Prometheus app metrics** (`GET /metrics`, health gauges odświeżane przy scrape), reguły alertów w `deployment/monitoring/alerts.yml`, graceful shutdown, readiness probes, Docker Compose (`deployment/`)
+- **Production-ready**: Helmet.js security headers (`main.ts`), wyłączone `x-powered-by`, limit body JSON **1 MB**, dedykowane testy security (`test/security/`), Pino logging, Sentry AI observability, **Prometheus app metrics** (`GET /metrics`, health gauges odświeżane przy scrape), reguły alertów w `deployment/monitoring/alerts.yml`, graceful shutdown, readiness probes, Docker Compose (`deployment/`)
 - **Type safety (brand types)**: nominalne typy TS dla kluczy, identyfikatorów, metryk i policy (`src/common/types/`) — compile-time bez kosztu runtime; przewodnik: [`docs/brand-types.md`](docs/brand-types.md)
 - **CLI wizard**: `gateway config:init` — interaktywna konfiguracja, `provider:test`, model/client management
 
@@ -278,7 +279,7 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 | Katalog aliasów modeli      | [`GatewayModelsCatalogService`](src/models/services/gateway-models-catalog.service.ts) — natywny `GET /models` + fasady przez mappery           |
 | Wywołania providerów + SSE  | [`ChatProviderCallService`](src/chat/services/chat-provider-call.service.ts)                                                                    |
 | Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`, `openai/` — Chat Completions + Responses)            |
-| Błędy / `requestId`         | [`GlobalExceptionFilter`](src/common/filters/http-exception.filter.ts), [`RequestIdMiddleware`](src/common/middleware/request-id.middleware.ts) |
+| Błędy / `requestId`         | [`GlobalExceptionFilter`](src/common/filters/http-exception.filter.ts) (w tym **413** dla `entity.too.large`), [`RequestIdMiddleware`](src/common/middleware/request-id.middleware.ts) |
 | Observability               | [`src/observability/`](src/observability/) — `AiMetricsModule` (Sentry LLM), `AppMetricsModule` (Prometheus RED + health gauges, `GET /metrics`) |
 | Brand types (TS)            | [`src/common/types/`](src/common/types/) — `Brand`, guardy, helpery `as*` / `create*`; barrel: `index.ts`                                       |
 
@@ -288,7 +289,7 @@ Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalog
 
 Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
 
-Aktualne liczniki: `npm test` — **91** zestawów / **1220** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105** (źródło: [`docs/testy.md`](docs/testy.md)).
+Aktualne liczniki: `npm test` — **91** zestawów / **1229** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105**; `npm run test:security` — **5** / **51** (źródło: [`docs/testy.md`](docs/testy.md)).
 
 Uruchomienie:
 
@@ -296,6 +297,7 @@ Uruchomienie:
 npm test                 # jednostkowe (src/, bez src/cli/)
 npm run test:cli         # jednostkowe CLI (src/cli/)
 npm run test:e2e         # end-to-end HTTP (mocki)
+npm run test:security    # security HTTP (auth, helmet, fuzzing, disclosure)
 npm run test:integration # live SDK + Redis (Docker, .env.test)
 npm run test:all         # jednostkowe + E2E
 ```
@@ -349,6 +351,7 @@ npm run config:validate # walidacja offline (scripts/validate-config.ts)
 npm test                # jednostkowe (src/, bez cli/)
 npm run test:cli        # jednostkowe CLI (src/cli/)
 npm run test:e2e        # E2E HTTP (test/e2e/)
+npm run test:security   # security HTTP (test/security/)
 npm run test:integration # integracyjne live (test/integration/, Docker Redis)
 npm run test:all        # jednostkowe + E2E
 
@@ -362,6 +365,7 @@ npm run docker:up:dev          # dev z hot reload
 npm run docker:down
 npm run deploy:mvp             # test:all + build + docker:up
 npm run deploy:staging         # test:all + build + docker:up:monitoring
+npm run deploy:production      # test:security + build + docker:up:full
 ```
 
 Pełna lista targetów Make: [`Makefile`](Makefile).

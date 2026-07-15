@@ -42,7 +42,7 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 20. **Fasady integracji (IDE)** — równoległe API OpenAI i Anthropic nad tym samym `ChatService` (`src/integrations/`). **Fasada ≠ provider runtime:** `/api/v1/openai/*` i `/api/v1/anthropic/*` to kształty kontraktów HTTP (standardy dla Cursor / Claude Code), **nie** gwarancja backendu OpenAI.com ani Anthropic — routing LLM wyłącznie przez `modelAlias` w YAML. Adapter runtime OpenAI (`type: openai`, `openai-compatible`) jest **wdrożony** w `src/providers/`. Szczegóły: **`dictionary.md`** (sekcja „Fasada vs provider runtime”), `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`, **`provider-openai-runtime.md`**.
 21. **CLI** — osobny entry point `bin/`, moduł `src/cli/` bez `ConfigModule`; wizard **`gateway config:init`**, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli i klientów, `provider:test`, `key:generate`. Backup mutacji YAML → katalog `backup/`. Uruchomienie: `npm run cli`, `npx gateway`, opcjonalnie `npm link` → `gateway`. Szczegóły: **`CLI.md`**, `architektura-katalogi-pliki.md` (sekcja 2a), `architektura.md`.
 22. **Wdrożenie** — Docker Compose w `deployment/` (multi-stage Dockerfile, modularne compose: MVP, Redis, monitoring, Ollama, dev); szablony `deployment/templates/`; skrypty `npm run docker:*`, `make docker-*`. Szczegóły: **`deployment.md`**.
-23. **Testy** — cztery warstwy: jednostkowe runtime (`npm test`, **91** zestawów / **1220** przypadków, bez `src/cli/`), jednostkowe CLI (`npm run test:cli`, **12** / **62**), E2E HTTP mock (`test/e2e/`, **10** / **105**), integracyjne live SDK+Redis (`test/integration/`, **15** zestawów, `npm run test:integration`); `npm run test:all` = runtime + E2E — **`testy.md`** (single source of truth dla liczników).
+23. **Testy** — pięć warstw: jednostkowe runtime (`npm test`, **91** zestawów / **1229** przypadków, bez `src/cli/`), jednostkowe CLI (`npm run test:cli`, **12** / **62**), E2E HTTP mock (`test/e2e/`, **10** / **105**), **security HTTP** (`test/security/`, **5** / **51**, `npm run test:security`), integracyjne live SDK+Redis (`test/integration/`, **15** zestawów, `npm run test:integration`); `npm run test:all` = runtime + E2E; `npm run deploy:production` = security + Docker full stack — **`testy.md`** (single source of truth dla liczników).
 
 ## Spis plików
 
@@ -65,7 +65,8 @@ Szczegóły modelu: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md)
 - `architektura-katalogi-pliki.md` — drzewo katalogów repo, w tym **CLI** (`bin/`, `src/cli/`, sekcja 2a).
 - `CLI.md` — dokumentacja Gateway CLI (18 komend: `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate`; wizard, backup w `backup/`, uruchomienie).
 - `deployment.md` — wdrożenie Docker Compose (`deployment/`), szablony z `deployment/templates/`, warianty stacku (MVP, Redis, monitoring), checklist produkcyjny.
-- `testy.md` — testy jednostkowe (runtime + CLI), E2E i integracyjne; skrypty `npm test`, `npm run test:cli`, `npm run test:e2e`, `npm run test:integration`, `npm run test:all`.
+- `testy.md` — testy jednostkowe (runtime + CLI), E2E, **security** i integracyjne; skrypty `npm test`, `npm run test:cli`, `npm run test:e2e`, `npm run test:security`, `npm run test:integration`, `npm run test:all`, `npm run deploy:production`.
+- `../SECURITY.md` _(w katalogu głównym repo)_ — polityka bezpieczeństwa, klucze, scope, zgłaszanie podatności.
 
 ## Specyfikacje (SDD)
 

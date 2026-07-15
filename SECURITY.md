@@ -29,7 +29,7 @@
 
 ### Gateway NIE JEST open proxy
 
-Gateway **nie** przekazuje dowolnych requestów do dowolnych URL — wyłącznie wywołania zarejestrowanych providerów (obecnie: `anthropic`, `google`) przez SDK z kluczami z `.env`.  
+Gateway **nie** przekazuje dowolnych requestów do dowolnych URL — wyłącznie wywołania zarejestrowanych providerów (`anthropic`, `google`, `openai`, `openai-compatible`) przez SDK z kluczami z `.env` (dla `openai` / `openai-compatible` wymagany `baseUrlRef` w YAML).  
 Klient **nie** może podać własnego klucza providera przez API.
 
 ## Uwierzytelnianie klientów
@@ -76,6 +76,8 @@ Gateway obsługuje:
   - gdy Redis jest niedostępny — limiter przepuszcza requesty (fail-open; operator powinien monitorować Redis).
 - Timeout i retry dla wywołań upstream (`ResilientExecutor`, domyślnie: 30s timeout, do 3 prób na statusy 429/5xx).
 - Redakcję wrażliwych nagłówków w logach (`authorization`, `x-gateway-key`, `*.apiKey`, `*.gatewayKey`).
+- Nagłówki HTTP hardening (Helmet w `src/main.ts`, wyłączone `x-powered-by`, limit body JSON 1 MB).
+- Automatyczne testy security (`npm run test:security`, `test/security/`) — auth bypass, Helmet, information disclosure, rate limit, fuzzing; szczegóły: [`docs/testy.md`](docs/testy.md).
 
 Gateway **nie** obsługuje (out of scope):
 

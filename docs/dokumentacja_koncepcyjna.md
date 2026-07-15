@@ -72,6 +72,7 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 - Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter`). **`requestId`**: propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) — **wdrożone** dla Anthropic/Google/OpenAI (`PROVIDER_*`); limity gateway — **`RATE_LIMITED`** (`SmartRateLimitGuard`: RPS/streamy; cooldown: `prepareRequestForExecution` + `ChatErrorHandlerService`).
 - Testy jednostkowe przy modułach (`src/**/*.spec.ts`, `npm test`).
 - Testy E2E HTTP (`test/e2e/`, `npm run test:e2e`, `npm run test:all`) — kontrakt natywnego czatu (w tym cache, stream), fasad OpenAI/Anthropic (w tym tooling, thinking) z mockowanymi providerami — **`testy.md`**.
+- Testy security HTTP (`test/security/`, `npm run test:security`) — auth bypass, Helmet, information disclosure, rate limit, fuzzing property-based — **`testy.md`**; w deploy produkcyjnym: `npm run deploy:production`.
 
 ## Poza zakresem (wybrane wykluczenia na start)
 

@@ -435,7 +435,8 @@ Przed wdrożeniem na produkcję:
 - [ ] Limity rate limit — dopasowane do tierów API providerów i ruchu
 - [ ] Redis — jeśli włączony cache (`CACHE_BACKEND=redis`) lub smart rate limit
 - [ ] `gateway config:validate` — sukces na serwerze docelowym (pełniejsza niż sam `npm run config:validate`)
-- [ ] `npm run test:all` — przed deployem produkcyjnym
+- [ ] `npm run test:all` — przed deployem MVP/staging
+- [ ] `npm run test:security` — przed deployem produkcyjnym (`npm run deploy:production` uruchamia to automatycznie)
 - [ ] `curl http://localhost:3000/metrics` — gauge `gateway_readiness` zgodny ze stanem aplikacji (po włączeniu stacku monitoring)
 - [ ] Backup zaszyfrowanych plików konfiguracyjnych
 

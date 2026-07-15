@@ -1,0 +1,23 @@
+{
+  "displayName": "security",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "roots": ["<rootDir>/security"],
+  "testEnvironment": "node",
+  "testMatch": ["**/*.security-spec.ts"],
+  "setupFilesAfterEnv": ["<rootDir>/e2e/setup/jest-e2e.setup.ts"],
+  "testTimeout": 60000,
+  "maxWorkers": 1,
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/../src/$1"
+  },
+  "collectCoverageFrom": [
+    "../src/**/*.(t|j)s",
+    "!../src/cli/**",
+    "!../src/**/*.spec.ts"
+  ],
+  "coverageDirectory": "../coverage-security"
+}

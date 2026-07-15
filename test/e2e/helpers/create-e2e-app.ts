@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
 import { AppModule } from '../../../src/app.module';
 import { setupApp } from '../../../src/setup.app';
 import { ProviderRegistryService } from '../../../src/providers/provider-registry.service';
@@ -32,6 +33,8 @@ export type CreateE2eAppOptions = {
   config?: MockConfigServiceOptions;
   providerRegistry?: E2eProviderRegistryMock;
   rateLimiter?: Partial<SmartRateLimiterService>;
+  /** Mirrors production bootstrap in `src/main.ts` (before `setupApp`). */
+  applyHelmet?: boolean;
 };
 
 export type E2eAppContext = {
@@ -100,6 +103,16 @@ export async function createE2eApp(
   const moduleFixture = await moduleBuilder.compile();
 
   const app = moduleFixture.createNestApplication();
+
+  if (options.applyHelmet) {
+    app.use(
+      helmet({
+        contentSecurityPolicy: false,
+        crossOriginEmbedderPolicy: false,
+      }),
+    );
+  }
+
   setupApp(app);
   await app.init();
 
