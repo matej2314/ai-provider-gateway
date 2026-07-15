@@ -185,7 +185,7 @@ jobs:
           set -euo pipefail
 
           docker network create ai-gateway-network 2>/dev/null || true
-          npm run redis:up
+          docker compose --env-file .env -f deployment/docker/docker-compose.redis.yml up -d
 
           echo "Waiting for Redis..."
           for i in $(seq 1 30); do
@@ -244,7 +244,7 @@ jobs:
         run: |
           docker stop gateway-test 2>/dev/null || true
           docker rm gateway-test 2>/dev/null || true
-          npm run redis:down 2>/dev/null || true
+          docker compose --env-file .env -f deployment/docker/docker-compose.redis.yml down 2>/dev/null || true
 
   docker-compose-smoke:
     name: Docker Compose Smoke Test
