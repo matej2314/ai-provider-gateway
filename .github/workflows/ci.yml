@@ -48,11 +48,6 @@ jobs:
             echo "⚠️  WARNING: Running on ${{ github.ref_name }} instead of feat/production-readiness"
           fi
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
       - name: Upload workspace for downstream jobs
         uses: actions/upload-artifact@v4
         with:
@@ -60,6 +55,7 @@ jobs:
           path: |
             .
             !.git
+            !node_modules
           include-hidden-files: true
           retention-days: 1
 
@@ -75,6 +71,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+      - run: npm ci
       - run: npm run lint
 
   test:
@@ -89,6 +87,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+      - run: npm ci
       - run: npm run test:cov
       - name: Upload coverage
         if: always()
@@ -111,6 +111,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+      - run: npm ci
       - run: npm run test:e2e
         env:
           NODE_ENV: test
@@ -131,6 +133,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+      - run: npm ci
       - run: npm run test:security:ci
         env:
           NODE_ENV: test
