@@ -1,4 +1,4 @@
-name: CI (Manual - feat/production-readiness)
+name: CI (feat/production-readiness)
 
 on:
   workflow_dispatch:
@@ -19,6 +19,11 @@ on:
         options:
           - 'true'
           - 'false'
+  push:
+    branches:
+      - feat/production-readiness
+    paths:
+      - '.github/workflows/ci.yml'
 
 jobs:
   info:
