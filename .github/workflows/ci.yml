@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [clone]
-    if: inputs.run_all_tests == 'true'
+    if: github.event_name != 'workflow_dispatch' || inputs.run_all_tests == 'true'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -125,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [clone]
-    if: inputs.run_all_tests == 'true'
+    if: github.event_name != 'workflow_dispatch' || inputs.run_all_tests == 'true'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -145,7 +145,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [clone, lint, test]
-    if: inputs.run_docker_tests == 'true'
+    if: github.event_name != 'workflow_dispatch' || inputs.run_docker_tests == 'true'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -190,7 +190,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [docker]
-    if: inputs.run_docker_tests == 'true'
+    if: github.event_name != 'workflow_dispatch' || inputs.run_docker_tests == 'true'
     steps:
       - uses: actions/download-artifact@v4
         with:
