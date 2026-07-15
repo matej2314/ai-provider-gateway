@@ -25,6 +25,16 @@ on:
     paths:
       - '.github/workflows/ci.yml'
 
+env:
+  NODE_ENV: test
+  MASTER_KEY: ${{ secrets.MASTER_KEY }}
+  MASTER_KEY_TEST: ${{ secrets.MASTER_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  ANTHROPIC_API_KEY_TEST: ${{ secrets.ANTHROPIC_API_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+  GOOGLE_API_KEY_TEST: ${{ secrets.GOOGLE_API_KEY }}
+  GATEWAY_KEY: ${{ secrets.GATEWAY_KEY }}
+
 jobs:
   clone:
     name: Clone Repository
@@ -95,6 +105,7 @@ jobs:
         continue-on-error: true
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
           fail_ci_if_error: false
 
@@ -114,11 +125,6 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run test:e2e
-        env:
-          NODE_ENV: test
-          MASTER_KEY: test_key_1234567890123456789012
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST || 'test_anthropic_key' }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY_TEST || 'test_google_key' }}
 
   security:
     name: Security Tests
@@ -136,9 +142,6 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run test:security:ci
-        env:
-          NODE_ENV: test
-          MASTER_KEY: test_key_1234567890123456789012
 
   docker:
     name: Docker Build
@@ -165,9 +168,11 @@ jobs:
       - name: Test Docker image
         run: |
           docker run -d -p 3000:3000 \
-            -e MASTER_KEY=test_key_1234567890123456789012 \
-            -e ANTHROPIC_API_KEY=test_anthropic \
-            -e GOOGLE_API_KEY=test_google \
+            -e NODE_ENV="$NODE_ENV" \
+            -e MASTER_KEY="$MASTER_KEY" \
+            -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+            -e GOOGLE_API_KEY="$GOOGLE_API_KEY" \
+            -e GATEWAY_KEY="$GATEWAY_KEY" \
             --name gateway-test \
             ai-provider-gateway:${{ github.sha }}
 
@@ -198,9 +203,9 @@ jobs:
       - name: Create test .env
         run: |
           cp deployment/templates/.env.example .env
-          sed -i 's/your_master_key_here_minimum_32_chars/test_key_1234567890123456789012/' .env
-          sed -i 's/sk-ant-api03-your-key-here/test_anthropic_key/' .env
-          sed -i 's/AIza-your-key-here/test_google_key/' .env
+          sed -i "s|^MASTER_KEY_PLACEHOLDER=.*|MASTER_KEY_PLACEHOLDER=${MASTER_KEY}|" .env
+          sed -i "s|^ANTHROPIC_API_KEY_PLACEHOLDER=.*|ANTHROPIC_API_KEY_PLACEHOLDER=${ANTHROPIC_API_KEY}|" .env
+          sed -i "s|^GATEWAY_KEY_PLACEHOLDER=.*|GATEWAY_KEY_PLACEHOLDER=${GATEWAY_KEY}|" .env
       - name: Start docker-compose stack
         run: |
           docker compose -f deployment/docker/docker-compose.yml up -d
