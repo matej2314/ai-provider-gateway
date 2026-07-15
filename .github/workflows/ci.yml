@@ -1,0 +1,190 @@
+name: CI (Manual - feat/production-readiness)
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_all_tests:
+        description: 'Run all test suites (unit, e2e, security)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      run_docker_tests:
+        description: 'Run Docker build and smoke tests'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  info:
+    name: Workflow Info
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Display workflow info
+        run: |
+          echo "🚀 Manual CI Workflow Triggered"
+          echo "================================"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo ""
+          echo "📋 Test Configuration:"
+          echo "  All tests (unit/e2e/security): ${{ inputs.run_all_tests }}"
+          echo "  Docker tests: ${{ inputs.run_docker_tests }}"
+          echo ""
+          echo "⚠️  Note: This workflow is designed for feat/production-readiness branch"
+          if [ "${{ github.ref_name }}" != "feat/production-readiness" ]; then
+            echo "⚠️  WARNING: Running on ${{ github.ref_name }} instead of feat/production-readiness"
+          fi
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [info]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [info]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:cov
+      - name: Upload coverage
+        if: always()
+        continue-on-error: true
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [info]
+    if: inputs.run_all_tests == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:e2e
+        env:
+          NODE_ENV: test
+          MASTER_KEY: test_key_1234567890123456789012
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST || 'test_anthropic_key' }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY_TEST || 'test_google_key' }}
+
+  security:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [info]
+    if: inputs.run_all_tests == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:security:ci
+        env:
+          NODE_ENV: test
+          MASTER_KEY: test_key_1234567890123456789012
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [info, lint, test]
+    if: inputs.run_docker_tests == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deployment/docker/Dockerfile
+          push: false
+          tags: ai-provider-gateway:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+      - name: Test Docker image
+        run: |
+          docker run -d -p 3000:3000 \
+            -e MASTER_KEY=test_key_1234567890123456789012 \
+            -e ANTHROPIC_API_KEY=test_anthropic \
+            -e GOOGLE_API_KEY=test_google \
+            --name gateway-test \
+            ai-provider-gateway:${{ github.sha }}
+
+          sleep 15
+
+          if ! curl -f http://localhost:3000/health/liveness; then
+            echo "Health check failed"
+            docker logs gateway-test
+            docker stop gateway-test
+            docker rm gateway-test
+            exit 1
+          fi
+
+          echo "Health check passed"
+          docker stop gateway-test
+          docker rm gateway-test
+
+  docker-compose-smoke:
+    name: Docker Compose Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [docker]
+    if: inputs.run_docker_tests == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create test .env
+        run: |
+          cp deployment/templates/.env.example .env
+          sed -i 's/your_master_key_here_minimum_32_chars/test_key_1234567890123456789012/' .env
+          sed -i 's/sk-ant-api03-your-key-here/test_anthropic_key/' .env
+          sed -i 's/AIza-your-key-here/test_google_key/' .env
+      - name: Start docker-compose stack
+        run: |
+          docker compose -f deployment/docker/docker-compose.yml up -d
+          sleep 30
+      - name: Check health
+        run: |
+          if ! curl -f http://localhost:3000/health/liveness; then
+            echo "Health check failed"
+            docker compose -f deployment/docker/docker-compose.yml logs
+            exit 1
+          fi
+          echo "Health check passed"
+      - name: Cleanup
+        if: always()
+        run: docker compose -f deployment/docker/docker-compose.yml down -v
