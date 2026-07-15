@@ -26,10 +26,10 @@ on:
       - '.github/workflows/ci.yml'
 
 jobs:
-  info:
-    name: Workflow Info
+  clone:
+    name: Clone Repository
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 10
     steps:
       - name: Display workflow info
         run: |
@@ -47,33 +47,48 @@ jobs:
           if [ "${{ github.ref_name }}" != "feat/production-readiness" ]; then
             echo "⚠️  WARNING: Running on ${{ github.ref_name }} instead of feat/production-readiness"
           fi
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [info]
-    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - name: Upload workspace for downstream jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: |
+            .
+            !.git
+          include-hidden-files: true
+          retention-days: 1
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [clone]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - run: npm run lint
 
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [info]
+    needs: [clone]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
       - run: npm run test:cov
       - name: Upload coverage
         if: always()
@@ -87,15 +102,15 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [info]
+    needs: [clone]
     if: inputs.run_all_tests == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
       - run: npm run test:e2e
         env:
           NODE_ENV: test
@@ -107,15 +122,15 @@ jobs:
     name: Security Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [info]
+    needs: [clone]
     if: inputs.run_all_tests == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
       - run: npm run test:security:ci
         env:
           NODE_ENV: test
@@ -125,10 +140,12 @@ jobs:
     name: Docker Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [info, lint, test]
+    needs: [clone, lint, test]
     if: inputs.run_docker_tests == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build Docker image
@@ -171,7 +188,9 @@ jobs:
     needs: [docker]
     if: inputs.run_docker_tests == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
       - name: Create test .env
         run: |
           cp deployment/templates/.env.example .env
