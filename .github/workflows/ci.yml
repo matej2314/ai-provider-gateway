@@ -165,9 +165,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           load: true
+      - name: Prepare CI gateway config
+        run: |
+          cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
+          sed -i 's/MASTER_KEY_PLACEHOLDER/MASTER_KEY/g' gateway.config.yaml
+          sed -i 's/ANTHROPIC_API_KEY_PLACEHOLDER/ANTHROPIC_API_KEY/g' gateway.config.yaml
+          sed -i 's/GATEWAY_KEY_PLACEHOLDER/GATEWAY_KEY/g' gateway.config.yaml
       - name: Test Docker image
         run: |
           docker run -d -p 3000:3000 \
+            -v "$PWD/gateway.config.yaml:/app/gateway.config.yaml:ro" \
             -e NODE_ENV="$NODE_ENV" \
             -e MASTER_KEY="$MASTER_KEY" \
             -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
@@ -178,7 +185,7 @@ jobs:
 
           sleep 15
 
-          if ! curl -f http://localhost:3000/health/liveness; then
+          if ! curl -f http://localhost:3000/api/v1/health; then
             echo "Health check failed"
             docker logs gateway-test
             docker stop gateway-test
@@ -200,19 +207,26 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: workspace
+      - name: Prepare CI gateway config
+        run: |
+          cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
+          sed -i 's/MASTER_KEY_PLACEHOLDER/MASTER_KEY/g' gateway.config.yaml
+          sed -i 's/ANTHROPIC_API_KEY_PLACEHOLDER/ANTHROPIC_API_KEY/g' gateway.config.yaml
+          sed -i 's/GATEWAY_KEY_PLACEHOLDER/GATEWAY_KEY/g' gateway.config.yaml
       - name: Create test .env
         run: |
           cp deployment/templates/.env.example .env
-          sed -i "s|^MASTER_KEY_PLACEHOLDER=.*|MASTER_KEY_PLACEHOLDER=${MASTER_KEY}|" .env
-          sed -i "s|^ANTHROPIC_API_KEY_PLACEHOLDER=.*|ANTHROPIC_API_KEY_PLACEHOLDER=${ANTHROPIC_API_KEY}|" .env
-          sed -i "s|^GATEWAY_KEY_PLACEHOLDER=.*|GATEWAY_KEY_PLACEHOLDER=${GATEWAY_KEY}|" .env
+          sed -i "s|^MASTER_KEY_PLACEHOLDER=.*|MASTER_KEY=${MASTER_KEY}|" .env
+          sed -i "s|^ANTHROPIC_API_KEY_PLACEHOLDER=.*|ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}|" .env
+          sed -i "s|^GATEWAY_KEY_PLACEHOLDER=.*|GATEWAY_KEY=${GATEWAY_KEY}|" .env
       - name: Start docker-compose stack
         run: |
+          docker network create ai-gateway-network 2>/dev/null || true
           docker compose -f deployment/docker/docker-compose.yml up -d
           sleep 30
       - name: Check health
         run: |
-          if ! curl -f http://localhost:3000/health/liveness; then
+          if ! curl -f http://localhost:3000/api/v1/health; then
             echo "Health check failed"
             docker compose -f deployment/docker/docker-compose.yml logs
             exit 1
