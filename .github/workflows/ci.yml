@@ -171,31 +171,80 @@ jobs:
           sed -i 's/MASTER_KEY_PLACEHOLDER/MASTER_KEY/g' gateway.config.yaml
           sed -i 's/ANTHROPIC_API_KEY_PLACEHOLDER/ANTHROPIC_API_KEY/g' gateway.config.yaml
           sed -i 's/GATEWAY_KEY_PLACEHOLDER/GATEWAY_KEY/g' gateway.config.yaml
-      - name: Test Docker image
+      - name: Create test .env
         run: |
+          cp deployment/templates/.env.example .env
+          sed -i "s|^MASTER_KEY_PLACEHOLDER=.*|MASTER_KEY=${MASTER_KEY}|" .env
+          sed -i "s|^ANTHROPIC_API_KEY_PLACEHOLDER=.*|ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}|" .env
+          sed -i "s|^GATEWAY_KEY_PLACEHOLDER=.*|GATEWAY_KEY=${GATEWAY_KEY}|" .env
+          sed -i 's|^CACHE_ENABLED=.*|CACHE_ENABLED=true|' .env
+          sed -i 's|^CACHE_BACKEND=.*|CACHE_BACKEND=redis|' .env
+          sed -i 's|^REDIS_HOST=.*|REDIS_HOST=redis|' .env
+      - name: Test Docker image with Redis
+        run: |
+          set -euo pipefail
+
+          docker network create ai-gateway-network 2>/dev/null || true
+          npm run redis:up
+
+          echo "Waiting for Redis..."
+          for i in $(seq 1 30); do
+            if docker exec ai-gateway-redis redis-cli ping 2>/dev/null | grep -q PONG; then
+              echo "Redis is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Redis failed to become ready"
+              docker logs ai-gateway-redis || true
+              exit 1
+            fi
+            sleep 2
+          done
+
           docker run -d -p 3000:3000 \
+            --network ai-gateway-network \
             -v "$PWD/gateway.config.yaml:/app/gateway.config.yaml:ro" \
             -e NODE_ENV="$NODE_ENV" \
             -e MASTER_KEY="$MASTER_KEY" \
             -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
             -e GOOGLE_API_KEY="$GOOGLE_API_KEY" \
             -e GATEWAY_KEY="$GATEWAY_KEY" \
+            -e CACHE_ENABLED=true \
+            -e CACHE_BACKEND=redis \
+            -e REDIS_HOST=redis \
+            -e REDIS_PORT=6379 \
+            -e REDIS_PASSWORD= \
+            -e REDIS_DB=0 \
             --name gateway-test \
             ai-provider-gateway:${{ github.sha }}
 
-          sleep 15
+          echo "Waiting for gateway readiness (Redis integration)..."
+          READY=false
+          for i in $(seq 1 24); do
+            if BODY=$(curl -sf http://localhost:3000/api/v1/health/ready); then
+              echo "$BODY" | jq .
+              if echo "$BODY" | jq -e '.status == "ready" and .checks.redis.status == "healthy"' >/dev/null; then
+                READY=true
+                break
+              fi
+            fi
+            sleep 5
+          done
 
-          if ! curl -f http://localhost:3000/api/v1/health; then
-            echo "Health check failed"
-            docker logs gateway-test
-            docker stop gateway-test
-            docker rm gateway-test
+          if [ "$READY" != "true" ]; then
+            echo "Readiness check failed (expected ready + healthy redis)"
+            docker logs gateway-test || true
+            docker logs ai-gateway-redis || true
             exit 1
           fi
 
-          echo "Health check passed"
-          docker stop gateway-test
-          docker rm gateway-test
+          echo "Gateway + Redis integration check passed"
+      - name: Cleanup Docker test stack
+        if: always()
+        run: |
+          docker stop gateway-test 2>/dev/null || true
+          docker rm gateway-test 2>/dev/null || true
+          npm run redis:down 2>/dev/null || true
 
   docker-compose-smoke:
     name: Docker Compose Smoke Test
