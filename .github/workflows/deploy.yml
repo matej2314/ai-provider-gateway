@@ -214,6 +214,19 @@ jobs:
             "      - ${DEPLOY_DIR}/deployment/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro" \
             > /tmp/deploy-host-binds.yml
 
+          # Pipeline-only: also attach gateway to the shared host network
+          # (ai-gateway-network stays from base compose — Compose merges network lists).
+          printf '%s\n' \
+            'services:' \
+            '  gateway:' \
+            '    networks:' \
+            '      - main_network' \
+            'networks:' \
+            '  main_network:' \
+            '    external: true' \
+            '    name: main_network' \
+            > /tmp/deploy-extra-networks.yml
+
           # Verify host files one last time (daemon's view) before up
           docker run --rm -v "${DEPLOY_DIR}:/dest:ro" alpine:3.20 \
             sh -c 'for f in gateway.config.yaml deployment/monitoring/prometheus.yml deployment/monitoring/alerts.yml; do
@@ -228,6 +241,7 @@ jobs:
             -f deployment/docker/docker-compose.redis.yml \
             -f deployment/docker/docker-compose.monitoring.yml \
             -f /tmp/deploy-host-binds.yml \
+            -f /tmp/deploy-extra-networks.yml \
             build gateway
 
           # Start all services (pull images for redis/prometheus/grafana)
@@ -237,6 +251,7 @@ jobs:
             -f deployment/docker/docker-compose.redis.yml \
             -f deployment/docker/docker-compose.monitoring.yml \
             -f /tmp/deploy-host-binds.yml \
+            -f /tmp/deploy-extra-networks.yml \
             up -d --force-recreate --pull always
 
       - name: Health check
@@ -277,6 +292,7 @@ jobs:
           echo "Removing job workspace .env (if present): ${GITHUB_WORKSPACE}/.env"
           rm -f "${GITHUB_WORKSPACE}/.env"
           rm -f /tmp/deploy-host-binds.yml
+          rm -f /tmp/deploy-extra-networks.yml
           if [ -f "${GITHUB_WORKSPACE}/.env" ]; then
             echo "WARNING: ${GITHUB_WORKSPACE}/.env still exists after rm"
             exit 1
