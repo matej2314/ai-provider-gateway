@@ -22,7 +22,6 @@ env:
   VAULT_ADDR: https://vault-prod:8200
   VAULT_SKIP_VERIFY: 'true'
   VAULT_ENV: prod
-  GATEWAY_CONFIG_VAULT_PATH: secret/data/ai-provider-gateway/gateway-config
   DEPLOY_DIR: /opt/ai-provider-gateway
 
 jobs:
@@ -103,9 +102,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${DEPLOY_DIR}"
+          # gateway.config.yaml comes from the repo; only .env is secret-backed
           rsync -a --delete \
             --exclude '.env' \
-            --exclude 'gateway.config.yaml' \
             --exclude '.git' \
             ./ "${DEPLOY_DIR}/"
 
@@ -141,37 +140,6 @@ jobs:
           chmod 600 .env
           secret_count=$(wc -l < .env | tr -d ' ')
           echo "Created .env with ${secret_count} entries"
-
-      - name: Fetch gateway.config.yaml from Vault
-        working-directory: ${{ env.DEPLOY_DIR }}
-        env:
-          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
-          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
-        run: |
-          set -euo pipefail
-
-          login_response=$(curl -k -s --request POST \
-            --data "{\"role_id\":\"${VAULT_ROLE_ID}\",\"secret_id\":\"${VAULT_SECRET_ID}\"}" \
-            "${VAULT_ADDR}/v1/auth/approle/login")
-
-          vault_token=$(echo "${login_response}" | jq -r '.auth.client_token // empty')
-          if [ -z "${vault_token}" ]; then
-            echo "Failed to authenticate with Vault"
-            exit 1
-          fi
-
-          config_response=$(curl -k -s -H "X-Vault-Token: ${vault_token}" \
-            "${VAULT_ADDR}/v1/${GATEWAY_CONFIG_VAULT_PATH}")
-
-          if ! echo "${config_response}" | jq -e '.data.data.content' >/dev/null; then
-            echo "Missing gateway config at ${GATEWAY_CONFIG_VAULT_PATH} (field: content)"
-            echo "${config_response}"
-            exit 1
-          fi
-
-          echo "${config_response}" | jq -r '.data.data.content' > gateway.config.yaml
-          chmod 600 gateway.config.yaml
-          echo "Created gateway.config.yaml from Vault"
 
       - name: Ensure Docker network
         run: docker network create ai-gateway-network 2>/dev/null || true
