@@ -236,7 +236,7 @@ jobs:
             -f deployment/docker/docker-compose.redis.yml \
             -f deployment/docker/docker-compose.monitoring.yml \
             -f /tmp/deploy-host-binds.yml \
-            up -d --force-recreate
+            up -d --force-recreate --pull always
 
       - name: Health check
         run: |
