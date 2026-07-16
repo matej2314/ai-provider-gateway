@@ -99,10 +99,10 @@ jobs:
         with:
           ref: ${{ steps.revision.outputs.ref }}
 
-      # Self-hosted runner often uses docker.sock from a container: rsync to
-      # /opt/... only fills the runner FS. The daemon bind-mounts the *host*
-      # /opt/... — if missing, Docker creates empty directories (EISDIR / OCI mount).
-      # Sync through `docker run -v ${DEPLOY_DIR}:/dest` so files land on the host.
+      # Self-hosted runner often uses docker.sock from a container (DooD):
+      # - daemon bind-mounts the *host* /opt/... (missing → empty dirs → EISDIR)
+      # - `docker run -v $PWD:/src` also resolves PWD on the *host* (empty) — cannot copy that way
+      # Stream the checkout via tar stdin so the runner reads workspace and the daemon only mounts /dest.
       - name: Sync checkout onto Docker host deploy dir
         run: |
           set -euo pipefail
@@ -112,7 +112,6 @@ jobs:
           docker run --rm \
             -e "DEPLOY_DIR=${DEPLOY_DIR}" \
             -v "${DEPLOY_DIR}:/dest" \
-            -v "${PWD}:/src:ro" \
             alpine:3.20 \
             sh -c '
               set -euo pipefail
@@ -124,12 +123,25 @@ jobs:
               done
               if [ -f /dest/.env ]; then cp -a /dest/.env /tmp/.env.bak; fi
               find /dest -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} +
-              tar -C /src --exclude=.git --exclude=.env -cf - . | tar -C /dest -xf -
               if [ -f /tmp/.env.bak ]; then mv /tmp/.env.bak /dest/.env; fi
               mkdir -p /dest/logs
+            '
+
+          echo "Streaming checkout → host ${DEPLOY_DIR} ..."
+          tar -C "${PWD}" --exclude=.git --exclude=.env -cf - . \
+            | docker run --rm -i -v "${DEPLOY_DIR}:/dest" alpine:3.20 \
+              tar -C /dest -xf -
+
+          docker run --rm \
+            -e "DEPLOY_DIR=${DEPLOY_DIR}" \
+            -v "${DEPLOY_DIR}:/dest:ro" \
+            alpine:3.20 \
+            sh -c '
+              set -euo pipefail
               for rel in gateway.config.yaml deployment/monitoring/prometheus.yml deployment/monitoring/alerts.yml; do
                 if [ ! -f "/dest/$rel" ]; then
                   echo "FATAL: expected regular file on Docker host: $DEPLOY_DIR/$rel"
+                  ls -la /dest | head -50 || true
                   ls -la "$(dirname "/dest/$rel")" || true
                   exit 1
                 fi
@@ -170,11 +182,11 @@ jobs:
           secret_count=$(wc -l < .env | tr -d ' ')
           echo "Created workspace .env with ${secret_count} entries"
 
-          docker run --rm \
+          docker run --rm -i \
             -v "${DEPLOY_DIR}:/dest" \
-            -v "${PWD}/.env:/src/.env:ro" \
             alpine:3.20 \
-            sh -c 'cp /src/.env /dest/.env && chmod 600 /dest/.env && echo "Synced .env to host ${DEPLOY_DIR}/.env"'
+            sh -c 'cat > /dest/.env && chmod 600 /dest/.env && echo "Synced .env to host deploy dir"' \
+            < .env
 
       - name: Ensure Docker network
         run: docker network create ai-gateway-network 2>/dev/null || true
