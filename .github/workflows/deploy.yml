@@ -148,7 +148,13 @@ jobs:
         working-directory: ${{ env.DEPLOY_DIR }}
         run: |
           set -euo pipefail
-          npm run docker:up:full
+          # Self-hosted runner may not have Node/npm; compose is enough (same as npm run docker:up:full).
+          docker compose -p ai-provider-gateway \
+            --env-file .env \
+            -f deployment/docker/docker-compose.yml \
+            -f deployment/docker/docker-compose.redis.yml \
+            -f deployment/docker/docker-compose.monitoring.yml \
+            up -d --build
 
       - name: Health check
         run: |
