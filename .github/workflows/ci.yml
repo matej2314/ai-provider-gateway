@@ -189,7 +189,7 @@ jobs:
 
           echo "Waiting for Redis..."
           for i in $(seq 1 30); do
-            if docker exec ai-gateway-redis redis-cli ping 2>/dev/null | grep -q PONG; then
+            if docker exec ai-gateway-redis redis-cli -p 6380 ping 2>/dev/null | grep -q PONG; then
               echo "Redis is ready"
               break
             fi
@@ -212,7 +212,7 @@ jobs:
             -e CACHE_ENABLED=true \
             -e CACHE_BACKEND=redis \
             -e REDIS_HOST=redis \
-            -e REDIS_PORT=6379 \
+            -e REDIS_PORT=6380 \
             -e REDIS_PASSWORD= \
             -e REDIS_DB=0 \
             --name gateway-test \
