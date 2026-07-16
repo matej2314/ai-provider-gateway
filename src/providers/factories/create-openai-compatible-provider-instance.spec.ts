@@ -39,6 +39,7 @@ describe('createOpenAiCompatibleProviderInstance', () => {
   });
 
   it('delegates to createOpenAiProviderCore', () => {
+    const mockLogger = createMockLoggingService();
     createOpenAiCompatibleProviderInstance(
       {
         instanceId: 'ollama-local',
@@ -47,7 +48,14 @@ describe('createOpenAiCompatibleProviderInstance', () => {
         apiKey: asProviderApiKey(''),
         baseUrl: 'http://localhost:11434/v1',
       },
-      createMockLoggingService() as never,
+      mockLogger as never,
+    );
+    expect(mockLogger.child).toHaveBeenCalledWith({
+      module: 'OpenAiCompatibleProvider',
+      instanceId: 'ollama-local',
+    });
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      'OpenAI-compatible provider instance "ollama-local" created.',
     );
     expect(createOpenAiProviderCore).toHaveBeenCalledWith(
       'openai-compatible',

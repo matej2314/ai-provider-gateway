@@ -38,6 +38,7 @@ describe('createOpenAiProvider', () => {
   });
 
   it('delegates to createOpenAiProviderCore', () => {
+    const mockLogger = createMockLoggingService();
     createOpenAiProvider(
       {
         instanceId: 'openai-main',
@@ -46,7 +47,11 @@ describe('createOpenAiProvider', () => {
         apiKey: asProviderApiKey('sk-test'),
         baseUrl: 'https://api.openai.com/v1',
       },
-      createMockLoggingService() as never,
+      mockLogger as never,
+    );
+    expect(mockLogger.child).toHaveBeenCalledWith({ module: 'OpenAiProvider' });
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      'OpenAI provider instance created.',
     );
     expect(createOpenAiProviderCore).toHaveBeenCalledWith(
       'openai',

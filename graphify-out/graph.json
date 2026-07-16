@@ -4744,7 +4744,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "src_chat_services_chat_error_handler_service_chaterrorhandlerservice_handleprovidererror",
-      "community": 45,
+      "community": 148,
       "norm_label": ".handleprovidererror()"
     },
     {
@@ -4844,7 +4844,7 @@
       "source_location": "L80",
       "_origin": "ast",
       "id": "src_chat_services_chat_provider_call_service_chatprovidercallservice",
-      "community": 65,
+      "community": 45,
       "norm_label": "chatprovidercallservice"
     },
     {
@@ -4854,7 +4854,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_chat_services_chat_provider_call_service_ts_injectable",
-      "community": 65,
+      "community": 45,
       "norm_label": "injectable"
     },
     {
@@ -4864,7 +4864,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "src_chat_services_chat_provider_call_service_chatprovidercallservice_constructor",
-      "community": 65,
+      "community": 45,
       "norm_label": ".constructor()"
     },
     {
@@ -4984,7 +4984,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "src_chat_services_chat_validation_service_chatvalidationservice",
-      "community": 45,
+      "community": 6,
       "norm_label": "chatvalidationservice"
     },
     {
@@ -4994,7 +4994,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_chat_services_chat_validation_service_ts_injectable",
-      "community": 45,
+      "community": 6,
       "norm_label": "injectable"
     },
     {
@@ -5004,7 +5004,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "src_chat_services_chat_validation_service_chatvalidationservice_constructor",
-      "community": 45,
+      "community": 6,
       "norm_label": ".constructor()"
     },
     {
@@ -5014,7 +5014,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "src_chat_services_chat_validation_service_chatvalidationservice_validatetooling",
-      "community": 45,
+      "community": 6,
       "norm_label": ".validatetooling()"
     },
     {
@@ -5024,7 +5024,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "src_chat_services_chat_validation_service_chatvalidationservice_validatethinking",
-      "community": 45,
+      "community": 6,
       "norm_label": ".validatethinking()"
     },
     {
@@ -5034,7 +5034,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "src_chat_services_chat_validation_service_chatvalidationservice_validateforstreaming",
-      "community": 45,
+      "community": 6,
       "norm_label": ".validateforstreaming()"
     },
     {
@@ -5144,7 +5144,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_chat_types_chat_execution_prep_types",
-      "community": 65,
+      "community": 45,
       "norm_label": "chat-execution-prep.types.ts"
     },
     {
@@ -5154,7 +5154,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_chat_types_chat_execution_prep_types_chatexecutionprep",
-      "community": 65,
+      "community": 45,
       "norm_label": "chatexecutionprep"
     },
     {
@@ -11064,7 +11064,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "src_common_types_branded_types_conversationid",
-      "community": 65,
+      "community": 45,
       "norm_label": "conversationid"
     },
     {
@@ -11574,7 +11574,7 @@
       "source_location": "L310",
       "_origin": "ast",
       "id": "src_common_types_branded_types_asproviderinstanceid",
-      "community": 45,
+      "community": 148,
       "norm_label": "asproviderinstanceid()"
     },
     {
@@ -12384,7 +12384,7 @@
       "source_location": "L286",
       "_origin": "ast",
       "id": "src_config_gateway_config_schema_gatewaymodelconfig",
-      "community": 137,
+      "community": 6,
       "norm_label": "gatewaymodelconfig"
     },
     {
@@ -13674,7 +13674,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_anthropic_controllers_anthropic_models_controller_spec",
-      "community": 88,
+      "community": 43,
       "norm_label": "anthropic-models.controller.spec.ts"
     },
     {
@@ -13854,7 +13854,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_anthropic_decorators_anthropic_auth_decorator",
-      "community": 25,
+      "community": 88,
       "norm_label": "anthropic-auth.decorator.ts"
     },
     {
@@ -13864,7 +13864,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_integrations_anthropic_decorators_anthropic_auth_decorator_anthropicauth",
-      "community": 25,
+      "community": 88,
       "norm_label": "anthropicauth()"
     },
     {
@@ -14434,7 +14434,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "src_integrations_anthropic_filters_anthropic_exception_filter_anthropicexceptionfilter",
-      "community": 25,
+      "community": 88,
       "norm_label": "anthropicexceptionfilter"
     },
     {
@@ -14444,7 +14444,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_integrations_anthropic_filters_anthropic_exception_filter_ts_catch",
-      "community": 25,
+      "community": 88,
       "norm_label": "catch"
     },
     {
@@ -14454,7 +14454,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "src_integrations_anthropic_filters_anthropic_exception_filter_anthropicexceptionfilter_maptype",
-      "community": 25,
+      "community": 88,
       "norm_label": ".maptype()"
     },
     {
@@ -14464,7 +14464,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "src_integrations_anthropic_filters_anthropic_exception_filter_anthropicexceptionfilter_catch",
-      "community": 25,
+      "community": 88,
       "norm_label": ".catch()"
     },
     {
@@ -15164,7 +15164,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_openai_controllers_openai_models_controller_spec",
-      "community": 88,
+      "community": 43,
       "norm_label": "openai-models.controller.spec.ts"
     },
     {
@@ -18164,7 +18164,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "src_observability_app_metrics_active_streams_tracker_activestreamstracker_constructor",
-      "community": 78,
+      "community": 92,
       "norm_label": ".constructor()"
     },
     {
@@ -18204,7 +18204,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_noop_app_metrics_adapter",
-      "community": 61,
+      "community": 78,
       "norm_label": "noop-app-metrics.adapter.ts"
     },
     {
@@ -18304,7 +18304,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_noop_app_metrics_adapter_noopappmetricsadapter_recordtokenusage",
-      "community": 19,
+      "community": 85,
       "norm_label": ".recordtokenusage()"
     },
     {
@@ -18314,7 +18314,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_noop_app_metrics_adapter_noopappmetricsadapter_recordratelimit",
-      "community": 61,
+      "community": 78,
       "norm_label": ".recordratelimit()"
     },
     {
@@ -18374,7 +18374,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_noop_app_metrics_adapter_noopappmetricsadapter_setcomponenthealth",
-      "community": 61,
+      "community": 151,
       "norm_label": ".setcomponenthealth()"
     },
     {
@@ -18394,7 +18394,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_noop_app_metrics_adapter_noopappmetricsadapter_synchealthmetrics",
-      "community": 61,
+      "community": 78,
       "norm_label": ".synchealthmetrics()"
     },
     {
@@ -18414,7 +18414,7 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_noop_app_metrics_adapter_noopappmetricsadapter_observeprovidercall",
-      "community": 19,
+      "community": 85,
       "norm_label": ".observeprovidercall()"
     },
     {
@@ -18614,7 +18614,7 @@
       "source_location": "L185",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_prometheus_app_metrics_adapter_prometheusappmetricsadapter_recordratelimit",
-      "community": 61,
+      "community": 78,
       "norm_label": ".recordratelimit()"
     },
     {
@@ -18664,7 +18664,7 @@
       "source_location": "L208",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_prometheus_app_metrics_adapter_prometheusappmetricsadapter_setreadiness",
-      "community": 61,
+      "community": 85,
       "norm_label": ".setreadiness()"
     },
     {
@@ -18674,7 +18674,7 @@
       "source_location": "L212",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_prometheus_app_metrics_adapter_prometheusappmetricsadapter_setcomponenthealth",
-      "community": 61,
+      "community": 151,
       "norm_label": ".setcomponenthealth()"
     },
     {
@@ -18694,7 +18694,7 @@
       "source_location": "L223",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_prometheus_app_metrics_adapter_prometheusappmetricsadapter_synchealthmetrics",
-      "community": 61,
+      "community": 85,
       "norm_label": ".synchealthmetrics()"
     },
     {
@@ -18794,7 +18794,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice",
-      "community": 78,
+      "community": 92,
       "norm_label": "appmetricsservice"
     },
     {
@@ -18804,7 +18804,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_ts_injectable",
-      "community": 78,
+      "community": 92,
       "norm_label": "injectable"
     },
     {
@@ -18814,7 +18814,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_ts_inject",
-      "community": 111,
+      "community": 92,
       "norm_label": "inject"
     },
     {
@@ -18824,7 +18824,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_constructor",
-      "community": 111,
+      "community": 92,
       "norm_label": ".constructor()"
     },
     {
@@ -18864,7 +18864,7 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_recordrequestduration",
-      "community": 78,
+      "community": 92,
       "norm_label": ".recordrequestduration()"
     },
     {
@@ -18874,7 +18874,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_recorderror",
-      "community": 78,
+      "community": 92,
       "norm_label": ".recorderror()"
     },
     {
@@ -18894,7 +18894,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_recordtokensperrequest",
-      "community": 78,
+      "community": 92,
       "norm_label": ".recordtokensperrequest()"
     },
     {
@@ -18904,7 +18904,7 @@
       "source_location": "L137",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_recordtokenusage",
-      "community": 19,
+      "community": 85,
       "norm_label": ".recordtokenusage()"
     },
     {
@@ -18924,7 +18924,7 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_recordcacheaccess",
-      "community": 78,
+      "community": 92,
       "norm_label": ".recordcacheaccess()"
     },
     {
@@ -18934,7 +18934,7 @@
       "source_location": "L169",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_updatecachehitrate",
-      "community": 78,
+      "community": 92,
       "norm_label": ".updatecachehitrate()"
     },
     {
@@ -18954,7 +18954,7 @@
       "source_location": "L187",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_setproviderhealth",
-      "community": 78,
+      "community": 92,
       "norm_label": ".setproviderhealth()"
     },
     {
@@ -18964,7 +18964,7 @@
       "source_location": "L194",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_setreadiness",
-      "community": 78,
+      "community": 92,
       "norm_label": ".setreadiness()"
     },
     {
@@ -18974,7 +18974,7 @@
       "source_location": "L201",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_setcomponenthealth",
-      "community": 61,
+      "community": 151,
       "norm_label": ".setcomponenthealth()"
     },
     {
@@ -18994,7 +18994,7 @@
       "source_location": "L215",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_synchealthmetrics",
-      "community": 61,
+      "community": 78,
       "norm_label": ".synchealthmetrics()"
     },
     {
@@ -19004,7 +19004,7 @@
       "source_location": "L227",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_getmetricssnapshot",
-      "community": 84,
+      "community": 92,
       "norm_label": ".getmetricssnapshot()"
     },
     {
@@ -19054,7 +19054,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface",
-      "community": 61,
+      "community": 78,
       "norm_label": "app-metrics-backend.interface.ts"
     },
     {
@@ -19064,7 +19064,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_apprequestmethod",
-      "community": 61,
+      "community": 78,
       "norm_label": "apprequestmethod"
     },
     {
@@ -19094,7 +19094,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_apprequeststatus",
-      "community": 61,
+      "community": 78,
       "norm_label": "apprequeststatus"
     },
     {
@@ -19114,7 +19114,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_ratelimitreason",
-      "community": 61,
+      "community": 78,
       "norm_label": "ratelimitreason"
     },
     {
@@ -19134,7 +19134,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_apptokenusage",
-      "community": 19,
+      "community": 85,
       "norm_label": "apptokenusage"
     },
     {
@@ -19184,7 +19184,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_healthcomponent",
-      "community": 61,
+      "community": 151,
       "norm_label": "healthcomponent"
     },
     {
@@ -19194,7 +19194,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_healthstatus",
-      "community": 61,
+      "community": 151,
       "norm_label": "healthstatus"
     },
     {
@@ -19204,7 +19204,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_healthmetricssnapshot",
-      "community": 61,
+      "community": 78,
       "norm_label": "healthmetricssnapshot"
     },
     {
@@ -19214,7 +19214,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend",
-      "community": 111,
+      "community": 19,
       "norm_label": "appmetricsbackend"
     },
     {
@@ -19224,7 +19224,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_recordrequest",
-      "community": 111,
+      "community": 19,
       "norm_label": ".recordrequest()"
     },
     {
@@ -19234,7 +19234,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_recordrequestduration",
-      "community": 111,
+      "community": 19,
       "norm_label": ".recordrequestduration()"
     },
     {
@@ -19284,7 +19284,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_recordratelimit",
-      "community": 111,
+      "community": 19,
       "norm_label": ".recordratelimit()"
     },
     {
@@ -19294,7 +19294,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_recordcacheaccess",
-      "community": 111,
+      "community": 19,
       "norm_label": ".recordcacheaccess()"
     },
     {
@@ -19304,7 +19304,7 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_updatecachehitrate",
-      "community": 111,
+      "community": 19,
       "norm_label": ".updatecachehitrate()"
     },
     {
@@ -19314,7 +19314,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_setactivestreams",
-      "community": 111,
+      "community": 19,
       "norm_label": ".setactivestreams()"
     },
     {
@@ -19334,7 +19334,7 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_getmetricssnapshot",
-      "community": 111,
+      "community": 19,
       "norm_label": ".getmetricssnapshot()"
     },
     {
@@ -19344,7 +19344,7 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_observeprovidercall",
-      "community": 111,
+      "community": 19,
       "norm_label": ".observeprovidercall()"
     },
     {
@@ -19354,7 +19354,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_observeproviderstream",
-      "community": 111,
+      "community": 19,
       "norm_label": ".observeproviderstream()"
     },
     {
@@ -19364,7 +19364,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_setreadiness",
-      "community": 111,
+      "community": 19,
       "norm_label": ".setreadiness()"
     },
     {
@@ -19374,7 +19374,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_setcomponenthealth",
-      "community": 111,
+      "community": 19,
       "norm_label": ".setcomponenthealth()"
     },
     {
@@ -19384,7 +19384,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_setprocessuptime",
-      "community": 111,
+      "community": 19,
       "norm_label": ".setprocessuptime()"
     },
     {
@@ -19394,7 +19394,7 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_synchealthmetrics",
-      "community": 111,
+      "community": 19,
       "norm_label": ".synchealthmetrics()"
     },
     {
@@ -19404,7 +19404,7 @@
       "source_location": "L116",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_recordhttprequest",
-      "community": 111,
+      "community": 19,
       "norm_label": ".recordhttprequest()"
     },
     {
@@ -19414,7 +19414,7 @@
       "source_location": "L117",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appmetricsbackend_recordhttprequestduration",
-      "community": 111,
+      "community": 19,
       "norm_label": ".recordhttprequestduration()"
     },
     {
@@ -19434,7 +19434,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "src_observability_app_metrics_metrics_controller_metricscontroller",
-      "community": 84,
+      "community": 92,
       "norm_label": "metricscontroller"
     },
     {
@@ -19444,7 +19444,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_observability_app_metrics_metrics_controller_ts_apitags",
-      "community": 84,
+      "community": 92,
       "norm_label": "apitags"
     },
     {
@@ -19454,7 +19454,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_observability_app_metrics_metrics_controller_ts_controller",
-      "community": 84,
+      "community": 92,
       "norm_label": "controller"
     },
     {
@@ -19464,7 +19464,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_observability_app_metrics_metrics_controller_ts_get",
-      "community": 84,
+      "community": 92,
       "norm_label": "get"
     },
     {
@@ -19474,7 +19474,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "header",
-      "community": 84,
+      "community": 92,
       "norm_label": "header"
     },
     {
@@ -19484,7 +19484,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_observability_app_metrics_metrics_controller_ts_apioperation",
-      "community": 84,
+      "community": 92,
       "norm_label": "apioperation"
     },
     {
@@ -19494,7 +19494,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_observability_app_metrics_metrics_controller_ts_apiresponse",
-      "community": 84,
+      "community": 92,
       "norm_label": "apiresponse"
     },
     {
@@ -19504,7 +19504,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "src_observability_app_metrics_metrics_controller_metricscontroller_constructor",
-      "community": 84,
+      "community": 92,
       "norm_label": ".constructor()"
     },
     {
@@ -19514,7 +19514,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "src_observability_app_metrics_metrics_controller_metricscontroller_getmetrics",
-      "community": 84,
+      "community": 92,
       "norm_label": ".getmetrics()"
     },
     {
@@ -19584,7 +19584,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "src_observability_app_metrics_pre_metrics_scrape_registry_premetricsscraperegistry_runall",
-      "community": 84,
+      "community": 92,
       "norm_label": ".runall()"
     },
     {
@@ -21674,7 +21674,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "src_providers_provider_instances_bootstrap_buildfactorycontext",
-      "community": 137,
+      "community": 148,
       "norm_label": "buildfactorycontext()"
     },
     {
@@ -21714,7 +21714,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "src_providers_provider_instances_bootstrap_providerinstancesbootstrap_onapplicationbootstrap",
-      "community": 137,
+      "community": 148,
       "norm_label": ".onapplicationbootstrap()"
     },
     {
@@ -21884,7 +21884,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "src_providers_provider_registry_service_providerregistryservice",
-      "community": 137,
+      "community": 6,
       "norm_label": "providerregistryservice"
     },
     {
@@ -21894,7 +21894,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_providers_provider_registry_service_ts_injectable",
-      "community": 137,
+      "community": 6,
       "norm_label": "injectable"
     },
     {
@@ -21914,7 +21914,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "src_providers_provider_registry_service_providerregistryservice_registerinstance",
-      "community": 137,
+      "community": 148,
       "norm_label": ".registerinstance()"
     },
     {
@@ -21924,7 +21924,7 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "src_providers_provider_registry_service_providerregistryservice_getgatewayconfig",
-      "community": 137,
+      "community": 6,
       "norm_label": ".getgatewayconfig()"
     },
     {
@@ -21934,7 +21934,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "src_providers_provider_registry_service_providerregistryservice_resolvemodelalias",
-      "community": 137,
+      "community": 6,
       "norm_label": ".resolvemodelalias()"
     },
     {
@@ -21944,7 +21944,7 @@
       "source_location": "L116",
       "_origin": "ast",
       "id": "src_providers_provider_registry_service_providerregistryservice_resolveproviderentry",
-      "community": 137,
+      "community": 6,
       "norm_label": ".resolveproviderentry()"
     },
     {
@@ -21954,7 +21954,7 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "src_providers_provider_registry_service_providerregistryservice_resolve",
-      "community": 137,
+      "community": 6,
       "norm_label": ".resolve()"
     },
     {
@@ -21964,7 +21964,7 @@
       "source_location": "L214",
       "_origin": "ast",
       "id": "src_providers_provider_registry_service_providerregistryservice_list",
-      "community": 137,
+      "community": 6,
       "norm_label": ".list()"
     },
     {
@@ -23544,7 +23544,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "test_integration_helpers_integration_gateway_config_buildintegrationgatewaymodels",
-      "community": 45,
+      "community": 148,
       "norm_label": "buildintegrationgatewaymodels()"
     },
     {
@@ -107107,7 +107107,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/providers/factories/create-openai-compatible-provider-instance.ts",
-      "source_location": "L20",
+      "source_location": "L28",
       "weight": 1.0,
       "source": "src_providers_factories_create_openai_compatible_provider_instance_createopenaicompatibleproviderinstance",
       "target": "src_providers_factories_create_openai_provider_core_createopenaiprovidercore"
@@ -107359,7 +107359,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/providers/factories/create-openai-provider.ts",
-      "source_location": "L15",
+      "source_location": "L19",
       "weight": 1.0,
       "source": "src_providers_factories_create_openai_provider_createopenaiprovider",
       "target": "src_providers_factories_create_openai_provider_core_createopenaiprovidercore"
@@ -123919,5 +123919,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "45a99d69e7c15b8adbd57b0ae991a1cf6c08e5dc"
+  "built_at_commit": "93689c621e80c1e2034501b0b0af8cfd411d723e"
 }
