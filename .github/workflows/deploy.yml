@@ -220,13 +220,23 @@ jobs:
               ls -la "/dest/$f"
             done'
 
+          # Build only gateway service explicitly
           docker compose -p ai-provider-gateway \
             --env-file .env \
             -f deployment/docker/docker-compose.yml \
             -f deployment/docker/docker-compose.redis.yml \
             -f deployment/docker/docker-compose.monitoring.yml \
             -f /tmp/deploy-host-binds.yml \
-            up -d --build --force-recreate
+            build gateway
+
+          # Start all services (pull images for redis/prometheus/grafana)
+          docker compose -p ai-provider-gateway \
+            --env-file .env \
+            -f deployment/docker/docker-compose.yml \
+            -f deployment/docker/docker-compose.redis.yml \
+            -f deployment/docker/docker-compose.monitoring.yml \
+            -f /tmp/deploy-host-binds.yml \
+            up -d --force-recreate
 
       - name: Health check
         run: |
