@@ -93,11 +93,21 @@ jobs:
         id: revision
         run: echo "ref=${{ needs.verify-ci.outputs.deploy_sha }}" >> "$GITHUB_OUTPUT"
 
+      # checkout path must stay under $GITHUB_WORKSPACE (absolute /opt/... is rejected)
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ steps.revision.outputs.ref }}
-          path: ${{ env.DEPLOY_DIR }}
+
+      - name: Sync checkout to deploy directory
+        run: |
+          set -euo pipefail
+          mkdir -p "${DEPLOY_DIR}"
+          rsync -a --delete \
+            --exclude '.env' \
+            --exclude 'gateway.config.yaml' \
+            --exclude '.git' \
+            ./ "${DEPLOY_DIR}/"
 
       - name: Fetch secrets from Vault
         working-directory: ${{ env.DEPLOY_DIR }}
