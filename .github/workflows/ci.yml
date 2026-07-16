@@ -1,6 +1,12 @@
 name: CI (feat/production-readiness)
 
 on:
+  push:
+    branches:
+      - feat/production-readiness
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
     inputs:
       run_all_tests:
@@ -19,11 +25,10 @@ on:
         options:
           - 'true'
           - 'false'
-  push:
-    branches:
-      - feat/production-readiness
-    paths:
-      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   NODE_ENV: test
@@ -43,19 +48,25 @@ jobs:
     steps:
       - name: Display workflow info
         run: |
-          echo "🚀 Manual CI Workflow Triggered"
-          echo "================================"
+          echo "CI Workflow"
+          echo "==========="
+          echo "Event: ${{ github.event_name }}"
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
           echo "Triggered by: ${{ github.actor }}"
           echo ""
-          echo "📋 Test Configuration:"
-          echo "  All tests (unit/e2e/security): ${{ inputs.run_all_tests }}"
-          echo "  Docker tests: ${{ inputs.run_docker_tests }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Mode: FULL (manual)"
+            echo "  All tests (unit/e2e/security): ${{ inputs.run_all_tests }}"
+            echo "  Docker tests: ${{ inputs.run_docker_tests }}"
+          else
+            echo "Mode: FAST (push) — lint + unit only"
+            echo "  Tip: use workflow_dispatch for e2e, security, and Docker"
+          fi
           echo ""
-          echo "⚠️  Note: This workflow is designed for feat/production-readiness branch"
+          echo "Target branch: feat/production-readiness"
           if [ "${{ github.ref_name }}" != "feat/production-readiness" ]; then
-            echo "⚠️  WARNING: Running on ${{ github.ref_name }} instead of feat/production-readiness"
+            echo "WARNING: Running on ${{ github.ref_name }} instead of feat/production-readiness"
           fi
       - uses: actions/checkout@v4
       - name: Upload workspace for downstream jobs
@@ -114,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [clone]
-    if: github.event_name != 'workflow_dispatch' || inputs.run_all_tests == 'true'
+    if: github.event_name == 'workflow_dispatch' && inputs.run_all_tests == 'true'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -131,7 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [clone]
-    if: github.event_name != 'workflow_dispatch' || inputs.run_all_tests == 'true'
+    if: github.event_name == 'workflow_dispatch' && inputs.run_all_tests == 'true'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -148,7 +159,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [clone, lint, test]
-    if: github.event_name != 'workflow_dispatch' || inputs.run_docker_tests == 'true'
+    if: github.event_name == 'workflow_dispatch' && inputs.run_docker_tests == 'true'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -251,7 +262,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [docker]
-    if: github.event_name != 'workflow_dispatch' || inputs.run_docker_tests == 'true'
+    if: github.event_name == 'workflow_dispatch' && inputs.run_docker_tests == 'true'
     steps:
       - uses: actions/download-artifact@v4
         with:
