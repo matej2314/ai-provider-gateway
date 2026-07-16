@@ -98,15 +98,46 @@ jobs:
         with:
           ref: ${{ steps.revision.outputs.ref }}
 
+      # File bind-mounts: if the host path is missing, Docker creates an empty DIRECTORY
+      # with that name. Later rsync then nests the real file inside it → mount fails with
+      # "not a directory". Clean junk dirs before sync; assert regular files before up.
       - name: Sync checkout to deploy directory
         run: |
           set -euo pipefail
           mkdir -p "${DEPLOY_DIR}"
-          # gateway.config.yaml comes from the repo; only .env is secret-backed
+
+          BIND_FILES=(
+            gateway.config.yaml
+            deployment/monitoring/prometheus.yml
+            deployment/monitoring/alerts.yml
+          )
+
+          # Release bind mounts so junk dirs can be removed (names from compose files)
+          docker stop ai-gateway ai-gateway-prometheus ai-gateway-grafana 2>/dev/null || true
+
+          for rel in "${BIND_FILES[@]}"; do
+            path="${DEPLOY_DIR}/${rel}"
+            if [ -d "${path}" ] && [ ! -L "${path}" ]; then
+              echo "Removing Docker bind-mount junk directory: ${path}"
+              rm -rf "${path}"
+            fi
+          done
+
+          # gateway.config.yaml + deployment/ come from the repo; only .env is secret-backed
           rsync -a --delete \
             --exclude '.env' \
             --exclude '.git' \
             ./ "${DEPLOY_DIR}/"
+
+          for rel in "${BIND_FILES[@]}"; do
+            path="${DEPLOY_DIR}/${rel}"
+            if [ ! -f "${path}" ]; then
+              echo "FATAL: expected regular file after sync: ${path}"
+              ls -la "$(dirname "${path}")" || true
+              exit 1
+            fi
+            echo "OK bind-mount source: ${path} ($(wc -c < "${path}" | tr -d ' ') bytes)"
+          done
 
       - name: Fetch secrets from Vault
         working-directory: ${{ env.DEPLOY_DIR }}
