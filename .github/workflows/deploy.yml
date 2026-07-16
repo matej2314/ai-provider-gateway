@@ -1,0 +1,202 @@
+name: Deploy to VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy (latest CI on this branch must be green)'
+        required: true
+        default: feat/production-readiness
+        type: string
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  CONT_NAME: ai-provider-gateway
+  VAULT_ADDR: https://vault-prod:8200
+  VAULT_SKIP_VERIFY: 'true'
+  VAULT_ENV: prod
+  GATEWAY_CONFIG_VAULT_PATH: secret/data/ai-provider-gateway/gateway-config
+  DEPLOY_DIR: /opt/ai-provider-gateway
+
+jobs:
+  verify-ci:
+    name: Verify CI passed
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_sha: ${{ steps.check.outputs.deploy_sha }}
+    steps:
+      - name: Check latest successful CI run on branch
+        id: check
+        uses: actions/github-script@v7
+        env:
+          TARGET_BRANCH: ${{ inputs.branch }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = process.env.TARGET_BRANCH;
+            const ciWorkflowName = 'CI (feat/production-readiness)';
+
+            const { data: workflows } = await github.rest.actions.listRepoWorkflows({
+              owner,
+              repo,
+            });
+
+            const ciWorkflow = workflows.workflows.find((w) => w.name === ciWorkflowName);
+            if (!ciWorkflow) {
+              core.setFailed(`Workflow not found: ${ciWorkflowName}`);
+              return;
+            }
+
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: ciWorkflow.id,
+              branch,
+              status: 'completed',
+              per_page: 20,
+            });
+
+            if (runs.workflow_runs.length === 0) {
+              core.setFailed(`No completed CI runs found on branch "${branch}". Run CI first.`);
+              return;
+            }
+
+            const latestAny = runs.workflow_runs[0];
+            if (latestAny.conclusion !== 'success') {
+              core.setFailed(
+                `Latest CI on "${branch}" concluded with "${latestAny.conclusion}" (run #${latestAny.run_number}).`,
+              );
+              return;
+            }
+
+            core.info(`CI verified: run #${latestAny.run_number} (${latestAny.head_sha})`);
+            core.setOutput('deploy_sha', latestAny.head_sha);
+
+  deploy:
+    name: Deploy full stack
+    needs: [verify-ci]
+    if: needs.verify-ci.result == 'success'
+    runs-on: [self-hosted, linux, docker]
+    environment: production
+    timeout-minutes: 30
+
+    steps:
+      - name: Resolve deploy revision
+        id: revision
+        run: echo "ref=${{ needs.verify-ci.outputs.deploy_sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.revision.outputs.ref }}
+          path: ${{ env.DEPLOY_DIR }}
+
+      - name: Fetch secrets from Vault
+        working-directory: ${{ env.DEPLOY_DIR }}
+        env:
+          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+        run: |
+          set -euo pipefail
+
+          login_response=$(curl -k -s --request POST \
+            --data "{\"role_id\":\"${VAULT_ROLE_ID}\",\"secret_id\":\"${VAULT_SECRET_ID}\"}" \
+            "${VAULT_ADDR}/v1/auth/approle/login")
+
+          vault_token=$(echo "${login_response}" | jq -r '.auth.client_token // empty')
+          if [ -z "${vault_token}" ]; then
+            echo "Failed to authenticate with Vault"
+            echo "${login_response}"
+            exit 1
+          fi
+
+          secrets_response=$(curl -k -s -H "X-Vault-Token: ${vault_token}" \
+            "${VAULT_ADDR}/v1/secret/data/${CONT_NAME}/${VAULT_ENV}")
+
+          if ! echo "${secrets_response}" | jq -e '.data.data' >/dev/null; then
+            echo "No secrets at secret/data/${CONT_NAME}/${VAULT_ENV}"
+            echo "${secrets_response}"
+            exit 1
+          fi
+
+          echo "${secrets_response}" | jq -r '.data.data | to_entries[] | "\(.key)=\(.value)"' > .env
+          chmod 600 .env
+          secret_count=$(wc -l < .env | tr -d ' ')
+          echo "Created .env with ${secret_count} entries"
+
+      - name: Fetch gateway.config.yaml from Vault
+        working-directory: ${{ env.DEPLOY_DIR }}
+        env:
+          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+        run: |
+          set -euo pipefail
+
+          login_response=$(curl -k -s --request POST \
+            --data "{\"role_id\":\"${VAULT_ROLE_ID}\",\"secret_id\":\"${VAULT_SECRET_ID}\"}" \
+            "${VAULT_ADDR}/v1/auth/approle/login")
+
+          vault_token=$(echo "${login_response}" | jq -r '.auth.client_token // empty')
+          if [ -z "${vault_token}" ]; then
+            echo "Failed to authenticate with Vault"
+            exit 1
+          fi
+
+          config_response=$(curl -k -s -H "X-Vault-Token: ${vault_token}" \
+            "${VAULT_ADDR}/v1/${GATEWAY_CONFIG_VAULT_PATH}")
+
+          if ! echo "${config_response}" | jq -e '.data.data.content' >/dev/null; then
+            echo "Missing gateway config at ${GATEWAY_CONFIG_VAULT_PATH} (field: content)"
+            echo "${config_response}"
+            exit 1
+          fi
+
+          echo "${config_response}" | jq -r '.data.data.content' > gateway.config.yaml
+          chmod 600 gateway.config.yaml
+          echo "Created gateway.config.yaml from Vault"
+
+      - name: Ensure Docker network
+        run: docker network create ai-gateway-network 2>/dev/null || true
+
+      - name: Build and deploy full stack
+        working-directory: ${{ env.DEPLOY_DIR }}
+        run: |
+          set -euo pipefail
+          npm run docker:up:full
+
+      - name: Health check
+        run: |
+          set -euo pipefail
+          echo "Waiting for gateway readiness..."
+          ready=false
+          for i in $(seq 1 24); do
+            if body=$(curl -sf http://localhost:3000/api/v1/health/ready); then
+              echo "${body}" | jq .
+              if echo "${body}" | jq -e '.status == "ready"' >/dev/null; then
+                ready=true
+                break
+              fi
+            fi
+            sleep 5
+          done
+
+          if [ "${ready}" != "true" ]; then
+            echo "Readiness check failed"
+            docker compose -p ai-provider-gateway \
+              --env-file "${DEPLOY_DIR}/.env" \
+              -f "${DEPLOY_DIR}/deployment/docker/docker-compose.yml" \
+              -f "${DEPLOY_DIR}/deployment/docker/docker-compose.redis.yml" \
+              -f "${DEPLOY_DIR}/deployment/docker/docker-compose.monitoring.yml" \
+              logs --tail=100 gateway || true
+            exit 1
+          fi
+
+          echo "Deploy successful (ref: ${{ steps.revision.outputs.ref }})"

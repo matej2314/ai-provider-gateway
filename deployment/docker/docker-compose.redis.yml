@@ -9,7 +9,7 @@ services:
     container_name: ai-gateway-redis
     restart: unless-stopped
     ports:
-      - "0.0.0.0:6379:6379"
+      - "0.0.0.0:6380:6379"
     command: redis-server --maxmemory ${REDIS_MAX_MEMORY:-256mb} --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
