@@ -22,6 +22,8 @@ env:
   VAULT_ADDR: https://vault-prod:8200
   VAULT_SKIP_VERIFY: 'true'
   VAULT_ENV: prod
+  # Paths the Docker *daemon* bind-mounts — must exist on the host FS, not only
+  # inside a containerized Actions runner (docker.sock / DooD).
   DEPLOY_DIR: /opt/ai-provider-gateway
 
 jobs:
@@ -92,55 +94,50 @@ jobs:
         id: revision
         run: echo "ref=${{ needs.verify-ci.outputs.deploy_sha }}" >> "$GITHUB_OUTPUT"
 
-      # checkout path must stay under $GITHUB_WORKSPACE (absolute /opt/... is rejected)
       - name: Checkout
         uses: actions/checkout@v5
         with:
           ref: ${{ steps.revision.outputs.ref }}
 
-      # File bind-mounts: if the host path is missing, Docker creates an empty DIRECTORY
-      # with that name. Later rsync then nests the real file inside it → mount fails with
-      # "not a directory". Clean junk dirs before sync; assert regular files before up.
-      - name: Sync checkout to deploy directory
+      # Self-hosted runner often uses docker.sock from a container: rsync to
+      # /opt/... only fills the runner FS. The daemon bind-mounts the *host*
+      # /opt/... — if missing, Docker creates empty directories (EISDIR / OCI mount).
+      # Sync through `docker run -v ${DEPLOY_DIR}:/dest` so files land on the host.
+      - name: Sync checkout onto Docker host deploy dir
         run: |
           set -euo pipefail
-          mkdir -p "${DEPLOY_DIR}"
-
-          BIND_FILES=(
-            gateway.config.yaml
-            deployment/monitoring/prometheus.yml
-            deployment/monitoring/alerts.yml
-          )
-
-          # Release bind mounts so junk dirs can be removed (names from compose files)
           docker stop ai-gateway ai-gateway-prometheus ai-gateway-grafana 2>/dev/null || true
+          docker rm -f ai-gateway ai-gateway-prometheus ai-gateway-grafana 2>/dev/null || true
 
-          for rel in "${BIND_FILES[@]}"; do
-            path="${DEPLOY_DIR}/${rel}"
-            if [ -d "${path}" ] && [ ! -L "${path}" ]; then
-              echo "Removing Docker bind-mount junk directory: ${path}"
-              rm -rf "${path}"
-            fi
-          done
-
-          # gateway.config.yaml + deployment/ come from the repo; only .env is secret-backed
-          rsync -a --delete \
-            --exclude '.env' \
-            --exclude '.git' \
-            ./ "${DEPLOY_DIR}/"
-
-          for rel in "${BIND_FILES[@]}"; do
-            path="${DEPLOY_DIR}/${rel}"
-            if [ ! -f "${path}" ]; then
-              echo "FATAL: expected regular file after sync: ${path}"
-              ls -la "$(dirname "${path}")" || true
-              exit 1
-            fi
-            echo "OK bind-mount source: ${path} ($(wc -c < "${path}" | tr -d ' ') bytes)"
-          done
+          docker run --rm \
+            -e "DEPLOY_DIR=${DEPLOY_DIR}" \
+            -v "${DEPLOY_DIR}:/dest" \
+            -v "${PWD}:/src:ro" \
+            alpine:3.20 \
+            sh -c '
+              set -euo pipefail
+              for rel in gateway.config.yaml deployment/monitoring/prometheus.yml deployment/monitoring/alerts.yml; do
+                if [ -d "/dest/$rel" ]; then
+                  echo "Removing Docker junk directory on host: $rel"
+                  rm -rf "/dest/$rel"
+                fi
+              done
+              if [ -f /dest/.env ]; then cp -a /dest/.env /tmp/.env.bak; fi
+              find /dest -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} +
+              tar -C /src --exclude=.git --exclude=.env -cf - . | tar -C /dest -xf -
+              if [ -f /tmp/.env.bak ]; then mv /tmp/.env.bak /dest/.env; fi
+              mkdir -p /dest/logs
+              for rel in gateway.config.yaml deployment/monitoring/prometheus.yml deployment/monitoring/alerts.yml; do
+                if [ ! -f "/dest/$rel" ]; then
+                  echo "FATAL: expected regular file on Docker host: $DEPLOY_DIR/$rel"
+                  ls -la "$(dirname "/dest/$rel")" || true
+                  exit 1
+                fi
+                echo "OK host bind source: $rel ($(wc -c < "/dest/$rel" | tr -d " ") bytes)"
+              done
+            '
 
       - name: Fetch secrets from Vault
-        working-directory: ${{ env.DEPLOY_DIR }}
         env:
           VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
           VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
@@ -167,25 +164,57 @@ jobs:
             exit 1
           fi
 
+          # Compose CLI reads .env from the job workspace; daemon bind-mounts need it on host too.
           echo "${secrets_response}" | jq -r '.data.data | to_entries[] | "\(.key)=\(.value)"' > .env
           chmod 600 .env
           secret_count=$(wc -l < .env | tr -d ' ')
-          echo "Created .env with ${secret_count} entries"
+          echo "Created workspace .env with ${secret_count} entries"
+
+          docker run --rm \
+            -v "${DEPLOY_DIR}:/dest" \
+            -v "${PWD}/.env:/src/.env:ro" \
+            alpine:3.20 \
+            sh -c 'cp /src/.env /dest/.env && chmod 600 /dest/.env && echo "Synced .env to host ${DEPLOY_DIR}/.env"'
 
       - name: Ensure Docker network
         run: docker network create ai-gateway-network 2>/dev/null || true
 
       - name: Build and deploy full stack
-        working-directory: ${{ env.DEPLOY_DIR }}
         run: |
           set -euo pipefail
-          # Self-hosted runner may not have Node/npm; compose is enough (same as npm run docker:up:full).
+
+          # Force bind sources to the host deploy dir (daemon FS), regardless of
+          # where the Compose CLI resolves relative paths inside the runner.
+          printf '%s\n' \
+            'services:' \
+            '  gateway:' \
+            '    volumes:' \
+            "      - ${DEPLOY_DIR}/gateway.config.yaml:/app/gateway.config.yaml:ro" \
+            "      - ${DEPLOY_DIR}/logs:/app/logs" \
+            '  prometheus:' \
+            '    volumes:' \
+            "      - ${DEPLOY_DIR}/deployment/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            "      - ${DEPLOY_DIR}/deployment/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro" \
+            '  grafana:' \
+            '    volumes:' \
+            "      - ${DEPLOY_DIR}/deployment/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro" \
+            "      - ${DEPLOY_DIR}/deployment/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro" \
+            > /tmp/deploy-host-binds.yml
+
+          # Verify host files one last time (daemon's view) before up
+          docker run --rm -v "${DEPLOY_DIR}:/dest:ro" alpine:3.20 \
+            sh -c 'for f in gateway.config.yaml deployment/monitoring/prometheus.yml deployment/monitoring/alerts.yml; do
+              test -f "/dest/$f" || { echo "FATAL host missing $f"; exit 1; }
+              ls -la "/dest/$f"
+            done'
+
           docker compose -p ai-provider-gateway \
             --env-file .env \
             -f deployment/docker/docker-compose.yml \
             -f deployment/docker/docker-compose.redis.yml \
             -f deployment/docker/docker-compose.monitoring.yml \
-            up -d --build
+            -f /tmp/deploy-host-binds.yml \
+            up -d --build --force-recreate
 
       - name: Health check
         run: |
@@ -206,10 +235,10 @@ jobs:
           if [ "${ready}" != "true" ]; then
             echo "Readiness check failed"
             docker compose -p ai-provider-gateway \
-              --env-file "${DEPLOY_DIR}/.env" \
-              -f "${DEPLOY_DIR}/deployment/docker/docker-compose.yml" \
-              -f "${DEPLOY_DIR}/deployment/docker/docker-compose.redis.yml" \
-              -f "${DEPLOY_DIR}/deployment/docker/docker-compose.monitoring.yml" \
+              --env-file .env \
+              -f deployment/docker/docker-compose.yml \
+              -f deployment/docker/docker-compose.redis.yml \
+              -f deployment/docker/docker-compose.monitoring.yml \
               logs --tail=100 gateway || true
             exit 1
           fi
