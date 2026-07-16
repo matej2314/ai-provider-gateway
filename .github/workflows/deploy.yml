@@ -84,7 +84,7 @@ jobs:
     name: Deploy full stack
     needs: [verify-ci]
     if: needs.verify-ci.result == 'success'
-    runs-on: [self-hosted, linux, docker]
+    runs-on: [self-hosted, linux]
     environment: production
     timeout-minutes: 30
 
