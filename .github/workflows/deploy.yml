@@ -244,7 +244,7 @@ jobs:
           echo "Waiting for gateway readiness..."
           ready=false
           for i in $(seq 1 24); do
-            if body=$(curl -sf http://localhost:3000/api/v1/health/ready); then
+            if body=$(curl -sf http://ai-gateway:3000/api/v1/health/ready); then
               echo "${body}" | jq .
               if echo "${body}" | jq -e '.status == "ready"' >/dev/null; then
                 ready=true
