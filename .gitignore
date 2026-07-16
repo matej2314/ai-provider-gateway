@@ -69,3 +69,8 @@ integrations-plan.md
 gateway-to-contracts.md
 tools_implementation.md
 cli-implementation-plan.md
+gateway.config.PLACEHOLDER.yaml
+gateway.config.old.yaml
+.env.test
+production-readiness-plan.md
+coverage-security/*

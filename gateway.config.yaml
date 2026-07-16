@@ -1,99 +1,66 @@
 schemaVersion: 1
-masterKeyRef: MASTER_KEY
+masterKeyRef: MASTER_KEY_PLACEHOLDER
 
 providers:
-  anthropic:
+  placeholder-provider:
     type: anthropic
-    apiKeyRef: ANTHROPIC_API_KEY
+    apiKeyRef: ANTHROPIC_API_KEY_PLACEHOLDER
     enabled: true
-  google:
-    type: google
-    apiKeyRef: GOOGLE_API_KEY
-    enabled: true
-# Configuration for gateway clients
 
 clients:
-  webapp:
-    name: My web app
-    type: webapp
-    gatewayKeyRef: GATEWAY_KEY_WEBAPP
-    rateLimit:
-      rps: 10
-      burst: 10
-      maxConcurrentStreams: 3
-  ide-plugin:
-    name: IDE INTEGRATION
+  placeholder-client:
+    name: Placeholder Client
     type: ide
-    gatewayKeyRef: GATEWAY_KEY_IDE_PLUGIN
+    gatewayKeyRef: GATEWAY_KEY_PLACEHOLDER
 
 models:
-  # Domyślny alias zgodny ze scenariuszem A w docs/spec/SPEC-KONFIGURACJA.md
-  chat-default:
-    providerInstance: anthropic
-    modelId: claude-sonnet-4-5-20250929
+  placeholder-model:
+    providerInstance: placeholder-provider
+    modelId: placeholder-modelId
     capabilities:
       streaming: true
       tools: true
+      thinking: true
     policy:
       timeoutMs: 30000
       retry:
         maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
+        onStatus:
+          - 429
+          - 500
+          - 502
+          - 503
+          - 504
       params:
         defaults:
-          temperature: 0.4
-          maxOutputTokens: 500
+          temperature: 0.7
+          maxOutputTokens: 4096
+          thinkingEnabled: false
         allowOverrides:
           - temperature
           - maxOutputTokens
+          - topP
+          - topK
+          - stop
+          - frequencyPenalty
+          - presencePenalty
+          - seed
+          - responseFormat
+          - thinkingEnabled
+          - thinkingBudget
         bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-
-  # Opcjonalnie: jawny alias „anthropicowy” dla klarowności przy dwóch modelach Claude w przyszłości
-  claude-sonnet:
-    providerInstance: anthropic
-    modelId: claude-sonnet-4-5-20250929
-    fallback: chat-default
-    capabilities:
-      streaming: true
-      tools: true
-    policy:
-      timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
-      params:
-        defaults:
-          temperature: 0.4
-          maxOutputTokens: 1024
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-        bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
-
-  # Drugi alias (Google) — ułatwia scenariusz B (dwa providery) bez duplikowania nazw z prefiksów z kodu
-  gemini-flash:
-    providerInstance: google
-    modelId: gemini-2.5-flash
-    fallback: chat-default
-    capabilities:
-      streaming: true
-      tools: true
-    policy:
-      timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus: [429, 500, 502, 503, 504]
-      params:
-        defaults:
-          temperature: 0.4
-          maxOutputTokens: 1024
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-        bounds:
-          temperature: { min: 0, max: 2 }
-          maxOutputTokens: { min: 1, max: 8192 }
+          temperature:
+            min: 0
+            max: 2
+          maxOutputTokens:
+            min: 1
+            max: 8192
+          topP:
+            min: 0
+            max: 1
+          frequencyPenalty:
+            min: -2
+            max: 2
+          presencePenalty:
+            min: -2
+            max: 2

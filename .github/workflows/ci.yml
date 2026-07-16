@@ -1,0 +1,286 @@
+name: CI (feat/production-readiness)
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_all_tests:
+        description: 'Run all test suites (unit, e2e, security)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      run_docker_tests:
+        description: 'Run Docker build and smoke tests'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+  push:
+    branches:
+      - feat/production-readiness
+    paths:
+      - '.github/workflows/ci.yml'
+
+env:
+  NODE_ENV: test
+  MASTER_KEY: ${{ secrets.MASTER_KEY }}
+  MASTER_KEY_TEST: ${{ secrets.MASTER_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  ANTHROPIC_API_KEY_TEST: ${{ secrets.ANTHROPIC_API_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+  GOOGLE_API_KEY_TEST: ${{ secrets.GOOGLE_API_KEY }}
+  GATEWAY_KEY: ${{ secrets.GATEWAY_KEY }}
+
+jobs:
+  clone:
+    name: Clone Repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Display workflow info
+        run: |
+          echo "🚀 Manual CI Workflow Triggered"
+          echo "================================"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo ""
+          echo "📋 Test Configuration:"
+          echo "  All tests (unit/e2e/security): ${{ inputs.run_all_tests }}"
+          echo "  Docker tests: ${{ inputs.run_docker_tests }}"
+          echo ""
+          echo "⚠️  Note: This workflow is designed for feat/production-readiness branch"
+          if [ "${{ github.ref_name }}" != "feat/production-readiness" ]; then
+            echo "⚠️  WARNING: Running on ${{ github.ref_name }} instead of feat/production-readiness"
+          fi
+      - uses: actions/checkout@v4
+      - name: Upload workspace for downstream jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: |
+            .
+            !.git
+            !node_modules
+          include-hidden-files: true
+          retention-days: 1
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [clone]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [clone]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:cov
+      - name: Upload coverage
+        if: always()
+        continue-on-error: true
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [clone]
+    if: github.event_name != 'workflow_dispatch' || inputs.run_all_tests == 'true'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:e2e
+
+  security:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [clone]
+    if: github.event_name != 'workflow_dispatch' || inputs.run_all_tests == 'true'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:security:ci
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [clone, lint, test]
+    if: github.event_name != 'workflow_dispatch' || inputs.run_docker_tests == 'true'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deployment/docker/Dockerfile
+          push: false
+          tags: ai-provider-gateway:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+      - name: Prepare CI gateway config
+        run: |
+          cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
+          sed -i 's/MASTER_KEY_PLACEHOLDER/MASTER_KEY/g' gateway.config.yaml
+          sed -i 's/ANTHROPIC_API_KEY_PLACEHOLDER/ANTHROPIC_API_KEY/g' gateway.config.yaml
+          sed -i 's/GATEWAY_KEY_PLACEHOLDER/GATEWAY_KEY/g' gateway.config.yaml
+      - name: Create test .env
+        run: |
+          cp deployment/templates/.env.example .env
+          sed -i "s|^MASTER_KEY_PLACEHOLDER=.*|MASTER_KEY=${MASTER_KEY}|" .env
+          sed -i "s|^ANTHROPIC_API_KEY_PLACEHOLDER=.*|ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}|" .env
+          sed -i "s|^GATEWAY_KEY_PLACEHOLDER=.*|GATEWAY_KEY=${GATEWAY_KEY}|" .env
+          sed -i 's|^CACHE_ENABLED=.*|CACHE_ENABLED=true|' .env
+          sed -i 's|^CACHE_BACKEND=.*|CACHE_BACKEND=redis|' .env
+          sed -i 's|^REDIS_HOST=.*|REDIS_HOST=redis|' .env
+      - name: Test Docker image with Redis
+        run: |
+          set -euo pipefail
+
+          docker network create ai-gateway-network 2>/dev/null || true
+          docker compose --env-file .env -f deployment/docker/docker-compose.redis.yml up -d
+
+          echo "Waiting for Redis..."
+          for i in $(seq 1 30); do
+            if docker exec ai-gateway-redis redis-cli ping 2>/dev/null | grep -q PONG; then
+              echo "Redis is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Redis failed to become ready"
+              docker logs ai-gateway-redis || true
+              exit 1
+            fi
+            sleep 2
+          done
+
+          docker run -d -p 3000:3000 \
+            --network ai-gateway-network \
+            -v "$PWD/gateway.config.yaml:/app/gateway.config.yaml:ro" \
+            -e NODE_ENV="$NODE_ENV" \
+            -e MASTER_KEY="$MASTER_KEY" \
+            -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+            -e GOOGLE_API_KEY="$GOOGLE_API_KEY" \
+            -e GATEWAY_KEY="$GATEWAY_KEY" \
+            -e CACHE_ENABLED=true \
+            -e CACHE_BACKEND=redis \
+            -e REDIS_HOST=redis \
+            -e REDIS_PORT=6379 \
+            -e REDIS_PASSWORD= \
+            -e REDIS_DB=0 \
+            --name gateway-test \
+            ai-provider-gateway:${{ github.sha }}
+
+          echo "Waiting for gateway readiness (Redis integration)..."
+          READY=false
+          for i in $(seq 1 24); do
+            if BODY=$(curl -sf http://localhost:3000/api/v1/health/ready); then
+              echo "$BODY" | jq .
+              if echo "$BODY" | jq -e '.status == "ready" and .checks.redis.status == "healthy"' >/dev/null; then
+                READY=true
+                break
+              fi
+            fi
+            sleep 5
+          done
+
+          if [ "$READY" != "true" ]; then
+            echo "Readiness check failed (expected ready + healthy redis)"
+            docker logs gateway-test || true
+            docker logs ai-gateway-redis || true
+            exit 1
+          fi
+
+          echo "Gateway + Redis integration check passed"
+      - name: Cleanup Docker test stack
+        if: always()
+        run: |
+          docker stop gateway-test 2>/dev/null || true
+          docker rm gateway-test 2>/dev/null || true
+          docker compose --env-file .env -f deployment/docker/docker-compose.redis.yml down 2>/dev/null || true
+
+  docker-compose-smoke:
+    name: Docker Compose Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [docker]
+    if: github.event_name != 'workflow_dispatch' || inputs.run_docker_tests == 'true'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - name: Prepare CI gateway config
+        run: |
+          cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
+          sed -i 's/MASTER_KEY_PLACEHOLDER/MASTER_KEY/g' gateway.config.yaml
+          sed -i 's/ANTHROPIC_API_KEY_PLACEHOLDER/ANTHROPIC_API_KEY/g' gateway.config.yaml
+          sed -i 's/GATEWAY_KEY_PLACEHOLDER/GATEWAY_KEY/g' gateway.config.yaml
+      - name: Create test .env
+        run: |
+          cp deployment/templates/.env.example .env
+          sed -i "s|^MASTER_KEY_PLACEHOLDER=.*|MASTER_KEY=${MASTER_KEY}|" .env
+          sed -i "s|^ANTHROPIC_API_KEY_PLACEHOLDER=.*|ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}|" .env
+          sed -i "s|^GATEWAY_KEY_PLACEHOLDER=.*|GATEWAY_KEY=${GATEWAY_KEY}|" .env
+      - name: Start docker-compose stack
+        run: |
+          docker network create ai-gateway-network 2>/dev/null || true
+          docker compose -f deployment/docker/docker-compose.yml up -d
+          sleep 30
+      - name: Check health
+        run: |
+          if ! curl -f http://localhost:3000/api/v1/health; then
+            echo "Health check failed"
+            docker compose -f deployment/docker/docker-compose.yml logs
+            exit 1
+          fi
+          echo "Health check passed"
+      - name: Cleanup
+        if: always()
+        run: docker compose -f deployment/docker/docker-compose.yml down -v
