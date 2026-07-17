@@ -3,12 +3,17 @@ import type {
   MaxAttempts,
   ModelAlias,
   TimeoutMs,
-} from '../types/branded.types';
+} from '../../common/types/branded.types';
 
 export interface RetryPolicy {
   maxAttempts: MaxAttempts;
   onStatus: number[];
+  /** Per-attempt request deadline (not the delay between retries). */
   timeoutMs?: TimeoutMs;
+  /** Base delay before the next retry (exponential backoff). */
+  initialDelayMs?: TimeoutMs;
+  /** Cap for exponential backoff delay between retries. */
+  maxDelayMs?: TimeoutMs;
 }
 
 export interface AttemptResult<T> {

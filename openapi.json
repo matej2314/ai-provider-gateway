@@ -1,6 +1,22 @@
 {
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/metrics": {
+      "get": {
+        "description": "Returns application metrics in Prometheus exposition format. Public endpoint for Prometheus scraping.",
+        "operationId": "MetricsController_getMetrics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Metrics in Prometheus text format"
+          }
+        },
+        "summary": "Prometheus metrics endpoint",
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
     "/api/v1/chat": {
       "post": {
         "description": "Full JSON response. Cache, smart rate limit, ResilientExecutor, optional fallback (effectiveModelAlias).",
@@ -1440,8 +1456,8 @@
           },
           "jsonSchema": {
             "type": "object",
-            "description": "JSON schema for structured outputs (when type=json_object).",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "description": "JSON schema for structured outputs (when type=json_object)."
           }
         },
         "required": [
@@ -1648,8 +1664,8 @@
           },
           "metadata": {
             "type": "object",
-            "description": "User-defined metadata for tracking and analytics. Propagated to providers when supported (OpenAI, Anthropic).",
             "additionalProperties": true,
+            "description": "User-defined metadata for tracking and analytics. Propagated to providers when supported (OpenAI, Anthropic).",
             "example": {
               "userId": "123",
               "sessionId": "abc"
@@ -2661,7 +2677,8 @@
             "type": "string"
           },
           "input": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "tool_use_id": {
             "type": "string"

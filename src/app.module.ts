@@ -11,7 +11,7 @@ import { ProvidersModule } from './providers/providers.module';
 import { ProviderRegistryModule } from './providers/provider-registry.module';
 import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
-import { validate } from './config/env.validation';
+import { validateEnvironment } from './config/configuration-validation.service';
 import { HealthModule } from './health/health.module';
 import { CacheModule } from './cache/cache.module';
 import { isRedisRequiredFromEnv } from './cache/should-include-redis-stack';
@@ -21,8 +21,7 @@ import { HttpMetricsMiddleware } from './common/middleware/http-metrics.middlewa
 import { LoggingModule } from './logging/logging.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { ModelsModule } from './models/models.module';
-import { AiMetricsModule } from './observability/ai-metrics/ai-metrics.module';
-import { AppMetricsModule } from './observability/app-metrics/app-metrics.module';
+import { ObservabilityModule } from './observability/observability.module';
 
 @Module({
   providers: [
@@ -34,7 +33,7 @@ import { AppMetricsModule } from './observability/app-metrics/app-metrics.module
     ConfigModule.forRoot({
       load: [configuration],
       isGlobal: true,
-      validate,
+      validate: validateEnvironment,
     }),
     LoggingModule,
     ProviderRegistryModule,
@@ -48,8 +47,7 @@ import { AppMetricsModule } from './observability/app-metrics/app-metrics.module
     RateLimitModule.register({
       smartRateLimitEnabled: process.env.RATE_LIMIT_SMART_ENABLED === 'true',
     }),
-    AiMetricsModule,
-    AppMetricsModule,
+    ObservabilityModule,
     IntegrationsModule,
   ],
 })

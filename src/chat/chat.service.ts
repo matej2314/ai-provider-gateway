@@ -5,7 +5,7 @@ import { LoggingService } from '../logging/logging.service';
 import { ProviderRegistryService } from '../providers/provider-registry.service';
 import { v4 as uuidv4 } from 'uuid';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
-import { ResilientExecutor } from '../common/resilience/resilient-executor';
+import { ResilientExecutor } from './resilience/resilient-executor';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseEvent } from './sse/sse-event.type';
 import { getOrCreateConversationIdForResponse } from './helpers/conversation-id';

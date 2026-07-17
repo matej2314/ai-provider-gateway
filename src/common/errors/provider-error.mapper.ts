@@ -7,11 +7,7 @@ import {
   readNumericStatus,
   nameLooksLikeTimeout,
 } from './provider-error.mapper.helpers';
-
-export type MappedProviderError = {
-  httpStatus: number;
-  payload: ApiErrorPayload;
-};
+import type { MappedProviderError } from './error.types';
 
 export { mapOpenAiSdkError } from '../../providers/openai/mappers/openai-error.mapper';
 

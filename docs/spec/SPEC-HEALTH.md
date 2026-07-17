@@ -35,7 +35,7 @@ F-1c. **`GET /metrics`** (poza prefiksem `/api/v1`) eksportuje metryki Prometheu
 
 F-2. Gateway musi być w stanie jednoznacznie określić “gotowość” do obsługi żądań LLM:
 
-- poprawna konfiguracja env (klucze providerów **per `apiKeyRef`** włączonych instancji — `provider-api-key.validation.ts`),
+- poprawna konfiguracja env (klucze / base URL providerów **per `apiKeyRef` / `baseUrlRef`** włączonych instancji — fasada `configuration-validation.service.ts`),
 - poprawna konfiguracja plików modeli/polityk (wczytanie i walidacja `gateway.config.yaml` przy starcie: `gateway-config.schema.ts`, `configuration.ts`; offline: `npm run config:validate` lub `gateway config:validate`).
 
 *(Opcjonalnie w przyszłości: test połączenia do providerów.)*

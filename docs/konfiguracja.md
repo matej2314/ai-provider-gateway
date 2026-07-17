@@ -21,7 +21,7 @@ Zasada: **sekrety tylko w env**. Pliki konfiguracyjne nie zawierają wartości k
 
 ### Klucze providerów (`apiKeyRef`)
 
-Runtime **nie** wymaga globalnie `ANTHROPIC_API_KEY` ani `GOOGLE_API_KEY`. Zamiast tego `buildEffectiveGatewayConfig()` (`src/config/configuration.ts`) wywołuje **`assertEnabledProviderApiKeysPresent()`** (`src/config/provider-api-key.validation.ts`): dla każdej instancji z **`enabled !== false`** env pod **`apiKeyRef`** z YAML musi być niepusty po `trim()`.
+Runtime **nie** wymaga globalnie `ANTHROPIC_API_KEY` ani `GOOGLE_API_KEY`. Zamiast tego `buildEffectiveGatewayConfig()` (`src/config/configuration.ts`) woła fasadę **`assertEnabledProviderSecretsPresent()`** (`src/config/configuration-validation.service.ts`), która deleguje do `provider-api-key.validation.ts` / `provider-base-url.validation.ts`: dla każdej instancji z **`enabled !== false`** env pod **`apiKeyRef`** musi być niepusty po `trim()` (wyjątek: typy OpenAI — klucz może być pusty; wymagany poprawny URL pod **`baseUrlRef`**).
 
 Przykłady nazw:
 
@@ -35,14 +35,14 @@ Wizard (`deriveApiKeyRef()` w `src/cli/utils/provider-id.util.ts`) buduje `apiKe
 
 **Legacy env (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`):** CLI przy generowaniu `.env` **kopiuje** klucze pod legacy nazwy (`applyLegacyProviderApiKeyEnv` w `src/cli/utils/legacy-provider-env.util.ts`) — pierwsza niepusta wartość per `type` providera. Komendy mutujące providerów synchronizują legacy przez `syncLegacyProviderApiKeysInEnv()`. Runtime **czyta wyłącznie `apiKeyRef` z YAML** — sam legacy klucz **nie wystarczy**, gdy YAML wskazuje inną nazwę (np. tylko `ANTHROPIC_API_KEY` w env, a YAML ma `ANTHROPIC_PRIMARY_API_KEY` → start fail).
 
-**Walidacja formatu (gdy zmienna jest ustawiona)** — `src/config/env.validation.ts`, klasa `EnvironmentVariables`:
+**Walidacja formatu (gdy zmienna jest ustawiona)** — reguły w `src/config/env.validation.ts` (`EnvironmentVariables`); punkt wejścia runtime/CLI: **`validateEnvironment()`** z `configuration-validation.service.ts` (Nest `ConfigModule.forRoot({ validate })`, `CliGatewayValidatorService`):
 
 | Zmienna (opcjonalna) | Reguła formatu |
 |----------------------|----------------|
 | `ANTHROPIC_API_KEY` | prefiks `sk-ant-` |
 | `GOOGLE_API_KEY` | prefiks `AIza` lub `AQ.` |
 
-Brak tych zmiennych **nie blokuje** startu. **`gateway config:validate`** po sukcesie YAML dodatkowo uruchamia `validateEnv()` (`CliGatewayValidatorService`) — błędny format legacy klucza kończy walidację exit `1`. Skrypt **`npm run config:validate`** wywołuje wyłącznie `validateGatewayConfig()` (YAML + reguły runtime + klucze pod `*KeyRef`) — **bez** walidacji formatu legacy env.
+Brak tych zmiennych **nie blokuje** startu. **`gateway config:validate`** po sukcesie YAML dodatkowo uruchamia `validateEnvironment()` (`CliGatewayValidatorService`) — błędny format legacy klucza kończy walidację exit `1`. Skrypt **`npm run config:validate`** wywołuje wyłącznie `validateGatewayConfig()` (YAML + reguły runtime + sekrety providerów przez fasadę) — **bez** walidacji formatu legacy env.
 
 W repo mogą istnieć dwa szablony `.env.example`: w **katalogu głównym** (typowo po wizardzie CLI) oraz **`deployment/templates/.env.example`** (boilerplate sparowany z `gateway.config.example.yaml`). Nazwy `apiKeyRef` / `gatewayKeyRef` muszą być zgodne z YAML.
 
@@ -57,7 +57,7 @@ W repo mogą istnieć dwa szablony `.env.example`: w **katalogu głównym** (typ
 
 ### Cache odpowiedzi i Redis (opcjonalnie)
 
-Zmienne są walidowane przy starcie klasą **`EnvironmentVariables`** w `src/config/env.validation.ts` (m.in. typy i wartości domyślne). Wartości używane w runtime składa też `configuration.ts` (`cache`, `redis` w obiekcie zwracanym przez `load`).
+Zmienne są walidowane przy starcie przez **`validateEnvironment()`** (fasada → `EnvironmentVariables` w `env.validation.ts`; m.in. typy i wartości domyślne). Wartości używane w runtime składa też `configuration.ts` (`cache`, `redis` w obiekcie zwracanym przez `load`).
 
 | Zmienna            | Domyślnie   | Znaczenie                                                                                                                                                                                                                                                                                                              |
 | ------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -386,9 +386,11 @@ Uwagi:
   - każda instancja providera z **`enabled !== false`** (w praktyce w YAML ustaw **`enabled: true`** dla providerów używanych w runtime; pominięte `enabled` → po parsowaniu Zod domyślnie **`false`**, wtedy instancja jest wyłączona) musi mieć **co najmniej jeden** alias w `models` z tym samym `providerInstance`;
   - po filtrze `enabled` funkcja `buildEffectiveGatewayConfig` ponownie wymusza, że każdy **aktywny** provider ma ≥1 **aktywny** model (modele powiązane z providerem `enabled: false` są pomijane z ostrzeżeniem w logu).
   - Instancja z **`enabled: false`** **nie wymaga** wpisów w `models` (może pozostać w YAML jako wyłączona rezerwa).
-- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`capabilities`**: `streaming` (wymagane dla SSE), opcjonalnie **`tools: true`** — bez tego flagi żądania z `tooling` / turami `tool` zwracają **`TOOLS_NOT_SUPPORTED`**; opcjonalnie **`thinking: true`** — wymagane, aby `params.thinkingEnabled` / `thinkingBudget` były dozwolone (mapowanie: `anthropic-thinking.mapper.ts`, adapter Google). **`policy.params`**: w YAML `defaults` (Zod) — `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`, `thinkingEnabled`; w `allowOverrides` — powyższe plus `topK`, `stop`, `responseFormat`, `thinkingBudget`. Merge w `resolveProviderCallOptions`: defaults YAML ← body dla pól z pierwszej grupy; **`topK`**, **`stop`**, **`responseFormat`**, **`thinkingBudget`** — **tylko z body** (gdy w `allowOverrides`). **`retry.maxAttempts`** — maks. **5** (walidacja Zod). **Konfiguracja defaults zależy od typu providera** — sekcja „Parametry generacji a typ providera” powyżej. **`timeoutMs`** i **`retry`** — egzekwowane w `ResilientExecutor` (timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` lub `RETRY_POLICY_DEFAULTS`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`.
+- Polityki (`timeoutMs`, `retry`, `params`) są w pliku zdefiniowane. **`capabilities`**: `streaming` (wymagane dla SSE), opcjonalnie **`tools: true`** — bez tego flagi żądania z `tooling` / turami `tool` zwracają **`TOOLS_NOT_SUPPORTED`**; opcjonalnie **`thinking: true`** — wymagane, aby `params.thinkingEnabled` / `thinkingBudget` były dozwolone (mapowanie: `anthropic-thinking.mapper.ts`, adapter Google). **`policy.params`**: w YAML `defaults` (Zod) — `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`, `thinkingEnabled`; w `allowOverrides` — powyższe plus `topK`, `stop`, `responseFormat`, `thinkingBudget`. Merge w `resolveProviderCallOptions`: defaults YAML ← body dla pól z pierwszej grupy; **`topK`**, **`stop`**, **`responseFormat`**, **`thinkingBudget`** — **tylko z body** (gdy w `allowOverrides`). **`retry.maxAttempts`** — maks. **5** (walidacja Zod). **Konfiguracja defaults zależy od typu providera** — sekcja „Parametry generacji a typ providera” powyżej. **`timeoutMs`** i **`retry`** — egzekwowane w **`ResilientExecutor`** (`src/chat/resilience/`; timeout → `PROVIDER_TIMEOUT` / HTTP 504; retry tylko dla statusów z `onStatus`, domyślnie `[429, 500, 502, 503, 504]` z `RETRY_POLICY_DEFAULTS` w `src/common/retry-policy-defaults.ts`; budowa: `buildRetryPolicyFromResolved`). Brak wartości w YAML → domyślne `maxAttempts: 3`, `timeoutMs: 30000`. Fallback jednego hopu: `models[].fallback` + `assertNoFallbackCycle`.
 
 ## 3) Walidacja i fail-fast
+
+**Orkiestracja:** `ConfigurationValidationService` (`src/config/configuration-validation.service.ts`) — plain class (bez Nest DI; bootstrap przed kontenerem). Fasada składa reguły z `env.validation.ts`, `provider-api-key.validation.ts`, `provider-base-url.validation.ts` (master key, sekrety providerów, format env). **Nie** ładuje YAML ani nie uruchamia Zod — to robią `gateway-config.schema.ts` / `config-validator.ts` / `configuration.ts`.
 
 Gateway kończy start m.in. gdy:
 
@@ -398,13 +400,14 @@ Gateway kończy start m.in. gdy:
 - alias w `models` wskazuje **nieznany** `providerInstance`,
 - **włączony** provider (`enabled !== false`) **nie ma** żadnego aliasu w `models` z tym `providerInstance`,
 - po zastosowaniu flag `enabled` **nie ma żadnego aktywnego modelu** albo **aktywny** provider nie ma przypisanego aktywnego modelu,
-- dla **aktywnego** providera brakuje niepustego env pod **`apiKeyRef`** z YAML (`[GatewayConfig] Missing API key for enabled provider instance…`),
-- brakuje niepustego klucza **master** (`[GatewayKey] Missing master key.`),
+- dla **aktywnego** providera brakuje niepustego env pod **`apiKeyRef`** z YAML (`[GatewayConfig] Missing API key for enabled provider instance…`) albo (typy OpenAI) brakuje poprawnego URL pod **`baseUrlRef`**,
+- brakuje niepustego klucza **master** (`[GatewayKey] Missing master key.` — `assertMasterKeyPresent` w fasadzie),
 
-| Warstwa                | Gdzie                         | Przykładowe reguły                                                                                                                        |
-| ---------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Zod (surowy YAML)      | `GatewayConfigSchema`         | duplikat `apiKeyRef`; puste `models`; model → provider; provider (aktywny) → ≥1 model; `fallback` istnieje, bez samoodwołania i pętli A↔B |
-| Efektywna konfiguracja | `buildEffectiveGatewayConfig` | filtr `enabled`; ≥1 aktywny model globalnie; aktywny provider → aktywny model; klucz API dla aktywnych providerów                         |
+| Warstwa                | Gdzie                                      | Przykładowe reguły                                                                                                                        |
+| ---------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Zod (surowy YAML)      | `GatewayConfigSchema`                      | duplikat `apiKeyRef`; puste `models`; model → provider; provider (aktywny) → ≥1 model; `fallback` istnieje, bez samoodwołania i pętli A↔B |
+| Efektywna konfiguracja | `buildEffectiveGatewayConfig`              | filtr `enabled`; ≥1 aktywny model globalnie; aktywny provider → aktywny model; sekrety przez fasadę (`assertEnabledProviderSecretsPresent`) |
+| Fasada walidacji       | `configuration-validation.service.ts`      | `validateEnvironment`; `assertMasterKeyPresent`; API keys + base URL (delegacja do `provider-*-validation.ts`)                            |
 
 **Poza zakresem obecnej implementacji (plan — krok 5.6, część pozostała):** pełny katalog aliasów wszystkich modeli API Anthropic/Google oraz walidacja kompletności aliasów „zwyczajowych” względem ustalonej listy MVP.
 
@@ -413,8 +416,8 @@ Gateway kończy start m.in. gdy:
 Skrypt (`scripts/validate-config.ts`) waliduje konfigurację **offline** (bez uruchamiania serwera HTTP) przez `validateGatewayConfig()` z `src/config/config-validator.ts`:
 
 - walidacja YAML przez `GatewayConfigSchema` (Zod),
-- walidacja reguł runtime przez `buildEffectiveGatewayConfig` (filtr `enabled` + wymagane klucze `apiKeyRef` dla włączonych providerów),
-- walidacja wymogu klucza master (`masterKeyRef`) jak w `buildGatewayKeyRuntime` (brak → błąd),
+- walidacja reguł runtime przez `buildEffectiveGatewayConfig` (filtr `enabled` + sekrety providerów przez fasadę: `apiKeyRef` / `baseUrlRef`),
+- walidacja wymogu klucza master (`assertMasterKeyPresent` w fasadzie; brak → błąd),
 - ostrzeżenia (nie blokują) m.in. dla klientów z pustym env pod `gatewayKeyRef` i wyłączonych providerów.
 
 Uruchomienie:
@@ -446,7 +449,7 @@ Runtime HTTP i CLI **nie używają tej samej ścieżki** ładowania configu:
 | Wymaga `.env` przy starcie CLI           | tak (przy starcie serwera HTTP)                                | **nie** — CLI startuje bez `.env`                                                                         |
 | Parsowanie YAML                          | `yaml.load` + `GatewayConfigSchema`                            | to samo (`loadRawConfig`)                                                                                 |
 | Rozwiązywanie env                        | `buildEffectiveGatewayConfig()`, klucze master/provider/client | **pominięte** w `loadRawConfig`; opcjonalny raport braków w `loadWithEnvCheck()`                          |
-| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP                                          | **`gateway config:init`** — na końcu wizarda; **`gateway config:validate`** (YAML + `validateEnv()` dla legacy kluczy); **`npm run config:validate`** — YAML + reguły runtime (bez formatu legacy env) |
+| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP                                          | **`gateway config:init`** — na końcu wizarda; **`gateway config:validate`** (YAML + `validateEnvironment()` dla legacy kluczy); **`npm run config:validate`** — YAML + reguły runtime (bez formatu legacy env) |
 
 #### Inicjalizacja konfiguracji (wizard)
 

@@ -28,7 +28,7 @@ Implementacja: fabryki w `src/providers/factories/` (zwykłe funkcje, bez `@Inje
 
 ## Klucze API (env)
 
-Wartości uwierzytelniające są wczytywane z env przez **`apiKeyRef`** w YAML (per **instancja**, nie per typ). Przy **każdym starcie** aplikacji obowiązuje reguła z `provider-api-key.validation.ts`: **niepusty env pod `apiKeyRef`** dla każdej włączonej instancji (typy OpenAI / openai-compatible — klucz może być pusty, wymagany `baseUrlRef`). Wywołanie: `buildEffectiveGatewayConfig` w `configuration.ts`. Szczegóły: `docs/konfiguracja.md`.
+Wartości uwierzytelniające są wczytywane z env przez **`apiKeyRef`** w YAML (per **instancja**, nie per typ). Przy **każdym starcie** aplikacji obowiązują reguły sekretów przez fasadę `configuration-validation.service.ts` (implementacja: `provider-api-key.validation.ts` / `provider-base-url.validation.ts`): **niepusty env pod `apiKeyRef`** dla każdej włączonej instancji (typy OpenAI / openai-compatible — klucz może być pusty, wymagany `baseUrlRef`). Wywołanie: `buildEffectiveGatewayConfig` → `assertEnabledProviderSecretsPresent`. Szczegóły: `docs/konfiguracja.md`.
 
 ## Użytkownicy i scenariusze
 
@@ -120,7 +120,7 @@ Mapowanie `system` na pierwszą wiadomość `user` jest dopuszczalne **tylko** j
 - Zaawansowany routing (hedging, multi-hop fallback chains, routing po intencji).
 - Automatyczne wykrywanie dostępnych modeli po API providerów.
 
-**Uwaga:** prosty **fallback jednego hopu** (`models[].fallback` + `ResilientExecutor`) jest wdrożony na warstwie gateway — patrz `konfiguracja.md`, `SPEC-CHAT.md` (F-10).
+**Uwaga:** prosty **fallback jednego hopu** (`models[].fallback` + `ResilientExecutor` w `src/chat/resilience/`) jest wdrożony na warstwie gateway — patrz `konfiguracja.md`, `SPEC-CHAT.md` (F-10).
 
 ## Notatki implementacyjne — mapowanie SDK
 

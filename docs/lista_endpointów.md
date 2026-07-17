@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
 Wersja dokumentu: **1.9**.  
-**OpenAPI:** `openapi.json` (v0.14.0) — zsynchronizowany z `src/` (health, czat natywny, **models**, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor`, dekoratory `@nestjs/swagger`). **Błędy:** natywny czat i models — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat, models), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat / models:** `@GatewayKeyAndSmartRateLimit()` na `ChatController`, `ChatStreamController`, `ModelsController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
+**OpenAPI:** `openapi.json` (v0.14.0) — zsynchronizowany z `src/` (health, czat natywny, **models**, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor` (`src/chat/resilience/`), dekoratory `@nestjs/swagger`). **Błędy:** natywny czat i models — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat, models), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat / models:** `@GatewayKeyAndSmartRateLimit()` na `ChatController`, `ChatStreamController`, `ModelsController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
 
 ## Konwencje globalne
 
@@ -15,7 +15,7 @@ Wersja dokumentu: **1.9**.
 | **Błędy (JSON)** | Envelope `ErrorEnvelope` (`{statusCode, code, message, requestId, details?}`) — schema w `openapi.json`, implementacja w `src/common/filters/http-exception.filter.ts` |
 | **`x-request-id`** | Nagłówek odpowiedzi (wszystkie trasy z `RequestIdMiddleware`, w tym health) — echo nagłówka żądania lub `req_<uuid>` |
 
-**Uruchomienie serwisu:** każda włączona instancja providera w `gateway.config.yaml` wymaga niepustego env pod **`apiKeyRef`** (`assertEnabledProviderApiKeysPresent` — `src/config/provider-api-key.validation.ts`).  
+**Uruchomienie serwisu:** każda włączona instancja providera w `gateway.config.yaml` wymaga poprawnych sekretów w env (API key / base URL) — fasada `assertEnabledProviderSecretsPresent` (`src/config/configuration-validation.service.ts`; reguły w `provider-*-validation.ts`).
 Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + `buildEffectiveGatewayConfig`). Po sklonowaniu uzupełnij `.env` i YAML albo uruchom `gateway config:init` — `konfiguracja.md`.
 
 ---

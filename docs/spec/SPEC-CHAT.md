@@ -6,7 +6,7 @@ Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym for
 
 ## Warunki wstępne (env)
 
-Gateway musi działać na poprawnie zwalidowanym środowisku: każda włączona instancja providera w YAML wymaga klucza pod **`apiKeyRef`** (`provider-api-key.validation.ts`, `docs/konfiguracja.md`), oraz poprawnego `gateway.config.yaml` (fail‑fast przy starcie).
+Gateway musi działać na poprawnie zwalidowanym środowisku: każda włączona instancja providera w YAML wymaga sekretów pod **`apiKeyRef`** / **`baseUrlRef`** (fasada `configuration-validation.service.ts`, `docs/konfiguracja.md`), oraz poprawnego `gateway.config.yaml` (fail‑fast przy starcie).
 
 **Stan implementacji:** nagłówek **`X-Gateway-Key`** — **wymagany** (`GatewayKeyGuard`, `openapi.json` security); allowlista z konfiguracji — `docs/konfiguracja.md`. Body: `modelAlias`, `messages`, opcjonalne **`conversationId`** (metryki Sentry — `docs/conversation-tracking.md`), opcjonalne **`metadata`**, opcjonalne **`params`** (`temperature`, `maxOutputTokens`, `topP`, `topK`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat`, `thinkingEnabled`, `thinkingBudget` — merge YAML ← body przez `resolveProviderCallOptions`; `topK` / `stop` / `responseFormat` / `thinkingBudget` tylko z body). Odpowiedź może zawierać **`thinkingContent`**. **Cache odpowiedzi** dla czatu standardowego — **wdrożony** (`src/cache/`, klucz uwzględnia efektywne parametry wywołania — `konfiguracja.md`).
 
@@ -68,7 +68,7 @@ F-8. *(Opcjonalnie — cache odpowiedzi)* Gateway może zwracać zapisaną odpow
 
 F-9. *(Conversation tracking)* `conversationId` opcjonalne w żądaniu w formacie `conv_<uuid>`. Do Sentry trafia **tylko** ID z body klienta. Gateway **zawsze** zwraca `conversationId` w odpowiedzi (echo lub `conv_<uuid>`). Klient od tury 2+ z ID musi wysyłać pełną historię w `messages[]` — patrz `conversation-tracking.md`.
 
-F-10. *(Odporność)* Gateway stosuje `policy.retry` i `policy.timeoutMs` z YAML przez `ResilientExecutor`. Po wyczerpaniu prób na aliasie żądanym, gdy skonfigurowano `models[].fallback`, próbuje alias zapasowy. Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne `effectiveModelAlias`; pole `model` = żądany `modelAlias`.
+F-10. *(Odporność)* Gateway stosuje `policy.retry` i `policy.timeoutMs` z YAML przez **`ResilientExecutor`** (`src/chat/resilience/`). Po wyczerpaniu prób na aliasie żądanym, gdy skonfigurowano `models[].fallback`, próbuje alias zapasowy (jeden hop; `assertNoFallbackCycle`). Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne `effectiveModelAlias`; pole `model` = żądany `modelAlias`.
 
 ## Wymagania niefunkcjonalne
 
@@ -86,7 +86,7 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [x] Parametry są walidowane (DTO widełki 0–2 / 1–8192, allowlista `allowOverrides`, clamp `bounds` w `resolveProviderCallOptions`; `ChatParamsDto` + `ChatRequestDto.params`).
 - [x] `requestId` jest obecny w odpowiedzi sukcesu; propagacja z nagłówka żądania `x-request-id` (echo) lub `req_<uuid>` (`RequestIdMiddleware`). Nagłówek odpowiedzi **`x-request-id`** ustawiany na tę samą wartość.
 - [x] Opcjonalne `conversationId` jest walidowane (`conv_<uuid>`); do Sentry trafia tylko z requestu; w odpowiedzi echo lub `conv_*` (`ChatRequestDto`, `ChatService`, `SentryAiMetricsAdapter`).
-- [x] Retry/timeout/fallback z YAML (`ResilientExecutor`, `effectiveModelAlias` w odpowiedzi przy fallbacku).
+- [x] Retry/timeout/fallback z YAML (`src/chat/resilience/ResilientExecutor`, `effectiveModelAlias` w odpowiedzi przy fallbacku).
 
 ## Poza zakresem (względem rdzenia MVP)
 

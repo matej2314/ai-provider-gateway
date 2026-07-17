@@ -18,14 +18,25 @@ import {
   type ProviderResponse,
 } from './services/chat-response-builder.service';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
-import { ResilientExecutor } from '../common/resilience/resilient-executor';
+import { ResilientExecutor } from './resilience/resilient-executor';
 import { ActiveStreamsTracker } from '../observability/app-metrics/active-streams.tracker';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockResilientExecutor } from '../common/mocks/createMockResilientExecutor';
 import { createMockProviderRegistryService } from '../common/mocks/createMockProviderRegistryService';
 import { createMockDefaultResolvedConfig } from '../common/mocks/createMockResolvedProviderConfig';
 import { createMockConfigService } from '../common/mocks/createMockConfigService';
-import { asGatewayKey, asClientId } from '../common/types/branded.types';
+import {
+  asGatewayKey,
+  asClientId,
+  asModelAlias,
+  asResponseId,
+  asAttemptNumber,
+  type ClientId,
+  type ModelAlias,
+  type RequestId,
+  type ConversationId,
+  type ProviderInstanceId,
+} from '../common/types/branded.types';
 import {
   TEST_CONVERSATION_ID,
   TEST_GATEWAY_KEY_BRANDED,
@@ -65,8 +76,8 @@ describe('ChatService', () => {
         },
         resolved: resolvedConfig,
       },
-      usedAlias: TEST_MODEL_ALIAS,
-      attempts: 1,
+      usedAlias: asModelAlias(TEST_MODEL_ALIAS),
+      attempts: asAttemptNumber(1),
       didFallback: false,
     });
   }
@@ -83,8 +94,8 @@ describe('ChatService', () => {
         stopReason: 'end_turn',
         ...valueOverrides,
       },
-      usedAlias: TEST_MODEL_ALIAS,
-      attempts: 1,
+      usedAlias: asModelAlias(TEST_MODEL_ALIAS),
+      attempts: asAttemptNumber(1),
       didFallback: false,
     });
   }
@@ -127,13 +138,13 @@ describe('ChatService', () => {
       buildChatResponse: jest.fn(
         (
           response: ProviderResponse,
-          providerName: string,
-          modelAlias: string,
-          requestId: string,
-          conversationId: string,
-          effectiveModelAlias?: string,
+          providerName: ProviderInstanceId,
+          modelAlias: ModelAlias,
+          requestId: RequestId,
+          conversationId: ConversationId,
+          effectiveModelAlias?: ModelAlias,
         ) => ({
-          id: TEST_RESPONSE_ID_PREFIX,
+          id: asResponseId(TEST_RESPONSE_ID_PREFIX),
           provider: providerName,
           model: modelAlias,
           ...(effectiveModelAlias && { effectiveModelAlias }),
@@ -141,7 +152,7 @@ describe('ChatService', () => {
           usage: response.usage,
           requestId,
           conversationId,
-          finishReason: 'stop',
+          finishReason: 'stop' as const,
         }),
       ),
       buildStreamDoneEvent: jest.fn().mockReturnValue({
@@ -165,7 +176,9 @@ describe('ChatService', () => {
     };
 
     mockActiveStreams = {
-      trackStream: jest.fn((_client, fn) => fn()),
+      trackStream: jest.fn((_client: ClientId, fn: () => Promise<unknown>) =>
+        fn(),
+      ) as unknown as ActiveStreamsTracker['trackStream'],
     };
 
     const module = await Test.createTestingModule({
@@ -548,11 +561,11 @@ describe('ChatService', () => {
             },
             resolved: {
               ...resolvedConfig,
-              modelAlias: 'fallback-model',
+              modelAlias: asModelAlias('fallback-model'),
             },
           },
-          usedAlias: 'fallback-model',
-          attempts: 3,
+          usedAlias: asModelAlias('fallback-model'),
+          attempts: asAttemptNumber(3),
           didFallback: true,
         },
       );
@@ -610,7 +623,7 @@ describe('ChatService', () => {
     it('should use primary fallbackAlias for non-tooling requests', async () => {
       resolvedConfig = {
         ...createMockDefaultResolvedConfig(),
-        fallbackAlias: 'fallback-model',
+        fallbackAlias: asModelAlias('fallback-model'),
       };
       (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
       mockExecutorChatSuccess();
@@ -626,7 +639,7 @@ describe('ChatService', () => {
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
           primaryAlias: TEST_MODEL_ALIAS,
-          fallbackAlias: 'fallback-model',
+          fallbackAlias: asModelAlias('fallback-model'),
         }),
       );
     });
@@ -846,8 +859,8 @@ describe('ChatService', () => {
             usageMetadata: { inputTokens: 5, outputTokens: 10 },
             stopReason: 'end_turn',
           },
-          usedAlias: 'fallback-model',
-          attempts: 2,
+          usedAlias: asModelAlias('fallback-model'),
+          attempts: asAttemptNumber(2),
           didFallback: true,
         },
       );
@@ -875,14 +888,14 @@ describe('ChatService', () => {
         expectedOptions,
         resolvedConfig.providerType,
         undefined,
-        'fallback-model',
+        asModelAlias('fallback-model'),
       );
     });
 
     it('should use primary fallbackAlias for streaming', async () => {
       resolvedConfig = {
         ...createMockDefaultResolvedConfig(),
-        fallbackAlias: 'fallback-model',
+        fallbackAlias: asModelAlias('fallback-model'),
       };
       (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
       mockStreamExecutorSuccess();
@@ -899,7 +912,7 @@ describe('ChatService', () => {
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
           primaryAlias: TEST_MODEL_ALIAS,
-          fallbackAlias: 'fallback-model',
+          fallbackAlias: asModelAlias('fallback-model'),
         }),
       );
     });

@@ -14,10 +14,7 @@ import {
 } from './gateway-config.schema';
 
 import { isOpenAiProviderType } from './provider-types';
-import {
-  assertEnabledProviderBaseUrlPresent,
-  resolveBaseUrlFromEnv,
-} from './provider-base-url.validation';
+import { resolveBaseUrlFromEnv } from './provider-base-url.validation';
 
 import type {
   ResolvedSystemPrompts,
@@ -40,10 +37,13 @@ export type {
 import { GatewayProviderType } from './provider-types';
 import {
   parseCacheBackend,
-  validate,
   type ValidatedEnvironment,
 } from './env.validation';
-import { assertEnabledProviderApiKeysPresent } from './provider-api-key.validation';
+import {
+  assertEnabledProviderSecretsPresent,
+  assertMasterKeyPresent,
+  validateEnvironment,
+} from './configuration-validation.service';
 import { asGatewayKey, type GatewayKey } from '../common/types';
 import {
   asProviderInstanceId,
@@ -55,6 +55,7 @@ import {
 } from 'src/common/types/branded.types';
 
 export { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
+export { assertMasterKeyPresent } from './configuration-validation.service';
 
 export interface ProviderInstanceRuntime {
   type: GatewayProviderType;
@@ -68,16 +69,6 @@ export interface ProviderInstanceRuntime {
 const MASTER_PROMPT = 'src/config/system-prompt/MASTER_SYSTEM_PROMPT.md';
 const MAIN_PROMPT = 'src/config/system-prompt/MAIN_SYSTEM_PROMPT.md';
 const MODEL_PROMPTS = 'src/config/system-prompt/models/';
-
-export function assertMasterKeyPresent(
-  config: Pick<GatewayConfig, 'masterKeyRef'>,
-  env: NodeJS.ProcessEnv = process.env,
-) {
-  const masterRaw = (env[config.masterKeyRef] ?? '').trim();
-  if (!masterRaw) {
-    throw new Error('[GatewayKey] Missing master key.');
-  }
-}
 
 function buildGatewayKeyRuntime(
   config: GatewayConfig,
@@ -157,8 +148,7 @@ export function buildEffectiveGatewayConfig(
     }
   }
 
-  assertEnabledProviderApiKeysPresent(raw, env);
-  assertEnabledProviderBaseUrlPresent(raw, env);
+  assertEnabledProviderSecretsPresent(raw, env);
 
   return {
     ...raw,
@@ -207,7 +197,7 @@ export function loadGatewayConfigFromFile(): GatewayConfig {
 export function buildAppConfiguration(
   rawEnv: NodeJS.ProcessEnv = process.env,
 ): AppConfiguration {
-  const env: ValidatedEnvironment = validate(rawEnv);
+  const env: ValidatedEnvironment = validateEnvironment(rawEnv);
   const gatewayConfig = loadGatewayConfigFromFile();
   const gatewayKey = buildGatewayKeyRuntime(gatewayConfig, rawEnv);
 

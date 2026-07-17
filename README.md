@@ -289,6 +289,7 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 | Warstwa                     | Lokalizacja                                                                                                                                     |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Orkiestracja czatu          | [`ChatService`](src/chat/chat.service.ts)                                                                                                       |
+| Odporność (retry/fallback)  | [`ResilientExecutor`](src/chat/resilience/resilient-executor.ts) — `ChatModule`; defaults: [`retry-policy-defaults.ts`](src/common/retry-policy-defaults.ts) |
 | Katalog aliasów modeli      | [`GatewayModelsCatalogService`](src/models/services/gateway-models-catalog.service.ts) — natywny `GET /models` + fasady przez mappery           |
 | Wywołania providerów + SSE  | [`ChatProviderCallService`](src/chat/services/chat-provider-call.service.ts)                                                                    |
 | Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`, `openai/` — Chat Completions + Responses)            |
@@ -302,7 +303,7 @@ Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalog
 
 Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
 
-Aktualne liczniki: `npm test` — **91** zestawów / **1229** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105**; `npm run test:security` — **5** / **51** (źródło: [`docs/testy.md`](docs/testy.md)).
+Aktualne liczniki: `npm test` — **92** zestawów / **1243** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105**; `npm run test:security` — **5** / **51** (źródło: [`docs/testy.md`](docs/testy.md)).
 
 Uruchomienie:
 

@@ -27,9 +27,9 @@ Użytkownik ma móc skonfigurować gateway bez zmian w kodzie:
 
 F-1. Sekrety muszą być pobierane wyłącznie z env.
 
-F-1a. Dla każdej instancji providera z **`enabled !== false`** env pod **`apiKeyRef`** musi być niepusty po `trim()`. Implementacja: `assertEnabledProviderApiKeysPresent` w `src/config/provider-api-key.validation.ts`, wywoływane z `buildEffectiveGatewayConfig`. Gdy ustawione — opcjonalne legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` mają walidację formatu w `src/config/env.validation.ts`.
+F-1a. Dla każdej instancji providera z **`enabled !== false`** env pod **`apiKeyRef`** musi być niepusty po `trim()` (typy OpenAI / openai-compatible: klucz może być pusty; wymagany poprawny URL pod **`baseUrlRef`**). Orkiestracja: `assertEnabledProviderSecretsPresent` w `src/config/configuration-validation.service.ts` (reguły: `provider-api-key.validation.ts`, `provider-base-url.validation.ts`), wywoływane z `buildEffectiveGatewayConfig`. Gdy ustawione — opcjonalne legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` mają walidację formatu w `src/config/env.validation.ts` (punkt wejścia: `validateEnvironment()`).
 
-F-1b. *(Opcjonalnie)* Zmienne env **`CACHE_*`** i **`REDIS_*`** mogą włączyć zapis/odczyt odpowiedzi czatu w Redis (`src/config/env.validation.ts`, `src/config/configuration.ts`, `src/app.module.ts`, `docs/konfiguracja.md`).
+F-1b. *(Opcjonalnie)* Zmienne env **`CACHE_*`** i **`REDIS_*`** mogą włączyć zapis/odczyt odpowiedzi czatu w Redis (`validateEnvironment` → `env.validation.ts`, `src/config/configuration.ts`, `src/app.module.ts`, `docs/konfiguracja.md`).
 
 F-2. Plik konfiguracyjny modeli musi wspierać:
 
@@ -39,7 +39,7 @@ F-2. Plik konfiguracyjny modeli musi wspierać:
 - capabilities (co najmniej `streaming`; opcjonalnie `tools` dla function calling),
 - opcjonalny **`fallback`** (alias zapasowy — walidacja bez pętli przy starcie).
 
-F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast). Plik `gateway.config.yaml` jest wczytywany i walidowany schematem Zod w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji — `src/config/configuration.ts` → obiekt **`AppConfiguration`** (`app-configuration.types.ts`); odczyt w serwisach przez `getAppConfig` / `getAppConfigOrThrow` (`typed-config.ts`). Walidacja offline: `validateGatewayConfig()` w `src/config/config-validator.ts` (używana przez `npm run config:validate` i wizard `config:init`).
+F-3. Gateway musi walidować konfigurację przy starcie (fail‑fast). Plik `gateway.config.yaml` jest wczytywany i walidowany schematem Zod w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji — `src/config/configuration.ts` → obiekt **`AppConfiguration`** (`app-configuration.types.ts`); odczyt w serwisach przez `getAppConfig` / `getAppConfigOrThrow` (`typed-config.ts`). Sekrety / format env: fasada `ConfigurationValidationService` (`configuration-validation.service.ts`). Walidacja offline: `validateGatewayConfig()` w `src/config/config-validator.ts` (używana przez `npm run config:validate` i wizard `config:init`).
 
 F-3a. W sekcji `providers` w `gateway.config.yaml` **dozwolone** jest wiele wpisów o tym samym `type` (np. `google` i `google-office`), pod warunkiem **unikalnego** `apiKeyRef` na instancję. Duplikat `apiKeyRef` jest odrzucany przez walidację schematu (`GatewayConfigSchema.providers.superRefine`). Runtime rozwiązuje wywołania LLM po **`model.providerInstance`**, nie po `type`.
 

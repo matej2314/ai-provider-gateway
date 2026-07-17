@@ -2,8 +2,8 @@ import { Test } from '@nestjs/testing';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ResilientExecutor } from './resilient-executor';
 import { LoggingService } from '../../logging/logging.service';
-import { ApiErrorCode } from '../errors/api-error.code';
-import { createMockLoggingService } from '../mocks/createMockLoggingService';
+import { ApiErrorCode } from '../../common/errors/api-error.code';
+import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
 import type {
   ResilientExecutionOptions,
   RetryPolicy,
@@ -15,7 +15,7 @@ import {
   asTimeoutMs,
   type ModelAlias,
   type TimeoutMs,
-} from '../types/branded.types';
+} from '../../common/types/branded.types';
 
 const alias = (name: string): ModelAlias => asModelAlias(name);
 
@@ -27,6 +27,8 @@ function retryPolicy(
   const policy: RetryPolicy = {
     maxAttempts: asMaxAttempts(maxAttempts),
     onStatus,
+    initialDelayMs: asTimeoutMs(1),
+    maxDelayMs: asTimeoutMs(1),
   };
 
   if (timeoutMs === 0) {
@@ -190,8 +192,44 @@ describe('ResilientExecutor', () => {
           alias: 'primary',
           attempt: 1,
           maxAttempts: 3,
+          delayMs: 1,
           requestId: 'req-retry',
         }),
+      );
+    });
+
+    it('should apply exponential backoff capped by maxDelayMs', async () => {
+      const runOnce = jest
+        .fn()
+        .mockRejectedValue(new HttpException('Error', 500));
+
+      const options: ResilientExecutionOptions<string> = {
+        primaryAlias: alias('primary'),
+        retry: {
+          maxAttempts: asMaxAttempts(4),
+          onStatus: [500],
+          timeoutMs: asTimeoutMs(5000),
+          initialDelayMs: asTimeoutMs(100),
+          maxDelayMs: asTimeoutMs(250),
+        },
+        runOnce,
+      };
+
+      await expect(
+        executor.executeWithRetryAndFallback(options),
+      ).rejects.toThrow(HttpException);
+
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Retryable error, will retry',
+        expect.objectContaining({ attempt: 1, delayMs: 100 }),
+      );
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Retryable error, will retry',
+        expect.objectContaining({ attempt: 2, delayMs: 200 }),
+      );
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Retryable error, will retry',
+        expect.objectContaining({ attempt: 3, delayMs: 250 }),
       );
     });
   });
@@ -360,7 +398,7 @@ describe('ResilientExecutor', () => {
       expect(result).toEqual({
         value: 'fallback-ok',
         usedAlias: alias('fallback'),
-        attempts: asAttemptNumber(4),
+        attempts: asAttemptNumber(2),
         didFallback: true,
       });
       expect(runOnce).toHaveBeenCalledTimes(2);
@@ -501,6 +539,8 @@ describe('ResilientExecutor', () => {
         retry: {
           onStatus: [500],
           timeoutMs: asTimeoutMs(5000),
+          initialDelayMs: asTimeoutMs(1),
+          maxDelayMs: asTimeoutMs(1),
         } as RetryPolicy,
         runOnce,
       };

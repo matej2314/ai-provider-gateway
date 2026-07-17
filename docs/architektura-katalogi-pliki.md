@@ -170,11 +170,20 @@ ai-provider-gateway/
 │   │   │   ├── provider-input.spec.ts
 │   │   │   ├── resolve-provider-call-options.ts
 │   │   │   ├── resolve-provider-call-options.spec.ts
-│   │   │   ├── retry-policy.ts
+│   │   │   ├── retry-policy.ts                # buildRetryPolicyFromResolved
+│   │   │   ├── retry-policy.spec.ts
 │   │   │   ├── tooling-request.ts
 │   │   │   ├── map-provider-finish-reason.ts
 │   │   │   ├── map-provider-finish-reason.spec.ts
 │   │   │   └── system-prompt.ts
+│   │   ├── resilience/                       # retry / timeout / fallback (ChatModule)
+│   │   │   ├── resilient-executor.ts
+│   │   │   ├── resilient-executor.spec.ts
+│   │   │   ├── fallback-chain.ts              # assertNoFallbackCycle (jeden hop)
+│   │   │   ├── fallback-chain.spec.ts
+│   │   │   ├── is-retryable-http-error.ts
+│   │   │   ├── is-retryable-http-error.spec.ts
+│   │   │   └── resilience.types.ts            # RetryPolicy, ResilientExecution*
 │   │   └── sse/
 │   │       ├── sse-event.type.ts
 │   │       └── sse.serializer.ts
@@ -360,7 +369,7 @@ ai-provider-gateway/
 │   │   │   └── wizard-state.schema.ts
 │   │   ├── services/
 │   │   │   ├── cli-config-loader.service.ts
-│   │   │   ├── cli-gateway-validator.service.ts   # validateGatewayConfig + validateEnv
+│   │   │   ├── cli-gateway-validator.service.ts   # validateGatewayConfig + validateEnvironment (fasada)
 │   │   │   ├── cli.services.types.ts
 │   │   │   ├── config-generator.service.ts
 │   │   │   ├── config-persistence.service.ts
@@ -396,9 +405,11 @@ ai-provider-gateway/
 │   │   ├── configuration.types.ts
 │   │   ├── configuration.helpers.ts
 │   │   ├── gateway-config.schema.ts        # GatewayConfigSchema (Zod), EXPECTED_SCHEMA_VERSION
-│   │   ├── config-validator.ts
-│   │   ├── provider-api-key.validation.ts  # assertEnabledProviderApiKeysPresent
-│   │   ├── env.validation.ts
+│   │   ├── configuration-validation.service.ts  # fasada: validateEnvironment, master key, sekrety providerów
+│   │   ├── config-validator.ts             # validateGatewayConfig (offline YAML + runtime)
+│   │   ├── provider-api-key.validation.ts  # reguły apiKeyRef (używane przez fasadę + CLI helpers)
+│   │   ├── provider-base-url.validation.ts # reguły baseUrlRef + resolveBaseUrlFromEnv
+│   │   ├── env.validation.ts               # EnvironmentVariables (class-validator); wołane przez fasadę
 │   │   ├── provider-types.ts
 │   │   └── system-prompt/
 │   │       ├── MASTER_SYSTEM_PROMPT.md     # wymagany przy starcie
@@ -479,7 +490,7 @@ ai-provider-gateway/
 │   └── common/
 │       ├── readGatewayKeyHeader.ts
 │       ├── readClientGatewayKey.ts         # req.gatewayKey (fasady) lub X-Gateway-Key (natywny czat)
-│       ├── retry-policy-defaults.ts        # domyślne onStatus / maxAttempts / timeoutMs
+│       ├── retry-policy-defaults.ts        # RETRY_POLICY_DEFAULTS (maxAttempts / onStatus / timeoutMs / backoff)
 │       ├── decorators/
 │       │   ├── gateway-key-and-smart-rate-limit.decorator.ts
 │       │   ├── api-gateway-error-responses.decorator.ts
@@ -503,11 +514,6 @@ ai-provider-gateway/
 │       │   └── stream-cleanup.interceptor.ts
 │       ├── middleware/
 │       │   └── request-id.middleware.ts
-│       ├── resilience/
-│       │   ├── resilient-executor.ts
-│       │   ├── fallback-chain.ts
-│       │   ├── is-retryable-http-error.ts
-│       │   └── resilience.types.ts
 │       ├── types/
 │       │   ├── branded.types.ts            # Brand<K,T>, aliasy typów, helpery as*
 │       │   ├── branded.guards.ts           # create*, is*, wzorce regex
@@ -559,12 +565,12 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 
 | Katalog                                  | Odpowiedzialność                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`src/chat/`**                          | HTTP czat + SSE. **`ChatService`**: wspólne `prepareRequestForExecution` (ingress, cooldown check), orkiestracja (`executeChat` z cache / `executeStream` bez cache), `ResilientExecutor`. Serwisy pomocnicze: **`ChatProviderCallService`**, **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCacheGuardService`**, **`ChatErrorHandlerService`**.                                                                                                                                                                                                                                                |
+| **`src/chat/`**                          | HTTP czat + SSE. **`ChatService`**: wspólne `prepareRequestForExecution` (ingress, cooldown check), orkiestracja (`executeChat` z cache / `executeStream` bez cache), **`ResilientExecutor`** (`resilience/`). Serwisy pomocnicze: **`ChatProviderCallService`**, **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCacheGuardService`**, **`ChatErrorHandlerService`**. Polityka retry: `helpers/retry-policy.ts` + `src/common/retry-policy-defaults.ts`.                                                                                                                                                                                                                                                |
 | **`src/providers/`**                     | Port `AIProvider`, fabryki SDK (`factories/`), bootstrap instancji (`ProviderInstancesBootstrap`), rejestr (`ProviderRegistryService`). Typy: `anthropic`, `google`, `openai`, `openai-compatible`. Mapery: `anthropic-tools.mapper.ts`, `anthropic-thinking.mapper.ts`, `google-tools.mapper.ts`, `openai/` (adapters Chat Completions + Responses; routing w `create-openai-provider.core.ts`: `openai` → Responses, `openai-compatible` → Chat Completions). Jedyna warstwa z bezpośrednim użyciem SDK vendorów. Wiele wpisów YAML z tym samym `type` → wiele wywołań fabryki z różnymi kluczami API / `baseUrlRef`. |
 | **`src/integrations/`**                  | Fasady HTTP (OpenAI API, Anthropic Messages API) — mapowanie kontraktu vendora ↔ `ChatRequestDto` / `ChatService`. Bez wywołań SDK; błędy w formacie vendora (lokalne filtry). Fasada Anthropic: reverse map `finishReason` przez `anthropic-stop-reason.mapper.ts`; usage JSON/stream — `anthropic-usage.mapper.ts`. Szczegóły: `integracje.md`.                                                                                                                                                                                                                                                                       |
-| **`src/config/`**                        | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `buildAppConfiguration` → **`AppConfiguration`**, `getAppConfig` / `getAppConfigOrThrow` (`typed-config.ts`), `validateGatewayConfig()` (`config-validator.ts`), `gatewayKey`, `resolvedSystemPrompts`, obiekty `cache`/`redis` z env. Pliki promptu w `system-prompt/`.                                                                                                                                                                                                                                      |
-| **`src/common/resilience/`**             | `ResilientExecutor` — retry, timeout, fallback; używany przez `ChatService`. Polityka per alias: `src/chat/helpers/retry-policy.ts` + `retry-policy-defaults.ts`.                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| **`src/common/`**                        | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), **brand types** (`types/branded.*`), typy Express (`express.d.ts`), mocki testowe (`mocks/`), walidatory (`validators/` — np. `stop` jako string \| string[]). |
+| **`src/config/`**                        | Wczytanie `gateway.config.yaml`, schemat Zod (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `buildAppConfiguration` → **`AppConfiguration`**, `getAppConfig` / `getAppConfigOrThrow` (`typed-config.ts`). **Fasada walidacji:** `ConfigurationValidationService` (`configuration-validation.service.ts`) — `validateEnvironment`, master key, sekrety providerów (delegacja do `env.validation` / `provider-*-validation`). Offline: `validateGatewayConfig()` (`config-validator.ts`). Pliki promptu w `system-prompt/`. |
+| **`src/chat/resilience/`**               | `ResilientExecutor` — retry, timeout, fallback jednego hopu; `fallback-chain.ts`, `is-retryable-http-error.ts`, `resilience.types.ts`. Provider w `ChatModule`; używany wyłącznie przez `ChatService`.                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| **`src/common/`**                        | Filtr błędów, middleware `requestId`, interceptor streamu, mapowanie błędów SDK, dekoratory guardów i OpenAPI (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), **`RETRY_POLICY_DEFAULTS`**, **brand types** (`types/branded.*`), typy Express (`express.d.ts`), mocki testowe (`mocks/` — m.in. `createMockResilientExecutor`), walidatory (`validators/` — np. `stop` jako string \| string[]). |
 | **`src/cache/`**                         | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). Odczyt walidowany **`CachedChatResponseSchema`**. **`RedisConnectionService`** — współdzielona infrastruktura Redis (cache + rate limit); predykat `isRedisRequired()` w `should-include-redis-stack.ts`.                                                                                                                                                                                                                                                                                                                                        |
 | **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez wspólny `RedisConnectionService` (ładowany gdy `isRedisRequiredFromEnv()`).                                                                                                                                                                                                                                                                                                                                                                                      |
 | **`src/logging/`**                       | Pino structured logging; opcjonalnie Sentry error reporting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -588,7 +594,7 @@ CLI to **osobna warstwa** z własnym entry pointem, niezależna od bootstrapu HT
 | **Bez `ConfigModule`**  | `CliModule` nie importuje `ConfigModule.forRoot()` — unika deadlocku (CLI tworzy config, którego runtime wymaga przy starcie).                                                                                                           |
 | **Bez wymogu build**    | Wrapper w `bin/` uruchamia TypeScript przez `ts-node`, gdy brak `dist/` — CLI dostępne po `npm install`.                                                                                                                                 |
 | **Kierunek zależności** | Dozwolone: `src/config/*` → `src/cli/*` (typy, schematy Zod, walidatory). Zabronione odwrotnie — CLI nie modyfikuje logiki runtime.                                                                                                      |
-| **Ładowanie configu**   | `CliConfigLoaderService.loadRawConfig()` — parsowanie YAML + `GatewayConfigSchema`; **bez** rozwiązywania env. Pełna walidacja runtime — w `config:init` na końcu wizarda; w **`gateway config:validate`** (YAML + `validateEnv()`); **`npm run config:validate`** — YAML + reguły runtime bez formatu legacy env. |
+| **Ładowanie configu**   | `CliConfigLoaderService.loadRawConfig()` — parsowanie YAML + `GatewayConfigSchema`; **bez** rozwiązywania env. Pełna walidacja runtime — w `config:init` na końcu wizarda; w **`gateway config:validate`** (YAML + `validateEnvironment()` z fasady); **`npm run config:validate`** — YAML + reguły runtime bez formatu legacy env. |
 | **Konwencja komend**    | `gateway <namespace>:<action>`; root command wyświetla welcome i pełną listę komend.                                                                                                                                                     |
 | **Stan wizarda**        | `.gateway-wizard-state.json` — resume / rollback po przerwaniu (`WizardStateManager`).                                                                                                                                                   |
 | **Backup mutacji**      | `FileManagerService.backupFile()` → `backup/<nazwa-pliku>.backup-<timestamp>` (katalog w `.gitignore`).                                                                                                                                  |
@@ -625,7 +631,7 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - `GatewayFinishReason` (`stop` | `tool_calls` | `length` | `content_filter`) w natywnym API; reverse map na fasadzie Anthropic (`anthropic-stop-reason.mapper.ts`).
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad IDE; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
 - **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule` i `ModelsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` oraz natywny `/api/v1/models` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — adapter OpenAI: `provider-openai-runtime.md`.
-- **Brand types (Fazy 0–5):** `src/common/types/` — nominalne typy TS w runtime (klucze, identyfikatory, metryki, policy, `WarningCode`); DTO HTTP pozostają prymitywne — `brand-types.md`.
+- **Brand types:** `src/common/types/` — nominalne typy TS w runtime (klucze, identyfikatory, metryki, policy, `WarningCode`); DTO HTTP pozostają prymitywne — `brand-types.md`.
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
 **Pozostałość v1:** tryb non-interactive CLI; E2E health; pełny extended thinking E2E z **live** OpenAI (pokrycie jednostkowe adaptera `responses.adapter.ts`, mock E2E w `gateway-chat-openai.e2e-spec.ts`, fasada Anthropic extended). Integracyjne wymagają Docker + `.env.test`.

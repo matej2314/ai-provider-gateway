@@ -1,8 +1,9 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import { ApiErrorCode } from '../errors/api-error.code';
+import { ApiErrorCode } from '../../common/errors/api-error.code';
 import { isRetryableHttpError } from './is-retryable-http-error';
 import { assertNoFallbackCycle } from './fallback-chain';
 import { LoggingService } from '../../logging/logging.service';
+import { RETRY_POLICY_DEFAULTS } from '../../common/retry-policy-defaults';
 import {
   asRequestId,
   type ModelAlias,
@@ -14,7 +15,7 @@ import {
   unbrand,
   type MaxAttempts,
   type TimeoutMs,
-} from '../types/branded.types';
+} from '../../common/types/branded.types';
 import type {
   RetryPolicy,
   AttemptResult,
@@ -143,8 +144,10 @@ export class ResilientExecutor {
   }): Promise<AttemptResult<T>> {
     let lastError: unknown;
     const maxAttempts = unbrand(options.maxAttempts);
+    let attemptsMade = 0;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      attemptsMade = attempt;
       try {
         const value = await this.runWithTimeout<T>(
           options.retry.timeoutMs,
@@ -171,13 +174,16 @@ export class ResilientExecutor {
         }
 
         if (attempt < maxAttempts) {
+          const delayMs = this.computeBackoffDelayMs(attempt, options.retry);
           this.logger.debug('Retryable error, will retry', {
             alias: options.alias,
             attempt,
             maxAttempts,
+            delayMs,
             error: this.extractErrorMessage(e),
             requestId: options.requestId,
           });
+          await this.sleep(delayMs);
         }
       }
     }
@@ -185,9 +191,28 @@ export class ResilientExecutor {
       ok: false,
       error: lastError,
       usedAlias: options.alias,
-      attempts: asAttemptNumber(maxAttempts),
+      attempts: asAttemptNumber(attemptsMade),
       exhausted: true,
     };
+  }
+
+  /**
+   * delay = min(maxDelayMs, initialDelayMs * 2^(attempt - 1))
+   * `attempt` is the failed attempt number (1-based), so first wait uses 2^0.
+   */
+  private computeBackoffDelayMs(attempt: number, retry: RetryPolicy): number {
+    const initialDelayMs = unbrand(
+      retry.initialDelayMs ?? RETRY_POLICY_DEFAULTS.initialDelayMs,
+    );
+    const maxDelayMs = unbrand(
+      retry.maxDelayMs ?? RETRY_POLICY_DEFAULTS.maxDelayMs,
+    );
+    const exponential = initialDelayMs * 2 ** (attempt - 1);
+    return Math.min(maxDelayMs, exponential);
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async runWithTimeout<T>(

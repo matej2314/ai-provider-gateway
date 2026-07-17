@@ -1,5 +1,5 @@
 import type { MaxAttempts, TimeoutMs } from '../../common/types/branded.types';
-import type { RetryPolicy } from '../../common/resilience/resilience.types';
+import type { RetryPolicy } from '../resilience/resilience.types';
 import { RETRY_POLICY_DEFAULTS } from '../../common/retry-policy-defaults';
 
 export interface ModelRetrySource {
@@ -34,5 +34,7 @@ export function buildRetryPolicyFromResolved(
     onStatus:
       resolved.policy?.retry?.onStatus ?? RETRY_POLICY_DEFAULTS.onStatus,
     timeoutMs: resolveTimeoutMs(rawTimeoutMs),
+    initialDelayMs: RETRY_POLICY_DEFAULTS.initialDelayMs,
+    maxDelayMs: RETRY_POLICY_DEFAULTS.maxDelayMs,
   };
 }

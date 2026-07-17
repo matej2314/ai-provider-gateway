@@ -189,7 +189,7 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
 
 ### `gateway config:validate`
 
-Walidacja `gateway.config.yaml` (struktura Zod + reguły runtime przez `validateGatewayConfig()`) oraz — po sukcesie YAML — formatu env (`validate()` z `env.validation.ts` przez **`CliGatewayValidatorService`**).
+Walidacja `gateway.config.yaml` (struktura Zod + reguły runtime przez `validateGatewayConfig()`) oraz — po sukcesie YAML — formatu env (`validateEnvironment()` z `configuration-validation.service.ts` przez **`CliGatewayValidatorService`**).
 
 ```bash
 gateway config:validate
@@ -203,7 +203,7 @@ gateway config:validate
 
 **Uwaga:** Komenda sprawdza plik `gateway.config.yaml` w katalogu roboczym.
 
-**Alternatywa offline (walidacja YAML + reguły runtime):** `npm run config:validate` — skrypt `scripts/validate-config.ts` (szczegóły: `konfiguracja.md`). **Nie** uruchamia `validateEnv()` — do pełnej walidacji env (format legacy kluczy) użyj `gateway config:validate`.
+**Alternatywa offline (walidacja YAML + reguły runtime):** `npm run config:validate` — skrypt `scripts/validate-config.ts` (szczegóły: `konfiguracja.md`). **Nie** uruchamia `validateEnvironment()` — do pełnej walidacji env (format legacy kluczy) użyj `gateway config:validate`.
 
 ### `gateway config:show`
 
@@ -445,7 +445,7 @@ Kierunek zależności: **config → cli**, **cache/should-include-redis-stack �
 | `ClientManagerService` | add / remove / edit klientów |
 | `ProviderTestService` | Lekkie testy SDK Anthropic / Google / OpenAI |
 | `KeyGeneratorService` | Klucze master `gw_mk_*`, klient `gw_<slug>_*` |
-| `CliGatewayValidatorService` | `validateGatewayConfig()` + opcjonalnie `validateEnv()` (format legacy kluczy) |
+| `CliGatewayValidatorService` | `validateGatewayConfig()` + opcjonalnie `validateEnvironment()` (fasada — format legacy kluczy) |
 | `ProviderPromptService` | Krok 2/5 — ID instancji, `apiKeyRef`, walidacja formatu klucza |
 | `utils/provider-id.util.ts` | `deriveApiKeyRef`, `defaultProviderInstanceId` |
 | `utils/legacy-provider-env.util.ts` | `applyLegacyProviderApiKeyEnv`, `syncLegacyProviderApiKeysInEnv` |
@@ -456,7 +456,7 @@ Kierunek zależności: **config → cli**, **cache/should-include-redis-stack �
 | `templates/env.template.ts` | `generateEnvTemplate()`, `isEnvInputRedisRequired()` |
 | `src/cache/should-include-redis-stack.ts` | Współdzielona z runtime logika `isRedisRequired()` (CLI importuje **bez** `ConfigModule`) |
 
-Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import z `src/cache/should-include-redis-stack.ts`: predykat wymagania Redis (cache redis i/lub smart rate limit). Patrz `anty-patterny.md` (§14).
+Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `validateEnvironment()` / fasada walidacji, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import z `src/cache/should-include-redis-stack.ts`: predykat wymagania Redis (cache redis i/lub smart rate limit). Patrz `anty-patterny.md` (§14).
 
 ## Wskazówki
 

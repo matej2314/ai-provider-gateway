@@ -1,4 +1,4 @@
-import type { ResilientExecutor } from '../resilience/resilient-executor';
+import type { ResilientExecutor } from '../../chat/resilience/resilient-executor';
 
 export function createMockResilientExecutor(): Partial<ResilientExecutor> {
   return {

@@ -78,10 +78,10 @@ Uzasadnienie: Fasady IDE wymagają zgodności z OpenAI API i Anthropic Messages 
 
 **Rób**:
 
-- retry tylko na 429/5xx,
-- maksymalna liczba prób,
-- backoff,
-- time budget.
+- retry tylko na 429/5xx (`onStatus` / `RETRY_POLICY_DEFAULTS`),
+- maksymalna liczba prób (`maxAttempts`, cap Zod = 5),
+- backoff (`initialDelayMs` / `maxDelayMs`) i time budget (`timeoutMs`) w `ResilientExecutor` (`src/chat/resilience/`),
+- trzymanie logiki odporności w module czatu (nie w kontrolerach ani fasadach).
 
 ## 8) “Framework first” w logice domenowej
 
@@ -106,7 +106,7 @@ Uzasadnienie: Fasady IDE wymagają zgodności z OpenAI API i Anthropic Messages 
 
 ## 10) Uruchomienie bez wymaganego klucza API
 
-**Nie rób**: uruchamiania gatewaya, gdy w env brakuje klucza pod **`apiKeyRef`** dla którejkolwiek **włączonej** instancji providera w YAML (`assertEnabledProviderApiKeysPresent`).
+**Nie rób**: uruchamiania gatewaya, gdy w env brakuje sekretów dla którejkolwiek **włączonej** instancji providera w YAML (`assertEnabledProviderSecretsPresent` w `configuration-validation.service.ts` — API key / base URL).
 
 **Rób**: fail-fast przy starcie; lokalnie upewnij się, że `.env` zawiera wartości dla wszystkich `apiKeyRef` włączonych providerów (szczegóły: `docs/konfiguracja.md`).
 

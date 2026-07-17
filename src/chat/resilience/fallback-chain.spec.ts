@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { assertNoFallbackCycle } from './fallback-chain';
-import { ApiErrorCode } from '../errors/api-error.code';
-import { asModelAlias } from '../types/branded.types';
+import { ApiErrorCode } from '../../common/errors/api-error.code';
+import { asModelAlias } from '../../common/types/branded.types';
 
 const primary = asModelAlias('primary');
 const fallback = asModelAlias('fallback');

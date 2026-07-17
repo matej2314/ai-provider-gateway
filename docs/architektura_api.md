@@ -31,7 +31,7 @@ Błędy w spec: natywny czat i models — `ErrorEnvelope`; fasady — `OpenAiErr
   - **standard** (pełna odpowiedź JSON),
   - **streaming** (SSE gateway: `meta` → `delta` → `done`).
 
-**Warunek uruchomienia:** przy starcie wczytywany jest `gateway.config.yaml` (fail‑fast przy błędzie). Każda włączona instancja providera wymaga niepustego env pod **`apiKeyRef`** z YAML (`provider-api-key.validation.ts`; szczegóły: `docs/konfiguracja.md`).
+**Warunek uruchomienia:** przy starcie wczytywany jest `gateway.config.yaml` (fail‑fast przy błędzie). Każda włączona instancja providera wymaga poprawnych sekretów w env (API key / base URL) przez fasadę `configuration-validation.service.ts` (szczegóły: `docs/konfiguracja.md`).
 
 ## Identyfikacja modeli (aliasy)
 
@@ -89,7 +89,7 @@ Przekroczenie limitu rozmiaru body (**1 MB**) → **413 Payload Too Large** z ko
 
 ## Rozszerzenia (pozostałość v1)
 
-- **`npm run config:validate`** — walidacja offline YAML + reguły runtime (`validateGatewayConfig()`); **bez** formatu legacy env. Pełna walidacja: **`gateway config:validate`** — `konfiguracja.md`.
+- **`npm run config:validate`** — walidacja offline YAML + reguły runtime (`validateGatewayConfig()` → m.in. fasada sekretów); **bez** formatu legacy env. Pełna walidacja: **`gateway config:validate`** (`validateEnvironment()`) — `konfiguracja.md`.
 
 **Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TOOLS_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.
 
@@ -109,7 +109,7 @@ Przekroczenie limitu rozmiaru body (**1 MB**) → **413 Payload Too Large** z ko
 ## Idempotencja, retry i fallback
 
 - Standardowy chat nie jest idempotentny w sensie biznesowym (ten sam request może generować różną odpowiedź), **chyba że** zadziała warstwa cache dla **`POST /api/v1/chat`** — wtedy identyczny payload może zwrócić wcześniejszą odpowiedź z **`cached: true`** (`ResponseCacheService`, `konfiguracja.md`). Cooldown po 429 od providera (`checkCooldown` / `setCooldown`) — **JSON i streaming** (`prepareRequestForExecution`, `handleProviderError`).
-- **`ResilientExecutor`** (`src/common/resilience/`): dla aliasu z żądania stosuje `policy.retry` (max prób, lista `onStatus`) i `policy.timeoutMs` z YAML (domyślnie `RETRY_POLICY_DEFAULTS`). Retry tylko dla `HttpException` ze statusem z `onStatus`. Po wyczerpaniu prób — opcjonalnie wywołanie aliasu z **`models[].fallback`** (ta sama polityka retry co alias pierwszy). Timeout → **504** / `PROVIDER_TIMEOUT`. Szczegóły: `konfiguracja.md`, `dokumentacja_api.md`.
+- **`ResilientExecutor`** (`src/chat/resilience/`): dla aliasu z żądania stosuje `policy.retry` (max prób, lista `onStatus`) i `policy.timeoutMs` z YAML (domyślnie `RETRY_POLICY_DEFAULTS` w `src/common/retry-policy-defaults.ts`; budowa polityki: `buildRetryPolicyFromResolved`). Retry tylko dla `HttpException` ze statusem z `onStatus` (`is-retryable-http-error.ts`). Po wyczerpaniu prób — opcjonalnie wywołanie aliasu z **`models[].fallback`** (jeden hop; `assertNoFallbackCycle` w `fallback-chain.ts`; ta sama polityka retry co alias pierwszy). Timeout → **504** / `PROVIDER_TIMEOUT`. Szczegóły: `konfiguracja.md`, `dokumentacja_api.md`.
 
 ## Auth
 

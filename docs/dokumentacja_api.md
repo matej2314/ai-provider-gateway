@@ -122,7 +122,7 @@ Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `too
 
 Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRegistryService.resolve()` — lookup po **`models[].providerInstance`**, nie po `type`. Runtime: fabryki `anthropic` / `google` tworzone w `ProviderInstancesBootstrap` (`ProvidersModule`).
 
-**Odporność:** `policy.timeoutMs` i `policy.retry` z YAML są egzekwowane przez **`ResilientExecutor`**. Opcjonalny **`models[].fallback`**: po wyczerpaniu prób gateway próbuje alias zapasowy; przy sukcesie — opcjonalne **`effectiveModelAlias`**. **Fallback jest wyłączony** dla żądań z toolingiem — zarówno w czacie standardowym (`executeChat`), jak i w streamingu (`executeStream`; `isToolingRequest` → `fallbackAlias: undefined`).
+**Odporność:** `policy.timeoutMs` i `policy.retry` z YAML są egzekwowane przez **`ResilientExecutor`** (`src/chat/resilience/`). Opcjonalny **`models[].fallback`**: po wyczerpaniu prób gateway próbuje alias zapasowy (jeden hop); przy sukcesie — opcjonalne **`effectiveModelAlias`**. **Fallback jest wyłączony** dla żądań z toolingiem — zarówno w czacie standardowym (`executeChat`), jak i w streamingu (`executeStream`; `isToolingRequest` → `fallbackAlias: undefined`).
 
 ---
 

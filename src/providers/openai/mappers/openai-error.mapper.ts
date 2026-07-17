@@ -6,7 +6,7 @@ import {
   readNumericStatus,
   nameLooksLikeTimeout,
 } from '../../../common/errors/provider-error.mapper.helpers';
-import type { MappedProviderError } from '../../../common/errors/provider-error.mapper';
+import type { MappedProviderError } from '../../../common/errors/error.types';
 
 function payloadOf(message: string, code: ApiErrorCode) {
   return { code, message, details: [] as [] };

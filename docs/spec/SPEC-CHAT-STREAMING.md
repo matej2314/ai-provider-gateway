@@ -6,7 +6,7 @@ Udostępnić endpoint streamingowy (SSE), który zwraca odpowiedź LLM w formie 
 
 ## Warunki wstępne (env)
 
-Identycznie jak dla `POST /chat`: klucze providerów **per `apiKeyRef`** w YAML (`provider-api-key.validation.ts`, `docs/konfiguracja.md`), oraz poprawny `gateway.config.yaml`.
+Identycznie jak dla `POST /chat`: sekrety providerów **per `apiKeyRef` / `baseUrlRef`** w YAML (fasada `configuration-validation.service.ts`, `docs/konfiguracja.md`), oraz poprawny `gateway.config.yaml`.
 
 **Stan implementacji:** `POST /api/v1/chat/stream` — `ChatStreamController`, `validateForStreaming` + `executeStream`, `StreamCleanupInterceptor`. Auth/limity: `@GatewayKeyAndSmartRateLimit()`. Cache **nie** dotyczy streamingu.
 

@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { ApiErrorCode } from '../errors/api-error.code';
-import type { ModelAlias } from '../types/branded.types';
+import { ApiErrorCode } from '../../common/errors/api-error.code';
+import type { ModelAlias } from '../../common/types/branded.types';
 
 export function assertNoFallbackCycle(
   primaryAlias: ModelAlias,

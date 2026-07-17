@@ -1,8 +1,8 @@
 # Brand types — przewodnik dla developerów
 
-Ten dokument opisuje infrastrukturę **brand types** w projekcie (plan implementacji: `brand-types-plan.md` w katalogu głównym repo — plik lokalny, ignorowany przez git). Celem jest zwiększenie type safety: semantycznie różne wartości oparte na tym samym typie prymitywnym (`string` / `number`) nie powinny dać się przypadkowo zamienić w compile time.
+Ten dokument opisuje infrastrukturę **brand types** w projekcie. Celem jest zwiększenie type safety: semantycznie różne wartości oparte na tym samym typie prymitywnym (`string` / `number`) nie powinny dać się przypadkowo zamienić w compile time.
 
-**Stan (2026-07):** Fazy **0–5** wdrożone w runtime (`src/`), testach jednostkowych, E2E i integracyjnych (`test/`). Warstwa **CLI** (`src/cli/`) — **częściowa** adopcja brandów (`asGatewayKey`, `asModelAlias`, `asProviderInstanceId` w komendach i wizardzie); pełna migracja CLI — plan **Faza 5a**.
+**Stan (2026-07):** Brand types wdrożone w runtime (`src/`), testach jednostkowych, E2E i integracyjnych (`test/`). Warstwa **CLI** (`src/cli/`) — **częściowa** adopcja brandów (`asGatewayKey`, `asModelAlias`, `asProviderInstanceId` w komendach i wizardzie); pełna migracja CLI może być kontynuowana przy kolejnych zmianach w CLI.
 
 ---
 
@@ -77,9 +77,9 @@ const id: RequestId = brand(raw as RequestId);
 
 ---
 
-## Katalog typów (wg faz planu)
+## Katalog typów
 
-### Faza 1 — security-critical
+### Security-critical
 
 | Typ              | Helper           | Użycie w runtime                                                                 |
 | ---------------- | ---------------- | -------------------------------------------------------------------------------- |
@@ -87,7 +87,7 @@ const id: RequestId = brand(raw as RequestId);
 | `ProviderApiKey` | `asProviderApiKey` | Klucze SDK providerów (`ProviderFactoryParams`, fabryki w `src/providers/`)   |
 | `EnvRef`         | `asEnvRef`       | Nazwy zmiennych env w YAML (`apiKeyRef`, `gatewayKeyRef`, `baseUrlRef`)          |
 
-### Faza 2 — identifiers & tracking
+### Identifiers & tracking
 
 | Typ                  | Helper / guard                          | Użycie w runtime                                                          |
 | -------------------- | --------------------------------------- | ------------------------------------------------------------------------- |
@@ -102,7 +102,7 @@ const id: RequestId = brand(raw as RequestId);
 | `ModelAlias`       | `asModelAlias`                          | Routing modeli — alias z YAML (≠ vendor `modelId`)                          |
 | `ModelId`          | `asModelId`                             | Vendorowy identyfikator modelu w wywołaniach SDK                            |
 
-### Faza 3 — metrics & usage
+### Metrics & usage
 
 | Typ                         | Helper                        |
 | --------------------------- | ----------------------------- |
@@ -113,7 +113,7 @@ const id: RequestId = brand(raw as RequestId);
 | `PromptCacheHitTokens`      | `asPromptCacheHitTokens`      |
 | `PromptCacheCreationTokens` | `asPromptCacheCreationTokens` |
 
-### Faza 4 — configuration & policy
+### Configuration & policy
 
 | Typ                    | Helper / guard (`is*`)     | Walidacja runtime                          |
 | ---------------------- | -------------------------- | ------------------------------------------ |
@@ -130,7 +130,7 @@ const id: RequestId = brand(raw as RequestId);
 | `SchemaVersion`        | `asSchemaVersion` / `isSchemaVersion` | min 1                          |
 | `SystemFingerprint`    | `asSystemFingerprint`      | pass-through z OpenAI Chat Completions     |
 
-### Faza 5 — warning codes
+### Warning codes
 
 | Typ           | Helper          | Użycie w runtime                                      |
 | ------------- | --------------- | ----------------------------------------------------- |
@@ -182,7 +182,7 @@ Wzorzec (`CONVERSATION_ID_PATTERN`) — zgodny z `@Matches` w `ChatRequestDto`:
 
 | Sytuacja                                                                                    | Podejście                                                            |
 | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Dwa stringi, których **nie wolno** zamienić (np. klucz klienta vs klucz providera — Faza 1) | Osobne brand types                                                   |
+| Dwa stringi, których **nie wolno** zamienić (np. klucz klienta vs klucz providera) | Osobne brand types                                                   |
 | Pole w DTO HTTP (`class-validator`, OpenAPI)                                                | **`string`** w klasie DTO; konwersja do brandu w mapperze / serwisie |
 | Wartość zaufana (wewnętrzny helper, znany format)                                           | `create*` (z walidacją) lub `as*` (cast)                             |
 | Wartość od klienta z wymaganym formatem                                                     | Walidacja DTO **lub** `create*` — nie sam `as*`                      |
@@ -215,32 +215,31 @@ Wzorzec stosowany w projekcie (kolejność):
 
 4. **Testy** w `branded.spec.ts` (lub dedykowany `.spec.ts` przy złożonej logice).
 
-5. **Refaktoryzacja modułu** zgodnie z fazą w `brand-types-plan.md` + aktualizacja `.spec.ts` modułu.
+5. **Refaktoryzacja modułu** + aktualizacja `.spec.ts` modułu.
 
 Dla typów **bez** walidacji formatu wystarczy para: `export type X = Brand<...>` + `asX`.
 
 ---
 
-## Migracja istniejącego kodu (fazy planu)
+## Pokrycie w kodzie
 
-| Faza    | Status runtime | Zakres                                                                 |
-| ------- | -------------- | ---------------------------------------------------------------------- |
-| **0**   | ✅             | Infrastruktura (`Brand`, guardy, testy, dokumentacja)                  |
-| **1**   | ✅             | `GatewayKey`, `ProviderApiKey`, `EnvRef` — config, guardy, rate limit   |
-| **2**   | ✅             | Identyfikatory, routing modeli, middleware, typy czatu                 |
-| **3**   | ✅             | Tokeny, koszty, usage w metrykach i odpowiedziach                      |
-| **4**   | ✅             | Policy, resilience, cache, port, `SystemFingerprint`                   |
-| **5**   | ✅             | Providery, fasady, `WarningCode`, audyt testów i mocków                |
-| **5a**  | ⏳ plan        | Refaktoryzacja `src/cli/` (~50 plików)                                 |
-| **6**   | ⏳ plan        | Walidacja końcowa, type coverage, migration guide                    |
+| Obszar | Status runtime | Zakres |
+| ------ | -------------- | ------ |
+| Infrastruktura | ✅ | `Brand`, guardy, testy, dokumentacja |
+| Security keys | ✅ | `GatewayKey`, `ProviderApiKey`, `EnvRef` — config, guardy, rate limit |
+| Identyfikatory | ✅ | Routing modeli, middleware, typy czatu |
+| Metryki / usage | ✅ | Tokeny, koszty, usage w metrykach i odpowiedziach |
+| Config / policy | ✅ | Policy, resilience, cache, port, `SystemFingerprint` |
+| Providery / fasady | ✅ | `WarningCode`, audyt testów i mocków |
+| CLI | częściowe | Pełna adopcja brandów w `src/cli/` — do dokończenia przy kolejnych zmianach CLI |
 
 **Granica HTTP (bez zmian):** klasy DTO (`class-validator`, OpenAPI) nadal deklarują `string` / `number`; konwersja do brand type następuje w serwisach, mapperach i helperach po walidacji wejścia.
 
-**Workflow per moduł** (przy kolejnych typach lub Fazie 5a):
+**Workflow per moduł** (przy kolejnych typach):
 
 1. Zmień typy w kodzie produkcyjnym.
 2. Zaktualizuj mocki w `.spec.ts` i helpery w `src/common/mocks/`, `test/e2e/helpers/`, `test/integration/helpers/` (`as*` zamiast surowych stringów).
-3. Uruchom `npm test`, `npm run test:e2e` (+ `npm run test:integration` po większej fazie).
+3. Uruchom `npm test`, `npm run test:e2e` (+ `npm run test:integration` po większej zmianie).
 4. Checkpoint: `npm run build` bez błędów TS.
 
 ---
@@ -284,4 +283,3 @@ npm run test:cov -- --collectCoverageFrom="common/types/branded*.ts" common/type
 - `dictionary.md` — terminy Request ID, Conversation ID, sekcja Brand types
 - `conversation-tracking.md` — semantyka `conversationId` w API i Sentry
 - `architektura_api.md` — propagacja `requestId`, nagłówek `x-request-id`
-- `brand-types-plan.md` (root repo) — pełny harmonogram faz 1–5
