@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to deploy (current tip of this branch)'
+        description: 'Branch to deploy (tip used when sha is empty)'
         required: true
         default: feat/production-readiness
+        type: string
+      sha:
+        description: 'Optional commit SHA or tag (overrides branch tip when set)'
+        required: false
+        default: ''
         type: string
 
 concurrency:
@@ -26,19 +31,35 @@ env:
   # inside a containerized Actions runner (docker.sock / DooD).
   DEPLOY_DIR: /opt/ai-provider-gateway
   CI_WORKFLOW_FILE: ci.yml
+  LAST_GOOD_SHA_FILE: .deployed-sha
+  DEPLOY_SCRIPT: deployment/scripts/deploy-production.sh
+  ROLLBACK_SCRIPT: deployment/scripts/rollback.sh
 
 jobs:
   deploy:
     name: Deploy full stack
     runs-on: [self-hosted, linux]
     environment: production
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
+      - name: Resolve deploy ref
+        id: target
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.sha }}" ]; then
+            ref='${{ inputs.sha }}'
+            echo "Using explicit sha/tag input: ${ref}"
+          else
+            ref='${{ inputs.branch }}'
+            echo "Using branch tip: ${ref}"
+          fi
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ steps.target.outputs.ref }}
 
       - name: Resolve deploy revision
         id: revision
@@ -47,7 +68,7 @@ jobs:
           sha="$(git rev-parse HEAD)"
           echo "ref=${sha}" >> "$GITHUB_OUTPUT"
           echo "Deploy SHA: ${sha}"
-          echo "Branch tip: ${{ inputs.branch }}"
+          echo "Requested ref: ${{ steps.target.outputs.ref }}"
 
       - name: Require green CI for deploy SHA
         env:
@@ -100,188 +121,111 @@ jobs:
           fi
           exit 1
 
-      # Self-hosted runner often uses docker.sock from a container (DooD):
-      # - daemon bind-mounts the *host* /opt/... (missing → empty dirs → EISDIR)
-      # - `docker run -v $PWD:/src` also resolves PWD on the *host* (empty) — cannot copy that way
-      # Stream the checkout via tar stdin so the runner reads workspace and the daemon only mounts /dest.
-      - name: Sync checkout onto Docker host deploy dir
+      - name: Read last known-good SHA from host
+        id: last_good
         run: |
           set -euo pipefail
-          docker stop ai-gateway ai-gateway-prometheus ai-gateway-grafana 2>/dev/null || true
-          docker rm -f ai-gateway ai-gateway-prometheus ai-gateway-grafana 2>/dev/null || true
+          last="$(
+            docker run --rm \
+              -e "LAST_GOOD_SHA_FILE=${LAST_GOOD_SHA_FILE}" \
+              -v "${DEPLOY_DIR}:/dest:ro" \
+              alpine:3.20 \
+              sh -c 'if [ -f "/dest/$LAST_GOOD_SHA_FILE" ]; then tr -d "[:space:]" < "/dest/$LAST_GOOD_SHA_FILE"; fi'
+          )"
+          echo "sha=${last}" >> "$GITHUB_OUTPUT"
+          if [ -n "${last}" ]; then
+            echo "Last known-good SHA on host: ${last}"
+          else
+            echo "No last known-good SHA on host yet (first successful deploy will create ${DEPLOY_DIR}/${LAST_GOOD_SHA_FILE})"
+          fi
 
-          docker run --rm \
-            -e "DEPLOY_DIR=${DEPLOY_DIR}" \
-            -v "${DEPLOY_DIR}:/dest" \
-            alpine:3.20 \
-            sh -c '
-              set -euo pipefail
-              for rel in gateway.config.yaml deployment/monitoring/prometheus.yml deployment/monitoring/alerts.yml; do
-                if [ -d "/dest/$rel" ]; then
-                  echo "Removing Docker junk directory on host: $rel"
-                  rm -rf "/dest/$rel"
-                fi
-              done
-              if [ -f /dest/.env ]; then cp -a /dest/.env /tmp/.env.bak; fi
-              find /dest -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} +
-              if [ -f /tmp/.env.bak ]; then mv /tmp/.env.bak /dest/.env; fi
-              mkdir -p /dest/logs
-            '
+      # From this point a failure may leave the host in a partial/broken deploy state.
+      - name: Begin host deploy (mutation point)
+        id: mutate
+        run: |
+          set -euo pipefail
+          echo "host_mutated=true" >> "$GITHUB_OUTPUT"
+          echo "Host mutation starting — auto-rollback eligible on later failure"
 
-          echo "Streaming checkout → host ${DEPLOY_DIR} ..."
-          tar -C "${PWD}" --exclude=.git --exclude=.env -cf - . \
-            | docker run --rm -i -v "${DEPLOY_DIR}:/dest" alpine:3.20 \
-              tar -C /dest -xf -
-
-          docker run --rm \
-            -e "DEPLOY_DIR=${DEPLOY_DIR}" \
-            -v "${DEPLOY_DIR}:/dest:ro" \
-            alpine:3.20 \
-            sh -c '
-              set -euo pipefail
-              for rel in gateway.config.yaml deployment/monitoring/prometheus.yml deployment/monitoring/alerts.yml; do
-                if [ ! -f "/dest/$rel" ]; then
-                  echo "FATAL: expected regular file on Docker host: $DEPLOY_DIR/$rel"
-                  ls -la /dest | head -50 || true
-                  ls -la "$(dirname "/dest/$rel")" || true
-                  exit 1
-                fi
-                echo "OK host bind source: $rel ($(wc -c < "/dest/$rel" | tr -d " ") bytes)"
-              done
-            '
+      # Self-hosted runner often uses docker.sock from a container (DooD):
+      # stream checkout via tar in deploy-production.sh sync.
+      - name: Sync checkout onto Docker host deploy dir
+        id: sync
+        run: bash "${DEPLOY_SCRIPT}" sync
 
       - name: Fetch secrets from Vault
+        id: vault
         env:
           VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
           VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
-        run: |
-          set -euo pipefail
-
-          login_response=$(curl -k -s --request POST \
-            --data "{\"role_id\":\"${VAULT_ROLE_ID}\",\"secret_id\":\"${VAULT_SECRET_ID}\"}" \
-            "${VAULT_ADDR}/v1/auth/approle/login")
-
-          vault_token=$(echo "${login_response}" | jq -r '.auth.client_token // empty')
-          if [ -z "${vault_token}" ]; then
-            echo "Failed to authenticate with Vault"
-            echo "${login_response}"
-            exit 1
-          fi
-
-          secrets_response=$(curl -k -s -H "X-Vault-Token: ${vault_token}" \
-            "${VAULT_ADDR}/v1/secret/data/${CONT_NAME}/${VAULT_ENV}")
-
-          if ! echo "${secrets_response}" | jq -e '.data.data' >/dev/null; then
-            echo "No secrets at secret/data/${CONT_NAME}/${VAULT_ENV}"
-            echo "${secrets_response}"
-            exit 1
-          fi
-
-          # Compose CLI reads .env from the job workspace; daemon bind-mounts need it on host too.
-          echo "${secrets_response}" | jq -r '.data.data | to_entries[] | "\(.key)=\(.value)"' > .env
-          chmod 600 .env
-          secret_count=$(wc -l < .env | tr -d ' ')
-          echo "Created workspace .env with ${secret_count} entries"
-
-          docker run --rm -i \
-            -v "${DEPLOY_DIR}:/dest" \
-            alpine:3.20 \
-            sh -c 'cat > /dest/.env && chmod 600 /dest/.env && echo "Synced .env to host deploy dir"' \
-            < .env
-
-      - name: Ensure Docker network
-        run: docker network create ai-gateway-network 2>/dev/null || true
+        run: bash "${DEPLOY_SCRIPT}" secrets
 
       - name: Build and deploy full stack
-        run: |
-          set -euo pipefail
-
-          # Force bind sources to the host deploy dir (daemon FS), regardless of
-          # where the Compose CLI resolves relative paths inside the runner.
-          printf '%s\n' \
-            'services:' \
-            '  gateway:' \
-            '    volumes:' \
-            "      - ${DEPLOY_DIR}/gateway.config.yaml:/app/gateway.config.yaml:ro" \
-            "      - ${DEPLOY_DIR}/logs:/app/logs" \
-            '  prometheus:' \
-            '    volumes:' \
-            "      - ${DEPLOY_DIR}/deployment/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
-            "      - ${DEPLOY_DIR}/deployment/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro" \
-            '  grafana:' \
-            '    volumes:' \
-            "      - ${DEPLOY_DIR}/deployment/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro" \
-            "      - ${DEPLOY_DIR}/deployment/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro" \
-            > /tmp/deploy-host-binds.yml
-
-          # Pipeline-only: also attach gateway to the shared host network
-          # (ai-gateway-network stays from base compose — Compose merges network lists).
-          printf '%s\n' \
-            'services:' \
-            '  gateway:' \
-            '    networks:' \
-            '      - main_network' \
-            'networks:' \
-            '  main_network:' \
-            '    external: true' \
-            '    name: main_network' \
-            > /tmp/deploy-extra-networks.yml
-
-          # Verify host files one last time (daemon's view) before up
-          docker run --rm -v "${DEPLOY_DIR}:/dest:ro" alpine:3.20 \
-            sh -c 'for f in gateway.config.yaml deployment/monitoring/prometheus.yml deployment/monitoring/alerts.yml; do
-              test -f "/dest/$f" || { echo "FATAL host missing $f"; exit 1; }
-              ls -la "/dest/$f"
-            done'
-
-          # Build only gateway service explicitly
-          docker compose -p ai-provider-gateway \
-            --env-file .env \
-            -f deployment/docker/docker-compose.yml \
-            -f deployment/docker/docker-compose.redis.yml \
-            -f deployment/docker/docker-compose.monitoring.yml \
-            -f /tmp/deploy-host-binds.yml \
-            -f /tmp/deploy-extra-networks.yml \
-            build gateway
-
-          # Start all services (pull images for redis/prometheus/grafana)
-          docker compose -p ai-provider-gateway \
-            --env-file .env \
-            -f deployment/docker/docker-compose.yml \
-            -f deployment/docker/docker-compose.redis.yml \
-            -f deployment/docker/docker-compose.monitoring.yml \
-            -f /tmp/deploy-host-binds.yml \
-            -f /tmp/deploy-extra-networks.yml \
-            up -d --force-recreate --pull always
+        id: stack
+        run: bash "${DEPLOY_SCRIPT}" up
 
       - name: Health check
+        id: health
         run: |
           set -euo pipefail
-          echo "Waiting for gateway readiness..."
-          ready=false
-          for i in $(seq 1 24); do
-            if body=$(curl -sf http://ai-gateway:3000/api/v1/health/ready); then
-              echo "${body}" | jq .
-              if echo "${body}" | jq -e '.status == "ready"' >/dev/null; then
-                ready=true
-                break
-              fi
-            fi
-            sleep 5
-          done
-
-          if [ "${ready}" != "true" ]; then
-            echo "Readiness check failed"
-            docker compose -p ai-provider-gateway \
-              --env-file .env \
-              -f deployment/docker/docker-compose.yml \
-              -f deployment/docker/docker-compose.redis.yml \
-              -f deployment/docker/docker-compose.monitoring.yml \
-              logs --tail=100 gateway || true
-            exit 1
-          fi
-
+          bash "${DEPLOY_SCRIPT}" health
           echo "Deploy successful (ref: ${{ steps.revision.outputs.ref }})"
+
+      - name: Persist last known-good SHA on host
+        id: persist_sha
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.revision.outputs.ref }}"
+          printf '%s\n' "${SHA}" | docker run --rm -i \
+            -e "LAST_GOOD_SHA_FILE=${LAST_GOOD_SHA_FILE}" \
+            -v "${DEPLOY_DIR}:/dest" \
+            alpine:3.20 \
+            sh -c 'cat > "/dest/$LAST_GOOD_SHA_FILE" && chmod 644 "/dest/$LAST_GOOD_SHA_FILE" && echo "Wrote $LAST_GOOD_SHA_FILE on host"'
+          echo "Last known-good SHA is now: ${SHA}"
+          {
+            echo "## Deploy succeeded"
+            echo ""
+            echo "- Deployed SHA: \`${SHA}\`"
+            echo "- Recorded as last known-good in \`${DEPLOY_DIR}/${LAST_GOOD_SHA_FILE}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # --- Auto-rollback (only after host mutation; once per run) ---
+      # Conditions must match between checkout and rollback so we never enter
+      # rollback without a successful last-good checkout.
+      - name: Checkout last known-good SHA for auto-rollback
+        id: rollback_checkout
+        if: >-
+          failure()
+          && steps.mutate.outcome == 'success'
+          && steps.last_good.outputs.sha != ''
+          && steps.last_good.outputs.sha != steps.revision.outputs.ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.last_good.outputs.sha }}
+
+      - name: Auto-rollback to last known-good SHA
+        id: rollback
+        if: >-
+          failure()
+          && steps.mutate.outcome == 'success'
+          && steps.last_good.outputs.sha != ''
+          && steps.last_good.outputs.sha != steps.revision.outputs.ref
+          && steps.rollback_checkout.outcome == 'success'
+        env:
+          FAILED_SHA: ${{ steps.revision.outputs.ref }}
+          LAST_GOOD_SHA: ${{ steps.last_good.outputs.sha }}
+          SKIP_VAULT_FETCH: 'true'
+          # Fallback only if host .env is missing.
+          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+        run: bash "${ROLLBACK_SCRIPT}"
+
+      - name: Fail run after successful auto-rollback
+        if: steps.rollback.outputs.rolled_back == 'true'
+        run: |
+          set -euo pipefail
+          echo "::error::Primary deploy of ${{ steps.revision.outputs.ref }} failed; auto-rollback to ${{ steps.rollback.outputs.rollback_sha }} succeeded. Investigate the failed release before redeploying."
+          exit 1
 
       # Wipe secrets from the Actions job workspace only — do NOT remove
       # /opt/ai-provider-gateway/.env (host bind used by Compose).
