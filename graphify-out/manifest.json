@@ -2195,18 +2195,18 @@
     "semantic_hash": "d35d624bfb634784b2f9376a1ffea8c1"
   },
   "deployment/scripts/deploy-production.sh": {
-    "mtime": 1784221171.7096474,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1784281095.0996957,
+    "ast_hash": "640ed1c33d0c0044fbe94a89541eeb36",
     "semantic_hash": ""
   },
   "deployment/scripts/deploy-staging.sh": {
-    "mtime": 1784221171.7096474,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1784281095.1026962,
+    "ast_hash": "05f5b4f731d0686c0aa75030306f528a",
     "semantic_hash": ""
   },
   "deployment/scripts/rollback.sh": {
-    "mtime": 1784221171.7096474,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1784281095.1026962,
+    "ast_hash": "fc6420910fd4669326bfaf628a817239",
     "semantic_hash": ""
   },
   "AGENTS.md": {
@@ -2245,7 +2245,7 @@
     "semantic_hash": ""
   },
   "deployment/docker/docker-compose.yml": {
-    "mtime": 1784221171.7036443,
+    "mtime": 1784275998.4383879,
     "ast_hash": "eb36ed9ba91b62701bb12b20439ee793",
     "semantic_hash": ""
   },
@@ -2675,13 +2675,18 @@
     "semantic_hash": ""
   },
   ".github/workflows/deploy.yml": {
-    "mtime": 1784220833.0335302,
-    "ast_hash": "12a9b334f186440e48ee6557849be593",
+    "mtime": 1784281045.051288,
+    "ast_hash": "97b2da1eaf595180d218a2a5d0174551",
     "semantic_hash": ""
   },
   "deployment/docker/runner/docker-compose.yml": {
     "mtime": 1784221171.7046437,
     "ast_hash": "613f631eba0c958ebd785174536e6e1c",
+    "semantic_hash": ""
+  },
+  "production-readiness-plan.md": {
+    "mtime": 1784114916.7554555,
+    "ast_hash": "ec9ab47d6b7f08c2ab9c1127c29a06e9",
     "semantic_hash": ""
   }
 }
