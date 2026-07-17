@@ -136,16 +136,12 @@
   "134": "openai-chat-gpt.md",
   "135": "MAIN_SYSTEM_PROMPT.md",
   "136": "Faza 1: Application Metrics (Prometheus) — 📋 PENDING",
-  "137": ".getLiveness",
   "138": "Faza 0: Rename i Reorganizacja (AI Metrics) — 📋 PENDING",
-  "139": "create-anthropic-provider.ts",
   "140": "createMockConfigService",
-  "141": "wait-for-redis.ts",
   "142": "rate-limit-bypass.security-spec.ts",
   "145": "chat-params.dto.ts",
   "147": "openai-chat-message.dto.ts",
   "148": ".getOne",
-  "149": "CliModule",
   "151": "prometheus.service.ts",
   "153": "entrypoint.sh"
 }

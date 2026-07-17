@@ -1,6 +1,6 @@
 # Deployment Guide — AI Provider Gateway
 
-Przewodnik wdrożenia produkcyjnego i lokalnego (Docker Compose). Artefakty deploymentu znajdują się w katalogu `deployment/` — oddzielonym od kodu źródłowego aplikacji.
+Przewodnik wdrożenia lokalnego (Docker Compose) oraz produkcyjnego na VPS przez **GitHub Actions** (self-hosted runner). Artefakty deploymentu znajdują się w katalogu `deployment/` — oddzielonym od kodu źródłowego aplikacji. Workflow produkcyjny: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml).
 
 Szczegóły konfiguracji runtime (env, YAML, walidacja): [`konfiguracja.md`](konfiguracja.md).  
 Gateway CLI (wizard, CRUD providerów/modeli/klientów): [`CLI.md`](CLI.md).
@@ -13,6 +13,7 @@ Gateway CLI (wizard, CRUD providerów/modeli/klientów): [`CLI.md`](CLI.md).
 - **Docker Compose** 2.0+
 - Klucze API providerów (np. Anthropic, Google) — zależnie od skonfigurowanych adapterów
 - (Opcjonalnie) **Node.js 20+** i `npm install` — do walidacji konfiguracji oraz CLI przed deployem
+- **Deploy VPS (Actions):** self-hosted runner na serwerze (`[self-hosted, linux]`), Docker daemon dostępny dla runnera (często DooD / `docker.sock`), HashiCorp Vault (AppRole) z sekretami aplikacji, GitHub Environment `production` (`VAULT_ROLE_ID`, `VAULT_SECRET_ID`)
 
 ---
 
@@ -32,13 +33,16 @@ deployment/
 │   ├── prometheus.yml                     # Scrape /metrics co 10s
 │   ├── alerts.yml                         # GatewayDown, GatewayNotReady, …
 │   └── grafana/
-├── scripts/                               # Skrypty deploy / rollback (w przygotowaniu)
+├── scripts/                               # Deploy / rollback (używane przez Actions)
+│   ├── deploy-production.sh               # sync | secrets | up | health | all (pełny stack)
+│   ├── deploy-staging.sh                  # jak production, bez Redis (DEPLOY_MODE=staging)
+│   └── rollback.sh                        # auto-rollback do last known-good SHA
 └── templates/
     ├── .env.example                       # Szablon zmiennych środowiskowych
     └── gateway.config.example.yaml        # Szablon YAML (boilerplate / placeholder)
 ```
 
-Pliki aktywne (`gateway.config.yaml`, `.env`) **kopiujesz do katalogu głównego repozytorium** — Docker montuje je stamtąd do kontenera.
+Pliki aktywne (`gateway.config.yaml`, `.env`) **kopiujesz do katalogu głównego repozytorium** — lokalny Docker montuje je stamtąd do kontenera. Na VPS pipeline synchronizuje checkout do katalogu hosta (domyślnie `/opt/ai-provider-gateway`) i bind-mountuje stamtąd.
 
 ---
 
@@ -328,6 +332,90 @@ make docker-logs
 # lub: npm run docker:logs:gateway
 ```
 
+Lokalne skróty `npm run deploy:mvp` / `deploy:staging` / `deploy:production` (oraz odpowiedniki `make`) to **deploy na maszynie deweloperskiej** (testy + Compose). **Produkcja na VPS** idzie przez GitHub Actions — sekcja poniżej.
+
+---
+
+## Deploy na VPS (GitHub Actions)
+
+Produkcyjny pipeline: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) → skrypt [`deployment/scripts/deploy-production.sh`](../deployment/scripts/deploy-production.sh).
+
+### Założenia
+
+| Element | Wartość / rola |
+|--------|----------------|
+| Trigger | Tylko `workflow_dispatch` (ręczny Run workflow) |
+| Runner | Self-hosted, labelki `[self-hosted, linux]` (VPS) |
+| Environment | GitHub `production` (approval + sekrety Vault AppRole) |
+| Katalog na hoście | `/opt/ai-provider-gateway` (`DEPLOY_DIR`) |
+| Last known-good | Plik `/opt/ai-provider-gateway/.deployed-sha` |
+| Gate CI | Co najmniej jeden **sukces** workflow `ci.yml` dla deployowanego SHA |
+| Sekrety aplikacji | Vault KV `secret/data/ai-provider-gateway/prod` → `.env` (workspace + host) |
+| Readiness | `GET http://ai-gateway:3000/api/v1/health/ready` → `body.status == "ready"` |
+| Health retries | Domyślnie **6** prób co **5 s** (`HEALTH_ATTEMPTS` w `deploy-production.sh`) |
+
+Definicja workflow pochodzi z brancha wybranego w UI Actions („Use workflow from”). **Kod i skrypty** pochodzą z inputu `branch` / `sha` (checkout deployowanego refa). Skrypty muszą istnieć w tym refie — inaczej kroki `bash deployment/scripts/...` padną.
+
+### Jak odpalić deploy
+
+1. Upewnij się, że dla docelowego SHA jest zielony run [`ci.yml`](../.github/workflows/ci.yml) (na push do feature brancha zwykle tryb szybki: lint + unit).
+2. Actions → **Deploy to VPS** → Run workflow.
+3. Inputy:
+   - **`branch`** — tip brancha (domyślnie w workflow: feature używany do nauki flow),
+   - **`sha`** (opcjonalnie) — konkretny commit lub tag; gdy ustawiony, **nadpisuje** tip brancha.
+
+Ręczny rollback bez czekania na auto-rollback: ten sam workflow z `sha` = poprzedni dobry commit (re-deploy znanego refa).
+
+### Przebieg happy path
+
+1. Resolve ref → checkout → zapis deploy SHA.
+2. Weryfikacja zielonego CI dla tego SHA.
+3. Odczyt last known-good z hosta (`.deployed-sha`) — na razie tylko pod ewentualny rollback.
+4. **Mutation point** — odtąd fail może zostawić host w półstanie; auto-rollback jest uprawniony.
+5. `deploy-production.sh sync` — stop starych kontenerów gateway/prometheus/grafana, wyczyść `DEPLOY_DIR` (zostawia `.env` i `.deployed-sha`), wgraj checkout tar’em (ścieżka DooD-safe).
+6. `secrets` — AppRole login do Vault, zapis `.env`.
+7. `up` — sieć `ai-gateway-network`, overlaye bindów hosta + `main_network`, `compose build gateway` + `up -d` (pełny stack: gateway + Redis + monitoring).
+8. `health` — pętla readiness.
+9. Zapis nowego SHA do `.deployed-sha`.
+10. Cleanup workspace `.env` (hostowego `.env` **nie** kasuje).
+
+Concurrency: grupa `deploy-vps`, `cancel-in-progress: false` — równoległe deploye się kolejkują, nie anulują.
+
+### Auto-rollback
+
+Gdy krok po mutation point padnie (np. health), a na hoście jest last-good SHA **różny** od failed SHA:
+
+1. Checkout last-good SHA.
+2. [`rollback.sh`](../deployment/scripts/rollback.sh) → `deploy-production.sh all` z **`SKIP_VAULT_FETCH=true`** (reuse host `.env`; Vault tylko gdy `.env` na hoście brakuje).
+3. Po udanym rollbacku workflow **i tak kończy się czerwono** (step „Fail run after successful auto-rollback”), żeby w historii Actions było widać, że primary fail + recovery.
+
+Pierwszy udany deploy (brak `.deployed-sha`) albo failed SHA = last-good → auto-rollback się **nie** odpala.
+
+### Weryfikacja po deployu / rollbacku
+
+```bash
+# na VPS / z sieci Dockera
+curl -s http://ai-gateway:3000/api/v1/health/ready | jq .
+cat /opt/ai-provider-gateway/.deployed-sha
+```
+
+W UI Actions przy udanym auto-rollbacku: wykonane kroki checkout last-good + Auto-rollback, summary z `SUCCEEDED`, komunikat że primary failnięty a produkcja przywrócona; job status = failure (zamierzone).
+
+### Skrypty — skrót API
+
+```bash
+# pełna ścieżka produkcyjna (jak w Actions, krokami)
+bash deployment/scripts/deploy-production.sh sync
+bash deployment/scripts/deploy-production.sh secrets   # wymaga VAULT_ROLE_ID / VAULT_SECRET_ID
+bash deployment/scripts/deploy-production.sh up
+bash deployment/scripts/deploy-production.sh health
+
+# staging lokalnie / ręcznie (Compose bez Redis)
+bash deployment/scripts/deploy-staging.sh all
+```
+
+Istotne zmienne: `DEPLOY_DIR`, `LAST_GOOD_SHA_FILE`, `SKIP_VAULT_FETCH`, `HEALTH_URL`, `HEALTH_ATTEMPTS`, `DEPLOY_MODE` (`production` \| `staging`). Szczegóły w nagłówkach skryptów.
+
 ---
 
 ## Monitoring i logi
@@ -423,6 +511,18 @@ curl http://localhost:9090/-/healthy
 curl http://localhost:3001/api/health
 ```
 
+### Deploy Actions: „No successful CI run”
+
+Deploy wymaga zielonego runu `ci.yml` dla **tego samego** SHA. Poczekaj na CI albo uruchom `workflow_dispatch` na `ci.yml`, potem ponów Deploy.
+
+### Deploy Actions: health długo czeka, potem fail
+
+`deploy-production.sh` próbuje readiness do `HEALTH_ATTEMPTS` razy (domyślnie 6 × 5 s). Przy padającym kontenerze to zamierzone opóźnienie przed auto-rollbackiem — nie natychmiastowy fail.
+
+### Deploy Actions: auto-rollback się nie odpalił
+
+Sprawdź, czy fail był **po** kroku mutation, czy istnieje `/opt/ai-provider-gateway/.deployed-sha` i czy różni się od failed SHA. Pierwszy udany deploy dopiero tworzy ten plik.
+
 ---
 
 ## Checklist produkcyjny
@@ -430,21 +530,28 @@ curl http://localhost:3001/api/health
 Przed wdrożeniem na produkcję:
 
 - [ ] `MASTER_KEY` — silna wartość losowa (`gateway key:generate --type master` lub `openssl rand -hex 32`)
-- [ ] Klucze providerów i klientów — rotacja i przechowywanie poza repozytorium
+- [ ] Klucze providerów i klientów — rotacja; na VPS źródłem jest **Vault** (nie commit `.env`)
+- [ ] GitHub Environment `production`: `VAULT_ROLE_ID`, `VAULT_SECRET_ID`; self-hosted runner online
+- [ ] Katalog hosta `/opt/ai-provider-gateway` istnieje i jest montowalny przez Docker daemon
 - [ ] HTTPS — reverse proxy (nginx, Traefik, load balancer)
 - [ ] Limity rate limit — dopasowane do tierów API providerów i ruchu
 - [ ] Redis — jeśli włączony cache (`CACHE_BACKEND=redis`) lub smart rate limit
-- [ ] `gateway config:validate` — sukces na serwerze docelowym (pełniejsza niż sam `npm run config:validate`)
-- [ ] `npm run test:all` — przed deployem MVP/staging
-- [ ] `npm run test:security` — przed deployem produkcyjnym (`npm run deploy:production` uruchamia to automatycznie)
-- [ ] `curl http://localhost:3000/metrics` — gauge `gateway_readiness` zgodny ze stanem aplikacji (po włączeniu stacku monitoring)
-- [ ] Backup zaszyfrowanych plików konfiguracyjnych
+- [ ] `gateway config:validate` — sukces na konfiguracji docelowej (pełniejsza niż sam `npm run config:validate`)
+- [ ] Zielony `ci.yml` dla SHA, który ma wejść na VPS (gate w `deploy.yml`)
+- [ ] `npm run test:all` — przed lokalnym deployem MVP/staging
+- [ ] `npm run test:security` — przed lokalnym `npm run deploy:production`
+- [ ] Po Actions deploy: readiness `ready` + `.deployed-sha` = oczekiwany commit
+- [ ] `curl …/metrics` — gauge `gateway_readiness` zgodny ze stanem (po włączeniu stacku monitoring)
+- [ ] Backup krytycznej konfiguracji / wolumenów (osobno od rollbacku kodu)
 
 ---
 
 ## Powiązana dokumentacja
 
+- [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — orchestracja VPS
+- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — gate przed deployem
 - [`konfiguracja.md`](konfiguracja.md) — env, YAML, walidacja, Redis, rate limit
 - [`CLI.md`](CLI.md) — wizard i komendy administracyjne
 - [`architektura.md`](architektura.md) — moduły i observability
 - [`testy.md`](testy.md) — testy jednostkowe, E2E, security
+- [`../SECURITY.md`](../SECURITY.md) — polityka bezpieczeństwa, sekrety

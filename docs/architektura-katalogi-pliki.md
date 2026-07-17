@@ -34,12 +34,13 @@ ai-provider-gateway/
 ├── .gitignore
 ├── mcp.json                        # konfiguracja MCP dla IDE (Cursor) — nie wczytywany przez gateway przy starcie
 │
-├── deployment/                     # Docker, monitoring, szablony wdrożenia
+├── deployment/                     # Docker, monitoring, szablony, skrypty VPS
 │   ├── docker/
 │   │   ├── Dockerfile              # Multi-stage build (production)
 │   │   ├── docker-compose.yml      # MVP: sam gateway
 │   │   └── docker-compose.*.yml    # redis, monitoring, ollama, dev
 │   ├── monitoring/                 # Prometheus, Grafana, alerty
+│   ├── scripts/                    # deploy-production.sh, deploy-staging.sh, rollback.sh (Actions)
 │   └── templates/                  # gateway.config.example.yaml, .env.example
 │
 ├── bin/                            # entry point CLI (osobny od HTTP app)

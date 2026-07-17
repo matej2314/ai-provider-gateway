@@ -9,7 +9,7 @@
 #   FAILED_SHA      Failed primary deploy SHA (for logs / summary)
 #   GITHUB_OUTPUT   When set, writes rolled_back / rollback_sha
 #   GITHUB_STEP_SUMMARY
-#   HEALTH_ATTEMPTS default 24 (override to shorten rollback wait)
+#   HEALTH_ATTEMPTS default 6 (override to shorten/lengthen wait)
 
 set -euo pipefail
 

@@ -40,7 +40,7 @@ Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
 | Adapter OpenAI (runtime)                    | [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)                                                                                                                |
 | Architektura fasad IDE                      | [`docs/integracje.md`](docs/integracje.md)                                                                                                                                          |
 | Gateway CLI                                 | [`docs/CLI.md`](docs/CLI.md)                                                                                                                                                        |
-| Wdrożenie (Docker Compose)                  | [`docs/deployment.md`](docs/deployment.md)                                                                                                                                          |
+| Wdrożenie (Docker + GitHub Actions / VPS) | [`docs/deployment.md`](docs/deployment.md)                                                                                                                                          |
 | Testy (jednostkowe, CLI, E2E, security, integracyjne) | [`docs/testy.md`](docs/testy.md)                                                                                                                                                    |
 | Bezpieczeństwo (polityka, klucze, scope)                | [`SECURITY.md`](SECURITY.md)                                                                                                                                                        |
 
@@ -54,7 +54,7 @@ Projekt jest open-source pod licencją **MIT** — możesz **klonować**, **fork
 
 1. Fork repozytorium.
 2. Clone lokalnie i skonfiguruj (patrz „Szybki start”).
-3. Deploy na własnej infrastrukturze — [`docs/deployment.md`](docs/deployment.md) (Docker Compose, VPS, Kubernetes).
+3. Deploy na własnej infrastrukturze — [`docs/deployment.md`](docs/deployment.md) (Docker Compose lokalnie; produkcja VPS przez GitHub Actions).
 
 Alternatywnie: jeśli potrzebujesz pakietu npm, otwórz issue z use case.
 
@@ -108,7 +108,7 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 - **Multi-provider (runtime)**: adaptery SDK w `src/providers/` — Anthropic, Google Gemini, OpenAI, OpenAI-compatible — [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)
 - **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
 - **Models catalog**: natywny `GET /api/v1/models` + fasady — wspólny `GatewayModelsCatalogService`, ten sam zestaw aliasów z YAML
-- **Production-ready**: Helmet.js security headers (`main.ts`), wyłączone `x-powered-by`, limit body JSON **1 MB**, dedykowane testy security (`test/security/`), Pino logging, Sentry AI observability, **Prometheus app metrics** (`GET /metrics`, health gauges odświeżane przy scrape), reguły alertów w `deployment/monitoring/alerts.yml`, graceful shutdown, readiness probes, Docker Compose (`deployment/`)
+- **Production-ready**: Helmet.js security headers (`main.ts`), wyłączone `x-powered-by`, limit body JSON **1 MB**, dedykowane testy security (`test/security/`), Pino logging, Sentry AI observability, **Prometheus app metrics** (`GET /metrics`, health gauges odświeżane przy scrape), reguły alertów w `deployment/monitoring/alerts.yml`, graceful shutdown, readiness probes, Docker Compose (`deployment/`), deploy VPS przez GitHub Actions (`.github/workflows/deploy.yml`)
 - **Type safety (brand types)**: nominalne typy TS dla kluczy, identyfikatorów, metryk i policy (`src/common/types/`) — compile-time bez kosztu runtime; przewodnik: [`docs/brand-types.md`](docs/brand-types.md)
 - **CLI wizard**: `gateway config:init` — interaktywna konfiguracja, `provider:test`, model/client management
 
@@ -164,9 +164,11 @@ npm run start:dev
 
 Domyślnie: `http://localhost:3000`, prefiks API: `/api/v1` ([`src/setup.app.ts`](src/setup.app.ts)).
 
-## Wdrożenie (Docker Compose)
+## Wdrożenie (Docker Compose i VPS)
 
 Artefakty w katalogu [`deployment/`](deployment/) — pełny przewodnik: [`docs/deployment.md`](docs/deployment.md).
+
+### Lokalnie (Compose)
 
 ```bash
 # jednorazowo: sieć współdzielona przez compose
@@ -185,6 +187,17 @@ npm run docker:up:full
 ```
 
 Alternatywa: `make docker-up` / `make docker-up-full` (wymaga Make). W kontenerze montowane są `gateway.config.yaml` i `.env` z katalogu głównego repozytorium.
+
+### Produkcja na VPS (GitHub Actions)
+
+Workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) na **self-hosted** runnerze:
+
+1. Zielony [`ci.yml`](.github/workflows/ci.yml) dla docelowego SHA.
+2. Actions → **Deploy to VPS** (`workflow_dispatch`) — tip `branch` albo konkretny `sha` / tag.
+3. Pipeline: sync do `/opt/ai-provider-gateway` → sekrety z **Vault** → Compose (pełny stack) → readiness → zapis `.deployed-sha`.
+4. Przy failu po mutacji hosta: **auto-rollback** do last known-good (`deployment/scripts/rollback.sh`); job i tak kończy się czerwono, gdy recovery się udał.
+
+Szczegóły (inputy, DooD, Vault, weryfikacja): [`docs/deployment.md`](docs/deployment.md) — sekcja **Deploy na VPS (GitHub Actions)**.
 
 ## Endpointy (przykłady)
 
@@ -283,7 +296,7 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 | Observability               | [`src/observability/`](src/observability/) — `AiMetricsModule` (Sentry LLM), `AppMetricsModule` (Prometheus RED + health gauges, `GET /metrics`) |
 | Brand types (TS)            | [`src/common/types/`](src/common/types/) — `Brand`, guardy, helpery `as*` / `create*`; barrel: `index.ts`                                       |
 
-Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md). Wdrożenie Docker: [`deployment/`](deployment/), [`docs/deployment.md`](docs/deployment.md).
+Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md). Wdrożenie: [`deployment/`](deployment/), [`docs/deployment.md`](docs/deployment.md) (Compose lokalnie + Actions na VPS).
 
 ## Testy
 

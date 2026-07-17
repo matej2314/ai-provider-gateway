@@ -12,7 +12,7 @@
 #   DEPLOY_MODE             production|staging (default: production)
 #   SKIP_VAULT_FETCH        true = reuse host .env (rollback); false = fetch from Vault
 #   HEALTH_URL              default: http://ai-gateway:3000/api/v1/health/ready
-#   HEALTH_ATTEMPTS         default: 24 (5s each)
+#   HEALTH_ATTEMPTS         default: 6 (5s each)
 #   VAULT_* / CONT_NAME     Vault AppRole + KV path (secrets step)
 
 set -euo pipefail
@@ -23,7 +23,7 @@ COMPOSE_PROJECT="${COMPOSE_PROJECT:-ai-provider-gateway}"
 DEPLOY_MODE="${DEPLOY_MODE:-production}"
 SKIP_VAULT_FETCH="${SKIP_VAULT_FETCH:-false}"
 HEALTH_URL="${HEALTH_URL:-http://ai-gateway:3000/api/v1/health/ready}"
-HEALTH_ATTEMPTS="${HEALTH_ATTEMPTS:-24}"
+HEALTH_ATTEMPTS="${HEALTH_ATTEMPTS:-6}"
 CONT_NAME="${CONT_NAME:-ai-provider-gateway}"
 VAULT_ADDR="${VAULT_ADDR:-https://vault-prod:8200}"
 VAULT_SKIP_VERIFY="${VAULT_SKIP_VERIFY:-true}"
