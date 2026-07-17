@@ -14,7 +14,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPLOY_SCRIPT="${SCRIPT_DIR}/deploy-production.sh"
+# Staging workflow sets DEPLOY_SCRIPT=deployment/scripts/deploy-staging.sh;
+# default remains production for deploy.yml auto-rollback.
+DEPLOY_SCRIPT="${DEPLOY_SCRIPT:-${SCRIPT_DIR}/deploy-production.sh}"
 
 FAILED_SHA="${FAILED_SHA:-unknown}"
 LAST_GOOD_SHA="${LAST_GOOD_SHA:-}"
@@ -77,6 +79,8 @@ echo "============================================================"
 export SKIP_VAULT_FETCH=true
 export DEPLOY_MODE="${DEPLOY_MODE:-production}"
 
+echo "Rollback deploy script: ${DEPLOY_SCRIPT} (DEPLOY_MODE=${DEPLOY_MODE})"
+
 if ! bash "${DEPLOY_SCRIPT}" all; then
   fail_rollback "Auto-rollback deploy/health FAILED for ${LAST_GOOD_SHA}"
 fi
@@ -85,6 +89,6 @@ write_output rolled_back true
 write_output rollback_sha "${LAST_GOOD_SHA}"
 echo "::warning::Auto-rollback SUCCEEDED -> ${LAST_GOOD_SHA} (primary deploy ${FAILED_SHA} failed)"
 {
-  echo "- Result: **SUCCEEDED** - production restored to \`${LAST_GOOD_SHA}\`"
+  echo "- Result: **SUCCEEDED** - ${DEPLOY_MODE} restored to \`${LAST_GOOD_SHA}\`"
   echo "- Workflow will still fail so the bad release is visible in Actions history"
 } | append_summary

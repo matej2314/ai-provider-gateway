@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Production (and shared) deploy helpers for self-hosted VPS / DooD.
-# Used by .github/workflows/deploy.yml and rollback.sh.
+# Used by .github/workflows/deploy.yml, deploy_staging.yml (via deploy-staging.sh), and rollback.sh.
 #
 # Usage:
 #   deploy-production.sh sync|secrets|up|health|all

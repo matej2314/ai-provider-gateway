@@ -124,7 +124,6 @@
   "122": "e2e-provider-registry.ts",
   "123": "Testy integracyjne (live SDK + Redis)",
   "124": "Architektura katalogów i plików",
-  "125": "Komendy — providery",
   "126": "Dokumentacja — AI Provider Gateway",
   "127": "Specyfikacje (Spec‑Driven Development)",
   "128": "deploy-production.sh",
@@ -137,11 +136,9 @@
   "135": "MAIN_SYSTEM_PROMPT.md",
   "136": "Faza 1: Application Metrics (Prometheus) — 📋 PENDING",
   "138": "Faza 0: Rename i Reorganizacja (AI Metrics) — 📋 PENDING",
-  "140": "createMockConfigService",
   "142": "rate-limit-bypass.security-spec.ts",
   "145": "chat-params.dto.ts",
   "147": "openai-chat-message.dto.ts",
-  "148": ".getOne",
   "151": "prometheus.service.ts",
   "153": "entrypoint.sh"
 }
