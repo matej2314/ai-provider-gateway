@@ -4,12 +4,12 @@
 > Ten dokument opisuje **fasadę integracji** — warstwę HTTP w `src/integrations/openai/`, która implementuje **kształt** OpenAI Chat Completions API. Służy kompatybilności z Cursor i podobnymi klientami; OpenAI API stało się jednym ze standardów branżowych dla narzędzi IDE.  
 > **To nie jest** gwarancja, że backend LLM to api.openai.com — routing zależy wyłącznie od **`model`** (= `modelAlias` w YAML) i wpisu `models[]` → `providerInstance` (może być Anthropic, Google, OpenAI lub compatible).  
 > **Auth:** `Authorization: Bearer` to **klucz klienta gateway** z allowlisty, nie klucz OpenAI.com.  
-> Adapter runtime OpenAI (`create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts` w `src/providers/`) — **wdrożony**, osobna warstwa — [`provider_openai_runtime.md`](provider_openai_runtime.md).  
+> Adapter runtime OpenAI (`create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts` w `src/providers/`) — osobna warstwa — [`provider_openai_runtime.md`](provider_openai_runtime.md).  
 > Analogiczna zasada dla fasady Anthropic: [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md), [`dictionary.md`](dictionary.md).
 
 Fasada **`/api/v1/openai`** pozwala podłączyć **Cursor** (i inne klienty ze sztywnym klientem OpenAI) do gatewaya, używając własnej allowlisty kluców zamiast klucza OpenAI.com.
 
-> **Stan:** moduł `src/integrations/openai/` jest **wdrożony** — `GET /models`, `POST /chat/completions` (JSON + stream SSE w formacie OpenAI). Architektura wspólna: [`integracje.md`](integracje.md).
+> Moduł `src/integrations/openai/` — `GET /models`, `POST /chat/completions` (JSON + stream SSE w formacie OpenAI). Architektura wspólna: [`integracje.md`](integracje.md).
 
 ## Konfiguracja w Cursor
 
@@ -123,7 +123,7 @@ Jeśli budujesz własną aplikację pod kontrakt gateway:
 
 ## Ograniczenia
 
-- **Routing LLM jest konfiguracyjny** — fasada OpenAI **nie** wymusza backendu OpenAI.com; alias w YAML może wskazywać Anthropic, Google, OpenAI lub OpenAI-compatible (`providerInstance` + `modelId`). Adapter OpenAI runtime jest **wdrożony** — patrz [`provider_openai_runtime.md`](provider_openai_runtime.md).
+- **Routing LLM jest konfiguracyjny** — fasada OpenAI **nie** wymusza backendu OpenAI.com; alias w YAML może wskazywać Anthropic, Google, OpenAI lub OpenAI-compatible (`providerInstance` + `modelId`). Adapter OpenAI runtime — patrz [`provider_openai_runtime.md`](provider_openai_runtime.md).
 - Wiadomości **`role: system`** z klienta są **pomijane** — instrukcja systemowa pochodzi z plików w `src/config/system-prompt/`.
 - **`messages[].content`** musi być stringiem (brak tablicy multimodalnej).
 - Function calling wymaga `capabilities.tools: true` na aliasie w YAML.
@@ -139,7 +139,7 @@ Trasy OpenAI są w **`openapi.json`** (tag **OpenAI API**, security `BearerAuth`
 
 ## Powiązane
 
-- [`integracje.md`](integracje.md) — architektura fasad, rate limit, stan wdrożenia
-- [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md) — fasada Anthropic (Claude Code; **wdrożona**)
+- [`integracje.md`](integracje.md) — architektura fasad, rate limit
+- [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md) — fasada Anthropic (Claude Code)
 - [`konfiguracja.md`](konfiguracja.md) — `gateway.config.yaml`, klucze env
 - [`lista_endpointów.md`](lista_endpointów.md)

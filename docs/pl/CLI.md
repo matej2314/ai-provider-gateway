@@ -4,7 +4,7 @@ Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya, zarządzania
 
 **Konwencja komend:** `gateway <namespace>:<action>` (np. `gateway config:init`).
 
-**Tryb v1:** wszystkie komendy mutujące konfigurację działają w trybie **interaktywnym** (prompty w terminalu). Tryb non-interactive — planowany na przyszłość.
+Komendy mutujące konfigurację działają w trybie **interaktywnym** (prompty w terminalu). Tryb non-interactive nie wchodzi w bieżący zakres CLI.
 
 ## Pełna lista komend
 
@@ -29,20 +29,20 @@ Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya, zarządzania
 | client | `client:remove <clientId>` | Usuń klienta + klucz z `.env` |
 | key | `key:generate` | Wygeneruj klucz master lub klienta (bez zapisu do `.env`) |
 
-## Stan wdrożenia
+## Zakres CLI
 
-| Obszar | Status |
-|--------|--------|
-| Infrastruktura (`bin/`, `CliModule`, loader, utilities) | **wdrożone** |
-| System szablonów (`templates/`, generatory plików) | **wdrożone** |
-| Wizard `config:init` (5 kroków + walidacja końcowa) | **wdrożone** |
-| Resume / rollback stanu wizarda | **wdrożone** |
-| `config:validate`, `config:show` | **wdrożone** |
-| `provider:add`, `provider:remove`, `provider:edit`, `provider:list`, `provider:test` | **wdrożone** |
-| `model:add`, `model:list`, `model:remove`, `model:edit` | **wdrożone** |
-| `client:add`, `client:list`, `client:edit`, `client:remove` | **wdrożone** |
-| `key:generate` | **wdrożone** |
-| Testy jednostkowe CLI (`npm run test:cli`) | **wdrożone** (12 zestawów / 62 przypadki) |
+| Obszar | Opis |
+|--------|------|
+| Infrastruktura (`bin/`, `CliModule`, loader, utilities) | Entry point i DI Nest dla CLI |
+| System szablonów (`templates/`, generatory plików) | Generowanie YAML, `.env`, system promptów |
+| Wizard `config:init` (5 kroków + walidacja końcowa) | Interaktywna konfiguracja od zera |
+| Resume / rollback stanu wizarda | `.gateway-wizard-state.json` |
+| `config:validate`, `config:show` | Walidacja i podgląd konfiguracji |
+| `provider:add`, `provider:remove`, `provider:edit`, `provider:list`, `provider:test` | CRUD i test SDK providerów |
+| `model:add`, `model:list`, `model:remove`, `model:edit` | CRUD aliasów modeli |
+| `client:add`, `client:list`, `client:edit`, `client:remove` | CRUD klientów gateway |
+| `key:generate` | Generowanie kluczy (bez zapisu do `.env`) |
+| Testy jednostkowe CLI (`npm run test:cli`) | 12 zestawów / 62 przypadki |
 
 ## Uruchomienie
 
@@ -148,7 +148,7 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
      - **Response cache:** `CACHE_ENABLED`, `CACHE_BACKEND` (`redis` | `noop` — bez opcji `memory` w wizardzie).
      - **Smart rate limit:** `RATE_LIMIT_SMART_ENABLED` (niezależnie od backendu cache).
      - **Redis (wspólna infrastruktura):** host, port, hasło — **tylko gdy** `isRedisRequired()` z `src/cache/should-include-redis-stack.ts` zwraca `true`, tj. gdy `CACHE_ENABLED=true` **oraz** `CACHE_BACKEND=redis`, **lub** gdy `RATE_LIMIT_SMART_ENABLED=true`. Ta sama reguła co przy starcie HTTP (`isRedisRequiredFromEnv()` w `AppModule`).
-     - **Monitoring:** Sentry (`METRICS_BACKEND`, `SENTRY_*`) lub `noop`.
+     - **Monitoring:** Sentry LLM (`AI_METRICS_BACKEND`, `SENTRY_*`) lub `noop`; App metrics Prometheus (`METRICS_BACKEND`).
 
 3. **Zapis plików** — `ConfigGeneratorService.generateFullConfig()`:
    - `gateway.config.yaml` (wszystkie providery `enabled: true`, `masterKeyRef: MASTER_KEY`)

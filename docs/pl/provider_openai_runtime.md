@@ -14,7 +14,6 @@
 | **Auth klienta** | Bearer = klucz gateway | — |
 | **Auth vendora** | — | `apiKeyRef` + `baseUrlRef` w YAML |
 | **Wymaga drugiej warstwy?** | Nie | Nie |
-| **Status** | Wdrożone | **Wdrożone** |
 
 Adapter implementuje port **`AIProvider`** — ten sam kontrakt co `create-anthropic-provider.ts` i `create-google-provider.ts`. Nie rejestruje tras HTTP i nie obsługuje autoryzacji klientów IDE.
 
@@ -26,20 +25,19 @@ Routing między Chat Completions a Responses API odbywa się w `create-openai-pr
 2. Alias w `models[]` wskazuje ten `providerInstance` oraz vendorowy `modelId` (np. `gpt-4o`).
 3. `ChatService` / `ChatProviderCallService` wywołuje `AIProvider.complete` / `stream` — **niezależnie** od tego, czy klient użył natywnego `/chat`, fasady `/openai` czy `/anthropic`.
 
-## Stan wdrożenia
+## Składniki adaptera
 
-| Element | Status |
-|---------|--------|
-| `PROVIDER_TYPES`: `openai`, `openai-compatible` | Wdrożone |
-| `create-openai-provider.ts` | Wdrożone |
-| `create-openai-compatible-provider-instance.ts` | Wdrożone |
-| `create-openai-provider.core.ts` | Wdrożone |
-| Mapery `*-provider.mapper.ts` | Wdrożone |
-| Adaptery `chat-completions` / `responses` | Wdrożone |
-| Routing `create-openai-provider.core.ts` | Wdrożone |
-| Testy jednostkowe fabryk i mapperów | Wdrożone |
-| Fasada `/api/v1/openai` mapująca `params.*` | Wdrożona |
-| `provider:test` dla typu OpenAI (CLI) | Wdrożone |
+| Element | Rola |
+|---------|------|
+| `PROVIDER_TYPES`: `openai`, `openai-compatible` | Typy w schemacie YAML |
+| `create-openai-provider.ts` | Fabryka `type: openai` |
+| `create-openai-compatible-provider-instance.ts` | Fabryka `type: openai-compatible` |
+| `create-openai-provider.core.ts` | Routing Responses vs Chat Completions |
+| Mapery `*-provider.mapper.ts` | Mapowanie opcji gateway → SDK |
+| Adaptery `chat-completions` / `responses` | Wywołania SDK |
+| Testy jednostkowe fabryk i mapperów | `src/providers/**/*.spec.ts` |
+| Fasada `/api/v1/openai` mapująca `params.*` | Osobna warstwa HTTP — [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md) |
+| `provider:test` dla typu OpenAI (CLI) | Test SDK z CLI |
 
 Szczegóły procesu dodania typu: [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md) (scenariusz A).
 

@@ -62,7 +62,7 @@ flowchart TB
 | **Observability** (`src/observability`)                          | **`ObservabilityModule`**: `AiMetricsModule` (Sentry LLM) + **`AppMetricsModule`** (Prometheus RED, health gauges, `GET /metrics`). `PreMetricsScrapeRegistry` — hooki przed exportem metryk.                                                                 |
 | **Logging** (`src/logging`)                                      | Structured logging (Pino), opcjonalnie Sentry error reporting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | **Swagger / OpenAPI** (`src/swagger`)                            | Jeden dokument OpenAPI 3.1 dla **natywnego czatu**, **models**, **health** i **fasad IDE** (OpenAI + Anthropic). Dekoratory `@Api*` na wszystkich kontrolerach HTTP; `swagger.setup.ts` rejestruje `extraModels` i trzy `securitySchemes` (`GatewayKeyAuth`, `BearerAuth`, `ApiKeyAuth`). UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport: `npm run openapi:export` → `openapi.json`.                                                                                                                                                                   |
-| **CLI** (`src/cli`, `bin/`)                                      | Narzędzie wiersza poleceń dla konfiguracji i operacji developerskich. **Osobny entry point** (`bin/gateway-cli-wrapper.js` → `CommandFactory.run(CliModule)`), **bez** importu `ConfigModule`. Reużywa schematy Zod z `src/config/`, ale ładuje YAML bez rozwiązywania env (`CliConfigLoaderService`). **Wdrożone:** wizard `config:init`, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli i klientów, `provider:test`, `key:generate`. Szczegóły: `CLI.md`, `architektura_katalogi_pliki.md` (sekcja 2a).                                |
+| **CLI** (`src/cli`, `bin/`)                                      | Narzędzie wiersza poleceń dla konfiguracji i operacji developerskich. **Osobny entry point** (`bin/gateway-cli-wrapper.js` → `CommandFactory.run(CliModule)`), **bez** importu `ConfigModule`. Reużywa schematy Zod z `src/config/`, ale ładuje YAML bez rozwiązywania env (`CliConfigLoaderService`). Komendy: wizard `config:init`, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli i klientów, `provider:test`, `key:generate`. Szczegóły: `CLI.md`, `architektura_katalogi_pliki.md` (sekcja 2a).                                |
 
 ## CLI — izolacja od runtime HTTP
 
@@ -155,7 +155,7 @@ Szczegóły: `architektura_api.md` + `anty_patterny.md` + `integracje.md`.
 
 ## Type safety (brand types)
 
-Warstwa `src/common/types/` dostarcza **nominalne typy TypeScript** (`Brand<K, T>`) dla wartości, których nie wolno semantycznie zamieniać — np. `GatewayKey` vs `ProviderApiKey`, `ModelAlias` vs `ModelId`, `InputTokens` vs `OutputTokens`. Wdrożenie obejmuje m.in.:
+Warstwa `src/common/types/` dostarcza **nominalne typy TypeScript** (`Brand<K, T>`) dla wartości, których nie wolno semantycznie zamieniać — np. `GatewayKey` vs `ProviderApiKey`, `ModelAlias` vs `ModelId`, `InputTokens` vs `OutputTokens`. Obejmuje m.in.:
 
 - **HTTP / Express:** `Express.Request.requestId: RequestId`, `gatewayKey?: GatewayKey` (`express.d.ts`).
 - **Czat:** konteksty wykonania (`ChatExecutionContext`, `ProviderCallContext`), helpery `conversation-id.ts`, `generation-warnings.ts` (`WarningCode`).
@@ -183,6 +183,6 @@ Warstwa `src/common/types/` dostarcza **nominalne typy TypeScript** (`Brand<K, T
 - **Security HTTP:** `test/security/` — auth bypass, Helmet, disclosure, rate limit, fuzzing (`fast-check`); bootstrap przez `create-security-app.ts` (wrapper `createE2eApp`). Uruchomienie: `npm run test:security`; w pipeline produkcyjnym: `npm run deploy:production`.
 - Szczegóły struktury, helperów i ograniczeń: **`testy.md`**.
 
-## Struktura repo (orientacyjnie)
+## Struktura repo
 
-Aktualna struktura katalogów źródłowych znajduje się w `README.md` repo oraz w `src/`.
+Orientacyjna mapa katalogów, plików i odpowiedzialności modułów: **[`architektura_katalogi_pliki.md`](architektura_katalogi_pliki.md)**. Skrót w katalogu głównym: [`README.md`](../../README.md).

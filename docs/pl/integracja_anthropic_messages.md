@@ -8,7 +8,7 @@
 
 Fasada **`/api/v1/anthropic`** pozwala podłączyć **Claude Code** i inne klienty oczekujące Anthropic Messages API do gatewaya z własną allowlistą kluców.
 
-> **Stan:** moduł `src/integrations/anthropic/` jest **wdrożony** — `GET /models`, `POST /messages` (JSON + stream SSE w formacie Anthropic). Architektura wspólna: [`integracje.md`](integracje.md).
+> Moduł `src/integrations/anthropic/` — `GET /models`, `POST /messages` (JSON + stream SSE w formacie Anthropic). Architektura wspólna: [`integracje.md`](integracje.md).
 
 ## Konfiguracja (Claude Code i inne klienty)
 
@@ -243,7 +243,7 @@ Trasy Anthropic są w **`openapi.json`** (tag **Anthropic API**, security `ApiKe
 
 ## Powiązane
 
-- [`integracje.md`](integracje.md) — architektura fasad, rate limit, stan wdrożenia
+- [`integracje.md`](integracje.md) — architektura fasad, rate limit
 - [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md) — fasada OpenAI (Cursor)
 - [`konfiguracja.md`](konfiguracja.md) — `gateway.config.yaml`, klucze env
 - [`lista_endpointów.md`](lista_endpointów.md)

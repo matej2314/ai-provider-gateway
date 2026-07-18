@@ -78,7 +78,7 @@ function buildSwaggerConfig(port: number) {
   return new DocumentBuilder()
     .setTitle('AI Provider Gateway API')
     .setDescription(
-      'REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/dokumentacja_api.md`.',
+      'REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/pl/dokumentacja_api.md`.',
     )
     .setVersion(OPENAPI_VERSION)
     .addServer(`http://localhost:${port}`, 'Localhost')

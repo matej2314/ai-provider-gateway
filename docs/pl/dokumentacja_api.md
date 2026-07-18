@@ -1,16 +1,16 @@
 # Dokumentacja API — AI Provider Gateway
 
-Wersja dokumentu: **1.6**. Dokument jest wersjonowany razem z kodem. **`openapi.json`** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat + **models**, fasada OpenAI, fasada Anthropic) oraz health. **Metryki Prometheus** (`GET /metrics`) są poza OpenAPI — opis w tym dokumencie i w `deployment.md`. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
+Wersja dokumentu: **1.6**. Dokument jest wersjonowany razem z kodem. **[`openapi.json`](../../openapi.json)** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat + **models**, fasada OpenAI, fasada Anthropic) oraz health. **Metryki Prometheus** (`GET /metrics`) są poza OpenAPI — opis w tym dokumencie i w `deployment.md`. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
 
 ## Źródła prawdy (kolejność)
 
 1. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — dekoratory `@nestjs/swagger` na kontrolerach i klasach odpowiedzi (`@ApiProperty`, `@ApiOperation`, `@ApiGatewayChatErrorResponses`, `@ApiGatewayModelsErrorResponses`, `@ApiOpenAiErrorResponses`, `@ApiAnthropicErrorResponses`, `@ApiRequestIdHeader`, …). Konfiguracja dokumentu: `src/swagger/swagger.setup.ts` (`extraModels`, trzy `securitySchemes`).
-2. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) **generowany z kodu** (`npm run openapi:export` → `src/swagger/export-openapi.ts`). W runtime ten sam dokument serwowany jako `/api/v1/swagger.json` (gdy Swagger włączony).
+2. **[`openapi.json`](../../openapi.json)** — kontrakt HTTP (OpenAPI 3.1) **generowany z kodu** (`npm run openapi:export` → `src/swagger/export-openapi.ts`). W runtime ten sam dokument serwowany jako `/api/v1/swagger.json` (gdy Swagger włączony).
 3. **Swagger UI** — interaktywna dokumentacja pod `/api/v1/api-docs` (`setupSwagger` w `src/main.ts`; wyłączanie: `SWAGGER_ENABLED` — `konfiguracja.md`).
-4. **`dokumentacja_koncepcyjna.md`** — zakres MVP/v1. **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging + **observability** (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` (YAML + runtime) lub **`gateway config:validate`** (+ format legacy env) — `konfiguracja.md`.
-5. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis`, odczyt walidowany `CachedChatResponseSchema` — `konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
+4. **`dokumentacja_koncepcyjna.md`** — zakres MVP/v1. W `src/` m.in.: `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging + **observability** (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` (YAML + runtime) lub **`gateway config:validate`** (+ format legacy env) — `konfiguracja.md`.
+5. **Cache odpowiedzi** dla `POST /api/v1/chat` (`src/cache/`, backend `noop` / `redis`, odczyt walidowany `CachedChatResponseSchema` — `konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
 6. **System prompt po stronie serwera** — wczytanie plików w `configuration.ts`, składanie w `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`).
-7. **`spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
+7. **`spec/`** — SDD (wymagania; porównuj z `src/` i [`openapi.json`](../../openapi.json)).
 
 ## Podstawy
 

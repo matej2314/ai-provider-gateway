@@ -54,19 +54,19 @@ flowchart LR
 | **Bez zmiany natywnego API** | `ChatController` / `ChatStreamController` i warstwa providerów pozostają punktem odniesienia dla aplikacji pisanych pod kontrakt gateway. |
 | **Separacja kluczy** | Klucze **klientów** (IDE → gateway) ≠ klucze **providerów** (gateway → LLM w `.env`). |
 
-## Stan wdrożenia
+## Zakres fasad
 
-| Element | Status |
-|---------|--------|
-| Szkielet katalogów `src/integrations/{openai,anthropic}/` | W repozytorium |
-| `IntegrationsModule` w `AppModule` | Zarejestrowany |
-| `Request.gatewayKey` w `src/common/types/express.d.ts` | W repozytorium |
-| Eksport `ChatService`, `SmartRateLimitGuard` z `ChatModule` | W repozytorium — fasady importują guard z `src/guards/smart-rate-limit-guard.ts` przez `@OpenAiAuth()` / `@AnthropicAuth()` |
-| `readClientGatewayKey` + aktualizacja `SmartRateLimitGuard` / `StreamCleanupInterceptor` | **Wdrożone** (`src/common/readClientGatewayKey.ts`) |
-| **Fasada OpenAI** (`OpenAiModule`) — auth, models, completions JSON + stream | **Wdrożona** — [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md); models przez `GatewayModelsCatalogService` + `openai-models.mapper.ts` |
-| **Fasada Anthropic** (`AnthropicModule`) — auth, models, messages JSON + stream | **Wdrożona** — [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md); models przez `GatewayModelsCatalogService` + `anthropic-models.mapper.ts` |
-| **ModelsModule** — natywny `GET /api/v1/models` | **Wdrożony** — wspólny katalog aliasów dla natywnego API i fasad |
-| Testy E2E kontraktu HTTP fasad (mock adapterów runtime) | **Wdrożone** — `test/e2e/gateway-chat*.e2e-spec.ts`, `gateway-chat-openai.e2e-spec.ts`, `openai-facade*.e2e-spec.ts`, `anthropic-facade*.e2e-spec.ts`, `facade-models.e2e-spec.ts`, `native-models.e2e-spec.ts` — [`testy.md`](testy.md) |
+| Element | Opis |
+|---------|------|
+| Katalogi `src/integrations/{openai,anthropic}/` | Podmoduły fasad OpenAI i Anthropic |
+| `IntegrationsModule` w `AppModule` | Rejestracja fasad w aplikacji |
+| `Request.gatewayKey` w `src/common/types/express.d.ts` | Typ Express dla klucza klienta po auth |
+| Eksport `ChatService`, `SmartRateLimitGuard` z `ChatModule` | Fasady importują guard z `src/guards/smart-rate-limit-guard.ts` przez `@OpenAiAuth()` / `@AnthropicAuth()` |
+| `readClientGatewayKey` + `SmartRateLimitGuard` / `StreamCleanupInterceptor` | Wspólny odczyt klucza klienta (`src/common/readClientGatewayKey.ts`) |
+| **Fasada OpenAI** (`OpenAiModule`) — auth, models, completions JSON + stream | [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md); models przez `GatewayModelsCatalogService` + `openai-models.mapper.ts` |
+| **Fasada Anthropic** (`AnthropicModule`) — auth, models, messages JSON + stream | [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md); models przez `GatewayModelsCatalogService` + `anthropic-models.mapper.ts` |
+| **ModelsModule** — natywny `GET /api/v1/models` | Wspólny katalog aliasów dla natywnego API i fasad |
+| Testy E2E kontraktu HTTP fasad (mock adapterów runtime) | `test/e2e/gateway-chat*.e2e-spec.ts`, `gateway-chat-openai.e2e-spec.ts`, `openai-facade*.e2e-spec.ts`, `anthropic-facade*.e2e-spec.ts`, `facade-models.e2e-spec.ts`, `native-models.e2e-spec.ts` — [`testy.md`](testy.md) |
 
 Szczegóły konfiguracji klientów (Cursor, Claude Code): **`integracja_openai_kontrakt.md`**, **`integracja_anthropic_messages.md`**.
 
@@ -238,7 +238,7 @@ Katalog aliasów: **`src/models/`** (`ModelsModule`, `GatewayModelsCatalogServic
 ## Powiązane dokumenty
 
 - `integracja_openai_kontrakt.md` — fasada OpenAI, konfiguracja Cursor IDE
-- `provider_openai_runtime.md` — adapter runtime OpenAI (`src/providers/`, wdrożony)
+- `provider_openai_runtime.md` — adapter runtime OpenAI (`src/providers/`)
 - `integracja_anthropic_messages.md` — fasada Anthropic, konfiguracja Claude Code
 - `lista_endpointów.md` — pełna lista tras (w tym fasady)
 - `data_flow.md` — diagramy przepływu

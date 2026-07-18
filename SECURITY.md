@@ -45,7 +45,7 @@ Health endpoints (`/api/v1/health`, `/api/v1/health/ready`) do **not** require a
 
 #### Facades and routing to the LLM
 
-The presence of `/openai/*` or `/anthropic/*` routes does **not** guarantee that the LLM call goes to api.openai.com or the Anthropic API. Request routing is determined solely by **`modelAlias`** (the `model` field in the facade) and `gateway.config.yaml` configuration (`models[].providerInstance`, `modelId`). Details: [`docs/integracje.md`](docs/integracje.md), [`docs/dictionary.md`](docs/dictionary.md).
+The presence of `/openai/*` or `/anthropic/*` routes does **not** guarantee that the LLM call goes to api.openai.com or the Anthropic API. Request routing is determined solely by **`modelAlias`** (the `model` field in the facade) and `gateway.config.yaml` configuration (`models[].providerInstance`, `modelId`). Details: [`docs/integrations.md`](docs/integrations.md), [`docs/dictionary.md`](docs/dictionary.md).
 
 ### Reporting a vulnerability
 
@@ -70,7 +70,7 @@ The gateway handles:
 - Timeout and retry for upstream calls (`ResilientExecutor`, defaults: 30s timeout, up to 3 attempts on 429/5xx statuses).
 - Redaction of sensitive headers in logs (`authorization`, `x-gateway-key`, `*.apiKey`, `*.gatewayKey`).
 - HTTP hardening headers (Helmet in `src/main.ts`, `x-powered-by` disabled, JSON body limit 1 MB).
-- Automated security tests (`npm run test:security`, `test/security/`) — auth bypass, Helmet, information disclosure, rate limit, fuzzing; details: [`docs/testy.md`](docs/testy.md).
+- Automated security tests (`npm run test:security`, `test/security/`) — auth bypass, Helmet, information disclosure, rate limit, fuzzing; details: [`docs/testing.md`](docs/testing.md).
 
 The gateway does **not** handle (out of scope):
 
@@ -126,7 +126,7 @@ Endpointy health (`/api/v1/health`, `/api/v1/health/ready`) **nie** wymagają kl
 
 #### Fasady a routing do LLM
 
-Obecność tras `/openai/*` lub `/anthropic/*` **nie gwarantuje**, że wywołanie LLM trafi do api.openai.com ani do API Anthropic. Kierunek zapytania wynika wyłącznie z **`modelAlias`** (pole `model` w fasadzie) i konfiguracji `gateway.config.yaml` (`models[].providerInstance`, `modelId`). Szczegóły: [`docs/integracje.md`](docs/integracje.md), [`docs/dictionary.md`](docs/dictionary.md).
+Obecność tras `/openai/*` lub `/anthropic/*` **nie gwarantuje**, że wywołanie LLM trafi do api.openai.com ani do API Anthropic. Kierunek zapytania wynika wyłącznie z **`modelAlias`** (pole `model` w fasadzie) i konfiguracji `gateway.config.yaml` (`models[].providerInstance`, `modelId`). Szczegóły: [`docs/pl/integracje.md`](docs/pl/integracje.md), [`docs/pl/dictionary.md`](docs/pl/dictionary.md).
 
 ### Zgłaszanie podatności
 
@@ -151,7 +151,7 @@ Gateway obsługuje:
 - Timeout i retry dla wywołań upstream (`ResilientExecutor`, domyślnie: 30s timeout, do 3 prób na statusy 429/5xx).
 - Redakcję wrażliwych nagłówków w logach (`authorization`, `x-gateway-key`, `*.apiKey`, `*.gatewayKey`).
 - Nagłówki HTTP hardening (Helmet w `src/main.ts`, wyłączone `x-powered-by`, limit body JSON 1 MB).
-- Automatyczne testy security (`npm run test:security`, `test/security/`) — auth bypass, Helmet, information disclosure, rate limit, fuzzing; szczegóły: [`docs/testy.md`](docs/testy.md).
+- Automatyczne testy security (`npm run test:security`, `test/security/`) — auth bypass, Helmet, information disclosure, rate limit, fuzzing; szczegóły: [`docs/pl/testy.md`](docs/pl/testy.md).
 
 Gateway **nie** obsługuje (out of scope):
 

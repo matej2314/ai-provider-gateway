@@ -10,11 +10,11 @@ Gateway udostępnia **trzy powierzchnie HTTP** pod prefiksem `/api/v1`:
 | **OpenAI** | Cursor i klienty OpenAI SDK | `Authorization: Bearer` | `GET /openai/models`, `POST /openai/chat/completions` |
 | **Anthropic** | Claude Code i klienty Messages API | `x-api-key` (lub Bearer) | `GET /anthropic/models`, `POST /anthropic/messages` |
 
-Szczegóły fasad (mapowanie `model` → `modelAlias`, błędy vendora, stan wdrożenia): **`integracje.md`**.
+Szczegóły fasad (mapowanie `model` → `modelAlias`, błędy vendora): **`integracje.md`**.
 
 ### OpenAPI / Swagger (wszystkie powierzchnie)
 
-Jeden plik **`openapi.json`** (v0.14.0, OpenAPI 3.1) generowany z kodu (`npm run openapi:export`). Zawiera trasy health, czatu natywnego, **models**, oraz fasad OpenAI i Anthropic. Schematy bezpieczeństwa:
+Jeden plik **[`openapi.json`](../../openapi.json)** (v0.14.0, OpenAPI 3.1) generowany z kodu (`npm run openapi:export`). Zawiera trasy health, czatu natywnego, **models**, oraz fasad OpenAI i Anthropic. Schematy bezpieczeństwa:
 
 | Scheme | Nagłówek | Trasy |
 |--------|----------|-------|
@@ -72,33 +72,33 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 
 Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/event-stream`), zdarzenia `meta` → `delta*` → `done`.
 
-**Stan kodu:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream` + `ChatProviderCallService.streamOnce` (`meta` → `delta*` → `done`; `done` może zawierać `usage`, `toolCalls`, `finishReason`).
+**Implementacja:** `POST /api/v1/chat/stream` — `ChatStreamController`, `ChatService.executeStream` + `ChatProviderCallService.streamOnce` (`meta` → `delta*` → `done`; `done` może zawierać `usage`, `toolCalls`, `finishReason`).
 
 - Gateway nie gwarantuje identycznego zachowania token‑po‑token między providerami.
 - Klient powinien traktować SSE jako strumień fragmentów + metadane z `meta`.
 
 ## Błędy HTTP
 
-**Stan kodu (`openapi.json`):** envelope **`ErrorEnvelope`** z `GlobalExceptionFilter` (`APP_FILTER` w `AppModule`). Jawne **`code`** z payloadu wyjątku (guardy, `RATE_LIMITED`, kody z `provider-error.mapper.ts`); inaczej `DEFAULT_HTTP_STATUS_TO_CODE` (dla HTTP **429** fallback to **`RATE_LIMITED`** — patrz `dictionary.md`). **`requestId`:** `RequestIdMiddleware` — nagłówek żądania `x-request-id` (echo) lub `req_<uuid>`; to samo ID w polu JSON (`requestId`) oraz w **nagłówku odpowiedzi** `x-request-id` (`res.setHeader` w `src/common/middleware/request-id.middleware.ts`).
+**Kontrakt ([`openapi.json`](../../openapi.json)):** envelope **`ErrorEnvelope`** z `GlobalExceptionFilter` (`APP_FILTER` w `AppModule`). Jawne **`code`** z payloadu wyjątku (guardy, `RATE_LIMITED`, kody z `provider-error.mapper.ts`); inaczej `DEFAULT_HTTP_STATUS_TO_CODE` (dla HTTP **429** fallback to **`RATE_LIMITED`** — patrz `dictionary.md`). **`requestId`:** `RequestIdMiddleware` — nagłówek żądania `x-request-id` (echo) lub `req_<uuid>`; to samo ID w polu JSON (`requestId`) oraz w **nagłówku odpowiedzi** `x-request-id` (`res.setHeader` w `src/common/middleware/request-id.middleware.ts`).
 
 Przekroczenie limitu rozmiaru body (**1 MB**) → **413 Payload Too Large** z kodem **`VALIDATION_FAILED`** i komunikatem `request entity too large` (`GlobalExceptionFilter` obsługuje błąd Express `entity.too.large`).
 
 ## Parametry generacji (`params` w body)
 
-**Stan kodu:** opcjonalne **`params`** w `ChatRequestDto` (`ChatParamsDto`, `ResponseFormatDto`): `temperature`, `maxOutputTokens`, `topP`, `topK`, `stop` (string \| string[]), `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` (`type`, opcjonalny `jsonSchema`), `thinkingEnabled`, `thinkingBudget`; merge z `policy.params.defaults` w YAML przez `resolveProviderCallOptions` (defaults YAML ← body dla pierwszej grupy pól; **`topK`**, **`stop`**, **`responseFormat`**, **`thinkingBudget`** — tylko z body). **Efekt u vendora** zależy od adaptera aliasu — macierz: `dictionary.md`, YAML: `konfiguracja.md` (Anthropic: jeden parametr losowości — priorytet `topK` > `topP` > `temperature`). Opcjonalne **`tooling`** (`definitions`, `toolChoice`) — wymaga `capabilities.tools` na aliasie. Opcjonalne **`metadata`** w body — propagacja do adaptera (Anthropic: `userId` → SDK `metadata.user_id`). Niedozwolony override params → **`MODEL_NOT_ALLOWED`**; tooling bez capability → **`TOOLS_NOT_SUPPORTED`**. Cache pomijany dla żądań z toolingiem. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API, ale adaptery `anthropic` / `google` ich nie przekazują do SDK. **`responseFormat`**: mapowane do SDK Anthropic, Google i OpenAI gdy `type: json_object`. **`thinkingEnabled` / `thinkingBudget`**: wymaga `capabilities.thinking: true` + `allowOverrides`; mapowanie w `anthropic-thinking.mapper.ts`, fabryce Google i adapterach OpenAI (Responses API). Fasada `/openai` mapuje `reasoning_effort` → `params.thinking*`.
+Opcjonalne **`params`** w `ChatRequestDto` (`ChatParamsDto`, `ResponseFormatDto`): `temperature`, `maxOutputTokens`, `topP`, `topK`, `stop` (string \| string[]), `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` (`type`, opcjonalny `jsonSchema`), `thinkingEnabled`, `thinkingBudget`; merge z `policy.params.defaults` w YAML przez `resolveProviderCallOptions` (defaults YAML ← body dla pierwszej grupy pól; **`topK`**, **`stop`**, **`responseFormat`**, **`thinkingBudget`** — tylko z body). **Efekt u vendora** zależy od adaptera aliasu — macierz: `dictionary.md`, YAML: `konfiguracja.md` (Anthropic: jeden parametr losowości — priorytet `topK` > `topP` > `temperature`). Opcjonalne **`tooling`** (`definitions`, `toolChoice`) — wymaga `capabilities.tools` na aliasie. Opcjonalne **`metadata`** w body — propagacja do adaptera (Anthropic: `userId` → SDK `metadata.user_id`). Niedozwolony override params → **`MODEL_NOT_ALLOWED`**; tooling bez capability → **`TOOLS_NOT_SUPPORTED`**. Cache pomijany dla żądań z toolingiem. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API, ale adaptery `anthropic` / `google` ich nie przekazują do SDK. **`responseFormat`**: mapowane do SDK Anthropic, Google i OpenAI gdy `type: json_object`. **`thinkingEnabled` / `thinkingBudget`**: wymaga `capabilities.thinking: true` + `allowOverrides`; mapowanie w `anthropic-thinking.mapper.ts`, fabryce Google i adapterach OpenAI (Responses API). Fasada `/openai` mapuje `reasoning_effort` → `params.thinking*`.
 
-## Rozszerzenia (pozostałość v1)
+## Rozszerzenia
 
 - **`npm run config:validate`** — walidacja offline YAML + reguły runtime (`validateGatewayConfig()` → m.in. fasada sekretów); **bez** formatu legacy env. Pełna walidacja: **`gateway config:validate`** (`validateEnvironment()`) — `konfiguracja.md`.
 
-**Stan kodu (skrót):** `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TOOLS_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.
+Kody błędów (skrót): `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TOOLS_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.
 
 ## Opcjonalne śledzenie rozmowy (`conversationId`)
 
 - Pole opcjonalne w body **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`**.
 - **Response:** zawsze `conversationId` (echo lub nowe `conv_<uuid>`) — JSON / SSE `meta`.
 - **Sentry Conversations:** `gen_ai.conversation.id` **tylko**, gdy klient **podaje** `conversationId` w request; bez niego — span pojedynczej wiadomości. Od tury 2 klient wysyła pełną historię w `messages[]` (w tym pierwszą odpowiedź assistenta).
-- Szczegóły: `conversation_tracking.md`, schema `ChatRequest` w `openapi.json`.
+- Szczegóły: `conversation_tracking.md`, schema `ChatRequest` w [`openapi.json`](../../openapi.json).
 
 ## Walidacja
 

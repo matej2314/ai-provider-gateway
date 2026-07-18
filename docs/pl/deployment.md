@@ -1,4 +1,4 @@
-# Deployment Guide — AI Provider Gateway
+# Deployment — AI Provider Gateway
 
 Przewodnik wdrożenia lokalnego (Docker Compose) oraz produkcyjnego na VPS przez **GitHub Actions** (self-hosted runner). Artefakty deploymentu znajdują się w katalogu `deployment/` — oddzielonym od kodu źródłowego aplikacji. Workflow produkcyjny: [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml).
 
@@ -386,7 +386,7 @@ Concurrency: grupa `deploy-vps`, `cancel-in-progress: false` — równoległe de
 Gdy krok po mutation point padnie (np. health), a na hoście jest last-good SHA **różny** od failed SHA:
 
 1. Checkout last-good SHA.
-2. [`rollback.sh`](../deployment/scripts/rollback.sh) → `deploy-production.sh all` z **`SKIP_VAULT_FETCH=true`** (reuse host `.env`; Vault tylko gdy `.env` na hoście brakuje).
+2. [`rollback.sh`](../../deployment/scripts/rollback.sh) → `deploy-production.sh all` z **`SKIP_VAULT_FETCH=true`** (reuse host `.env`; Vault tylko gdy `.env` na hoście brakuje).
 3. Po udanym rollbacku workflow **i tak kończy się czerwono** (step „Fail run after successful auto-rollback”), żeby w historii Actions było widać, że primary fail + recovery.
 
 Pierwszy udany deploy (brak `.deployed-sha`) albo failed SHA = last-good → auto-rollback się **nie** odpala.
@@ -554,4 +554,4 @@ Przed wdrożeniem na produkcję:
 - [`CLI.md`](CLI.md) — wizard i komendy administracyjne
 - [`architektura.md`](architektura.md) — moduły i observability
 - [`testy.md`](testy.md) — testy jednostkowe, E2E, security
-- [`../SECURITY.md`](../../SECURITY.md) — polityka bezpieczeństwa, sekrety
+- [`../../SECURITY.md`](../../SECURITY.md) — polityka bezpieczeństwa, sekrety

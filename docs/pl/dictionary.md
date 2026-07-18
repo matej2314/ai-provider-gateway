@@ -54,7 +54,7 @@ Gateway rozdziela **dwa niezależne pojęcia**. Mylenie ich to najczęstszy bł�
 | **Fasada Anthropic**                  | `src/integrations/anthropic/`                                                                        | Kształt Anthropic Messages API → `ChatService`                                                              |
 | **Adapter Anthropic**                 | `src/providers/factories/create-anthropic-provider.ts`                                               | Woła API Anthropic po `type: anthropic` w YAML                                                              |
 
-Analogia Anthropic (fasada + adapter **oba wdrożone**) uczy wzorca: nazwa vendora w ścieżce fasady **≠** gwarancja backendu tego vendora.
+Analogia Anthropic (fasada + adapter **w tym samym produkcie**) uczy wzorca: nazwa vendora w ścieżce fasady **≠** gwarancja backendu tego vendora.
 
 ### Macierz odpowiedzialności (OpenAI)
 
@@ -65,7 +65,6 @@ Analogia Anthropic (fasada + adapter **oba wdrożone**) uczy wzorca: nazwa vendo
 | Auth klienta            | Bearer = klucz gateway        | —                                                                     |
 | Auth do vendora         | —                             | `OPENAI_API_KEY` / `apiKeyRef`                                        |
 | Wymaga drugiej warstwy? | Nie                           | Nie                                                                   |
-| Status                  | Wdrożone                      | Wdrożone — [`provider_openai_runtime.md`](provider_openai_runtime.md) |
 
 | Pojęcie               | Warstwa                        | Rola                                                                                                                       | Czego **nie** oznacza                                                                                    |
 | --------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -82,7 +81,7 @@ Przykład: żądanie na `/api/v1/openai/chat/completions` z `model: "gemini-flas
 
 **Autoryzacja na fasadach:** nagłówki w stylu vendora (`Authorization: Bearer`, `x-api-key`) niosą **klucz klienta gateway** z allowlisty (`GATEWAY_KEY_*`), **nie** klucz API OpenAI.com ani Anthropic. Klucze providerów są wyłącznie w `.env` (`apiKeyRef`).
 
-**Powiązane dokumenty:** `integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`, `provider_openai_runtime.md`, `SECURITY.md`.
+**Powiązane dokumenty:** `integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`, `provider_openai_runtime.md`, [`SECURITY.md`](../../SECURITY.md).
 
 ## `systemFingerprint` — semantyka i providerzy
 
@@ -102,7 +101,7 @@ Przykład: żądanie na `/api/v1/openai/chat/completions` z `model: "gemini-flas
 
 ### Mapowanie parametrów na providerów
 
-Pole w **`params`** (natywny czat) / mapowanie fasad OpenAI / Anthropic → **`ProviderCallOptions`** → adapter SDK. Status **adaptera runtime** (stan kodu w `src/providers/factories/`):
+Pole w **`params`** (natywny czat) / mapowanie fasad OpenAI / Anthropic → **`ProviderCallOptions`** → adapter SDK. Macierz **adaptera runtime** (`src/providers/factories/`):
 
 | Parametr gateway   | Pole SDK (orientacyjnie)                                                                                                           | Anthropic                                                             | Google Gemini                                          | OpenAI (adapter)                                                                                                             |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -187,7 +186,7 @@ Kody są częścią kontraktu API. Klient powinien opierać logikę na `code`, a
 
 **Zasada:** ścieżki domenowe (guardy, `ChatService`, `provider-error.mapper.ts`) **zawsze** ustawiają jawne `code`. Fallback dotyczy wyjątków bez pola `code` (np. część błędów walidacji Nest).
 
-**Stan implementacji:** envelope **`ErrorEnvelope`** (`openapi.json`); `GlobalExceptionFilter` zachowuje `code` z payloadu. Enum: `src/common/errors/api-error.code.ts` (w tym **`RATE_LIMITED`** i **`PROVIDER_RATE_LIMITED`**). **`requestId`**: `RequestIdMiddleware` + ewentualne nadpisanie z payloadu wyjątku w filtrze; nagłówek odpowiedzi **`x-request-id`** ustawiany w middleware razem z `req.requestId`.
+**Envelope błędów:** **`ErrorEnvelope`** ([`openapi.json`](../../openapi.json)); `GlobalExceptionFilter` zachowuje `code` z payloadu. Enum: `src/common/errors/api-error.code.ts` (w tym **`RATE_LIMITED`** i **`PROVIDER_RATE_LIMITED`**). **`requestId`**: `RequestIdMiddleware` + ewentualne nadpisanie z payloadu wyjątku w filtrze; nagłówek odpowiedzi **`x-request-id`** ustawiany w middleware razem z `req.requestId`.
 
 Powiązane: `openapi.json`, `architektura_api.md`, `dokumentacja_api.md`, `anty_patterny.md`.
 
@@ -203,7 +202,7 @@ Projekt używa **nominalnych typów** (`Brand<K, T>`) w warstwie runtime, aby za
 | Testy utilities (target: 100% coverage)     | `src/common/types/branded.spec.ts`   |
 | Przewodnik                                    | **`brand_types.md`**                 |
 
-**Stan wdrożenia (runtime `src/`, bez CLI):** Fazy **0–5** planu — m.in. typy security (`GatewayKey`, `ProviderApiKey`, `EnvRef`), identyfikatory (`RequestId`, `ConversationId`, `ModelAlias`, `ModelId`, `ToolCallId`, …), metryki (`InputTokens`, `OutputTokens`, `CostUsd`, …), policy (`TimeoutMs`, `MaxAttempts`, `CacheKey`, …), `WarningCode` w `generation-warnings.ts`. Pełna tabela: `brand_types.md`.
+**Zakres brand types (runtime `src/`, bez CLI):** typy security (`GatewayKey`, `ProviderApiKey`, `EnvRef`), identyfikatory (`RequestId`, `ConversationId`, `ModelAlias`, `ModelId`, `ToolCallId`, …), metryki (`InputTokens`, `OutputTokens`, `CostUsd`, …), policy (`TimeoutMs`, `MaxAttempts`, `CacheKey`, …), `WarningCode` w `generation-warnings.ts`. Pełna tabela: `brand_types.md`.
 
 **Zasada granicy API:** pola JSON w DTO (`ChatRequestDto`, `ChatResponseDto`, `ChatWarningDto` itd.) pozostają `string` / `number`; konwersja do brand type następuje w serwisach / mapperach po walidacji. OpenAPI i JSON nie widzą brandów — to wyłącznie kontrakt TypeScript.
 

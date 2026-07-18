@@ -20,29 +20,30 @@ Aktualnie wspierani **adaptery runtime** (`src/providers/`):
 >
 > 1. **Fasada** — `/api/v1/openai/*`, `src/integrations/openai/` — kompatybilność kontraktu HTTP (np. Cursor).
 > 2. **Adapter runtime** — `type: openai` / `openai-compatible`, `src/providers/` — wywołanie SDK po `baseUrlRef` + `apiKeyRef`.  
->    Fasada **nie wymaga** adaptera OpenAI; adapter **nie wymaga** fasady. Szczegóły: [`docs/dictionary.md`](docs/dictionary.md).
+>    Fasada **nie wymaga** adaptera OpenAI; adapter **nie wymaga** fasady. Szczegóły: [`docs/pl/dictionary.md`](docs/pl/dictionary.md) · EN: [`docs/dictionary.md`](docs/dictionary.md).
 
-## Dokumentacja
+## Dokumentacja / Documentation
 
-Wejście od strony dokumentów: [`docs/README.md`](docs/README.md).
+- **English:** [`docs/README.md`](docs/README.md)
+- **Polski:** [`docs/pl/README.md`](docs/pl/README.md)
 
-| Temat                                       | Plik                                                                                                                                                                                |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kontrakt HTTP (OpenAPI 3.1)                 | [`openapi.json`](openapi.json) — natywny czat + models + health + fasady OpenAI/Anthropic; generowany: `npm run openapi:export`                                                     |
-| Swagger UI (runtime)                        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`); tagi: Health, Chat, **Models**, OpenAI API _(fasada IDE)_, Anthropic API _(fasada IDE)_ |
-| API (ludzki opis)                           | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md)                                                                                                                              |
-| Konfiguracja env + YAML                     | [`docs/konfiguracja.md`](docs/konfiguracja.md)                                                                                                                                      |
-| Kody błędów                                 | [`docs/dictionary.md`](docs/dictionary.md)                                                                                                                                          |
-| Brand types (type safety TS)                | [`docs/brand-types.md`](docs/brand-types.md)                                                                                                                                        |
-| Architektura                                | [`docs/architektura.md`](docs/architektura.md)                                                                                                                                      |
-| Struktura katalogów                         | [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md)                                                                                                        |
-| Fasada OpenAI (Cursor IDE)                  | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md)                                                                                                          |
-| Adapter OpenAI (runtime)                    | [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)                                                                                                                |
-| Architektura fasad IDE                      | [`docs/integracje.md`](docs/integracje.md)                                                                                                                                          |
-| Gateway CLI                                 | [`docs/CLI.md`](docs/CLI.md)                                                                                                                                                        |
-| Wdrożenie (Docker + GitHub Actions / VPS) | [`docs/deployment.md`](docs/deployment.md)                                                                                                                                          |
-| Testy (jednostkowe, CLI, E2E, security, integracyjne) | [`docs/testy.md`](docs/testy.md)                                                                                                                                                    |
-| Bezpieczeństwo (polityka, klucze, scope)                | [`SECURITY.md`](SECURITY.md)                                                                                                                                                        |
+| Temat / Topic                               | English                                                                                                                                                                                 | Polski                                                                                                                                                                                  |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kontrakt HTTP (OpenAPI 3.1)                 | [`openapi.json`](openapi.json) — native chat + models + health + OpenAI/Anthropic facades; generated: `npm run openapi:export`                                                          | j.w. / same                                                                                                                                                                             |
+| Swagger UI (runtime)                        | `http://localhost:3000/api/v1/api-docs` — JSON: `/api/v1/swagger.json` (`SWAGGER_ENABLED`); tags: Health, Chat, **Models**, OpenAI API _(IDE facade)_, Anthropic API _(IDE facade)_     | j.w. / same                                                                                                                                                                             |
+| API (human-readable)                        | [`docs/api-documentation.md`](docs/api-documentation.md)                                                                                                                                | [`docs/pl/dokumentacja_api.md`](docs/pl/dokumentacja_api.md)                                                                                                                            |
+| Configuration (env + YAML)                  | [`docs/configuration.md`](docs/configuration.md)                                                                                                                                        | [`docs/pl/konfiguracja.md`](docs/pl/konfiguracja.md)                                                                                                                                    |
+| Error codes / kody błędów                   | [`docs/dictionary.md`](docs/dictionary.md)                                                                                                                                               | [`docs/pl/dictionary.md`](docs/pl/dictionary.md)                                                                                                                                         |
+| Brand types (TS type safety)                | [`docs/brand-types.md`](docs/brand-types.md)                                                                                                                                             | [`docs/pl/brand_types.md`](docs/pl/brand_types.md)                                                                                                                                       |
+| Architecture / architektura                 | [`docs/architecture.md`](docs/architecture.md)                                                                                                                                           | [`docs/pl/architektura.md`](docs/pl/architektura.md)                                                                                                                                     |
+| Project structure / struktura katalogów     | [`docs/project.structure.md`](docs/project.structure.md)                                                                                                                                | [`docs/pl/architektura_katalogi_pliki.md`](docs/pl/architektura_katalogi_pliki.md)                                                                                                       |
+| OpenAI facade (Cursor IDE)                  | [`docs/openai-contract-integration.md`](docs/openai-contract-integration.md)                                                                                                            | [`docs/pl/integracja_openai_kontrakt.md`](docs/pl/integracja_openai_kontrakt.md)                                                                                                         |
+| OpenAI runtime adapter                      | [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)                                                                                                                    | [`docs/pl/provider_openai_runtime.md`](docs/pl/provider_openai_runtime.md)                                                                                                               |
+| IDE facade architecture                     | [`docs/integrations.md`](docs/integrations.md)                                                                                                                                           | [`docs/pl/integracje.md`](docs/pl/integracje.md)                                                                                                                                         |
+| Gateway CLI                                 | [`docs/command_line_interface.md`](docs/command_line_interface.md)                                                                                                                       | [`docs/pl/CLI.md`](docs/pl/CLI.md)                                                                                                                                                       |
+| Deployment (Docker + GitHub Actions / VPS)  | [`docs/deployment.md`](docs/deployment.md)                                                                                                                                               | [`docs/pl/deployment.md`](docs/pl/deployment.md)                                                                                                                                         |
+| Tests (unit, CLI, E2E, security, integration) | [`docs/testing.md`](docs/testing.md)                                                                                                                                                   | [`docs/pl/testy.md`](docs/pl/testy.md)                                                                                                                                                   |
+| Security (policy, keys, scope)              | [`SECURITY.md`](SECURITY.md)                                                                                                                                                            | [`SECURITY.md`](SECURITY.md)                                                                                                                                                            |
 
 ## Dystrybucja
 
@@ -54,7 +55,7 @@ Projekt jest open-source pod licencją **MIT** — możesz **klonować**, **fork
 
 1. Fork repozytorium.
 2. Clone lokalnie i skonfiguruj (patrz „Szybki start”).
-3. Deploy na własnej infrastrukturze — [`docs/deployment.md`](docs/deployment.md) (Docker Compose lokalnie; produkcja VPS przez GitHub Actions).
+3. Deploy na własnej infrastrukturze — [`docs/pl/deployment.md`](docs/pl/deployment.md) (Docker Compose lokalnie; produkcja VPS przez GitHub Actions).
 
 Alternatywnie: jeśli potrzebujesz pakietu npm, otwórz issue z use case.
 
@@ -64,9 +65,9 @@ Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 
 | Standard                             | Endpointy                                                  | Dokumentacja                                                                     | Dla              |
 | ------------------------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------- |
-| **Natywny**                          | `/api/v1/chat`, `/api/v1/chat/stream`, `/api/v1/models`    | [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md)                           | Własne aplikacje |
-| **Fasada OpenAI** (kontrakt HTTP)    | `/api/v1/openai/models`, `/api/v1/openai/chat/completions` | [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md)       | Cursor IDE       |
-| **Fasada Anthropic** (kontrakt HTTP) | `/api/v1/anthropic/messages`, `/api/v1/anthropic/models`   | [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md) | Claude Code      |
+| **Natywny**                          | `/api/v1/chat`, `/api/v1/chat/stream`, `/api/v1/models`    | [`docs/pl/dokumentacja_api.md`](docs/pl/dokumentacja_api.md)                           | Własne aplikacje |
+| **Fasada OpenAI** (kontrakt HTTP)    | `/api/v1/openai/models`, `/api/v1/openai/chat/completions` | [`docs/pl/integracja_openai_kontrakt.md`](docs/pl/integracja_openai_kontrakt.md)       | Cursor IDE       |
+| **Fasada Anthropic** (kontrakt HTTP) | `/api/v1/anthropic/messages`, `/api/v1/anthropic/models`   | [`docs/pl/integracja_anthropic_messages.md`](docs/pl/integracja_anthropic_messages.md) | Claude Code      |
 
 ### Fasady integracji ≠ providerzy runtime
 
@@ -81,7 +82,7 @@ Gateway wystawia równoległe kontrakty HTTP nad tym samym `ChatService`:
 
 **Routing do providera** jest wyłącznie **konfiguracyjny**: `model` / `modelAlias` → wpis `models[]` → `providerInstance` → fabryka w `src/providers/`. Nie wynika z nagłówka auth ani z wyboru fasady.
 
-Szczegóły: [`docs/integracje.md`](docs/integracje.md), [`docs/dictionary.md`](docs/dictionary.md) (sekcja „Fasada vs provider runtime”), [`docs/integracja-openai-kontrakt.md`](docs/integracja-openai-kontrakt.md), [`docs/integracja-anthropic-messages.md`](docs/integracja-anthropic-messages.md).
+Szczegóły: [`docs/pl/integracje.md`](docs/pl/integracje.md), [`docs/pl/dictionary.md`](docs/pl/dictionary.md) (sekcja „Fasada vs provider runtime”), [`docs/pl/integracja_openai_kontrakt.md`](docs/pl/integracja_openai_kontrakt.md), [`docs/pl/integracja_anthropic_messages.md`](docs/pl/integracja_anthropic_messages.md).
 
 **Autoryzacja klienta** — ta sama allowlista gateway (`GATEWAY_KEY_*` z `.env` / YAML), **nie** klucze vendorów OpenAI ani Anthropic:
 
@@ -93,24 +94,24 @@ Klucze providerów (`.env` pod nazwami z **`apiKeyRef`** w YAML — wizard domy�
 
 ## Features
 
-Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
+Gateway capabilities for generation control and monitoring:
 
 - **Advanced generation params**: nucleus sampling (`topP`), stop sequences, frequency/presence penalties, deterministic seed
-- **Structured outputs**: JSON mode z opcjonalnym JSON Schema (w adapterach runtime — zależy od aliasu i `providerInstance` w YAML, nie od powierzchni HTTP / fasady)
-- **Extended thinking mode**: wsparcie reasoning models (Anthropic Claude Opus/Sonnet 4.5+, Google Gemini 3.0+, OpenAI Responses API) z parametrami `thinkingEnabled` i `thinkingBudget` — zwiększa jakość odpowiedzi dla złożonych zadań (2-10x koszt)
-- **Extended usage tracking**: prompt cache tokens (Anthropic — 90% discount na cached tokens), `usageDetails` w response
-- **Tool calling / Function calling**: definicje narzędzi w `tooling`, wyniki w `toolCalls`, wsparcie dla `tool` role w messages
-- **Metadata propagation**: tracking użytkownika (`userId`), custom metadata dla analytics
-- **Request/conversation tracking**: `requestId` (nagłówek + body), `conversationId` (grupowanie konwersacji w Sentry)
+- **Structured outputs**: JSON mode with optional JSON Schema (in runtime adapters — depends on the alias and `providerInstance` in YAML, not on the HTTP surface / facade)
+- **Extended thinking mode**: reasoning models (Anthropic Claude Opus/Sonnet 4.5+, Google Gemini 3.0+, OpenAI Responses API) with `thinkingEnabled` and `thinkingBudget` — higher answer quality for complex tasks (2–10× cost)
+- **Extended usage tracking**: prompt cache tokens (Anthropic — 90% discount on cached tokens), `usageDetails` in the response
+- **Tool calling / Function calling**: tool definitions in `tooling`, results in `toolCalls`, support for the `tool` role in messages
+- **Metadata propagation**: user tracking (`userId`), custom metadata for analytics
+- **Request/conversation tracking**: `requestId` (header + body), `conversationId` (conversation grouping in Sentry)
 - **Smart rate limiting**: per-client RPS/burst/concurrent streams (Redis backend)
-- **Response caching**: opcjonalny cache dla `POST /api/v1/chat` (Redis backend)
-- **Resilient execution**: retry z exponential backoff, timeout per model (`AbortSignal` → anulowanie wywołania SDK), opcjonalny fallback chain
-- **Multi-provider (runtime)**: adaptery SDK w `src/providers/` — Anthropic, Google Gemini, OpenAI, OpenAI-compatible — [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)
-- **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
-- **Models catalog**: natywny `GET /api/v1/models` + fasady — wspólny `GatewayModelsCatalogService`, ten sam zestaw aliasów z YAML
-- **Production-ready**: Helmet.js security headers (`main.ts`), wyłączone `x-powered-by`, limit body JSON **1 MB**, dedykowane testy security (`test/security/`), Pino logging, Sentry AI observability, **Prometheus app metrics** (`GET /metrics`, health gauges odświeżane przy scrape), reguły alertów w `deployment/monitoring/alerts.yml`, graceful shutdown, readiness probes, Docker Compose (`deployment/`), deploy VPS przez GitHub Actions (`.github/workflows/deploy.yml`)
-- **Type safety (brand types)**: nominalne typy TS dla kluczy, identyfikatorów, metryk i policy (`src/common/types/`) — compile-time bez kosztu runtime; przewodnik: [`docs/brand-types.md`](docs/brand-types.md)
-- **CLI wizard**: `gateway config:init` — interaktywna konfiguracja, `provider:test`, model/client management
+- **Response caching**: optional cache for `POST /api/v1/chat` (Redis backend)
+- **Resilient execution**: retry with exponential backoff, per-model timeout (`AbortSignal` → cancel in-flight SDK call), optional fallback chain
+- **Multi-provider (runtime)**: SDK adapters in `src/providers/` — Anthropic, Google Gemini, OpenAI, OpenAI-compatible — [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)
+- **IDE-friendly facades**: OpenAI API shape (Cursor) and Anthropic Messages API (Claude Code) over the same `ChatService` — client contract compatibility, LLM routing from YAML
+- **Models catalog**: native `GET /api/v1/models` + facades — shared `GatewayModelsCatalogService`, same alias set from YAML
+- **Production-ready**: Helmet.js security headers (`main.ts`), `x-powered-by` disabled, JSON body limit **1 MB**, dedicated security tests (`test/security/`), Pino logging, Sentry AI observability, **Prometheus app metrics** (`GET /metrics`, health gauges refreshed on scrape), alert rules in `deployment/monitoring/alerts.yml`, graceful shutdown, readiness probes, Docker Compose (`deployment/`), VPS deploy via GitHub Actions (`.github/workflows/deploy.yml`)
+- **Type safety (brand types)**: nominal TS types for keys, identifiers, metrics, and policy (`src/common/types/`) — compile-time with no runtime cost; guide: [`docs/brand-types.md`](docs/brand-types.md)
+- **CLI wizard**: `gateway config:init` — interactive setup, `provider:test`, model/client management
 
 ## Szybki start (lokalnie)
 
@@ -143,7 +144,7 @@ cp deployment/templates/.env.example .env
 # uzupełnij .env i YAML — nazwy env muszą odpowiadać *KeyRef w YAML
 ```
 
-Szczegóły obu ścieżek: [`docs/konfiguracja.md`](docs/konfiguracja.md), [`docs/deployment.md`](docs/deployment.md).
+Szczegóły obu ścieżek: [`docs/pl/konfiguracja.md`](docs/pl/konfiguracja.md), [`docs/pl/deployment.md`](docs/pl/deployment.md).
 
 Zweryfikuj konfigurację:
 
@@ -152,7 +153,7 @@ npm run cli config:validate
 # alternatywa: npm run config:validate
 ```
 
-Przy starcie każda **włączona** instancja providera w YAML musi mieć niepusty klucz w env pod nazwą wskazaną przez **`apiKeyRef`** (np. `ANTHROPIC_PRIMARY_API_KEY`) — **wyjątek:** typy `openai` / `openai-compatible` dopuszczają pusty klucz (np. lokalny Ollama), ale wymagają **`baseUrlRef`**. Wizard generuje nazwy `{INSTANCE_ID}_API_KEY` i dodatkowo synchronizuje legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` w `.env`. Opcjonalne legacy zmienne mają walidację formatu (`sk-ant-`, `AIza` / `AQ.`) — szczegóły: [`docs/konfiguracja.md`](docs/konfiguracja.md).
+Przy starcie każda **włączona** instancja providera w YAML musi mieć niepusty klucz w env pod nazwą wskazaną przez **`apiKeyRef`** (np. `ANTHROPIC_PRIMARY_API_KEY`) — **wyjątek:** typy `openai` / `openai-compatible` dopuszczają pusty klucz (np. lokalny Ollama), ale wymagają **`baseUrlRef`**. Wizard generuje nazwy `{INSTANCE_ID}_API_KEY` i dodatkowo synchronizuje legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` w `.env`. Opcjonalne legacy zmienne mają walidację formatu (`sk-ant-`, `AIza` / `AQ.`) — szczegóły: [`docs/pl/konfiguracja.md`](docs/pl/konfiguracja.md).
 
 **Uwaga:** Przed pierwszym uruchomieniem uzupełnij `.env` (klucze providerów + `MASTER_KEY` / `GATEWAY_KEY_*`) albo uruchom `npm run cli config:init`. Bez poprawnego YAML i env start aplikacji kończy się błędem walidacji.
 
@@ -166,7 +167,7 @@ Domyślnie: `http://localhost:3000`, prefiks API: `/api/v1` ([`src/setup.app.ts`
 
 ## Wdrożenie (Docker Compose i VPS)
 
-Artefakty w katalogu [`deployment/`](deployment/) — pełny przewodnik: [`docs/deployment.md`](docs/deployment.md).
+Artefakty w katalogu [`deployment/`](deployment/) — pełny przewodnik: [`docs/pl/deployment.md`](docs/pl/deployment.md).
 
 ### Lokalnie (Compose)
 
@@ -197,7 +198,7 @@ Workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) na **sel
 3. Pipeline: sync do `/opt/ai-provider-gateway` → sekrety z **Vault** → Compose (pełny stack) → readiness → zapis `.deployed-sha`.
 4. Przy failu po mutacji hosta: **auto-rollback** do last known-good (`deployment/scripts/rollback.sh`); job i tak kończy się czerwono, gdy recovery się udał.
 
-Szczegóły (inputy, DooD, Vault, weryfikacja): [`docs/deployment.md`](docs/deployment.md) — sekcja **Deploy na VPS (GitHub Actions)**.
+Szczegóły (inputy, DooD, Vault, weryfikacja): [`docs/pl/deployment.md`](docs/pl/deployment.md) — sekcja **Deploy na VPS (GitHub Actions)**.
 
 ## Endpointy (przykłady)
 
@@ -218,7 +219,7 @@ Readiness: HTTP zawsze **200** — sprawdzaj `body.status` (`ready` / `not_ready
 curl -s http://localhost:3000/metrics | grep -E 'gateway_readiness|gateway_health_status'
 ```
 
-Endpoint **`GET /metrics`** jest **poza** prefiksem `/api/v1` (`src/setup.app.ts`). Przed zwróceniem snapshotu aplikacja odświeża gauge'e health (`gateway_readiness`, `gateway_health_status{component=...}`) przez hook w `HealthService` — bez osobnego schedulera. W production backend Prometheus wybierany automatycznie (`METRICS_BACKEND=prometheus` lub `NODE_ENV=production`). Stack monitoring: `npm run docker:up:monitoring` — [`docs/deployment.md`](docs/deployment.md).
+Endpoint **`GET /metrics`** jest **poza** prefiksem `/api/v1` (`src/setup.app.ts`). Przed zwróceniem snapshotu aplikacja odświeża gauge'e health (`gateway_readiness`, `gateway_health_status{component=...}`) przez hook w `HealthService` — bez osobnego schedulera. W production backend Prometheus wybierany automatycznie (`METRICS_BACKEND=prometheus` lub `NODE_ENV=production`). Stack monitoring: `npm run docker:up:monitoring` — [`docs/pl/deployment.md`](docs/pl/deployment.md).
 
 ### Models (wymaga `X-Gateway-Key`)
 
@@ -230,7 +231,7 @@ curl -i http://localhost:3000/api/v1/models/chat-default ^
   -H "X-Gateway-Key: YOUR_GATEWAY_KEY"
 ```
 
-Odpowiedź zawiera aliasy z `gateway.config.yaml` w kontrakcie gateway (`modelAlias`, `providerInstance`, `providerType`, `modelId`, opcjonalnie `capabilities`, `fallback`). Fasady OpenAI/Anthropic zwracają ten sam zestaw aliasów w formacie vendora — wspólna warstwa: `GatewayModelsCatalogService` (`src/models/`). Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/lista_endpointów.md`](docs/lista_endpointów.md).
+Odpowiedź zawiera aliasy z `gateway.config.yaml` w kontrakcie gateway (`modelAlias`, `providerInstance`, `providerType`, `modelId`, opcjonalnie `capabilities`, `fallback`). Fasady OpenAI/Anthropic zwracają ten sam zestaw aliasów w formacie vendora — wspólna warstwa: `GatewayModelsCatalogService` (`src/models/`). Szczegóły: [`docs/pl/dokumentacja_api.md`](docs/pl/dokumentacja_api.md), [`docs/pl/lista_endpointów.md`](docs/pl/lista_endpointów.md).
 
 ### Chat (wymaga `X-Gateway-Key`)
 
@@ -241,7 +242,7 @@ curl -i -X POST "http://localhost:3000/api/v1/chat" ^
   -d "{\"modelAlias\":\"chat-default\",\"messages\":[{\"role\":\"user\",\"content\":\"Napisz krótkie streszczenie.\"}]}"
 ```
 
-Opcjonalnie w body: **`params`** (`temperature`, `maxOutputTokens`, `responseFormat` z opcjonalnym `jsonSchema`), **`conversationId`** (`conv_<uuid>`), **`metadata`** (propagacja do adapterów — Anthropic mapuje `userId` → `metadata.user_id`) — [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md).
+Opcjonalnie w body: **`params`** (`temperature`, `maxOutputTokens`, `responseFormat` z opcjonalnym `jsonSchema`), **`conversationId`** (`conv_<uuid>`), **`metadata`** (propagacja do adapterów — Anthropic mapuje `userId` → `metadata.user_id`) — [`docs/pl/dokumentacja_api.md`](docs/pl/dokumentacja_api.md).
 
 ### Streaming SSE
 
@@ -262,12 +263,12 @@ curl -i -X POST "http://localhost:3000/api/v1/chat" ^
   -d "{\"modelAlias\":\"chat-reasoning\",\"messages\":[{\"role\":\"user\",\"content\":\"Solve this step by step: What is 234 * 567?\"}],\"params\":{\"thinkingEnabled\":true,\"thinkingBudget\":\"medium\"}}"
 ```
 
-Odpowiedź zawiera opcjonalne pole **`thinkingContent`** z rozumowaniem modelu. Wspierane dla **Anthropic Claude Opus/Sonnet 4.5+**, **Google Gemini 3.0+** oraz **OpenAI** (Responses API). Wymaga `capabilities.thinking: true` + `allowOverrides: [thinkingEnabled, thinkingBudget]` w YAML. **Uwaga:** 2-10x większe koszty i latencja — szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md).
+Odpowiedź zawiera opcjonalne pole **`thinkingContent`** z rozumowaniem modelu. Wspierane dla **Anthropic Claude Opus/Sonnet 4.5+**, **Google Gemini 3.0+** oraz **OpenAI** (Responses API). Wymaga `capabilities.thinking: true` + `allowOverrides: [thinkingEnabled, thinkingBudget]` w YAML. **Uwaga:** 2-10x większe koszty i latencja — szczegóły: [`docs/pl/dokumentacja_api.md`](docs/pl/dokumentacja_api.md).
 
 ## Auth i limity
 
-- **Auth:** nagłówek **`X-Gateway-Key`** — allowlista z `gateway.config.yaml` + env ([`docs/konfiguracja.md`](docs/konfiguracja.md)).
-- **Smart rate limit** (opcjonalnie): `RATE_LIMIT_SMART_ENABLED=true` + Redis (wspólny `RedisConnectionService` — ładowany także bez cache odpowiedzi) — [`src/rate-limit/`](src/rate-limit/). Kody **429**: **`RATE_LIMITED`** (gateway) vs **`PROVIDER_RATE_LIMITED`** (upstream) — [`docs/dictionary.md`](docs/dictionary.md).
+- **Auth:** nagłówek **`X-Gateway-Key`** — allowlista z `gateway.config.yaml` + env ([`docs/pl/konfiguracja.md`](docs/pl/konfiguracja.md)).
+- **Smart rate limit** (opcjonalnie): `RATE_LIMIT_SMART_ENABLED=true` + Redis (wspólny `RedisConnectionService` — ładowany także bez cache odpowiedzi) — [`src/rate-limit/`](src/rate-limit/). Kody **429**: **`RATE_LIMITED`** (gateway) vs **`PROVIDER_RATE_LIMITED`** (upstream) — [`docs/pl/dictionary.md`](docs/pl/dictionary.md).
 - **Cooldown** po 429 od upstream — JSON i streaming (`prepareRequestForExecution`, `handleProviderError`)
 
 ## Cache odpowiedzi
@@ -280,9 +281,9 @@ Rola **`system`** w `messages[]` jest zablokowana — instrukcja systemowa jest 
 
 W `messages[]` dozwolone są role **`user`**, **`assistant`** i **`tool`** (wynik wywołania narzędzia — wymaga `toolCallId`). Asystent może zwracać **`toolCalls`** w odpowiedzi. Opcjonalne pole **`tooling`** w body (`definitions`, `toolChoice`) włącza function calling — wymaga `capabilities.tools: true` dla aliasu w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
 
-Odpowiedź JSON / SSE `done` może zawierać **`toolCalls`**, **`finishReason`** (runtime: `stop` | `tool_calls` | `length` | `content_filter` — `mapStopReasonToFinishReason`), opcjonalnie **`usageDetails`** (tokeny cache Anthropic) oraz opcjonalnie **`systemFingerprint`** — tylko gdy upstream zwraca odpowiednik OpenAI `system_fingerprint` (Anthropic i Gemini **nie** mają tego pola; przy aliasach na te providery klucz jest pomijany). Fasada OpenAI mapuje je na `system_fingerprint` gdy obecne. Szczegóły: [`docs/dictionary.md`](docs/dictionary.md). Cache i fallback YAML są **wyłączone** dla żądań z toolingiem — w czacie standardowym i streamingu.
+Odpowiedź JSON / SSE `done` może zawierać **`toolCalls`**, **`finishReason`** (runtime: `stop` | `tool_calls` | `length` | `content_filter` — `mapStopReasonToFinishReason`), opcjonalnie **`usageDetails`** (tokeny cache Anthropic) oraz opcjonalnie **`systemFingerprint`** — tylko gdy upstream zwraca odpowiednik OpenAI `system_fingerprint` (Anthropic i Gemini **nie** mają tego pola; przy aliasach na te providery klucz jest pomijany). Fasada OpenAI mapuje je na `system_fingerprint` gdy obecne. Szczegóły: [`docs/pl/dictionary.md`](docs/pl/dictionary.md). Cache i fallback YAML są **wyłączone** dla żądań z toolingiem — w czacie standardowym i streamingu.
 
-Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/architektura.md`](docs/architektura.md).
+Szczegóły: [`docs/pl/dokumentacja_api.md`](docs/pl/dokumentacja_api.md), [`docs/pl/architektura.md`](docs/pl/architektura.md).
 
 ## Struktura kodu
 
@@ -297,13 +298,13 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 | Observability               | [`src/observability/`](src/observability/) — `AiMetricsModule` (Sentry LLM), `AppMetricsModule` (Prometheus RED + health gauges, `GET /metrics`) |
 | Brand types (TS)            | [`src/common/types/`](src/common/types/) — `Brand`, guardy, helpery `as*` / `create*`; barrel: `index.ts`                                       |
 
-Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalogi-pliki.md). Wdrożenie: [`deployment/`](deployment/), [`docs/deployment.md`](docs/deployment.md) (Compose lokalnie + Actions na VPS).
+Pełne drzewo: [`docs/pl/architektura_katalogi_pliki.md`](docs/pl/architektura_katalogi_pliki.md). Wdrożenie: [`deployment/`](deployment/), [`docs/pl/deployment.md`](docs/pl/deployment.md) (Compose lokalnie + Actions na VPS).
 
 ## Testy
 
-Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
+Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/pl/testy.md`](docs/pl/testy.md).
 
-Aktualne liczniki: `npm test` — **92** zestawów / **1248** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105**; `npm run test:security` — **5** / **51** (źródło: [`docs/testy.md`](docs/testy.md)).
+Aktualne liczniki: `npm test` — **92** zestawów / **1248** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105**; `npm run test:security` — **5** / **51** (źródło: [`docs/pl/testy.md`](docs/pl/testy.md)).
 
 Uruchomienie:
 
@@ -346,7 +347,7 @@ npm run cli key:generate -- --type master
 npm run cli key:generate -- --type client --client-id webapp
 ```
 
-Mutacje YAML tworzą backup w katalogu `backup/` (ignorowany przez git). Pełna dokumentacja komend: [`docs/CLI.md`](docs/CLI.md).
+Mutacje YAML tworzą backup w katalogu `backup/` (ignorowany przez git). Pełna dokumentacja komend: [`docs/pl/CLI.md`](docs/pl/CLI.md).
 
 ## Skrypty
 

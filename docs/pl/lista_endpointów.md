@@ -1,7 +1,7 @@
 # Lista endpointów — AI Provider Gateway
 
 Wersja dokumentu: **1.9**.  
-**OpenAPI:** `openapi.json` (v0.14.0) — zsynchronizowany z `src/` (health, czat natywny, **models**, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor` (`src/chat/resilience/`), dekoratory `@nestjs/swagger`). **Błędy:** natywny czat i models — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat, models), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat / models:** `@GatewayKeyAndSmartRateLimit()` na `ChatController`, `ChatStreamController`, `ModelsController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
+**OpenAPI:** [`openapi.json`](../../openapi.json) (v0.14.0) — zsynchronizowany z `src/` (health, czat natywny, **models**, fasady OpenAI/Anthropic, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` przez `ResilientExecutor` (`src/chat/resilience/`), dekoratory `@nestjs/swagger`). **Błędy:** natywny czat i models — `ErrorEnvelope` (`GlobalExceptionFilter`); fasady — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (lokalne filtry). **`RequestIdMiddleware`** — body + nagłówek odpowiedzi **`x-request-id`**. **Auth w spec:** `GatewayKeyAuth` (czat, models), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Czat / models:** `@GatewayKeyAndSmartRateLimit()` na `ChatController`, `ChatStreamController`, `ModelsController`; allowlista z `gateway.config.yaml` + env (`konfiguracja.md`). **Walidacja offline:** `npm run config:validate`. **Cache:** `src/cache/` — tylko `POST /chat`.
 
 ## Konwencje globalne
 
@@ -123,9 +123,9 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 
 ## Integracje IDE (`src/integrations/`)
 
-Fasady dla klientów oczekujących API vendora. Wspólna allowlista kluczy klienta; **inny** nagłówek auth niż natywny czat. Trasy i schematy w **`openapi.json`** (security `BearerAuth` / `ApiKeyAuth`). Błędy w formacie vendora, nie `ErrorEnvelope`. Szczegóły: `integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`.
+Fasady dla klientów oczekujących API vendora. Wspólna allowlista kluczy klienta; **inny** nagłówek auth niż natywny czat. Trasy i schematy w **[`openapi.json`](../../openapi.json)** (security `BearerAuth` / `ApiKeyAuth`). Błędy w formacie vendora, nie `ErrorEnvelope`. Szczegóły: `integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`.
 
-### OpenAI API *(Cursor — Bearer)* — **wdrożone**
+### OpenAI API *(Cursor — Bearer)*
 
 Base URL w IDE: `http://<host>:<port>/api/v1/openai`
 
@@ -137,7 +137,7 @@ Base URL w IDE: `http://<host>:<port>/api/v1/openai`
 
 Kody sukcesu `POST .../chat/completions`: **201** (JSON), **200** (`stream: true`, SSE). Błędy — format OpenAI (`OpenAiErrorResponseDto`).
 
-### Anthropic Messages API *(Claude Code — x-api-key)* — **wdrożone**
+### Anthropic Messages API *(Claude Code — x-api-key)*
 
 Base URL w IDE: `http://<host>:<port>/api/v1/anthropic`
 
@@ -153,5 +153,5 @@ Auth: `x-api-key` (priorytet) lub `Authorization: Bearer` — ta sama allowlista
 
 ---
 
-Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura_api.md`, `dokumentacja_koncepcyjna.md`, `integracje.md`.
+Powiązane: [`openapi.json`](../../openapi.json), `dokumentacja_api.md`, `architektura_api.md`, `dokumentacja_koncepcyjna.md`, `integracje.md`.
 

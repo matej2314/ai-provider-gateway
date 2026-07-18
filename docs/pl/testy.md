@@ -13,7 +13,7 @@ Wersja dokumentu: **2.3** (zsynchronizowana z `package.json`, `test/` i `src/**/
 | **Integracyjne (live SDK + Redis)** | `test/integration/*.integration-spec.ts`              | Jest (`test/jest-integration.json`)                   | `npm run test:integration` |
 | **Runtime + E2E**                   | —                                                     | `npm test` + `npm run test:e2e`                       | `npm run test:all`         |
 
-**Stan repozytorium (liczniki z ostatniego uruchomienia):**
+**Liczniki testów (z ostatniego uruchomienia):**
 
 | Skrypt                    | Zestawy | Przypadki |
 | ------------------------- | ------- | --------- |

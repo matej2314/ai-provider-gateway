@@ -161,8 +161,6 @@ sequenceDiagram
 
 ---
 
----
-
 ## 4. Fasada OpenAI — `POST /api/v1/openai/chat/completions`
 
 ```mermaid
@@ -219,4 +217,4 @@ sequenceDiagram
 
 ---
 
-Powiązane: `openapi.json`, `dokumentacja_api.md`, `architektura.md`, `integracje.md`, `dictionary.md` (kody `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`), `konfiguracja.md`.
+Powiązane: [`openapi.json`](../../openapi.json), `dokumentacja_api.md`, `architektura.md`, `integracje.md`, `dictionary.md` (kody `RATE_LIMITED` / `PROVIDER_RATE_LIMITED`), `konfiguracja.md`.

@@ -2,7 +2,7 @@
 
 Ten dokument opisuje infrastrukturę **brand types** w projekcie. Celem jest zwiększenie type safety: semantycznie różne wartości oparte na tym samym typie prymitywnym (`string` / `number`) nie powinny dać się przypadkowo zamienić w compile time.
 
-**Stan (2026-07):** Brand types wdrożone w runtime (`src/`), testach jednostkowych, E2E i integracyjnych (`test/`). Warstwa **CLI** (`src/cli/`) — **częściowa** adopcja brandów (`asGatewayKey`, `asModelAlias`, `asProviderInstanceId` w komendach i wizardzie); pełna migracja CLI może być kontynuowana przy kolejnych zmianach w CLI.
+**Zakres (2026-07):** Brand types w runtime (`src/`), testach jednostkowych, E2E i integracyjnych (`test/`). Warstwa **CLI** (`src/cli/`) — **częściowa** adopcja brandów (`asGatewayKey`, `asModelAlias`, `asProviderInstanceId` w komendach i wizardzie); pełna migracja CLI może być kontynuowana przy kolejnych zmianach w CLI.
 
 ---
 

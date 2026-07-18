@@ -147,7 +147,7 @@ Przy **cache hit** (`POST /api/v1/chat`) gateway **nie** wywołuje providera i *
 | Zmienna | Znaczenie |
 |---------|-----------|
 | `SENTRY_DSN` | Wymagane do wysyłki |
-| `METRICS_BACKEND=sentry` | Adapter metryk LLM (`MetricsModule`); w **production** domyślnie Sentry gdy `METRICS_BACKEND` nie ustawiony na `noop` |
+| `AI_METRICS_BACKEND=sentry` | Adapter metryk LLM (`AiMetricsModule` / `ObservabilityModule`); w **production** domyślnie Sentry gdy `AI_METRICS_BACKEND` nie ustawiony na `noop` (wymaga `SENTRY_DSN`) |
 | `SENTRY_TRACES_SAMPLE_RATE` | Np. `1.0` na test |
 | `SENTRY_INCLUDE_PROMPTS=true` | `gen_ai.input.messages` / `gen_ai.output.messages` na spanach |
 | `streamGenAiSpans: true` | W `src/instrument.ts` — **wymagane** dla widoku Conversations |
@@ -210,4 +210,4 @@ Tak — wtedy wszystkie tury od początku mają `gen_ai.conversation.id` (scenar
 **Streaming?**  
 Ten sam kontrakt: `conversationId` w body; w SSE `meta` zwracane ID (echo lub `conv_*`).
 
-Powiązane: `openapi.json`, `dokumentacja_api.md`, `data_flow.md`, `spec/SPEC-CHAT.md` (scenariusz D).
+Powiązane: [`openapi.json`](../../openapi.json), `dokumentacja_api.md`, `data_flow.md`, `spec/SPEC-CHAT.md` (scenariusz D).

@@ -10,7 +10,7 @@ Najważniejsza wartość:
 - **Unifikacja kontraktu**: spójne request/response niezależne od providera.
 - **Odporność i operacyjność**: timeouty, retry, normalizacja błędów, requestId, obserwowalność.
 
-Projekt powstaje jako ćwiczenie NestJS, architektury i wzorców projektowych, ale docelowo ma być **w pełni działającym i skalowalnym mikroserwisem**.
+Projekt jest **działającym mikroserwisem** NestJS — ćwiczeniem architektury i wzorców projektowych, a jednocześnie gotowym do uruchomienia w infrastrukturze użytkownika.
 
 ## Dla kogo jest system
 
@@ -29,48 +29,47 @@ Repozytorium jest **publiczne** i na licencji **MIT**, ale **nie jest projektem 
 - **Niedozwolone / nieakceptowane:** pull requesty i inne próby mergowania zmian do **upstream** (oryginalnego repozytorium autora) przez osoby trzecich.
 - **Własny rozwój:** sforkuj repozytorium i utrzymuj zmiany wyłącznie we **swojej kopii** — upstream pozostaje pod kontrolą maintainera.
 
-Ten model nie ogranicza użytkowania produktu — ogranicza wyłącznie współtworzenie kodu w oryginalnym remote. Skrót: [`../README.md`](../../README.md) (sekcja „Dystrybucja”), [`README.md`](README.md) (sekcja „Dystrybucja i kontrybucje”).
+Ten model nie ogranicza użytkowania produktu — ogranicza wyłącznie współtworzenie kodu w oryginalnym remote. Skrót: [`README.md`](../../README.md) (sekcja „Dystrybucja”), [`README.md`](README.md) (sekcja „Dystrybucja i kontrybucje”).
 
-## Zakres produktu (MVP i v1)
+## Zakres produktu
 
-Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontrakt HTTP: **`openapi.json`** oraz `dokumentacja_api.md`.
+Poniższy opis definiuje zakres produktu w rozumieniu tego repozytorium. Kontrakt HTTP: **[`openapi.json`](../../openapi.json)** oraz `dokumentacja_api.md`.
 
 **Pierwsze uruchomienie:** uzupełnij `.env` i `gateway.config.yaml` albo uruchom `gateway config:init` przed startem serwera (szczegóły: `konfiguracja.md`, `CLI.md`).
 
-- **Status projektu:** Rdzeń **MVP** (routing + chat + streaming) jest wdrożony. Trwa utrzymanie i rozwój **v1** (operacyjność, polish, deploy).
-- **Providery (MVP):** Anthropic API + Google Gemini API + OpenAI API (oraz `openai-compatible`, np. Ollama)
-- **Cel MVP:** Działające **kierowanie zapytań do providerów** (registry / routing), działający **chat** synchroniczny (`POST /api/v1/chat`) oraz działający **streaming** (SSE / `POST /api/v1/chat/stream`).
-- **v1:** Wszystko ponadto — m.in. konfiguracja z plików, utwardzenie kontraktu API, observability, polish i deploy, **fasady integracji IDE** (OpenAI + Anthropic Messages API — wdrożone; pełne dopasowanie kontraktu vendora — kolejne iteracje).
+- **Produkt:** Rdzeń obejmuje routing, chat i streaming. Warstwa operacyjna dodaje konfigurację z plików, observability, polish, deploy oraz fasady integracji IDE (OpenAI + Anthropic Messages API). Dalsze dopasowanie kontraktów vendora — opcjonalne rozszerzenia.
+- **Providery:** Anthropic API, Google Gemini API, OpenAI API oraz `openai-compatible` (np. Ollama).
+- **Czat:** synchroniczny `POST /api/v1/chat` oraz streaming SSE `POST /api/v1/chat/stream`.
 
-## Status funkcjonalności (skrót)
+## Funkcje produktu (skrót)
 
-| Funkcjonalność | Status w produkcie |
-|----------------|-------------------|
-| Natywne API (`/chat`, `/chat/stream`) | Wdrożone |
-| Fasada OpenAI (Cursor IDE) | Wdrożone |
-| Fasada Anthropic (Claude Code) | Wdrożone |
-| Tool calling | Wdrożone |
-| Extended thinking (reasoning models) | Wdrożone |
-| Response caching (Redis) | Wdrożone |
-| Smart rate limiting | Wdrożone |
+| Funkcjonalność | Zakres |
+|----------------|--------|
+| Natywne API (`/chat`, `/chat/stream`) | Routing, JSON i SSE |
+| Fasada OpenAI (Cursor IDE) | `/api/v1/openai/*` |
+| Fasada Anthropic (Claude Code) | `/api/v1/anthropic/*` |
+| Tool calling | Definicje i wywołania narzędzi w czacie |
+| Extended thinking (reasoning models) | Parametry thinking / reasoning |
+| Response caching (Redis) | Cache odpowiedzi `POST /chat` |
+| Smart rate limiting | Limity per klucz klienta |
 
-**Podsumowanie:** Kluczowe funkcjonalności MVP są **wdrożone**. Aktualny stan architektury i wdrożenia — `architektura.md`, `integracje.md`, `testy.md`, `spec/SPEC-README.md`.
+**Podsumowanie:** Wymienione funkcje są częścią produktu. Architektura i integracje: `architektura.md`, `integracje.md`, `testy.md`.
 
-### Stan realizacji (skrót)
+### Zakres funkcjonalny (skrót)
 
-- **Endpoint czatu standardowego** `POST /api/v1/chat` — zaimplementowany; opcjonalnie **cache odpowiedzi** (`src/cache/`, walidacja odczytu `CachedChatResponseSchema`, env — `konfiguracja.md`).
-- **Streaming** (`POST /api/v1/chat/stream`, SSE) — zaimplementowany; envelope `ErrorEnvelope` — **wdrożony**. **Gateway key** + opcjonalny **smart rate limit** — **wdrożony** (`@GatewayKeyAndSmartRateLimit()`; kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** — `dictionary.md`). **Readiness**, **logging/metrics** (Pino, Sentry), **graceful shutdown** — **wdrożone**. **`params` w body**, **policy `timeoutMs` / `retry` + fallback**, **nagłówek odpowiedzi `x-request-id`** — **wdrożone**. **OpenAPI / Swagger** — dekoratory `@nestjs/swagger` na czacie, health i fasadach IDE; jeden `openapi.json` (tagi Health, Chat, OpenAI API, Anthropic API); eksport `npm run openapi:export`, UI `/api/v1/api-docs` — **wdrożone**. **Fasady IDE** (`src/integrations/`) — `IntegrationsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` — **wdrożone** (`integracje.md`). **Walidacja offline konfiguracji:** `npm run config:validate` oraz **`gateway config:validate`** — **wdrożone** (`konfiguracja.md`). **CLI v1** — wizard `config:init` + komendy zarządzania configiem, providerami, modelami, klientami, testy SDK, `key:generate` — **wdrożone** (`CLI.md`).
+- **Endpoint czatu standardowego** `POST /api/v1/chat` — opcjonalnie **cache odpowiedzi** (`src/cache/`, walidacja odczytu `CachedChatResponseSchema`, env — `konfiguracja.md`).
+- **Streaming** (`POST /api/v1/chat/stream`, SSE) — envelope `ErrorEnvelope`. **Gateway key** + opcjonalny **smart rate limit** (`@GatewayKeyAndSmartRateLimit()`; kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** — `dictionary.md`). **Readiness**, **logging/metrics** (Pino, Sentry), **graceful shutdown**. **`params` w body**, **policy `timeoutMs` / `retry` + fallback**, **nagłówek odpowiedzi `x-request-id`**. **OpenAPI / Swagger** — dekoratory `@nestjs/swagger` na czacie, health i fasadach IDE; jeden [`openapi.json`](../../openapi.json) (tagi Health, Chat, OpenAI API, Anthropic API); eksport `npm run openapi:export`, UI `/api/v1/api-docs`. **Fasady IDE** (`src/integrations/`) — `IntegrationsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` (`integracje.md`). **Walidacja offline konfiguracji:** `npm run config:validate` oraz **`gateway config:validate`** (`konfiguracja.md`). **CLI** — wizard `config:init` + komendy zarządzania configiem, providerami, modelami, klientami, testy SDK, `key:generate` (`CLI.md`).
 - **Fasady integracji** — moduł `src/integrations/` (OpenAI API dla Cursor, Anthropic Messages dla Claude Code); wspólny silnik `ChatService` — patrz `integracje.md`.
-- **Providery** Anthropic, Google Gemini oraz OpenAI (`openai`, `openai-compatible`) — fabryki SDK, bootstrap per `providerInstance` i rejestr zaimplementowane.
-- **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie zaimplementowane. Rozszerzona walidacja grafu `providers` ↔ `models` (fail-fast) — `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` (F-3b, F-3c).
+- **Providery** Anthropic, Google Gemini oraz OpenAI (`openai`, `openai-compatible`) — fabryki SDK, bootstrap per `providerInstance` i rejestr.
+- **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie. Rozszerzona walidacja grafu `providers` ↔ `models` (fail-fast) — `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` (F-3b, F-3c).
 - Klucze API w `.env` pod **`apiKeyRef`** z YAML (per włączona instancja providera); CLI synchronizuje opcjonalnie legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` — `konfiguracja.md`.
-- Policy z YAML: **`params`** w `resolveProviderCallOptions`; **`timeoutMs` / `retry` / `fallback`** w `ResilientExecutor` z anulowaniem in-flight przez **`AbortSignal`** (`dokumentacja_api.md`, `konfiguracja.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego — działa.
-- Spójny format błędów (**envelope `ErrorEnvelope`**) — **wdrożone** (`GlobalExceptionFilter`). **`requestId`**: propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) — **wdrożone** dla Anthropic/Google/OpenAI (`PROVIDER_*`); limity gateway — **`RATE_LIMITED`** (`SmartRateLimitGuard`: RPS/streamy; cooldown: `prepareRequestForExecution` + `ChatErrorHandlerService`).
+- Policy z YAML: **`params`** w `resolveProviderCallOptions`; **`timeoutMs` / `retry` / `fallback`** w `ResilientExecutor` z anulowaniem in-flight przez **`AbortSignal`** (`dokumentacja_api.md`, `konfiguracja.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego.
+- Spójny format błędów (**envelope `ErrorEnvelope`**) — `GlobalExceptionFilter`. **`requestId`**: propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) dla Anthropic/Google/OpenAI (`PROVIDER_*`); limity gateway — **`RATE_LIMITED`** (`SmartRateLimitGuard`: RPS/streamy; cooldown: `prepareRequestForExecution` + `ChatErrorHandlerService`).
 - Testy jednostkowe przy modułach (`src/**/*.spec.ts`, `npm test`).
 - Testy E2E HTTP (`test/e2e/`, `npm run test:e2e`, `npm run test:all`) — kontrakt natywnego czatu (w tym cache, stream), fasad OpenAI/Anthropic (w tym tooling, thinking) z mockowanymi providerami — **`testy.md`**.
 - Testy security HTTP (`test/security/`, `npm run test:security`) — auth bypass, Helmet, information disclosure, rate limit, fuzzing property-based — **`testy.md`**; w deploy produkcyjnym: `npm run deploy:production`.
 
-## Poza zakresem (wybrane wykluczenia na start)
+## Poza zakresem produktu
 
 - Autoryzacja użytkowników końcowych (AuthN/AuthZ) — gateway jest narzędziem dla infrastruktury użytkownika.
 - Billing / rozliczenia — koszty ponosi użytkownik przez własne klucze.
@@ -107,7 +106,7 @@ Zamiast zmuszać klientów do podawania vendorowego `modelId`, gateway wspiera *
 - Logika wyboru providera/modelu oraz mapowanie parametrów jest testowalne bez realnych wywołań providerów.
 - Adaptery providerów mogą być mockowane (jednostkowo i w E2E — `testy.md`).
 
-## Trzy powierzchnie API (kierunek v1)
+## Trzy powierzchnie API
 
 | Klient | Kontrakt | Przykładowe trasy |
 |--------|----------|-------------------|
@@ -131,18 +130,19 @@ Pole `model` w fasadach = `modelAlias` z `gateway.config.yaml` (nie vendorowy `m
 
 Szczegóły: `integracje.md`, `dictionary.md` (sekcja „Fasada vs provider runtime”), `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`.
 
-## Kierunek rozwoju (v1 i dalej)
+## Dalszy rozwój (opcjonalnie)
 
-- **Fasady IDE** — **wdrożone** (`src/integrations/`); rozszerzenia kontraktu (tools, pełny `usage`, …) — kolejne iteracje.
-- **System prompt po stronie serwera** — **wdrożone**: pliki w `src/config/system-prompt/`, brak roli `system` w API; szczegóły w `konfiguracja.md` i `architektura.md`.
-- **Cache / Redis** — cache odpowiedzi (`src/cache/`) i smart rate limit (`src/rate-limit/`, wspólny `RedisConnectionService` gdy Redis załadowany) — `konfiguracja.md`. Observability: `src/observability/` — **AiMetrics** (Sentry LLM) + **AppMetrics** (Prometheus, health gauges na `/metrics`).
-- **Adapter runtime OpenAI** — **wdrożony** (`type: openai`, `openai-compatible`; Chat Completions + Responses API) — `provider_openai_runtime.md`.
-- Metryki per provider (rozszerzenia); circuit breaker — świadomie poza bieżącym zakresem.
-- **CLI developerskie** — pełny zestaw komend v1 wdrożony (`CLI.md`): wizard `config:init`, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli, klientów, `provider:test`, `key:generate`. Walidacja offline także: `npm run config:validate`.
-- “Policy packs”: profile ustawień per środowisko (dev/prod) i per alias modelu.
-- Opcjonalnie: SDK klienta, OpenAPI, przykłady integracji.
+Elementy świadomie **poza bieżącym zakresem** lub jako możliwe rozszerzenia:
+
+- dalsze dopasowanie kontraktów vendora na fasadach (pełny `usage`, edge-case’y tools),
+- metryki per provider; circuit breaker,
+- tryb non-interactive CLI,
+- “policy packs” (profile per środowisko / alias),
+- opcjonalne SDK klienta i przykłady integracji.
+
+Funkcje już obecne w produkcie (fasady IDE, system prompt, cache/Redis, rate limit, adapter OpenAI, CLI, observability) opisują dokumenty: `architektura.md`, `konfiguracja.md`, `CLI.md`, `provider_openai_runtime.md`.
 
 ---
 
-*Dokument żywy — wersjonowany razem z kodem. Zmiany kontraktów API wymagają aktualizacji `dokumentacja_api.md`, `lista_endpointów.md` i specyfikacji w `spec/`.*
+*Dokument wersjonowany razem z kodem. Zmiany kontraktów API wymagają aktualizacji `dokumentacja_api.md`, `lista_endpointów.md` oraz — dopóki istnieje — katalogu `spec/`.*
 
