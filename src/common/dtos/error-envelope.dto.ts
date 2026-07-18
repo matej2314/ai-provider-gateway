@@ -10,7 +10,8 @@ export class ErrorEnvelopeDto {
 
   @ApiProperty({
     example: 'VALIDATION_FAILED',
-    description: 'Machine-readable error code; dictionary: docs/pl/dictionary.md',
+    description:
+      'Machine-readable error code; dictionary: docs/pl/dictionary.md',
   })
   code: string;
 
