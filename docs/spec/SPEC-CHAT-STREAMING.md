@@ -42,7 +42,7 @@ F-7. W przypadku błędu po rozpoczęciu streamingu zachowanie musi być spójne
 - zamknięcie połączenia w sposób przewidywalny, oraz
 - log z `requestId` i `code` błędu.
 
-**Stan kodu:** nagłówek odpowiedzi **`x-request-id`** ustawiany przez `RequestIdMiddleware` przed `flushHeaders`. **Cooldown** po 429 od providera — **`executeChat` i `executeStream`** (`prepareRequestForExecution` → `checkCooldown`; `handleProviderError` → `setCooldown`).
+**Stan kodu:** nagłówek odpowiedzi **`x-request-id`** ustawiany przez `RequestIdMiddleware` przed `flushHeaders`. **Cooldown** po 429 od providera — **`executeChat` i `executeStream`** (`prepareRequestForExecution` → `checkCooldown`; `handleProviderError` → `setCooldown`). **Timeout / retry / fallback** — ten sam **`ResilientExecutor`** co czat JSON (`executeStream` → `streamOnce` z `AbortSignal` przy `policy.timeoutMs`).
 
 ## Wymagania niefunkcjonalne
 
@@ -51,6 +51,8 @@ NFR-1. Streaming nie może powodować wycieku pamięci (brak niekończących si�
 NFR-2. `requestId` musi być widoczny w `meta`.
 
 NFR-3. Gateway nie może emitować surowych payloadów SDK providerów jako SSE.
+
+NFR-4. `policy.timeoutMs` anuluje bieżącą próbę streamu przez `AbortSignal` (best-effort po stronie SDK) i kończy ścieżkę błędem `PROVIDER_TIMEOUT` (jak w `SPEC-CHAT.md`).
 
 ## Kryteria akceptacji
 

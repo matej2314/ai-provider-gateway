@@ -36,7 +36,11 @@ export interface ResilientExecutionOptions<T> {
   primaryAlias: ModelAlias;
   fallbackAlias?: ModelAlias;
   retry: RetryPolicy;
-  runOnce: (alias: ModelAlias, attemptNo: number) => Promise<T>;
+  runOnce: (
+    alias: ModelAlias,
+    attemptNo: number,
+    signal: AbortSignal,
+  ) => Promise<T>;
   validateFallbackChain?: (primary: ModelAlias, fallback?: ModelAlias) => void;
   requestId?: string;
 }

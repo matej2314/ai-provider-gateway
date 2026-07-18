@@ -139,7 +139,11 @@ export class ResilientExecutor {
     alias: ModelAlias;
     maxAttempts: MaxAttempts;
     retry: RetryPolicy;
-    runOnce: (alias: ModelAlias, attemptNo: number) => Promise<T>;
+    runOnce: (
+      alias: ModelAlias,
+      attemptNo: number,
+      signal: AbortSignal,
+    ) => Promise<T>;
     requestId?: RequestId;
   }): Promise<AttemptResult<T>> {
     let lastError: unknown;
@@ -151,7 +155,8 @@ export class ResilientExecutor {
       try {
         const value = await this.runWithTimeout<T>(
           options.retry.timeoutMs,
-          () => options.runOnce(options.alias, attempt),
+          (signal: AbortSignal) =>
+            options.runOnce(options.alias, attempt, signal),
         );
 
         return {
@@ -217,34 +222,49 @@ export class ResilientExecutor {
 
   private async runWithTimeout<T>(
     timeoutMs: TimeoutMs | undefined,
-    fn: () => Promise<T>,
+    fn: (signal: AbortSignal) => Promise<T>,
   ): Promise<T> {
     if (!timeoutMs) {
-      return fn();
+      const idle = new AbortController();
+      return fn(idle.signal);
     }
 
-    let timeoutId: ReturnType<typeof setTimeout>;
+    const controller = new AbortController();
+    const timeoutHttpError = new HttpException(
+      {
+        code: ApiErrorCode.PROVIDER_TIMEOUT,
+        message: `Request timeout after ${timeoutMs}ms`,
+        details: [],
+      },
+      HttpStatus.GATEWAY_TIMEOUT,
+    );
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(
-        () =>
-          reject(
-            new HttpException(
-              {
-                code: ApiErrorCode.PROVIDER_TIMEOUT,
-                message: `Request timeout after ${timeoutMs}ms`,
-                details: [],
-              },
-              HttpStatus.GATEWAY_TIMEOUT,
-            ),
-          ),
-        timeoutMs,
-      );
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, unbrand(timeoutMs));
+
+    const onAbort = new Promise<never>((_, reject) => {
+      const rejectTimeout = () => reject(timeoutHttpError);
+      if (controller.signal.aborted) {
+        rejectTimeout();
+        return;
+      }
+      controller.signal.addEventListener('abort', rejectTimeout, {
+        once: true,
+      });
     });
 
-    return Promise.race([fn(), timeoutPromise]).finally(() =>
-      clearTimeout(timeoutId),
-    );
+    try {
+      // Race: deadline for the gateway + AbortSignal for in-flight SDK cancel.
+      return await Promise.race([fn(controller.signal), onAbort]);
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw timeoutHttpError;
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   private toExhaustedException(

@@ -81,6 +81,7 @@ Uzasadnienie: Fasady IDE wymagają zgodności z OpenAI API i Anthropic Messages 
 - retry tylko na 429/5xx (`onStatus` / `RETRY_POLICY_DEFAULTS`),
 - maksymalna liczba prób (`maxAttempts`, cap Zod = 5),
 - backoff (`initialDelayMs` / `maxDelayMs`) i time budget (`timeoutMs`) w `ResilientExecutor` (`src/chat/resilience/`),
+- anulowanie in-flight przez `AbortSignal` przy `timeoutMs` (SDK: Anthropic/OpenAI `signal`, Google `abortSignal`) — nie sam `Promise.race` bez abortu,
 - trzymanie logiki odporności w module czatu (nie w kontrolerach ani fasadach).
 
 ## 8) “Framework first” w logice domenowej

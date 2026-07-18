@@ -101,7 +101,11 @@ describe('ResilientExecutor', () => {
         didFallback: false,
       });
       expect(runOnce).toHaveBeenCalledTimes(1);
-      expect(runOnce).toHaveBeenCalledWith(alias('primary'), 1);
+      expect(runOnce).toHaveBeenCalledWith(
+        alias('primary'),
+        1,
+        expect.any(AbortSignal),
+      );
     });
 
     it('should log debug on success', async () => {
@@ -257,9 +261,21 @@ describe('ResilientExecutor', () => {
         attempts: asAttemptNumber(3),
         didFallback: true,
       });
-      expect(runOnce).toHaveBeenCalledWith(alias('primary'), 1);
-      expect(runOnce).toHaveBeenCalledWith(alias('primary'), 2);
-      expect(runOnce).toHaveBeenCalledWith(alias('fallback'), 1);
+      expect(runOnce).toHaveBeenCalledWith(
+        alias('primary'),
+        1,
+        expect.any(AbortSignal),
+      );
+      expect(runOnce).toHaveBeenCalledWith(
+        alias('primary'),
+        2,
+        expect.any(AbortSignal),
+      );
+      expect(runOnce).toHaveBeenCalledWith(
+        alias('fallback'),
+        1,
+        expect.any(AbortSignal),
+      );
     });
 
     it('should log fallback attempt', async () => {
@@ -402,7 +418,11 @@ describe('ResilientExecutor', () => {
         didFallback: true,
       });
       expect(runOnce).toHaveBeenCalledTimes(2);
-      expect(runOnce).toHaveBeenCalledWith(alias('fallback'), 1);
+      expect(runOnce).toHaveBeenCalledWith(
+        alias('fallback'),
+        1,
+        expect.any(AbortSignal),
+      );
     });
 
     it('should log warn when primary is exhausted before fallback', async () => {
@@ -525,6 +545,38 @@ describe('ResilientExecutor', () => {
       const result = await executor.executeWithRetryAndFallback(options);
 
       expect(result.value).toBe('ok');
+    });
+
+    it('should abort the attempt signal when timeoutMs elapses', async () => {
+      let seen: AbortSignal | undefined;
+      const runOnce = jest.fn(
+        (
+          _alias: ModelAlias,
+          _attempt: number,
+          signal?: AbortSignal,
+        ): Promise<string> => {
+          seen = signal;
+          return new Promise(() => {
+            /* never resolves — timeout must win */
+          });
+        },
+      );
+
+      const options: ResilientExecutionOptions<string> = {
+        primaryAlias: alias('primary'),
+        retry: retryPolicy(1, [], 20),
+        runOnce,
+      };
+
+      const error = await rejectWith(executor, options);
+
+      expect(error.getStatus()).toBe(HttpStatus.GATEWAY_TIMEOUT);
+      expect(seen?.aborted).toBe(true);
+      expect(runOnce).toHaveBeenCalledWith(
+        alias('primary'),
+        1,
+        expect.any(AbortSignal),
+      );
     });
   });
 

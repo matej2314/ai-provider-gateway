@@ -74,6 +74,7 @@ export interface StreamOnceParams {
     responseConversationId: ConversationId;
     metaEmitted: { value: boolean };
   };
+  signal?: AbortSignal;
 }
 
 @Injectable()
@@ -91,12 +92,13 @@ export class ChatProviderCallService {
     requestId: RequestId,
     clientId: ClientId,
     resolvedPrompts: ResolvedSystemPrompts,
+    signal?: AbortSignal,
   ): Promise<CompleteOnceResult> {
     const resolved = this.registry.resolve(alias);
-    const aliasOptions = resolveProviderCallOptions(
-      resolved.params,
-      requestBody.params,
-    );
+    const aliasOptions = {
+      ...resolveProviderCallOptions(resolved.params, requestBody.params),
+      ...(signal ? { signal } : {}),
+    };
     const providerInput = buildProviderInputForAlias(
       requestBody,
       alias,
@@ -151,14 +153,15 @@ export class ChatProviderCallService {
       resolvedPrompts,
       emit,
       streamMeta,
+      signal,
     } = params;
 
     const resolved = this.registry.resolve(alias);
 
-    const aliasOptions = resolveProviderCallOptions(
-      resolved.params,
-      requestBody.params,
-    );
+    const aliasOptions = {
+      ...resolveProviderCallOptions(resolved.params, requestBody.params),
+      ...(signal ? { signal } : {}),
+    };
 
     const providerInput = buildProviderInputForAlias(
       requestBody,

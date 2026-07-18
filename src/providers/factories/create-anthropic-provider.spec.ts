@@ -421,6 +421,22 @@ describe('createAnthropicProvider', () => {
       ).rejects.toThrow();
       expect(mockLogger.warn).toHaveBeenCalled();
     });
+
+    it('should pass AbortSignal as request options when provided', async () => {
+      mockAnthropicClient.messages.create.mockResolvedValue({
+        content: [{ type: 'text', text: 'Hi' }],
+        model: 'claude-sonnet-4',
+        usage: { input_tokens: 1, output_tokens: 1 },
+      });
+      const signal = new AbortController().signal;
+
+      await provider.complete(input, 'claude-sonnet-4', { signal });
+
+      expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
+        expect.any(Object),
+        { signal },
+      );
+    });
   });
 
   describe('stream', () => {

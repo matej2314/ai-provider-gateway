@@ -135,13 +135,18 @@ export class ChatService {
 
     const startedAt = Date.now();
 
-    const runOnce = async (alias: ModelAlias, _attemptNo: number) => {
+    const runOnce = async (
+      alias: ModelAlias,
+      _attemptNo: number,
+      signal: AbortSignal,
+    ) => {
       return this.providerCallService.completeOnce(
         requestBody,
         alias,
         requestId,
         clientId,
         resolvedPrompts,
+        signal,
       );
     };
 
@@ -244,7 +249,11 @@ export class ChatService {
     const id = asResponseId(`gw_${uuidv4()}`);
     const metaEmitted = { value: false };
 
-    const runOnce = async (alias: ModelAlias, _attemptNo: number) => {
+    const runOnce = async (
+      alias: ModelAlias,
+      _attemptNo: number,
+      signal: AbortSignal,
+    ) => {
       const streamResult = await this.providerCallService.streamOnce({
         requestBody,
         alias,
@@ -258,6 +267,7 @@ export class ChatService {
           responseConversationId,
           metaEmitted,
         },
+        signal,
       });
 
       const resolved = this.registry.resolve(alias);

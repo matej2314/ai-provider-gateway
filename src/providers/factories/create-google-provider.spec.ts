@@ -121,6 +121,24 @@ describe('createGoogleProvider', () => {
       );
     });
 
+    it('should pass abortSignal in config when options.signal is set', async () => {
+      mockGoogleClient.models.generateContent.mockResolvedValue({
+        text: 'Hi!',
+        usageMetadata: {},
+      });
+      const signal = new AbortController().signal;
+
+      await provider.complete(input, 'gemini-2.5-flash', { signal });
+
+      expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            abortSignal: signal,
+          }),
+        }),
+      );
+    });
+
     it('should map topP and topK options', async () => {
       mockGoogleClient.models.generateContent.mockResolvedValue({
         text: 'Hi!',

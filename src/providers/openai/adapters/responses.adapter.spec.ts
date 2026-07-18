@@ -132,6 +132,29 @@ describe('createResponsesAdapter', () => {
     );
   });
 
+  it('passes AbortSignal as request options when provided', async () => {
+    const client = createMockClient();
+    (client.responses.create as jest.Mock).mockResolvedValue({
+      output_text: 'Hi',
+      output: [],
+      usage: { input_tokens: 1, output_tokens: 1 },
+      model: 'gpt-5.4-mini',
+    });
+    const adapter = createResponsesAdapter(client, logger as never);
+    const signal = new AbortController().signal;
+
+    await adapter.complete(
+      { messages: [{ role: 'user', content: 'Hi' }] },
+      'gpt-5.4-mini',
+      { signal },
+    );
+
+    expect(client.responses.create).toHaveBeenCalledWith(
+      expect.any(Object),
+      { signal },
+    );
+  });
+
   it('maps SDK errors to HttpException', async () => {
     const client = createMockClient();
     (client.responses.create as jest.Mock).mockRejectedValue(

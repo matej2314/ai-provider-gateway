@@ -122,7 +122,7 @@ Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `too
 
 Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRegistryService.resolve()` — lookup po **`models[].providerInstance`**, nie po `type`. Runtime: fabryki `anthropic` / `google` tworzone w `ProviderInstancesBootstrap` (`ProvidersModule`).
 
-**Odporność:** `policy.timeoutMs` i `policy.retry` z YAML są egzekwowane przez **`ResilientExecutor`** (`src/chat/resilience/`). Opcjonalny **`models[].fallback`**: po wyczerpaniu prób gateway próbuje alias zapasowy (jeden hop); przy sukcesie — opcjonalne **`effectiveModelAlias`**. **Fallback jest wyłączony** dla żądań z toolingiem — zarówno w czacie standardowym (`executeChat`), jak i w streamingu (`executeStream`; `isToolingRequest` → `fallbackAlias: undefined`).
+**Odporność:** `policy.timeoutMs` i `policy.retry` z YAML są egzekwowane przez **`ResilientExecutor`** (`src/chat/resilience/`). Po upływie `timeoutMs` gateway anuluje bieżącą próbę przez **`AbortSignal`** (przekazywany do `ChatProviderCallService` → adapter SDK: Anthropic/OpenAI `{ signal }`, Google `config.abortSignal`) i zwraca **`PROVIDER_TIMEOUT`** (504). Opcjonalny **`models[].fallback`**: po wyczerpaniu prób gateway próbuje alias zapasowy (jeden hop); przy sukcesie — opcjonalne **`effectiveModelAlias`**. **Fallback jest wyłączony** dla żądań z toolingiem — zarówno w czacie standardowym (`executeChat`), jak i w streamingu (`executeStream`; `isToolingRequest` → `fallbackAlias: undefined`).
 
 ---
 
@@ -157,7 +157,7 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 | 403  | Niepoprawny `X-Gateway-Key` (`GATEWAY_KEY_INVALID`)                                                                                                                              |
 | 429  | Smart rate limit / cooldown (`RATE_LIMITED`) lub limit providera (`PROVIDER_RATE_LIMITED`)                                                                                       |
 | 502  | M.in. `PROVIDER_UNSUPPORTED`, `PROVIDER_UNAVAILABLE` (w tym wyczerpanie retry+fallback) — `provider-error.mapper.ts`, `ResilientExecutor`                                        |
-| 504  | `PROVIDER_TIMEOUT` — przekroczony `policy.timeoutMs` (`ResilientExecutor`)                                                                                                       |
+| 504  | `PROVIDER_TIMEOUT` — przekroczony `policy.timeoutMs` (`ResilientExecutor` + `AbortSignal` do SDK)                                                                                  |
 | 500  | Nieobsłużony błąd (np. SDK); wyjątkowo brak allowlisty kluczy (`GATEWAY_KEY_NOT_CONFIGURED`)                                                                                     |
 
 ---

@@ -7,7 +7,7 @@ Gateway HTTP dla LLM, który **ukrywa SDK providerów** i wystawia spójny kontr
 - katalogu aliasów modeli (`GET /api/v1/models`, `GET /api/v1/models/:modelAlias`),
 - healthchecka (`GET /api/v1/health`, `GET /api/v1/health/ready`),
 - metryk Prometheusa (`GET /metrics` — poza prefiksem `/api/v1`),
-- odporności (retry, timeout, opcjonalny fallback aliasu z `gateway.config.yaml`) — **`ResilientExecutor`**.
+- odporności (retry, timeout z anulowaniem in-flight przez `AbortSignal`, opcjonalny fallback aliasu z `gateway.config.yaml`) — **`ResilientExecutor`**.
 
 Aktualnie wspierani **adaptery runtime** (`src/providers/`):
 
@@ -104,7 +104,7 @@ Gateway oferuje rozbudowane możliwości sterowania generacją i monitoringu:
 - **Request/conversation tracking**: `requestId` (nagłówek + body), `conversationId` (grupowanie konwersacji w Sentry)
 - **Smart rate limiting**: per-client RPS/burst/concurrent streams (Redis backend)
 - **Response caching**: opcjonalny cache dla `POST /api/v1/chat` (Redis backend)
-- **Resilient execution**: retry z exponential backoff, timeout per model, opcjonalny fallback chain
+- **Resilient execution**: retry z exponential backoff, timeout per model (`AbortSignal` → anulowanie wywołania SDK), opcjonalny fallback chain
 - **Multi-provider (runtime)**: adaptery SDK w `src/providers/` — Anthropic, Google Gemini, OpenAI, OpenAI-compatible — [`docs/provider-openai-runtime.md`](docs/provider-openai-runtime.md)
 - **IDE-friendly facades**: kształt OpenAI API (Cursor) i Anthropic Messages API (Claude Code) nad tym samym `ChatService` — kompatybilność kontraktu klienta, routing LLM z YAML
 - **Models catalog**: natywny `GET /api/v1/models` + fasady — wspólny `GatewayModelsCatalogService`, ten sam zestaw aliasów z YAML
@@ -289,7 +289,7 @@ Szczegóły: [`docs/dokumentacja_api.md`](docs/dokumentacja_api.md), [`docs/arch
 | Warstwa                     | Lokalizacja                                                                                                                                     |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Orkiestracja czatu          | [`ChatService`](src/chat/chat.service.ts)                                                                                                       |
-| Odporność (retry/fallback)  | [`ResilientExecutor`](src/chat/resilience/resilient-executor.ts) — `ChatModule`; defaults: [`retry-policy-defaults.ts`](src/common/retry-policy-defaults.ts) |
+| Odporność (retry/timeout/fallback) | [`ResilientExecutor`](src/chat/resilience/resilient-executor.ts) — `ChatModule`; `timeoutMs` → `AbortSignal` do adapterów; defaults: [`retry-policy-defaults.ts`](src/common/retry-policy-defaults.ts) |
 | Katalog aliasów modeli      | [`GatewayModelsCatalogService`](src/models/services/gateway-models-catalog.service.ts) — natywny `GET /models` + fasady przez mappery           |
 | Wywołania providerów + SSE  | [`ChatProviderCallService`](src/chat/services/chat-provider-call.service.ts)                                                                    |
 | Adaptery LLM + tool mappers | [`src/providers/`](src/providers/) (`anthropic-tools.mapper.ts`, `google-tools.mapper.ts`, `openai/` — Chat Completions + Responses)            |

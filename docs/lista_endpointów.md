@@ -84,7 +84,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 | **403** | niepoprawny klucz — `GATEWAY_KEY_INVALID` |
 | **429** | `RATE_LIMITED` (smart limit / cooldown po 429 upstream — `checkCooldown` w `prepareRequestForExecution` przed wywołaniem LLM) lub `PROVIDER_RATE_LIMITED` (upstream) |
 | **502** | m.in. `PROVIDER_UNSUPPORTED`, `PROVIDER_UNAVAILABLE` (w tym wyczerpanie retry+fallback) |
-| **504** | `PROVIDER_TIMEOUT` (`policy.timeoutMs`) |
+| **504** | `PROVIDER_TIMEOUT` (`policy.timeoutMs` + `AbortSignal` w `ResilientExecutor`) |
 | **500** | nieobsłużony wyjątek; rzadko `GATEWAY_KEY_NOT_CONFIGURED` |
 
 ### `POST /api/v1/chat/stream`

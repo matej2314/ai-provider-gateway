@@ -68,6 +68,7 @@ function buildGenerationConfig(
                 }),
         },
       }),
+    ...(options?.signal ? { abortSignal: options.signal } : {}),
   };
 }
 

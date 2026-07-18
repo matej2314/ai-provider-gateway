@@ -12,7 +12,7 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **HTTP** | Kontroler + walidacja DTO + odpowiedź. |
 | **ChatService** | Wspólne `prepareRequestForExecution` (ingress, tooling/thinking, cooldown check). Cache tylko w `executeChat`. `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
 | **ChatProviderCallService** | Pojedyncze wywołanie adaptera: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `AiMetricsService.observeProviderCall` / `observeProviderStream`, `AppMetricsService` (RED), emisja SSE `meta`/`delta`. |
-| **ResilientExecutor** | `src/chat/resilience/` — retry na aliasie żądanym (`policy.retry`, `policy.timeoutMs` → `buildRetryPolicyFromResolved`), potem opcjonalnie alias `fallback` z YAML (jeden hop). |
+| **ResilientExecutor** | `src/chat/resilience/` — retry na aliasie żądanym (`policy.retry`, `policy.timeoutMs` → `buildRetryPolicyFromResolved`), potem opcjonalnie alias `fallback` z YAML (jeden hop). Przy timeout: `AbortSignal` do `completeOnce` / `streamOnce` → adapter SDK; odpowiedź `PROVIDER_TIMEOUT` (504). |
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na **`providerInstance`** → `AIProvider` + `modelId`. |
 | **Provider** | Instancja `AIProvider` (fabryka + klucz API per wpis w YAML). |
 | **LLM API** | Zewnętrzny serwis providera. |
@@ -77,8 +77,8 @@ sequenceDiagram
     S-->>H: odpowiedź
   else brak wpisu
     S->>S: checkCooldown (opcjonalnie, smart limit)
-    S->>S: ResilientExecutor (retry / fallback / timeout)
-    S->>+PC: completeOnce (per alias w łańcuchu)
+    S->>S: ResilientExecutor (retry / fallback / timeout + AbortSignal)
+    S->>+PC: completeOnce (per alias w łańcuchu; signal)
     PC->>PC: buildProviderInputForAlias + resolveProviderCallOptions
     PC->>+M: observeLlmCall
     M->>+P: complete(input, modelId, options)
@@ -141,8 +141,8 @@ sequenceDiagram
   H->>H: nagłówki SSE + flushHeaders
   H->>+S: executeStream
   S->>S: prepareRequestForExecution (ingress, cooldown check, …)
-  S->>S: ResilientExecutor (retry / fallback / timeout)
-  S->>+PC: streamOnce (emit przez callback)
+  S->>S: ResilientExecutor (retry / fallback / timeout + AbortSignal)
+  S->>+PC: streamOnce (emit przez callback; signal)
   PC->>PC: buildProviderInputForAlias
   PC->>M: observeLlmStream
   PC-->>H: SSE meta (id, conversationId, effectiveModelAlias?)

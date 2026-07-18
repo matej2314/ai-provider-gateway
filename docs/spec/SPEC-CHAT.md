@@ -68,11 +68,11 @@ F-8. *(Opcjonalnie — cache odpowiedzi)* Gateway może zwracać zapisaną odpow
 
 F-9. *(Conversation tracking)* `conversationId` opcjonalne w żądaniu w formacie `conv_<uuid>`. Do Sentry trafia **tylko** ID z body klienta. Gateway **zawsze** zwraca `conversationId` w odpowiedzi (echo lub `conv_<uuid>`). Klient od tury 2+ z ID musi wysyłać pełną historię w `messages[]` — patrz `conversation-tracking.md`.
 
-F-10. *(Odporność)* Gateway stosuje `policy.retry` i `policy.timeoutMs` z YAML przez **`ResilientExecutor`** (`src/chat/resilience/`). Po wyczerpaniu prób na aliasie żądanym, gdy skonfigurowano `models[].fallback`, próbuje alias zapasowy (jeden hop; `assertNoFallbackCycle`). Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne `effectiveModelAlias`; pole `model` = żądany `modelAlias`.
+F-10. *(Odporność)* Gateway stosuje `policy.retry` i `policy.timeoutMs` z YAML przez **`ResilientExecutor`** (`src/chat/resilience/`). Po upływie `timeoutMs` anuluje bieżącą próbę przez `AbortSignal` (do `ChatProviderCallService` / adapterów SDK) i zwraca `PROVIDER_TIMEOUT`. Po wyczerpaniu prób na aliasie żądanym, gdy skonfigurowano `models[].fallback`, próbuje alias zapasowy (jeden hop; `assertNoFallbackCycle`). Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne `effectiveModelAlias`; pole `model` = żądany `modelAlias`.
 
 ## Wymagania niefunkcjonalne
 
-NFR-1. Timeout wywołania providera jest kontrolowany polityką per alias.
+NFR-1. Timeout wywołania providera jest kontrolowany polityką per alias; po upływie `timeoutMs` gateway anuluje próbę przez `AbortSignal` (best-effort po stronie SDK) i zwraca `PROVIDER_TIMEOUT`.
 
 NFR-2. Retry jest ograniczony do błędów 429/5xx i do maxAttempts z konfiguracji.
 

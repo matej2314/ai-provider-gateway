@@ -170,8 +170,8 @@
     "semantic_hash": ""
   },
   "src/chat/chat.service.ts": {
-    "mtime": 1784307624.8989315,
-    "ast_hash": "8e540b18b8eb38a6e7d518b1019d201b",
+    "mtime": 1784367865.5136065,
+    "ast_hash": "6a8ddac1bc7c9f3c531cd8ee1e24b09a",
     "semantic_hash": ""
   },
   "src/chat/dto/chat-message.dto.ts": {
@@ -360,8 +360,8 @@
     "semantic_hash": ""
   },
   "src/chat/services/chat-provider-call.service.ts": {
-    "mtime": 1784288458.6340456,
-    "ast_hash": "5cab5d9673904f8d0be7fd7548442990",
+    "mtime": 1784367864.3212936,
+    "ast_hash": "457ed8550783b8578802c237523d020a",
     "semantic_hash": ""
   },
   "src/chat/services/chat-response-builder.service.spec.ts": {
@@ -1610,24 +1610,24 @@
     "semantic_hash": "68df5c425657f1c3f7d6632358563043"
   },
   "src/providers/factories/create-anthropic-provider.spec.ts": {
-    "mtime": 1784288459.4312906,
-    "ast_hash": "e02d56ebd2c488b94e442a6d78c286b1",
-    "semantic_hash": "e02d56ebd2c488b94e442a6d78c286b1"
+    "mtime": 1784367900.2254157,
+    "ast_hash": "442ed1afee0da0003c551862ba7fc059",
+    "semantic_hash": ""
   },
   "src/providers/factories/create-anthropic-provider.ts": {
-    "mtime": 1784288459.4343698,
-    "ast_hash": "cf784fdf4ae416fe4ef1cd1c4ee6eae7",
-    "semantic_hash": "cf784fdf4ae416fe4ef1cd1c4ee6eae7"
+    "mtime": 1784367882.3322105,
+    "ast_hash": "e7faa463c876908cec685dbb23d43e26",
+    "semantic_hash": ""
   },
   "src/providers/factories/create-google-provider.spec.ts": {
-    "mtime": 1784288459.4372914,
-    "ast_hash": "609cbdb83357941ef8bc3bdee967da85",
-    "semantic_hash": "609cbdb83357941ef8bc3bdee967da85"
+    "mtime": 1784367901.8898902,
+    "ast_hash": "90393f71c9a26c0a1e40904dc4c3d25b",
+    "semantic_hash": ""
   },
   "src/providers/factories/create-google-provider.ts": {
-    "mtime": 1784288459.438426,
-    "ast_hash": "fd0795e869e13726e9b0036d31006c29",
-    "semantic_hash": "fd0795e869e13726e9b0036d31006c29"
+    "mtime": 1784367883.8283808,
+    "ast_hash": "3abe2493062240c5cbeedc997a54aaf3",
+    "semantic_hash": ""
   },
   "src/providers/factories/create-openai-compatible-provider-instance.spec.ts": {
     "mtime": 1784288459.4412866,
@@ -1680,29 +1680,29 @@
     "semantic_hash": "ed803d15fee2d74f9efc8565d4f94cd5"
   },
   "src/providers/interfaces/ai-provider.interface.ts": {
-    "mtime": 1784288459.4675362,
-    "ast_hash": "04b40a419b3fd20d383ca58f01824e3b",
-    "semantic_hash": "04b40a419b3fd20d383ca58f01824e3b"
+    "mtime": 1784364737.0037732,
+    "ast_hash": "de274f2e3c1217cc1318130b62095a46",
+    "semantic_hash": ""
   },
   "src/providers/openai/adapters/chat-completions.adapter.spec.ts": {
-    "mtime": 1784288459.4732516,
-    "ast_hash": "0a3eb752f642c9f0ea1c7e0dc5808ef8",
-    "semantic_hash": "0a3eb752f642c9f0ea1c7e0dc5808ef8"
+    "mtime": 1784367907.2381706,
+    "ast_hash": "5b1d2dbc482e10f8d68a0b7ca6738b3d",
+    "semantic_hash": ""
   },
   "src/providers/openai/adapters/chat-completions.adapter.ts": {
-    "mtime": 1784288459.4743629,
-    "ast_hash": "0e3abb1a4058a893b17f11f3b60423c7",
-    "semantic_hash": "0e3abb1a4058a893b17f11f3b60423c7"
+    "mtime": 1784367888.141988,
+    "ast_hash": "4dab8a4ca545a5b2a8bb055536c0d123",
+    "semantic_hash": ""
   },
   "src/providers/openai/adapters/responses.adapter.spec.ts": {
-    "mtime": 1784288459.490211,
-    "ast_hash": "8ff3fe2755cde29080a7700e0c6d26d5",
-    "semantic_hash": "8ff3fe2755cde29080a7700e0c6d26d5"
+    "mtime": 1784367903.802683,
+    "ast_hash": "849b3731e9d16db75fc6c2376fab98ef",
+    "semantic_hash": ""
   },
   "src/providers/openai/adapters/responses.adapter.ts": {
-    "mtime": 1784288459.493243,
-    "ast_hash": "1d0fbfbfccdb86239e1b1582037391f6",
-    "semantic_hash": "1d0fbfbfccdb86239e1b1582037391f6"
+    "mtime": 1784367885.6520126,
+    "ast_hash": "1a45b04931dbc6366fa10752f8a9c28d",
+    "semantic_hash": ""
   },
   "src/providers/openai/mappers/openai-error.mapper.ts": {
     "mtime": 1784315318.1682956,
@@ -2180,8 +2180,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1784313685.636768,
-    "ast_hash": "0017ea34002a6ce1cd7e9a737cbd95e8",
+    "mtime": 1784368926.9992137,
+    "ast_hash": "22f3d97b5606d76747fad6484d50d659",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -2245,23 +2245,23 @@
     "semantic_hash": ""
   },
   "docs/README.md": {
-    "mtime": 1784315968.9276714,
-    "ast_hash": "4b19309f68f6915f73e5d7010a84b998",
+    "mtime": 1784368955.4445572,
+    "ast_hash": "8d84193f011b382de4d90daa4aa73c13",
     "semantic_hash": ""
   },
   "docs/anty-patterny.md": {
-    "mtime": 1784313702.7608008,
-    "ast_hash": "8efe2706c6631ff28441eda01fbc9329",
+    "mtime": 1784368015.2000852,
+    "ast_hash": "81c7aa896a5500a2ab423f8de807c50a",
     "semantic_hash": ""
   },
   "docs/architektura-katalogi-pliki.md": {
-    "mtime": 1784315969.7930224,
-    "ast_hash": "c08891683de843ae8e2211e2688b373b",
+    "mtime": 1784368958.5416555,
+    "ast_hash": "914c7eec20c0832a9c14db7b64e03c3b",
     "semantic_hash": ""
   },
   "docs/architektura.md": {
-    "mtime": 1784315963.074534,
-    "ast_hash": "c4f1c54d692c2b4ab5696306d255afce",
+    "mtime": 1784368936.870144,
+    "ast_hash": "997ccb58d17b68681434dcfb55727e5d",
     "semantic_hash": ""
   },
   "docs/architektura_api.md": {
@@ -2280,8 +2280,8 @@
     "semantic_hash": ""
   },
   "docs/data_flow.md": {
-    "mtime": 1784313681.1254582,
-    "ast_hash": "295e61361c8e7de3c07f90b314008176",
+    "mtime": 1784368934.6556568,
+    "ast_hash": "21b6d52f01fdc862056d4a6c26a5be3d",
     "semantic_hash": ""
   },
   "docs/deployment.md": {
@@ -2290,18 +2290,18 @@
     "semantic_hash": ""
   },
   "docs/dictionary.md": {
-    "mtime": 1784313696.4198048,
-    "ast_hash": "fe049fe8717e6e0ded42628b55e20466",
+    "mtime": 1784368929.3366532,
+    "ast_hash": "5aefedd49c8655cc69a446e7856b35af",
     "semantic_hash": ""
   },
   "docs/dokumentacja_api.md": {
-    "mtime": 1784313681.8951874,
-    "ast_hash": "193e7ff76e4d3d388e474dcd25f321b6",
+    "mtime": 1784368940.2008383,
+    "ast_hash": "deaec2405c2d267813f221471a7a35a1",
     "semantic_hash": ""
   },
   "docs/dokumentacja_koncepcyjna.md": {
-    "mtime": 1784316106.7774343,
-    "ast_hash": "3ea2d1820039a0a2d018b37dfcb88fe4",
+    "mtime": 1784368945.3772502,
+    "ast_hash": "ffdd0200c410df3d7c915122b3b1ef08",
     "semantic_hash": ""
   },
   "docs/integracja-anthropic-messages.md": {
@@ -2320,13 +2320,13 @@
     "semantic_hash": ""
   },
   "docs/konfiguracja.md": {
-    "mtime": 1784313671.0473094,
-    "ast_hash": "8a14dd93a5441cbae9904def742a1165",
+    "mtime": 1784368944.3605192,
+    "ast_hash": "2d27bea60afc7df2257dc0e2ec1644b2",
     "semantic_hash": ""
   },
   "docs/lista_endpoint\u00f3w.md": {
-    "mtime": 1784313695.115335,
-    "ast_hash": "714d028e69ca1745f7183e668874da60",
+    "mtime": 1784368946.8998053,
+    "ast_hash": "406900d1724cb4db9029c5724df77124",
     "semantic_hash": ""
   },
   "docs/opis_koncepcyjny.md": {
@@ -2340,13 +2340,13 @@
     "semantic_hash": ""
   },
   "docs/spec/SPEC-CHAT-STREAMING.md": {
-    "mtime": 1784309123.1257353,
-    "ast_hash": "32f1cca370a0198896217098260fc9b4",
+    "mtime": 1784368958.1674616,
+    "ast_hash": "643b6fb7cf02732161850775c9f16d7a",
     "semantic_hash": ""
   },
   "docs/spec/SPEC-CHAT.md": {
-    "mtime": 1784313672.371622,
-    "ast_hash": "9a41ba22ba4babdb1a742aef7877cd18",
+    "mtime": 1784368946.4826665,
+    "ast_hash": "174371708b66d0e71742d5779f832fce",
     "semantic_hash": ""
   },
   "docs/spec/SPEC-HEALTH.md": {
@@ -2680,18 +2680,18 @@
     "semantic_hash": ""
   },
   "src/chat/resilience/resilience.types.ts": {
-    "mtime": 1784311905.1458483,
-    "ast_hash": "686ba64ec535e022fd2c55216d0c03fe",
+    "mtime": 1784368154.0554893,
+    "ast_hash": "3b8993ab071567c7b3c75cf807c3c723",
     "semantic_hash": ""
   },
   "src/chat/resilience/resilient-executor.spec.ts": {
-    "mtime": 1784312142.1262798,
-    "ast_hash": "5a808eedd975b3448d976b28d6d75e74",
+    "mtime": 1784367985.0900736,
+    "ast_hash": "cd02490f3cfe84b34253d33b5dc80d34",
     "semantic_hash": ""
   },
   "src/chat/resilience/resilient-executor.ts": {
-    "mtime": 1784312096.216964,
-    "ast_hash": "934d11dda1a7d53c5c6b34314cc40acb",
+    "mtime": 1784368155.7166467,
+    "ast_hash": "40ee35fdc11efcb7203543711ff8264a",
     "semantic_hash": ""
   },
   "src/config/configuration-validation.service.spec.ts": {
