@@ -29,7 +29,7 @@ Repozytorium jest **publiczne** i na licencji **MIT**, ale **nie jest projektem 
 - **Niedozwolone / nieakceptowane:** pull requesty i inne próby mergowania zmian do **upstream** (oryginalnego repozytorium autora) przez osoby trzecich.
 - **Własny rozwój:** sforkuj repozytorium i utrzymuj zmiany wyłącznie we **swojej kopii** — upstream pozostaje pod kontrolą maintainera.
 
-Ten model nie ogranicza użytkowania produktu — ogranicza wyłącznie współtworzenie kodu w oryginalnym remote. Skrót: [`../README.md`](../README.md) (sekcja „Dystrybucja”), [`README.md`](README.md) (sekcja „Dystrybucja i kontrybucje”).
+Ten model nie ogranicza użytkowania produktu — ogranicza wyłącznie współtworzenie kodu w oryginalnym remote. Skrót: [`../README.md`](../../README.md) (sekcja „Dystrybucja”), [`README.md`](README.md) (sekcja „Dystrybucja i kontrybucje”).
 
 ## Zakres produktu (MVP i v1)
 
@@ -81,7 +81,7 @@ Poniższy opis definiuje **MVP** i **v1** w rozumieniu tego repozytorium. Kontra
 
 ### 1) Gateway, nie “open proxy”
 
-- Endpointy providerów Anthropic i Google są **zaszyte** w fabrykach SDK (`src/providers/factories/`). Typy **`openai`** / **`openai-compatible`** używają konfigurowalnego **`baseUrlRef`** w env (walidowany URL http(s) — np. api.openai.com, Ollama); szczegóły: `provider-openai-runtime.md`, `konfiguracja.md`.
+- Endpointy providerów Anthropic i Google są **zaszyte** w fabrykach SDK (`src/providers/factories/`). Typy **`openai`** / **`openai-compatible`** używają konfigurowalnego **`baseUrlRef`** w env (walidowany URL http(s) — np. api.openai.com, Ollama); szczegóły: `provider_openai_runtime.md`, `konfiguracja.md`.
 - Konfiguracja nie pozwala dowolnie ustawiać URL/headers w sposób, który zmieniłby usługę w ogólny proxy HTTP.
 
 ### 2) Modele jako aliasy (preferowane)
@@ -129,14 +129,14 @@ Gateway rozdziela **fasadę integracji** (kształt kontraktu HTTP dla narzędzi)
 
 Pole `model` w fasadach = `modelAlias` z `gateway.config.yaml` (nie vendorowy `modelId`). Auth na fasadach: klucz **klienta gateway** (Bearer / `x-api-key`), nie klucz vendora.
 
-Szczegóły: `integracje.md`, `dictionary.md` (sekcja „Fasada vs provider runtime”), `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
+Szczegóły: `integracje.md`, `dictionary.md` (sekcja „Fasada vs provider runtime”), `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`.
 
 ## Kierunek rozwoju (v1 i dalej)
 
 - **Fasady IDE** — **wdrożone** (`src/integrations/`); rozszerzenia kontraktu (tools, pełny `usage`, …) — kolejne iteracje.
 - **System prompt po stronie serwera** — **wdrożone**: pliki w `src/config/system-prompt/`, brak roli `system` w API; szczegóły w `konfiguracja.md` i `architektura.md`.
 - **Cache / Redis** — cache odpowiedzi (`src/cache/`) i smart rate limit (`src/rate-limit/`, wspólny `RedisConnectionService` gdy Redis załadowany) — `konfiguracja.md`. Observability: `src/observability/` — **AiMetrics** (Sentry LLM) + **AppMetrics** (Prometheus, health gauges na `/metrics`).
-- **Adapter runtime OpenAI** — **wdrożony** (`type: openai`, `openai-compatible`; Chat Completions + Responses API) — `provider-openai-runtime.md`.
+- **Adapter runtime OpenAI** — **wdrożony** (`type: openai`, `openai-compatible`; Chat Completions + Responses API) — `provider_openai_runtime.md`.
 - Metryki per provider (rozszerzenia); circuit breaker — świadomie poza bieżącym zakresem.
 - **CLI developerskie** — pełny zestaw komend v1 wdrożony (`CLI.md`): wizard `config:init`, `config:validate` / `config:show`, CRUD providerów (multi-instance), modeli, klientów, `provider:test`, `key:generate`. Walidacja offline także: `npm run config:validate`.
 - “Policy packs”: profile ustawień per środowisko (dev/prod) i per alias modelu.

@@ -4,8 +4,8 @@
 > Ten dokument opisuje **fasadę integracji** — warstwę HTTP w `src/integrations/openai/`, która implementuje **kształt** OpenAI Chat Completions API. Służy kompatybilności z Cursor i podobnymi klientami; OpenAI API stało się jednym ze standardów branżowych dla narzędzi IDE.  
 > **To nie jest** gwarancja, że backend LLM to api.openai.com — routing zależy wyłącznie od **`model`** (= `modelAlias` w YAML) i wpisu `models[]` → `providerInstance` (może być Anthropic, Google, OpenAI lub compatible).  
 > **Auth:** `Authorization: Bearer` to **klucz klienta gateway** z allowlisty, nie klucz OpenAI.com.  
-> Adapter runtime OpenAI (`create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts` w `src/providers/`) — **wdrożony**, osobna warstwa — [`provider-openai-runtime.md`](provider-openai-runtime.md).  
-> Analogiczna zasada dla fasady Anthropic: [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md), [`dictionary.md`](dictionary.md).
+> Adapter runtime OpenAI (`create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts` w `src/providers/`) — **wdrożony**, osobna warstwa — [`provider_openai_runtime.md`](provider_openai_runtime.md).  
+> Analogiczna zasada dla fasady Anthropic: [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md), [`dictionary.md`](dictionary.md).
 
 Fasada **`/api/v1/openai`** pozwala podłączyć **Cursor** (i inne klienty ze sztywnym klientem OpenAI) do gatewaya, używając własnej allowlisty kluców zamiast klucza OpenAI.com.
 
@@ -81,7 +81,7 @@ Lista dostępnych ID: `GET /api/v1/openai/models`.
 
 Szczegóły: [`dictionary.md`](dictionary.md) (sekcja „`systemFingerprint` — semantyka i providerzy”).
 
-**Provider docelowy:** fasada mapuje pola OpenAI na wspólne `params.*`, ale **wywołanie LLM** idzie do adaptera wskazanego przez **`model`** (= `modelAlias` w YAML). Dla aliasu na Anthropic obowiązuje wykluczenie `temperature` + `top_p` (patrz `integracja-anthropic-messages.md`). Gdy alias wskazuje **`type: openai`** lub **`openai-compatible`**, adapter runtime OpenAI (`create-openai-provider.ts`) obsługuje m.in. penalties, seed i `system_fingerprint` — szczegóły: [`provider-openai-runtime.md`](provider-openai-runtime.md). Macierz parametrów: `dictionary.md`, `konfiguracja.md`.
+**Provider docelowy:** fasada mapuje pola OpenAI na wspólne `params.*`, ale **wywołanie LLM** idzie do adaptera wskazanego przez **`model`** (= `modelAlias` w YAML). Dla aliasu na Anthropic obowiązuje wykluczenie `temperature` + `top_p` (patrz `integracja_anthropic_messages.md`). Gdy alias wskazuje **`type: openai`** lub **`openai-compatible`**, adapter runtime OpenAI (`create-openai-provider.ts`) obsługuje m.in. penalties, seed i `system_fingerprint` — szczegóły: [`provider_openai_runtime.md`](provider_openai_runtime.md). Macierz parametrów: `dictionary.md`, `konfiguracja.md`.
 
 Limit **`messages`**: 1–15 000 (DTO fasady; natywny czat: 1–150).
 
@@ -123,7 +123,7 @@ Jeśli budujesz własną aplikację pod kontrakt gateway:
 
 ## Ograniczenia
 
-- **Routing LLM jest konfiguracyjny** — fasada OpenAI **nie** wymusza backendu OpenAI.com; alias w YAML może wskazywać Anthropic, Google, OpenAI lub OpenAI-compatible (`providerInstance` + `modelId`). Adapter OpenAI runtime jest **wdrożony** — patrz [`provider-openai-runtime.md`](provider-openai-runtime.md).
+- **Routing LLM jest konfiguracyjny** — fasada OpenAI **nie** wymusza backendu OpenAI.com; alias w YAML może wskazywać Anthropic, Google, OpenAI lub OpenAI-compatible (`providerInstance` + `modelId`). Adapter OpenAI runtime jest **wdrożony** — patrz [`provider_openai_runtime.md`](provider_openai_runtime.md).
 - Wiadomości **`role: system`** z klienta są **pomijane** — instrukcja systemowa pochodzi z plików w `src/config/system-prompt/`.
 - **`messages[].content`** musi być stringiem (brak tablicy multimodalnej).
 - Function calling wymaga `capabilities.tools: true` na aliasie w YAML.
@@ -140,6 +140,6 @@ Trasy OpenAI są w **`openapi.json`** (tag **OpenAI API**, security `BearerAuth`
 ## Powiązane
 
 - [`integracje.md`](integracje.md) — architektura fasad, rate limit, stan wdrożenia
-- [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md) — fasada Anthropic (Claude Code; **wdrożona**)
+- [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md) — fasada Anthropic (Claude Code; **wdrożona**)
 - [`konfiguracja.md`](konfiguracja.md) — `gateway.config.yaml`, klucze env
 - [`lista_endpointów.md`](lista_endpointów.md)

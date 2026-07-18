@@ -17,7 +17,7 @@ Wersja dokumentu: **2.3** (zsynchronizowana z `package.json`, `test/` i `src/**/
 
 | Skrypt                    | Zestawy | Przypadki |
 | ------------------------- | ------- | --------- |
-| `npm test`                | 92      | 1243      |
+| `npm test`                | 92      | 1248      |
 | `npm run test:cli`        | 12      | 62        |
 | `npm run test:e2e`        | 10      | 105       |
 | `npm run test:security`   | 5       | 51        |
@@ -196,4 +196,4 @@ npm run deploy:production # test:security + build + docker:up:full
 
 Nie są wymagane zmienne env providerów ani działający Redis dla `npm test`, `npm run test:cli`, `npm run test:e2e` i `npm run test:security`.
 
-Powiązane: `architektura-katalogi-pliki.md` (drzewo `test/`), `architektura.md`, `CLI.md` (testy CLI).
+Powiązane: `architektura_katalogi_pliki.md` (drzewo `test/`), `architektura.md`, `CLI.md` (testy CLI).

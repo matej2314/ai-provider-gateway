@@ -128,7 +128,7 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 
 **Sentry — dwa punkty inicjalizacji:**
 
-- **`src/instrument.ts`** (przed bootstrapem Nest): SDK Sentry z `streamGenAiSpans: true` gdy metryki Sentry są aktywne — wymagane dla widoku **Conversations** (`conversation-tracking.md`).
+- **`src/instrument.ts`** (przed bootstrapem Nest): SDK Sentry z `streamGenAiSpans: true` gdy metryki Sentry są aktywne — wymagane dla widoku **Conversations** (`conversation_tracking.md`).
 - **`LoggingModule`** / **`MetricsModule`**: adaptery error reporting i metryk LLM (`SentryAiMetricsAdapter`, `SentryErrorReportingAdapter`).
 
 **Readiness a Redis:** `GET /api/v1/health/ready` zwraca:
@@ -294,7 +294,7 @@ Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (
 | **`openai`**                       | `create-openai-provider.ts` — **zawsze** Responses API (`create-openai-provider.core.ts`) | `gpt-cheap` (przy `openai` w przykładowym YAML repo) |
 | **`openai-compatible`**            | `create-openai-compatible-provider-instance.ts` — **zawsze** Chat Completions | `ollama-local-chat` (przy `ollama-local`)          |
 
-**OpenAI w projekcie:** istnieją **dwie ortogonalne warstwy** — fasada HTTP `/api/v1/openai` (kształt kontraktu dla Cursor) oraz **adapter runtime** `type: openai` / `openai-compatible` (wywołanie SDK po `baseUrlRef` + `apiKeyRef`). Fasada mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`; adapter runtime przekazuje je do SDK gdy alias wskazuje instancję OpenAI. Szczegóły adaptera: [`provider-openai-runtime.md`](provider-openai-runtime.md), [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md).
+**OpenAI w projekcie:** istnieją **dwie ortogonalne warstwy** — fasada HTTP `/api/v1/openai` (kształt kontraktu dla Cursor) oraz **adapter runtime** `type: openai` / `openai-compatible` (wywołanie SDK po `baseUrlRef` + `apiKeyRef`). Fasada mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`; adapter runtime przekazuje je do SDK gdy alias wskazuje instancję OpenAI. Szczegóły adaptera: [`provider_openai_runtime.md`](provider_openai_runtime.md), [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md).
 
 #### Pola specyficzne dla OpenAI w YAML (`providers`)
 
@@ -463,11 +463,11 @@ Wizard (`ConfigInitCommand`) zbiera dane interaktywnie (master key, providery, m
 
 Po inicjalizacji konfigurację można rozszerzać bez ponownego wizarda: `gateway provider:add`, `model:add`, `client:add` itd. — **`CLI.md`**. Komendy mutujące robią backup `gateway.config.yaml` w katalogu `backup/` przed zapisem.
 
-Szczegóły flow, resume i pełna lista komend: **`CLI.md`**. Architektura: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
+Szczegóły flow, resume i pełna lista komend: **`CLI.md`**. Architektura: `architektura.md`, `architektura_katalogi_pliki.md` (sekcja 2a).
 
 ## 4) Nadpisywanie parametrów per request
 
-**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** w formacie **`conv_<uuid>`** (regex w `ChatRequestDto`; w **response** zawsze echo lub nowe `conv_<uuid>`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation-tracking.md`), opcjonalne zagnieżdżone **`params`** (w tym **`responseFormat`**: `{ type, jsonSchema? }`), opcjonalne **`metadata`** (`Record<string, string | number | boolean>` — propagacja do adaptera; Anthropic: `userId` → `metadata.user_id`). Fasady IDE dopuszczają do **15 000** wiadomości — patrz `integracje.md`. Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
+**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** w formacie **`conv_<uuid>`** (regex w `ChatRequestDto`; w **response** zawsze echo lub nowe `conv_<uuid>`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation_tracking.md`), opcjonalne zagnieżdżone **`params`** (w tym **`responseFormat`**: `{ type, jsonSchema? }`), opcjonalne **`metadata`** (`Record<string, string | number | boolean>` — propagacja do adaptera; Anthropic: `userId` → `metadata.user_id`). Fasady IDE dopuszczają do **15 000** wiadomości — patrz `integracje.md`. Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
 
 **Merge parametrów:** `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`) bierze `policy.params.defaults` z YAML dla aliasu (pola: `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`), nakłada body `params` tylko dla pól z **`allowOverrides`**, następnie **clamp** do **`bounds`**. Pola **`topK`**, **`stop`**, **`responseFormat`** pochodzą **wyłącznie z body** (brak odczytu z YAML `defaults`). Niedozwolone pole → HTTP **400** + `MODEL_NOT_ALLOWED`. Efektywne wartości trafiają do adapterów (`ProviderCallOptions`) i do klucza cache (`ResponseCacheService`).
 

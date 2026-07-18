@@ -152,7 +152,7 @@ Przy **cache hit** (`POST /api/v1/chat`) gateway **nie** wywołuje providera i *
 | `SENTRY_INCLUDE_PROMPTS=true` | `gen_ai.input.messages` / `gen_ai.output.messages` na spanach |
 | `streamGenAiSpans: true` | W `src/instrument.ts` — **wymagane** dla widoku Conversations |
 
-Szczegóły env: `docs/konfiguracja.md`.
+Szczegóły env: `konfiguracja.md`.
 
 ---
 

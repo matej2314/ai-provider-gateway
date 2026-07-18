@@ -7,10 +7,10 @@ Wersja dokumentu: **1.6**. Dokument jest wersjonowany razem z kodem. **`openapi.
 1. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — dekoratory `@nestjs/swagger` na kontrolerach i klasach odpowiedzi (`@ApiProperty`, `@ApiOperation`, `@ApiGatewayChatErrorResponses`, `@ApiGatewayModelsErrorResponses`, `@ApiOpenAiErrorResponses`, `@ApiAnthropicErrorResponses`, `@ApiRequestIdHeader`, …). Konfiguracja dokumentu: `src/swagger/swagger.setup.ts` (`extraModels`, trzy `securitySchemes`).
 2. **`openapi.json`** — kontrakt HTTP (OpenAPI 3.1) **generowany z kodu** (`npm run openapi:export` → `src/swagger/export-openapi.ts`). W runtime ten sam dokument serwowany jako `/api/v1/swagger.json` (gdy Swagger włączony).
 3. **Swagger UI** — interaktywna dokumentacja pod `/api/v1/api-docs` (`setupSwagger` w `src/main.ts`; wyłączanie: `SWAGGER_ENABLED` — `konfiguracja.md`).
-4. **`docs/dokumentacja_koncepcyjna.md`** — zakres MVP/v1. **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging + **observability** (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` (YAML + runtime) lub **`gateway config:validate`** (+ format legacy env) — `konfiguracja.md`.
-5. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis`, odczyt walidowany `CachedChatResponseSchema` — `docs/konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
+4. **`dokumentacja_koncepcyjna.md`** — zakres MVP/v1. **Wdrożone w `src/`:** `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging + **observability** (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` (YAML + runtime) lub **`gateway config:validate`** (+ format legacy env) — `konfiguracja.md`.
+5. **Cache odpowiedzi** dla `POST /api/v1/chat` jest w kodzie (`src/cache/`, backend `noop` / `redis`, odczyt walidowany `CachedChatResponseSchema` — `konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
 6. **System prompt po stronie serwera** — wczytanie plików w `configuration.ts`, składanie w `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`).
-7. **`docs/spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
+7. **`spec/`** — SDD (wymagania docelowe; część punktów może wyprzedzać wdrożenie — porównuj z `src/` i `openapi.json`).
 
 ## Podstawy
 
@@ -97,7 +97,7 @@ Opcjonalnie w odpowiedzi JSON: **`usageDetails`** (`promptCacheHitTokens`, `prom
 
 **Cache i fallback:** żądania z toolingiem (`isToolingRequest`) **pomijają cache** i **nie używają fallbacku** w `POST /api/v1/chat`. Streaming **nadal** stosuje fallback z YAML.
 
-Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `tool_result` na ten sam kontrakt wewnętrzny — patrz `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
+Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `tool_result` na ten sam kontrakt wewnętrzny — patrz `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`.
 
 **Spójny opis warstw promptu:** `konfiguracja.md`, `architektura.md`.
 
@@ -130,7 +130,7 @@ Klient podaje **`modelAlias`** z **`gateway.config.yaml`**. Rejestr: `ProviderRe
 
 ### Request body
 
-Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 150** wiadomości) — role `user` | `assistant` | `tool` (patrz sekcja wyżej), opcjonalnie **`tooling`**, **`params`**, **`conversationId`** w formacie **`conv_<uuid>`** (walidacja regex w `ChatRequestDto`): w **request** włącza grupowanie Sentry; bez niego span = pojedyncza wiadomość. Od **drugiej tury** z `conversationId` klient powinien wysłać **pełną** historię w `messages[]` (w tym odpowiedzi `assistant` i tury `tool`). Szczegóły: **`conversation-tracking.md`**. Opcjonalnie **`metadata`** — obiekt klucz–wartość (`string` | `number` | `boolean`); propagowany do adaptera (`buildProviderInputForAlias`). **Anthropic** mapuje `metadata.userId` → `messages.create({ metadata: { user_id } })`; **Google** obecnie ignoruje.
+Zgodnie z DTO: **`modelAlias`** (string), **`messages`** (tablica **od 1 do 150** wiadomości) — role `user` | `assistant` | `tool` (patrz sekcja wyżej), opcjonalnie **`tooling`**, **`params`**, **`conversationId`** w formacie **`conv_<uuid>`** (walidacja regex w `ChatRequestDto`): w **request** włącza grupowanie Sentry; bez niego span = pojedyncza wiadomość. Od **drugiej tury** z `conversationId` klient powinien wysłać **pełną** historię w `messages[]` (w tym odpowiedzi `assistant` i tury `tool`). Szczegóły: **`conversation_tracking.md`**. Opcjonalnie **`metadata`** — obiekt klucz–wartość (`string` | `number` | `boolean`); propagowany do adaptera (`buildProviderInputForAlias`). **Anthropic** mapuje `metadata.userId` → `messages.create({ metadata: { user_id } })`; **Google** obecnie ignoruje.
 
 Opcjonalnie **`params`** (`src/chat/dto/chat-params.dto.ts`, `response-format.dto.ts`): zagnieżdżony obiekt z opcjonalnymi polami **`temperature`** (0–2), **`maxOutputTokens`** (1–8192), **`topP`** (0–1), **`topK`** (integer ≥0), **`stop`** (string \| string[]), **`frequencyPenalty`** / **`presencePenalty`** (-2–2), **`seed`** (integer 0–2³²−1), **`responseFormat`** (`{ type: "text" | "json_object", jsonSchema?: object }`). Wartości efektywne: merge **`policy.params.defaults`** z YAML ← nadpisanie z body dla pól w **`allowOverrides`** (dotyczy `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`); pola **`topK`**, **`stop`**, **`responseFormat`** — **tylko z body** (brak merge z YAML `defaults`); po merge **clamp** do **`bounds`** (`resolveProviderCallOptions`). Niedozwolone pole w body → **`400`** + **`MODEL_NOT_ALLOWED`** — w czacie standardowym sprawdzane **przed** wywołaniem providera. **Które pola trafiają do SDK** zależy od **`providerInstance`** aliasu (Anthropic / Google / OpenAI / OpenAI-compatible) — macierz: **`dictionary.md`**, reguły YAML: **`konfiguracja.md`**. **`frequencyPenalty` / `presencePenalty`**: akceptowane w API; adaptery `anthropic` / `google` nie przekazują ich do SDK (OpenAI — przekazuje). **`topK`**: Anthropic (priorytet nad `topP` / `temperature`) i Google; OpenAI ignoruje. **`responseFormat`**: mapowane do SDK Anthropic (`output_config.format`), Google (`response_format` / `response_schema`) i OpenAI (`response_format` / Responses `text.format`) gdy `type === json_object`. Nadwyżkowe pola w body → **`400`** (`ValidationPipe`: `whitelist` + `forbidNonWhitelisted`). Limit body: **1 MB**.
 
@@ -166,7 +166,7 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 **Kontroler:** `ChatStreamController` + `StreamCleanupInterceptor` (zwolnienie slotu streamu w `finalize`).
 
-Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation-tracking.md`).
+Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation_tracking.md`).
 
 **Zdarzenia:** `meta` → `delta`\* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage` (z `totalTokens`), **`toolCalls`**, **`finishReason`**, opcjonalnie **`systemFingerprint`** (reguły jak w JSON powyżej). Retry/fallback — `ResilientExecutor` (fallback wyłączony przy tooling, jak w JSON).
 
@@ -263,8 +263,8 @@ Osobne kontrakty HTTP dla narzędzi IDE — **uwzględnione w `openapi.json`** (
 
 | Powierzchnia         | Dokumentacja operacyjna            |
 | -------------------- | ---------------------------------- |
-| OpenAI               | `integracja-openai-kontrakt.md`    |
-| Anthropic            | `integracja-anthropic-messages.md` |
+| OpenAI               | `integracja_openai_kontrakt.md`    |
+| Anthropic            | `integracja_anthropic_messages.md` |
 | Architektura wspólna | `integracje.md`                    |
 
 Wewnętrznie fasady wywołują ten sam **`ChatService`** co `POST /chat`. Pole **`model`** w żądaniu vendora = **`modelAlias`** z YAML. Runtime: błędy w kształcie OpenAI / Anthropic (`OpenAiExceptionFilter`, `AnthropicExceptionFilter`) — nie `ErrorEnvelope`. Streaming opisany w OpenAPI przez stałe `OPENAI_STREAM_API_DESCRIPTION` / `ANTHROPIC_STREAM_API_DESCRIPTION` (`src/integrations/*/helpers/*-stream-api-description.ts`).
@@ -461,9 +461,9 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 5. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator w `src/config/system-prompt/`.
 6. Przy streamingu składaj tekst z kolejnych `delta`; metadane końcowe (`usage`, `toolCalls`, `finishReason`, opcjonalnie `systemFingerprint` — tylko gdy upstream je dostarczy) są w evencie **`done`**.
 7. **`usage`** może być niekompletne między providerami.
-8. **`conversationId`**: w odpowiedzi zawsze (echo lub `conv_*`). W **request** — tylko wtedy Sentry grupuje turę jako konwersację; typowy start: tura 1 bez ID, tura 2+ z ID z odpowiedzi + pełne `messages[]` (`conversation-tracking.md`).
+8. **`conversationId`**: w odpowiedzi zawsze (echo lub `conv_*`). W **request** — tylko wtedy Sentry grupuje turę jako konwersację; typowy start: tura 1 bez ID, tura 2+ z ID z odpowiedzi + pełne `messages[]` (`conversation_tracking.md`).
 9. **Streaming:** nieprawidłowe `params` (poza `allowOverrides`) mogą zwrócić `MODEL_NOT_ALLOWED` **po** rozpoczęciu SSE — w czacie standardowym ten sam błąd jest **przed** wywołaniem providera.
 10. **Readiness:** `GET /health/ready` zawsze **200** — sprawdzaj `body.status === "ready"`. Pola w `checks`: **`config`**, **`redis`** (infrastruktura współdzielona; probe tylko gdy `required: true`), **`cache`** (stan feature cache).
 11. **Korelacja:** nagłówek odpowiedzi **`x-request-id`** = to samo ID co pole `requestId` w JSON (przy standardowym flow bez nadpisywania `requestId` w payloadzie wyjątku).
 
-Powiązane: `lista_endpointów.md`, `architektura_api.md`, `integracje.md`, `konfiguracja.md`, `conversation-tracking.md`, `dokumentacja_koncepcyjna.md`.
+Powiązane: `lista_endpointów.md`, `architektura_api.md`, `integracje.md`, `konfiguracja.md`, `conversation_tracking.md`, `dokumentacja_koncepcyjna.md`.

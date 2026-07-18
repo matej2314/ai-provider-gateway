@@ -9,7 +9,7 @@ Zasady:
 - **Pominięte w drzewie:** `node_modules/`, `dist/`, `.git/`, lokalne `.env` (nie commitować).
 - Pliki **`*.spec.ts`** — testy jednostkowe obok modułów; wypisane zbiorczo tam, gdzie występują.
 - Pliki **`*.md`** w katalogu głównym poza `README.md`, `SECURITY.md` i `LICENSE` — notatki/plany robocze (poza kontraktem produktu).
-- **Upstream bez zewnętrznych kontrybucji:** repozytorium jest MIT i można je klonować/forkować, ale **PR-y od osób trzecich do upstream nie są przyjmowane** — rozwój własnej kopii przez fork; szczegóły: [`../README.md`](../README.md), [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md).
+- **Upstream bez zewnętrznych kontrybucji:** repozytorium jest MIT i można je klonować/forkować, ale **PR-y od osób trzecich do upstream nie są przyjmowane** — rozwój własnej kopii przez fork; szczegóły: [`../README.md`](../../README.md), [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md).
 
 ---
 
@@ -529,19 +529,19 @@ ai-provider-gateway/
     ├── dokumentacja_koncepcyjna.md
     ├── architektura.md
     ├── architektura_api.md
-    ├── architektura-katalogi-pliki.md      # ten plik
+    ├── architektura_katalogi_pliki.md      # ten plik
     ├── lista_endpointów.md
     ├── dokumentacja_api.md
-    ├── conversation-tracking.md
+    ├── conversation_tracking.md
     ├── data_flow.md
     ├── konfiguracja.md
     ├── dictionary.md
-    ├── brand-types.md                      # brand types TS — przewodnik developerów
-    ├── anty-patterny.md
+    ├── brand_types.md                      # brand types TS — przewodnik developerów
+    ├── anty_patterny.md
     ├── integracje.md                       # fasady OpenAI / Anthropic (IDE)
-    ├── integracja-openai-kontrakt.md       # fasada OpenAI (Cursor)
-    ├── provider-openai-runtime.md          # adapter runtime OpenAI (wdrożony)
-    ├── integracja-anthropic-messages.md  # fasada Anthropic (Claude Code)
+    ├── integracja_openai_kontrakt.md       # fasada OpenAI (Cursor)
+    ├── provider_openai_runtime.md          # adapter runtime OpenAI (wdrożony)
+    ├── integracja_anthropic_messages.md  # fasada Anthropic (Claude Code)
     ├── opis_koncepcyjny.md                 # alias → dokumentacja_koncepcyjna.md
     ├── CLI.md                              # dokumentacja Gateway CLI (wizard, uruchomienie)
     ├── testy.md                            # testy jednostkowe i E2E
@@ -574,7 +574,7 @@ Poza dokumentacją produktową w `docs/` mogą występować lokalne plany/notatk
 | **`src/cache/`**                         | Cache odpowiedzi tylko dla **`POST /api/v1/chat`** (`noop` / `redis`). Odczyt walidowany **`CachedChatResponseSchema`**. **`RedisConnectionService`** — współdzielona infrastruktura Redis (cache + rate limit); predykat `isRedisRequired()` w `should-include-redis-stack.ts`.                                                                                                                                                                                                                                                                                                                                        |
 | **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (może być użyty samodzielnie — wtedy sam weryfikuje `X-Gateway-Key`); `SmartRateLimiterService` + Redis przez wspólny `RedisConnectionService` (ładowany gdy `isRedisRequiredFromEnv()`).                                                                                                                                                                                                                                                                                                                                                                                      |
 | **`src/logging/`**                       | Pino structured logging; opcjonalnie Sentry error reporting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| **`src/observability/`**                 | **`AiMetricsModule`** (Sentry LLM) + **`AppMetricsModule`** (Prometheus, `GET /metrics`, health gauges, `PreMetricsScrapeRegistry`). Patrz `conversation-tracking.md`, `deployment.md`.                                                                                                                                                                                                                                                                                                                                                                 |
+| **`src/observability/`**                 | **`AiMetricsModule`** (Sentry LLM) + **`AppMetricsModule`** (Prometheus, `GET /metrics`, health gauges, `PreMetricsScrapeRegistry`). Patrz `conversation_tracking.md`, `deployment.md`.                                                                                                                                                                                                                                                                                                                                                                 |
 | **`src/health/`**                        | Liveness i readiness; sync metryk health do Prometheus; rejestracja hooka scrape w `onModuleInit`. DTO z dekoratorami `@Api*` dla OpenAPI.                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **`src/swagger/`**                       | Generowanie jednego dokumentu OpenAPI 3.1 z kodu (`@nestjs/swagger`) — czat natywny, **models**, health, fasady OpenAI/Anthropic; `extraModels` + trzy `securitySchemes` w `swagger.setup.ts`. UI: `/api/v1/api-docs`, JSON: `/api/v1/swagger.json`; eksport → `openapi.json`.                                                                                                                                                                                                                                                                                                                                                      |
 | **`bin/`**                               | Entry point CLI: wrapper JS (`gateway-cli-wrapper.js`) uruchamia skompilowany `dist/bin/gateway-cli.js` lub — gdy brak build — TypeScript przez `ts-node` (`gateway-cli.ts` → `CliModule`). Dostęp: `npm run cli`, `npx gateway`, bin **`gateway`** z `package.json` (po `npm link` lub instalacji globalnej).                                                                                                                                                                                                                                                                                                          |
@@ -630,10 +630,10 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - System prompt z plików, cache (`noop`/`redis`, walidacja odczytu `CachedChatResponseSchema`), typed config (`AppConfiguration`, `typed-config.ts`), logging + observability (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges na `/metrics`), readiness (`checks.config`, `checks.redis`, `checks.cache`), alerty Prometheus (`deployment/monitoring/alerts.yml`), graceful shutdown.
 - `GatewayFinishReason` (`stop` | `tool_calls` | `length` | `content_filter`) w natywnym API; reverse map na fasadzie Anthropic (`anthropic-stop-reason.mapper.ts`).
 - OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad IDE; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → `openapi.json`.
-- **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule` i `ModelsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` oraz natywny `/api/v1/models` (`integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — adapter OpenAI: `provider-openai-runtime.md`.
-- **Brand types:** `src/common/types/` — nominalne typy TS w runtime (klucze, identyfikatory, metryki, policy, `WarningCode`); DTO HTTP pozostają prymitywne — `brand-types.md`.
+- **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule` i `ModelsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` oraz natywny `/api/v1/models` (`integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — adapter OpenAI: `provider_openai_runtime.md`.
+- **Brand types:** `src/common/types/` — nominalne typy TS w runtime (klucze, identyfikatory, metryki, policy, `WarningCode`); DTO HTTP pozostają prymitywne — `brand_types.md`.
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb v1). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 
 **Pozostałość v1:** tryb non-interactive CLI; E2E health; pełny extended thinking E2E z **live** OpenAI (pokrycie jednostkowe adaptera `responses.adapter.ts`, mock E2E w `gateway-chat-openai.e2e-spec.ts`, fasada Anthropic extended). Integracyjne wymagają Docker + `.env.test`.
 
-Powiązane: `openapi.json`, `docs/konfiguracja.md`, `docs/dokumentacja_koncepcyjna.md`.
+Powiązane: `openapi.json`, `konfiguracja.md`, `dokumentacja_koncepcyjna.md`.

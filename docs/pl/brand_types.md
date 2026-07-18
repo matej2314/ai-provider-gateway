@@ -162,7 +162,7 @@ Wzorzec (`REQUEST_ID_PATTERN`):
 
 ### `ConversationId`
 
-Identyfikator sesji rozmowy (`conversationId` w body czatu). Szczegóły produktowe: `conversation-tracking.md`; helpery: `src/chat/helpers/conversation-id.ts`.
+Identyfikator sesji rozmowy (`conversationId` w body czatu). Szczegóły produktowe: `conversation_tracking.md`; helpery: `src/chat/helpers/conversation-id.ts`.
 
 | Helper                        | Walidacja                 | Kiedy używać                                             |
 | ----------------------------- | ------------------------- | -------------------------------------------------------- |
@@ -281,5 +281,5 @@ npm run test:cov -- --collectCoverageFrom="common/types/branded*.ts" common/type
 ## Powiązane dokumenty
 
 - `dictionary.md` — terminy Request ID, Conversation ID, sekcja Brand types
-- `conversation-tracking.md` — semantyka `conversationId` w API i Sentry
+- `conversation_tracking.md` — semantyka `conversationId` w API i Sentry
 - `architektura_api.md` — propagacja `requestId`, nagłówek `x-request-id`

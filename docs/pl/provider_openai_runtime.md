@@ -1,7 +1,7 @@
 # Adapter OpenAI (provider runtime)
 
 > **Fasada ≠ adapter:** ten dokument dotyczy **wyłącznie** warstwy `src/providers/` (`type: openai` i `type: openai-compatible` w YAML).  
-> Kontrakt HTTP dla Cursor (`/api/v1/openai/*`, `src/integrations/openai/`) opisuje [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md).  
+> Kontrakt HTTP dla Cursor (`/api/v1/openai/*`, `src/integrations/openai/`) opisuje [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md).  
 > Definicje terminów: [`dictionary.md`](dictionary.md) (sekcja „Fasada vs provider runtime”).
 
 ## Rola adaptera
@@ -122,7 +122,7 @@ Pole `baseUrl` **nie** występuje w YAML — tylko `baseUrlRef` wskazujący zmie
 
 ## Powiązane dokumenty
 
-- [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md) — fasada HTTP (Cursor)
+- [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md) — fasada HTTP (Cursor)
 - [`integracje.md`](integracje.md) — architektura fasad IDE
 - [`dictionary.md`](dictionary.md) — słownik, macierz parametrów
 - [`konfiguracja.md`](konfiguracja.md) — YAML, env, reguły `policy.params`

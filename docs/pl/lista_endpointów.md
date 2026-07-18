@@ -74,7 +74,7 @@ Lista aliasów modeli z `gateway.config.yaml` w kontrakcie gateway (`ModelsContr
 
 ### `POST /api/v1/chat`
 
-Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAndSmartRateLimit()`. Body: `modelAlias`, `messages`, opcjonalnie **`conversationId`** (Sentry: konwersacja tylko w request; response zawsze z ID — `conversation-tracking.md`), opcjonalnie **`metadata`**, opcjonalnie **`params`** (`temperature`, `maxOutputTokens`, `topP`, `topK`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` — merge YAML ← body przez `resolveProviderCallOptions`; `topK` / `stop` / `responseFormat` tylko z body).
+Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAndSmartRateLimit()`. Body: `modelAlias`, `messages`, opcjonalnie **`conversationId`** (Sentry: konwersacja tylko w request; response zawsze z ID — `conversation_tracking.md`), opcjonalnie **`metadata`**, opcjonalnie **`params`** (`temperature`, `maxOutputTokens`, `topP`, `topK`, `stop`, `frequencyPenalty`, `presencePenalty`, `seed`, `responseFormat` — merge YAML ← body przez `resolveProviderCallOptions`; `topK` / `stop` / `responseFormat` tylko z body).
 
 | | |
 |--|--|
@@ -123,7 +123,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 
 ## Integracje IDE (`src/integrations/`)
 
-Fasady dla klientów oczekujących API vendora. Wspólna allowlista kluczy klienta; **inny** nagłówek auth niż natywny czat. Trasy i schematy w **`openapi.json`** (security `BearerAuth` / `ApiKeyAuth`). Błędy w formacie vendora, nie `ErrorEnvelope`. Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
+Fasady dla klientów oczekujących API vendora. Wspólna allowlista kluczy klienta; **inny** nagłówek auth niż natywny czat. Trasy i schematy w **`openapi.json`** (security `BearerAuth` / `ApiKeyAuth`). Błędy w formacie vendora, nie `ErrorEnvelope`. Szczegóły: `integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`.
 
 ### OpenAI API *(Cursor — Bearer)* — **wdrożone**
 
@@ -149,7 +149,7 @@ Base URL w IDE: `http://<host>:<port>/api/v1/anthropic`
 
 Kody sukcesu `POST .../messages`: **201** (JSON), **200** (`stream: true`, SSE). Stream: finalne `message_delta.usage` z `input_tokens` / cache; opcjonalne bloki `thinking` w fazie `done`. Błędy — format Anthropic (`AnthropicErrorResponseDto`).
 
-Auth: `x-api-key` (priorytet) lub `Authorization: Bearer` — ta sama allowlista co natywny czat. Szczegóły: [`integracja-anthropic-messages.md`](integracja-anthropic-messages.md).
+Auth: `x-api-key` (priorytet) lub `Authorization: Bearer` — ta sama allowlista co natywny czat. Szczegóły: [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md).
 
 ---
 

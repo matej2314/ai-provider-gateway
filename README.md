@@ -13,7 +13,7 @@ Aktualnie wspierani **adaptery runtime** (`src/providers/`):
 
 - **Anthropic** (`@anthropic-ai/sdk`) — z pełnym wsparciem **extended thinking** (reasoning models)
 - **Google Gemini** (`@google/genai`) — z pełnym wsparciem **ThinkingConfig** (Gemini 3.0+)
-- **OpenAI** (`type: openai`) — Chat Completions + Responses API (`select-api-surface.ts`); wymaga `baseUrlRef` w YAML
+- **OpenAI** (`type: openai`) — Responses API (`create-openai-provider.core.ts`); wymaga `baseUrlRef` w YAML
 - **OpenAI-compatible** (`type: openai-compatible`) — Chat Completions (np. Ollama, lokalne endpointy); wymaga `baseUrlRef`, klucz API opcjonalny
 
 > **Uwaga — dwa „OpenAI” w projekcie:**
@@ -276,7 +276,7 @@ Opcjonalny cache tylko dla **`POST /api/v1/chat`** (`CACHE_ENABLED`, `CACHE_BACK
 
 ## System prompt i tool calling
 
-Rola **`system`** w `messages[]` jest zablokowana — instrukcja systemowa jest składana po stronie serwera z [`src/config/system-prompt/`](src/config/system-prompt/) (`composeSystemPrompt`).
+Rola **`system`** w `messages[]` jest zablokowana — instrukcja systemowa jest składana po stronie serwera przez [`composeSystemPrompt`](src/chat/helpers/system-prompt.ts) z plików w [`src/config/system-prompt/`](src/config/system-prompt/).
 
 W `messages[]` dozwolone są role **`user`**, **`assistant`** i **`tool`** (wynik wywołania narzędzia — wymaga `toolCallId`). Asystent może zwracać **`toolCalls`** w odpowiedzi. Opcjonalne pole **`tooling`** w body (`definitions`, `toolChoice`) włącza function calling — wymaga `capabilities.tools: true` dla aliasu w YAML; inaczej **`400`** + **`TOOLS_NOT_SUPPORTED`**.
 
@@ -303,7 +303,7 @@ Pełne drzewo: [`docs/architektura-katalogi-pliki.md`](docs/architektura-katalog
 
 Szczegóły pokrycia, liczniki zestawów i przypadków testowych: [`docs/testy.md`](docs/testy.md).
 
-Aktualne liczniki: `npm test` — **92** zestawów / **1243** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105**; `npm run test:security` — **5** / **51** (źródło: [`docs/testy.md`](docs/testy.md)).
+Aktualne liczniki: `npm test` — **92** zestawów / **1248** przypadków; `npm run test:cli` — **12** / **62**; `npm run test:e2e` — **10** / **105**; `npm run test:security` — **5** / **51** (źródło: [`docs/testy.md`](docs/testy.md)).
 
 Uruchomienie:
 
@@ -375,6 +375,7 @@ npm run docker:up              # MVP: sam gateway
 npm run docker:up:redis        # + Redis
 npm run docker:up:monitoring   # + Prometheus + Grafana
 npm run docker:up:full         # gateway + Redis + monitoring
+npm run docker:up:ollama       # + Ollama (lokalny LLM)
 npm run docker:up:dev          # dev z hot reload
 npm run docker:down
 npm run deploy:mvp             # test:all + build + docker:up

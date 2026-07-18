@@ -1,6 +1,6 @@
 # Deployment Guide — AI Provider Gateway
 
-Przewodnik wdrożenia lokalnego (Docker Compose) oraz produkcyjnego na VPS przez **GitHub Actions** (self-hosted runner). Artefakty deploymentu znajdują się w katalogu `deployment/` — oddzielonym od kodu źródłowego aplikacji. Workflow produkcyjny: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml).
+Przewodnik wdrożenia lokalnego (Docker Compose) oraz produkcyjnego na VPS przez **GitHub Actions** (self-hosted runner). Artefakty deploymentu znajdują się w katalogu `deployment/` — oddzielonym od kodu źródłowego aplikacji. Workflow produkcyjny: [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml).
 
 Szczegóły konfiguracji runtime (env, YAML, walidacja): [`konfiguracja.md`](konfiguracja.md).  
 Gateway CLI (wizard, CRUD providerów/modeli/klientów): [`CLI.md`](CLI.md).
@@ -338,7 +338,7 @@ Lokalne skróty `npm run deploy:mvp` / `deploy:staging` / `deploy:production` (o
 
 ## Deploy na VPS (GitHub Actions)
 
-Produkcyjny pipeline: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) → skrypt [`deployment/scripts/deploy-production.sh`](../deployment/scripts/deploy-production.sh).
+Produkcyjny pipeline: [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) → skrypt [`deployment/scripts/deploy-production.sh`](../../deployment/scripts/deploy-production.sh).
 
 ### Założenia
 
@@ -358,7 +358,7 @@ Definicja workflow pochodzi z brancha wybranego w UI Actions („Use workflow fr
 
 ### Jak odpalić deploy
 
-1. Upewnij się, że dla docelowego SHA jest zielony run [`ci.yml`](../.github/workflows/ci.yml) (na push do feature brancha zwykle tryb szybki: lint + unit).
+1. Upewnij się, że dla docelowego SHA jest zielony run [`ci.yml`](../../.github/workflows/ci.yml) (na push do feature brancha zwykle tryb szybki: lint + unit).
 2. Actions → **Deploy to VPS** → Run workflow.
 3. Inputy:
    - **`branch`** — tip brancha (domyślnie w workflow: feature używany do nauki flow),
@@ -548,10 +548,10 @@ Przed wdrożeniem na produkcję:
 
 ## Powiązana dokumentacja
 
-- [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — orchestracja VPS
-- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — gate przed deployem
+- [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) — orchestracja VPS
+- [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) — gate przed deployem
 - [`konfiguracja.md`](konfiguracja.md) — env, YAML, walidacja, Redis, rate limit
 - [`CLI.md`](CLI.md) — wizard i komendy administracyjne
 - [`architektura.md`](architektura.md) — moduły i observability
 - [`testy.md`](testy.md) — testy jednostkowe, E2E, security
-- [`../SECURITY.md`](../SECURITY.md) — polityka bezpieczeństwa, sekrety
+- [`../SECURITY.md`](../../SECURITY.md) — polityka bezpieczeństwa, sekrety

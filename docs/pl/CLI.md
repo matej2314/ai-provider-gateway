@@ -1,6 +1,6 @@
-﻿# Gateway CLI — dokumentacja
+# Gateway CLI — dokumentacja
 
-Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya, zarządzania providerami, modelami i klientami oraz operacji developerskich. **Osobny entry point** od serwisu HTTP — szczegóły architektury: `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
+Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya, zarządzania providerami, modelami i klientami oraz operacji developerskich. **Osobny entry point** od serwisu HTTP — szczegóły architektury: `architektura.md`, `architektura_katalogi_pliki.md` (sekcja 2a).
 
 **Konwencja komend:** `gateway <namespace>:<action>` (np. `gateway config:init`).
 
@@ -456,7 +456,7 @@ Kierunek zależności: **config → cli**, **cache/should-include-redis-stack �
 | `templates/env.template.ts` | `generateEnvTemplate()`, `isEnvInputRedisRequired()` |
 | `src/cache/should-include-redis-stack.ts` | Współdzielona z runtime logika `isRedisRequired()` (CLI importuje **bez** `ConfigModule`) |
 
-Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `validateEnvironment()` / fasada walidacji, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import z `src/cache/should-include-redis-stack.ts`: predykat wymagania Redis (cache redis i/lub smart rate limit). Patrz `anty-patterny.md` (§14).
+Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `validateEnvironment()` / fasada walidacji, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import z `src/cache/should-include-redis-stack.ts`: predykat wymagania Redis (cache redis i/lub smart rate limit). Patrz `anty_patterny.md` (§14).
 
 ## Wskazówki
 
@@ -470,5 +470,5 @@ Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `validat
 
 - `konfiguracja.md` — runtime vs CLI loader, Redis współdzielony (cache + rate limit), `npm run config:validate`, placeholder config, multi-instance
 - `architektura.md` — diagram izolacji CLI / HTTP
-- `architektura-katalogi-pliki.md` — drzewo `src/cli/`
+- `architektura_katalogi_pliki.md` — drzewo `src/cli/`
 - `dictionary.md` — terminy *Gateway CLI*, *CliConfigLoader*, *placeholder config*, *providerInstance*

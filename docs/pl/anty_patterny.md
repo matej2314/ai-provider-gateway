@@ -109,7 +109,7 @@ Uzasadnienie: Fasady IDE wymagają zgodności z OpenAI API i Anthropic Messages 
 
 **Nie rób**: uruchamiania gatewaya, gdy w env brakuje sekretów dla którejkolwiek **włączonej** instancji providera w YAML (`assertEnabledProviderSecretsPresent` w `configuration-validation.service.ts` — API key / base URL).
 
-**Rób**: fail-fast przy starcie; lokalnie upewnij się, że `.env` zawiera wartości dla wszystkich `apiKeyRef` włączonych providerów (szczegóły: `docs/konfiguracja.md`).
+**Rób**: fail-fast przy starcie; lokalnie upewnij się, że `.env` zawiera wartości dla wszystkich `apiKeyRef` włączonych providerów (szczegóły: `konfiguracja.md`).
 
 ## 11) Mylenie kodów limitów (`RATE_LIMITED` vs `PROVIDER_RATE_LIMITED`)
 
@@ -128,7 +128,7 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 **Nie rób**: oczekiwania, że **`requestId`** w odpowiedzi z cache zawsze odpowiada bieżącemu żądaniu — w implementacji zwracany jest identyfikator zapisany wraz z pierwszą odpowiedzią.
 
-**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony wpis usuwany); streaming jest ścieżką bez cache (`docs/spec/SPEC-CHAT-STREAMING.md`).
+**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony wpis usuwany); streaming jest ścieżką bez cache (`spec/SPEC-CHAT-STREAMING.md`).
 
 ## 13) Mylenie trzech kontraktów API (natywny vs fasady IDE)
 
@@ -149,7 +149,7 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 - mapowanie `model` (vendor) → `modelAlias` (YAML) w warstwie mapperów,
 - rozróżnienie **fasady integracji** (`src/integrations/`) vs **providera runtime** (`src/providers/`) — patrz `dictionary.md` (sekcja „Fasada vs provider runtime”).
 
-Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`.
+Szczegóły: `integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`.
 
 ## 14) CLI zależne od `ConfigModule` (deadlock konfiguracji)
 
@@ -166,7 +166,7 @@ Szczegóły: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthr
 - reużycie **tylko** typów/schematów/walidatorów z `src/config/` (kierunek: config → cli, nie odwrotnie),
 - wrapper z fallbackiem `ts-node`, gdy brak `dist/`.
 
-Szczegóły: `CLI.md`, `architektura.md`, `architektura-katalogi-pliki.md` (sekcja 2a).
+Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekcja 2a).
 
 ## 15) Start serwera bez właściwego pliku konfiguracyjnego
 

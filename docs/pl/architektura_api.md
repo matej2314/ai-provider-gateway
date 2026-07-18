@@ -31,7 +31,7 @@ Błędy w spec: natywny czat i models — `ErrorEnvelope`; fasady — `OpenAiErr
   - **standard** (pełna odpowiedź JSON),
   - **streaming** (SSE gateway: `meta` → `delta` → `done`).
 
-**Warunek uruchomienia:** przy starcie wczytywany jest `gateway.config.yaml` (fail‑fast przy błędzie). Każda włączona instancja providera wymaga poprawnych sekretów w env (API key / base URL) przez fasadę `configuration-validation.service.ts` (szczegóły: `docs/konfiguracja.md`).
+**Warunek uruchomienia:** przy starcie wczytywany jest `gateway.config.yaml` (fail‑fast przy błędzie). Każda włączona instancja providera wymaga poprawnych sekretów w env (API key / base URL) przez fasadę `configuration-validation.service.ts` (szczegóły: `konfiguracja.md`).
 
 ## Identyfikacja modeli (aliasy)
 
@@ -61,7 +61,7 @@ Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 - `output` — treść odpowiedzi (tekst i/lub struktura),
 - `usage` — metadane tokenów (jeśli dostępne),
 - `requestId` — korelacja z logami.
-- `conversationId` — ID rozmowy (echo lub `conv_<uuid>` z gateway) — tylko czat; szczegóły: `conversation-tracking.md`.
+- `conversationId` — ID rozmowy (echo lub `conv_<uuid>` z gateway) — tylko czat; szczegóły: `conversation_tracking.md`.
 - `effectiveModelAlias` — opcjonalnie, gdy `ResilientExecutor` obsłużył żądanie na aliasie `fallback` z YAML (pole `model` = żądany alias).
 - `toolCalls`, `finishReason` — opcjonalnie przy function calling (`capabilities.tools` w YAML); `finishReason` w runtime: `stop` | `tool_calls` | `length` | `content_filter` — typ `GatewayFinishReason`, mapowanie `mapStopReasonToFinishReason` (`src/chat/helpers/map-provider-finish-reason.ts`).
 - `usageDetails` — opcjonalnie tokeny cache Anthropic (`promptCacheHitTokens`, `promptCacheCreationTokens`).
@@ -98,7 +98,7 @@ Przekroczenie limitu rozmiaru body (**1 MB**) → **413 Payload Too Large** z ko
 - Pole opcjonalne w body **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`**.
 - **Response:** zawsze `conversationId` (echo lub nowe `conv_<uuid>`) — JSON / SSE `meta`.
 - **Sentry Conversations:** `gen_ai.conversation.id` **tylko**, gdy klient **podaje** `conversationId` w request; bez niego — span pojedynczej wiadomości. Od tury 2 klient wysyła pełną historię w `messages[]` (w tym pierwszą odpowiedź assistenta).
-- Szczegóły: `conversation-tracking.md`, schema `ChatRequest` w `openapi.json`.
+- Szczegóły: `conversation_tracking.md`, schema `ChatRequest` w `openapi.json`.
 
 ## Walidacja
 
@@ -128,11 +128,11 @@ W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** 
 
 ## Powiązane dokumenty
 
-- Fasady IDE: `integracje.md`, `integracja-openai-kontrakt.md`, `integracja-anthropic-messages.md`
+- Fasady IDE: `integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`
 - Kontrakt endpointów: `dokumentacja_api.md`
-- Śledzenie rozmów (metryki): `conversation-tracking.md`
+- Śledzenie rozmów (metryki): `conversation_tracking.md`
 - Lista ścieżek: `lista_endpointów.md`
 - Konfiguracja i aliasy: `konfiguracja.md`
 - Streaming i format zdarzeń: `dokumentacja_api.md`
-- Anty‑patterny: `anty-patterny.md`
+- Anty‑patterny: `anty_patterny.md`
 
