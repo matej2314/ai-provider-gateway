@@ -124,7 +124,6 @@
   "122": "Dokumentacja — AI Provider Gateway",
   "123": "chat-validation.service.spec.ts",
   "124": "Specyfikacje (Spec‑Driven Development)",
-  "125": "KeyGenerateCommand",
   "126": "tsconfig.build.json",
   "127": "entrypoint.sh",
   "128": "generate-key.sh script",
@@ -138,6 +137,5 @@
   "136": "eslint.config.mjs",
   "137": "generate-key.ps1",
   "138": "MAIN_SYSTEM_PROMPT.md",
-  "139": "openai-chat-completions.controller.ts",
-  "140": "openai-bearer-auth.guard.spec.ts"
+  "139": "openai-chat-completions.controller.ts"
 }

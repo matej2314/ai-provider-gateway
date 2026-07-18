@@ -1040,8 +1040,8 @@
     "semantic_hash": "314187cd9c11ee9fa3cb9da755996dfb"
   },
   "src/config/configuration.ts": {
-    "mtime": 1784308091.0110679,
-    "ast_hash": "3541d3941518baa3fbb18c52417e0c91",
+    "mtime": 1784371853.8376424,
+    "ast_hash": "e2e8c9e979ae097a2526581cf51c1505",
     "semantic_hash": ""
   },
   "src/config/configuration.types.ts": {
@@ -1685,8 +1685,8 @@
     "semantic_hash": ""
   },
   "src/providers/openai/adapters/chat-completions.adapter.spec.ts": {
-    "mtime": 1784367907.2381706,
-    "ast_hash": "5b1d2dbc482e10f8d68a0b7ca6738b3d",
+    "mtime": 1784372930.742225,
+    "ast_hash": "6d723798bd8f10694ba266d4d2d53625",
     "semantic_hash": ""
   },
   "src/providers/openai/adapters/chat-completions.adapter.ts": {
@@ -1695,8 +1695,8 @@
     "semantic_hash": ""
   },
   "src/providers/openai/adapters/responses.adapter.spec.ts": {
-    "mtime": 1784367903.802683,
-    "ast_hash": "849b3731e9d16db75fc6c2376fab98ef",
+    "mtime": 1784372927.9947653,
+    "ast_hash": "8f71dcd01e2c92c933fa5f498d5de3f1",
     "semantic_hash": ""
   },
   "src/providers/openai/adapters/responses.adapter.ts": {
@@ -2700,8 +2700,8 @@
     "semantic_hash": ""
   },
   "src/config/configuration-validation.service.ts": {
-    "mtime": 1784308082.640927,
-    "ast_hash": "792ef98b17938784e81bd9623303b3fb",
+    "mtime": 1784371853.8376424,
+    "ast_hash": "92a6f432c49fb027f43ce6d4646bcac3",
     "semantic_hash": ""
   },
   "src/common/errors/error.types.ts": {

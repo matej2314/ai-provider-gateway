@@ -3602,7 +3602,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_chat_dto_chat_output_text_dto",
-      "community": 108,
+      "community": 37,
       "norm_label": "chat-output-text.dto.ts"
     },
     {
@@ -3612,7 +3612,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "src_chat_dto_chat_output_text_dto_chatoutputtextdto",
-      "community": 108,
+      "community": 37,
       "norm_label": "chatoutputtextdto"
     },
     {
@@ -3622,7 +3622,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_chat_dto_chat_output_text_dto_ts_apiproperty",
-      "community": 108,
+      "community": 37,
       "norm_label": "apiproperty"
     },
     {
@@ -4112,7 +4112,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_chat_dto_chat_usage_dto",
-      "community": 37,
+      "community": 108,
       "norm_label": "chat-usage.dto.ts"
     },
     {
@@ -4122,7 +4122,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "src_chat_dto_chat_usage_dto_chatusagedto",
-      "community": 37,
+      "community": 108,
       "norm_label": "chatusagedto"
     },
     {
@@ -4132,7 +4132,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_chat_dto_chat_usage_dto_ts_apipropertyoptional",
-      "community": 37,
+      "community": 108,
       "norm_label": "apipropertyoptional"
     },
     {
@@ -6292,7 +6292,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "src_cli_commands_config_config_init_command_configinitcommand",
-      "community": 9,
+      "community": 1,
       "norm_label": "configinitcommand"
     },
     {
@@ -6302,7 +6302,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_cli_commands_config_config_init_command_ts_command",
-      "community": 9,
+      "community": 1,
       "norm_label": "command"
     },
     {
@@ -6312,7 +6312,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "src_cli_commands_config_config_init_command_configinitcommand_constructor",
-      "community": 22,
+      "community": 1,
       "norm_label": ".constructor()"
     },
     {
@@ -6482,7 +6482,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "src_cli_commands_key_key_generate_command_keygeneratecommand",
-      "community": 125,
+      "community": 1,
       "norm_label": "keygeneratecommand"
     },
     {
@@ -6492,7 +6492,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_cli_commands_key_key_generate_command_ts_command",
-      "community": 125,
+      "community": 1,
       "norm_label": "command"
     },
     {
@@ -6512,7 +6512,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "src_cli_commands_key_key_generate_command_keygeneratecommand_constructor",
-      "community": 125,
+      "community": 1,
       "norm_label": ".constructor()"
     },
     {
@@ -6532,7 +6532,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "src_cli_commands_key_key_generate_command_keygeneratecommand_derivegatewaykeyref",
-      "community": 125,
+      "community": 1,
       "norm_label": ".derivegatewaykeyref()"
     },
     {
@@ -7002,7 +7002,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_cli_commands_provider_provider_test_command_ts_option",
-      "community": 9,
+      "community": 94,
       "norm_label": "option"
     },
     {
@@ -7032,7 +7032,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "src_cli_commands_provider_provider_test_command_providertestcommand_parseprovider",
-      "community": 9,
+      "community": 94,
       "norm_label": ".parseprovider()"
     },
     {
@@ -7082,7 +7082,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_constants_default_models",
-      "community": 3,
+      "community": 19,
       "norm_label": "default-models.ts"
     },
     {
@@ -7092,7 +7092,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "src_cli_constants_default_models_default_models",
-      "community": 3,
+      "community": 19,
       "norm_label": "default_models"
     },
     {
@@ -7242,7 +7242,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema_spec",
-      "community": 3,
+      "community": 19,
       "norm_label": "wizard-state.schema.spec.ts"
     },
     {
@@ -7252,7 +7252,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema",
-      "community": 3,
+      "community": 19,
       "norm_label": "wizard-state.schema.ts"
     },
     {
@@ -7262,7 +7262,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema_cliratelimitschema",
-      "community": 3,
+      "community": 19,
       "norm_label": "cliratelimitschema"
     },
     {
@@ -7272,7 +7272,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema_cliaiproviderschema",
-      "community": 3,
+      "community": 19,
       "norm_label": "cliaiproviderschema"
     },
     {
@@ -7282,7 +7282,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema_cliaimodelschema",
-      "community": 3,
+      "community": 19,
       "norm_label": "cliaimodelschema"
     },
     {
@@ -7292,7 +7292,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema_gatewayclientschema",
-      "community": 3,
+      "community": 19,
       "norm_label": "gatewayclientschema"
     },
     {
@@ -7302,7 +7302,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema_wizardstateschema",
-      "community": 3,
+      "community": 19,
       "norm_label": "wizardstateschema"
     },
     {
@@ -7312,7 +7312,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema_convertratelimit",
-      "community": 21,
+      "community": 14,
       "norm_label": "convertratelimit()"
     },
     {
@@ -7332,7 +7332,7 @@
       "source_location": "L116",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema_convertmodel",
-      "community": 3,
+      "community": 19,
       "norm_label": "convertmodel()"
     },
     {
@@ -7342,7 +7342,7 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema_convertclient",
-      "community": 3,
+      "community": 19,
       "norm_label": "convertclient()"
     },
     {
@@ -7352,7 +7352,7 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "src_cli_schemas_wizard_state_schema_parsewizardstate",
-      "community": 3,
+      "community": 19,
       "norm_label": "parsewizardstate()"
     },
     {
@@ -7522,7 +7522,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_services_cli_services_types",
-      "community": 21,
+      "community": 19,
       "norm_label": "cli.services.types.ts"
     },
     {
@@ -7532,7 +7532,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "src_cli_services_cli_services_types_cliratelimit",
-      "community": 21,
+      "community": 19,
       "norm_label": "cliratelimit"
     },
     {
@@ -7562,7 +7562,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "src_cli_services_cli_services_types_gatewayclient",
-      "community": 21,
+      "community": 19,
       "norm_label": "gatewayclient"
     },
     {
@@ -7582,7 +7582,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_services_client_manager_service",
-      "community": 21,
+      "community": 1,
       "norm_label": "client-manager.service.ts"
     },
     {
@@ -7592,7 +7592,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "src_cli_services_client_manager_service_clientmanagerservice",
-      "community": 21,
+      "community": 1,
       "norm_label": "clientmanagerservice"
     },
     {
@@ -7602,7 +7602,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_cli_services_client_manager_service_ts_injectable",
-      "community": 21,
+      "community": 1,
       "norm_label": "injectable"
     },
     {
@@ -7612,7 +7612,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "src_cli_services_client_manager_service_clientmanagerservice_constructor",
-      "community": 14,
+      "community": 1,
       "norm_label": ".constructor()"
     },
     {
@@ -7622,7 +7622,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "src_cli_services_client_manager_service_clientmanagerservice_derivegatewaykeyref",
-      "community": 21,
+      "community": 3,
       "norm_label": ".derivegatewaykeyref()"
     },
     {
@@ -7632,7 +7632,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "src_cli_services_client_manager_service_clientmanagerservice_addclient",
-      "community": 21,
+      "community": 14,
       "norm_label": ".addclient()"
     },
     {
@@ -7642,7 +7642,7 @@
       "source_location": "L176",
       "_origin": "ast",
       "id": "src_cli_services_client_manager_service_clientmanagerservice_editclient",
-      "community": 21,
+      "community": 14,
       "norm_label": ".editclient()"
     },
     {
@@ -7792,7 +7792,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "src_cli_services_config_persistence_service_configpersistenceservice",
-      "community": 14,
+      "community": 1,
       "norm_label": "configpersistenceservice"
     },
     {
@@ -7802,7 +7802,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_cli_services_config_persistence_service_ts_injectable",
-      "community": 14,
+      "community": 1,
       "norm_label": "injectable"
     },
     {
@@ -7812,7 +7812,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "src_cli_services_config_persistence_service_configpersistenceservice_constructor",
-      "community": 14,
+      "community": 1,
       "norm_label": ".constructor()"
     },
     {
@@ -8052,7 +8052,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_services_key_generator_service_spec",
-      "community": 21,
+      "community": 1,
       "norm_label": "key-generator.service.spec.ts"
     },
     {
@@ -8062,7 +8062,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_services_key_generator_service",
-      "community": 21,
+      "community": 1,
       "norm_label": "key-generator.service.ts"
     },
     {
@@ -8072,7 +8072,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "src_cli_services_key_generator_service_keygeneratorservice",
-      "community": 21,
+      "community": 1,
       "norm_label": "keygeneratorservice"
     },
     {
@@ -8082,7 +8082,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_cli_services_key_generator_service_ts_injectable",
-      "community": 21,
+      "community": 1,
       "norm_label": "injectable"
     },
     {
@@ -8092,7 +8092,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "src_cli_services_key_generator_service_keygeneratorservice_randomsegment",
-      "community": 21,
+      "community": 1,
       "norm_label": ".randomsegment()"
     },
     {
@@ -8102,7 +8102,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "src_cli_services_key_generator_service_keygeneratorservice_generatemasterkey",
-      "community": 21,
+      "community": 1,
       "norm_label": ".generatemasterkey()"
     },
     {
@@ -8112,7 +8112,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "src_cli_services_key_generator_service_keygeneratorservice_generategatewayclientkey",
-      "community": 21,
+      "community": 14,
       "norm_label": ".generategatewayclientkey()"
     },
     {
@@ -8152,7 +8152,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "src_cli_services_model_manager_service_modelmanagerservice",
-      "community": 26,
+      "community": 1,
       "norm_label": "modelmanagerservice"
     },
     {
@@ -8162,7 +8162,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_cli_services_model_manager_service_ts_injectable",
-      "community": 26,
+      "community": 1,
       "norm_label": "injectable"
     },
     {
@@ -8172,7 +8172,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "src_cli_services_model_manager_service_modelmanagerservice_constructor",
-      "community": 22,
+      "community": 1,
       "norm_label": ".constructor()"
     },
     {
@@ -8202,7 +8202,7 @@
       "source_location": "L471",
       "_origin": "ast",
       "id": "src_cli_services_model_manager_service_modelmanagerservice_removemodel",
-      "community": 26,
+      "community": 9,
       "norm_label": ".removemodel()"
     },
     {
@@ -8212,7 +8212,7 @@
       "source_location": "L532",
       "_origin": "ast",
       "id": "src_cli_services_model_manager_service_modelmanagerservice_deletemodelprompt",
-      "community": 22,
+      "community": 9,
       "norm_label": ".deletemodelprompt()"
     },
     {
@@ -8222,7 +8222,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_services_prompts_client_prompt_service",
-      "community": 21,
+      "community": 19,
       "norm_label": "client-prompt.service.ts"
     },
     {
@@ -8232,7 +8232,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "src_cli_services_prompts_client_prompt_service_clientpromptresult",
-      "community": 21,
+      "community": 19,
       "norm_label": "clientpromptresult"
     },
     {
@@ -8242,7 +8242,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "src_cli_services_prompts_client_prompt_service_clientbasicanswers",
-      "community": 21,
+      "community": 19,
       "norm_label": "clientbasicanswers"
     },
     {
@@ -8252,7 +8252,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "src_cli_services_prompts_client_prompt_service_ratelimitanswers",
-      "community": 21,
+      "community": 19,
       "norm_label": "ratelimitanswers"
     },
     {
@@ -8282,7 +8282,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "src_cli_services_prompts_client_prompt_service_clientpromptservice_promptclients",
-      "community": 21,
+      "community": 14,
       "norm_label": ".promptclients()"
     },
     {
@@ -8322,7 +8322,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "src_cli_services_prompts_key_prompt_service_keypromptservice_promptmasterkey",
-      "community": 21,
+      "community": 1,
       "norm_label": ".promptmasterkey()"
     },
     {
@@ -8332,7 +8332,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_services_prompts_model_prompt_service",
-      "community": 3,
+      "community": 19,
       "norm_label": "model-prompt.service.ts"
     },
     {
@@ -8342,7 +8342,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "src_cli_services_prompts_model_prompt_service_modelpromptresult",
-      "community": 3,
+      "community": 19,
       "norm_label": "modelpromptresult"
     },
     {
@@ -8402,7 +8402,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "src_cli_services_prompts_provider_prompt_service_providerpromptservice",
-      "community": 19,
+      "community": 3,
       "norm_label": "providerpromptservice"
     },
     {
@@ -8412,7 +8412,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_cli_services_prompts_provider_prompt_service_ts_injectable",
-      "community": 19,
+      "community": 3,
       "norm_label": "injectable"
     },
     {
@@ -8572,7 +8572,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "src_cli_services_provider_manager_service_providermanagerservice_constructor",
-      "community": 14,
+      "community": 1,
       "norm_label": ".constructor()"
     },
     {
@@ -8582,7 +8582,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "src_cli_services_provider_manager_service_providermanagerservice_deriveapikeyref",
-      "community": 3,
+      "community": 1,
       "norm_label": ".deriveapikeyref()"
     },
     {
@@ -8592,7 +8592,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "src_cli_services_provider_manager_service_providermanagerservice_hasmodelsforinstance",
-      "community": 9,
+      "community": 1,
       "norm_label": ".hasmodelsforinstance()"
     },
     {
@@ -8842,7 +8842,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "src_cli_services_wizard_state_manager_service_wizardstatemanager_clearstate",
-      "community": 19,
+      "community": 9,
       "norm_label": ".clearstate()"
     },
     {
@@ -8862,7 +8862,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "src_cli_services_wizard_state_manager_service_wizardstatemanager_rollback",
-      "community": 19,
+      "community": 9,
       "norm_label": ".rollback()"
     },
     {
@@ -8872,7 +8872,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_templates_env_template",
-      "community": 22,
+      "community": 3,
       "norm_label": "env.template.ts"
     },
     {
@@ -8892,7 +8892,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "src_cli_templates_env_template_clientcli",
-      "community": 22,
+      "community": 3,
       "norm_label": "clientcli"
     },
     {
@@ -8912,7 +8912,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "src_cli_templates_env_template_isenvinputredisrequired",
-      "community": 22,
+      "community": 3,
       "norm_label": "isenvinputredisrequired()"
     },
     {
@@ -8922,7 +8922,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "src_cli_templates_env_template_generateenvtemplate",
-      "community": 22,
+      "community": 3,
       "norm_label": "generateenvtemplate()"
     },
     {
@@ -8932,7 +8932,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_templates_gateway_config_template",
-      "community": 21,
+      "community": 14,
       "norm_label": "gateway-config.template.ts"
     },
     {
@@ -8952,7 +8952,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "src_cli_templates_gateway_config_template_generategatewayconfigtemplate",
-      "community": 21,
+      "community": 14,
       "norm_label": "generategatewayconfigtemplate()"
     },
     {
@@ -9052,7 +9052,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "src_cli_utils_cli_logger_util_clilogger_success",
-      "community": 22,
+      "community": 9,
       "norm_label": ".success()"
     },
     {
@@ -9122,7 +9122,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_utils_client_rate_limit_util_spec",
-      "community": 21,
+      "community": 14,
       "norm_label": "client-rate-limit.util.spec.ts"
     },
     {
@@ -9132,7 +9132,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_utils_client_rate_limit_util",
-      "community": 21,
+      "community": 14,
       "norm_label": "client-rate-limit.util.ts"
     },
     {
@@ -9142,7 +9142,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "src_cli_utils_client_rate_limit_util_buildclientratelimitconfig",
-      "community": 21,
+      "community": 14,
       "norm_label": "buildclientratelimitconfig()"
     },
     {
@@ -9192,7 +9192,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "src_cli_utils_default_model_policy_util_builddefaultmodelcapabilities",
-      "community": 26,
+      "community": 14,
       "norm_label": "builddefaultmodelcapabilities()"
     },
     {
@@ -9282,7 +9282,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_cli_utils_legacy_provider_env_util_spec",
-      "community": 22,
+      "community": 3,
       "norm_label": "legacy-provider-env.util.spec.ts"
     },
     {
@@ -9322,7 +9322,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "src_cli_utils_legacy_provider_env_util_applylegacyproviderapikeyenv",
-      "community": 22,
+      "community": 3,
       "norm_label": "applylegacyproviderapikeyenv()"
     },
     {
@@ -9562,7 +9562,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_common_decorators_api_openai_error_response_decorator",
-      "community": 10,
+      "community": 21,
       "norm_label": "api-openai-error-response.decorator.ts"
     },
     {
@@ -9572,7 +9572,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "src_common_decorators_api_openai_error_response_decorator_apiopenaierrorresponses",
-      "community": 10,
+      "community": 21,
       "norm_label": "apiopenaierrorresponses()"
     },
     {
@@ -9582,7 +9582,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_common_decorators_api_request_id_header_decorator",
-      "community": 27,
+      "community": 42,
       "norm_label": "api-request-id-header.decorator.ts"
     },
     {
@@ -9592,7 +9592,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_common_decorators_api_request_id_header_decorator_apirequestidheader",
-      "community": 27,
+      "community": 42,
       "norm_label": "apirequestidheader()"
     },
     {
@@ -10042,7 +10042,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "src_common_filters_http_exception_filter_ispayloadtoolargeerror",
-      "community": 2,
+      "community": 112,
       "norm_label": "ispayloadtoolargeerror()"
     },
     {
@@ -10052,7 +10052,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "src_common_filters_http_exception_filter_globalexceptionfilter",
-      "community": 2,
+      "community": 112,
       "norm_label": "globalexceptionfilter"
     },
     {
@@ -10062,7 +10062,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_common_filters_http_exception_filter_ts_catch",
-      "community": 2,
+      "community": 112,
       "norm_label": "catch"
     },
     {
@@ -10072,7 +10072,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_common_filters_http_exception_filter_ts_injectable",
-      "community": 2,
+      "community": 112,
       "norm_label": "injectable"
     },
     {
@@ -10082,7 +10082,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "src_common_filters_http_exception_filter_globalexceptionfilter_constructor",
-      "community": 2,
+      "community": 112,
       "norm_label": ".constructor()"
     },
     {
@@ -10092,7 +10092,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "src_common_filters_http_exception_filter_globalexceptionfilter_catch",
-      "community": 2,
+      "community": 112,
       "norm_label": ".catch()"
     },
     {
@@ -10102,7 +10102,7 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "src_common_filters_http_exception_filter_globalexceptionfilter_normalizemessage",
-      "community": 2,
+      "community": 112,
       "norm_label": ".normalizemessage()"
     },
     {
@@ -10112,7 +10112,7 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "src_common_filters_http_exception_filter_globalexceptionfilter_maphttpstatustocode",
-      "community": 2,
+      "community": 112,
       "norm_label": ".maphttpstatustocode()"
     },
     {
@@ -10192,7 +10192,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "src_common_interceptors_stream_cleanup_interceptor_streamcleanupinterceptor_intercept",
-      "community": 41,
+      "community": 42,
       "norm_label": ".intercept()"
     },
     {
@@ -11072,7 +11072,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_common_readclientgatewaykey",
-      "community": 41,
+      "community": 38,
       "norm_label": "readclientgatewaykey.ts"
     },
     {
@@ -11082,7 +11082,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "src_common_readclientgatewaykey_readclientgatewaykey",
-      "community": 41,
+      "community": 42,
       "norm_label": "readclientgatewaykey()"
     },
     {
@@ -11092,7 +11092,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_common_readgatewaykeyheader_spec",
-      "community": 41,
+      "community": 38,
       "norm_label": "readgatewaykeyheader.spec.ts"
     },
     {
@@ -11102,7 +11102,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "src_common_readgatewaykeyheader_spec_expectgatewaykey",
-      "community": 41,
+      "community": 38,
       "norm_label": "expectgatewaykey()"
     },
     {
@@ -11112,7 +11112,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_common_readgatewaykeyheader",
-      "community": 41,
+      "community": 38,
       "norm_label": "readgatewaykeyheader.ts"
     },
     {
@@ -11122,7 +11122,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "src_common_readgatewaykeyheader_readgatewaykeyheader",
-      "community": 41,
+      "community": 38,
       "norm_label": "readgatewaykeyheader()"
     },
     {
@@ -11132,7 +11132,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_common_requireclientgatewaykey",
-      "community": 41,
+      "community": 42,
       "norm_label": "requireclientgatewaykey.ts"
     },
     {
@@ -11142,7 +11142,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "src_common_requireclientgatewaykey_requireclientgatewaykey",
-      "community": 41,
+      "community": 42,
       "norm_label": "requireclientgatewaykey()"
     },
     {
@@ -11432,7 +11432,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "src_common_types_branded_types_toolcallid",
-      "community": 46,
+      "community": 13,
       "norm_label": "toolcallid"
     },
     {
@@ -11592,7 +11592,7 @@
       "source_location": "L162",
       "_origin": "ast",
       "id": "src_common_types_branded_types_ratelimitrps",
-      "community": 21,
+      "community": 19,
       "norm_label": "ratelimitrps"
     },
     {
@@ -11602,7 +11602,7 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "src_common_types_branded_types_ratelimitburst",
-      "community": 21,
+      "community": 19,
       "norm_label": "ratelimitburst"
     },
     {
@@ -11612,7 +11612,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "src_common_types_branded_types_maxconcurrentstreams",
-      "community": 21,
+      "community": 19,
       "norm_label": "maxconcurrentstreams"
     },
     {
@@ -11772,7 +11772,7 @@
       "source_location": "L259",
       "_origin": "ast",
       "id": "src_common_types_branded_types_asratelimitrps",
-      "community": 21,
+      "community": 14,
       "norm_label": "asratelimitrps()"
     },
     {
@@ -11782,7 +11782,7 @@
       "source_location": "L264",
       "_origin": "ast",
       "id": "src_common_types_branded_types_asratelimitburst",
-      "community": 21,
+      "community": 14,
       "norm_label": "asratelimitburst()"
     },
     {
@@ -11792,7 +11792,7 @@
       "source_location": "L269",
       "_origin": "ast",
       "id": "src_common_types_branded_types_asmaxconcurrentstreams",
-      "community": 21,
+      "community": 14,
       "norm_label": "asmaxconcurrentstreams()"
     },
     {
@@ -11912,7 +11912,7 @@
       "source_location": "L310",
       "_origin": "ast",
       "id": "src_common_types_branded_types_asproviderinstanceid",
-      "community": 3,
+      "community": 94,
       "norm_label": "asproviderinstanceid()"
     },
     {
@@ -12002,7 +12002,7 @@
       "source_location": "L325",
       "_origin": "ast",
       "id": "src_common_types_branded_types_ascostusd",
-      "community": 36,
+      "community": 13,
       "norm_label": "ascostusd()"
     },
     {
@@ -12212,7 +12212,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "src_config_config_validator_validationresult",
-      "community": 9,
+      "community": 14,
       "norm_label": "validationresult"
     },
     {
@@ -12279,7 +12279,7 @@
       "label": "ConfigurationValidationService",
       "file_type": "code",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L20",
+      "source_location": "L17",
       "_origin": "ast",
       "id": "src_config_configuration_validation_service_configurationvalidationservice",
       "community": 94,
@@ -12289,27 +12289,27 @@
       "label": ".validateEnvironment()",
       "file_type": "code",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L21",
+      "source_location": "L18",
       "_origin": "ast",
       "id": "src_config_configuration_validation_service_configurationvalidationservice_validateenvironment",
-      "community": 99,
+      "community": 94,
       "norm_label": ".validateenvironment()"
     },
     {
       "label": ".assertMasterKeyPresent()",
       "file_type": "code",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L27",
+      "source_location": "L22",
       "_origin": "ast",
       "id": "src_config_configuration_validation_service_configurationvalidationservice_assertmasterkeypresent",
-      "community": 94,
+      "community": 14,
       "norm_label": ".assertmasterkeypresent()"
     },
     {
       "label": ".assertEnabledProviderSecretsPresent()",
       "file_type": "code",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L37",
+      "source_location": "L32",
       "_origin": "ast",
       "id": "src_config_configuration_validation_service_configurationvalidationservice_assertenabledprovidersecretspresent",
       "community": 94,
@@ -12319,7 +12319,7 @@
       "label": ".validateParsedGatewayConfig()",
       "file_type": "code",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L49",
+      "source_location": "L44",
       "_origin": "ast",
       "id": "src_config_configuration_validation_service_configurationvalidationservice_validateparsedgatewayconfig",
       "community": 94,
@@ -12329,7 +12329,7 @@
       "label": "configurationValidation",
       "file_type": "code",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L58",
+      "source_location": "L53",
       "_origin": "ast",
       "id": "src_config_configuration_validation_service_configurationvalidation",
       "community": 94,
@@ -12339,7 +12339,7 @@
       "label": "validateEnvironment()",
       "file_type": "code",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L61",
+      "source_location": "L56",
       "_origin": "ast",
       "id": "src_config_configuration_validation_service_validateenvironment",
       "community": 94,
@@ -12349,7 +12349,7 @@
       "label": "assertMasterKeyPresent()",
       "file_type": "code",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L67",
+      "source_location": "L62",
       "_origin": "ast",
       "id": "src_config_configuration_validation_service_assertmasterkeypresent",
       "community": 94,
@@ -12359,7 +12359,7 @@
       "label": "assertEnabledProviderSecretsPresent()",
       "file_type": "code",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L74",
+      "source_location": "L69",
       "_origin": "ast",
       "id": "src_config_configuration_validation_service_assertenabledprovidersecretspresent",
       "community": 94,
@@ -12419,7 +12419,7 @@
       "label": "ProviderInstanceRuntime",
       "file_type": "code",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L60",
+      "source_location": "L57",
       "_origin": "ast",
       "id": "src_config_configuration_providerinstanceruntime",
       "community": 4,
@@ -12429,7 +12429,7 @@
       "label": "buildGatewayKeyRuntime()",
       "file_type": "code",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L73",
+      "source_location": "L70",
       "_origin": "ast",
       "id": "src_config_configuration_buildgatewaykeyruntime",
       "community": 94,
@@ -12439,7 +12439,7 @@
       "label": "buildEffectiveGatewayConfig()",
       "file_type": "code",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L110",
+      "source_location": "L107",
       "_origin": "ast",
       "id": "src_config_configuration_buildeffectivegatewayconfig",
       "community": 14,
@@ -12449,7 +12449,7 @@
       "label": "loadGatewayConfigFromFile()",
       "file_type": "code",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L162",
+      "source_location": "L159",
       "_origin": "ast",
       "id": "src_config_configuration_loadgatewayconfigfromfile",
       "community": 14,
@@ -12459,7 +12459,7 @@
       "label": "buildAppConfiguration()",
       "file_type": "code",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L197",
+      "source_location": "L194",
       "_origin": "ast",
       "id": "src_config_configuration_buildappconfiguration",
       "community": 14,
@@ -12472,7 +12472,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_config_configuration_types",
-      "community": 21,
+      "community": 19,
       "norm_label": "configuration.types.ts"
     },
     {
@@ -12492,7 +12492,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "src_config_configuration_types_gateway_client_types",
-      "community": 21,
+      "community": 19,
       "norm_label": "gateway_client_types"
     },
     {
@@ -12502,7 +12502,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "src_config_configuration_types_gatewayclienttype",
-      "community": 21,
+      "community": 19,
       "norm_label": "gatewayclienttype"
     },
     {
@@ -12732,7 +12732,7 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "src_config_env_validation_validate",
-      "community": 99,
+      "community": 94,
       "norm_label": "validate()"
     },
     {
@@ -12742,7 +12742,7 @@
       "source_location": "L203",
       "_origin": "ast",
       "id": "src_config_env_validation_validatedenvironment",
-      "community": 99,
+      "community": 94,
       "norm_label": "validatedenvironment"
     },
     {
@@ -12792,7 +12792,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "src_config_gateway_config_schema_gatewayconfigschema",
-      "community": 0,
+      "community": 14,
       "norm_label": "gatewayconfigschema"
     },
     {
@@ -12802,7 +12802,7 @@
       "source_location": "L284",
       "_origin": "ast",
       "id": "src_config_gateway_config_schema_gatewayconfig",
-      "community": 9,
+      "community": 14,
       "norm_label": "gatewayconfig"
     },
     {
@@ -12892,7 +12892,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_config_provider_api_key_validation_spec",
-      "community": 3,
+      "community": 94,
       "norm_label": "provider-api-key.validation.spec.ts"
     },
     {
@@ -12902,7 +12902,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_config_provider_api_key_validation",
-      "community": 3,
+      "community": 94,
       "norm_label": "provider-api-key.validation.ts"
     },
     {
@@ -12932,7 +12932,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "src_config_provider_api_key_validation_isapikeyrequiredforprovidertype",
-      "community": 3,
+      "community": 94,
       "norm_label": "isapikeyrequiredforprovidertype()"
     },
     {
@@ -12942,7 +12942,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "src_config_provider_api_key_validation_collectmissingenabledproviderapikeyerrors",
-      "community": 3,
+      "community": 94,
       "norm_label": "collectmissingenabledproviderapikeyerrors()"
     },
     {
@@ -12952,7 +12952,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "src_config_provider_api_key_validation_formatmissingproviderapikeyerror",
-      "community": 3,
+      "community": 94,
       "norm_label": "formatmissingproviderapikeyerror()"
     },
     {
@@ -12962,7 +12962,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "src_config_provider_api_key_validation_assertenabledproviderapikeyspresent",
-      "community": 3,
+      "community": 94,
       "norm_label": "assertenabledproviderapikeyspresent()"
     },
     {
@@ -12972,7 +12972,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_config_provider_base_url_validation_spec",
-      "community": 112,
+      "community": 94,
       "norm_label": "provider-base-url.validation.spec.ts"
     },
     {
@@ -12982,7 +12982,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_config_provider_base_url_validation",
-      "community": 112,
+      "community": 94,
       "norm_label": "provider-base-url.validation.ts"
     },
     {
@@ -12992,7 +12992,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "src_config_provider_base_url_validation_rawgatewayconfig",
-      "community": 112,
+      "community": 94,
       "norm_label": "rawgatewayconfig"
     },
     {
@@ -13002,7 +13002,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "src_config_provider_base_url_validation_missingproviderbaseurl",
-      "community": 112,
+      "community": 94,
       "norm_label": "missingproviderbaseurl"
     },
     {
@@ -13012,7 +13012,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "src_config_provider_base_url_validation_resolvebaseurlfromenv",
-      "community": 112,
+      "community": 94,
       "norm_label": "resolvebaseurlfromenv()"
     },
     {
@@ -13022,7 +13022,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "src_config_provider_base_url_validation_collectmissingbaseurlerrors",
-      "community": 112,
+      "community": 94,
       "norm_label": "collectmissingbaseurlerrors()"
     },
     {
@@ -13032,7 +13032,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "src_config_provider_base_url_validation_formatmissingbaseurlerror",
-      "community": 112,
+      "community": 94,
       "norm_label": "formatmissingbaseurlerror()"
     },
     {
@@ -13042,7 +13042,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "src_config_provider_base_url_validation_assertenabledproviderbaseurlpresent",
-      "community": 112,
+      "community": 94,
       "norm_label": "assertenabledproviderbaseurlpresent()"
     },
     {
@@ -13292,7 +13292,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "src_guards_smart_rate_limit_guard_smartratelimitguard",
-      "community": 38,
+      "community": 27,
       "norm_label": "smartratelimitguard"
     },
     {
@@ -13302,7 +13302,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_guards_smart_rate_limit_guard_ts_injectable",
-      "community": 38,
+      "community": 27,
       "norm_label": "injectable"
     },
     {
@@ -13312,7 +13312,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "src_guards_smart_rate_limit_guard_smartratelimitguard_constructor",
-      "community": 38,
+      "community": 27,
       "norm_label": ".constructor()"
     },
     {
@@ -14112,7 +14112,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_anthropic_controllers_anthropic_models_controller_spec",
-      "community": 38,
+      "community": 27,
       "norm_label": "anthropic-models.controller.spec.ts"
     },
     {
@@ -14292,7 +14292,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_anthropic_decorators_anthropic_auth_decorator",
-      "community": 38,
+      "community": 27,
       "norm_label": "anthropic-auth.decorator.ts"
     },
     {
@@ -14302,7 +14302,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_integrations_anthropic_decorators_anthropic_auth_decorator_anthropicauth",
-      "community": 38,
+      "community": 27,
       "norm_label": "anthropicauth()"
     },
     {
@@ -14872,7 +14872,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "src_integrations_anthropic_filters_anthropic_exception_filter_anthropicexceptionfilter",
-      "community": 92,
+      "community": 27,
       "norm_label": "anthropicexceptionfilter"
     },
     {
@@ -14882,7 +14882,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_integrations_anthropic_filters_anthropic_exception_filter_ts_catch",
-      "community": 92,
+      "community": 27,
       "norm_label": "catch"
     },
     {
@@ -14892,7 +14892,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "src_integrations_anthropic_filters_anthropic_exception_filter_anthropicexceptionfilter_maptype",
-      "community": 92,
+      "community": 27,
       "norm_label": ".maptype()"
     },
     {
@@ -14902,7 +14902,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "src_integrations_anthropic_filters_anthropic_exception_filter_anthropicexceptionfilter_catch",
-      "community": 92,
+      "community": 27,
       "norm_label": ".catch()"
     },
     {
@@ -14912,7 +14912,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_anthropic_guards_anthropic_api_key_guard_spec",
-      "community": 38,
+      "community": 27,
       "norm_label": "anthropic-api-key.guard.spec.ts"
     },
     {
@@ -14922,7 +14922,7 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "src_integrations_anthropic_guards_anthropic_api_key_guard_spec_initguard",
-      "community": 38,
+      "community": 27,
       "norm_label": "initguard()"
     },
     {
@@ -14952,7 +14952,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "src_integrations_anthropic_guards_anthropic_api_key_guard_anthropicapikeyguard",
-      "community": 38,
+      "community": 27,
       "norm_label": "anthropicapikeyguard"
     },
     {
@@ -14962,7 +14962,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_integrations_anthropic_guards_anthropic_api_key_guard_ts_injectable",
-      "community": 38,
+      "community": 27,
       "norm_label": "injectable"
     },
     {
@@ -14972,7 +14972,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "src_integrations_anthropic_guards_anthropic_api_key_guard_anthropicapikeyguard_constructor",
-      "community": 38,
+      "community": 27,
       "norm_label": ".constructor()"
     },
     {
@@ -15412,7 +15412,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_openai_controllers_openai_chat_completions_controller",
-      "community": 27,
+      "community": 21,
       "norm_label": "openai-chat-completions.controller.ts"
     },
     {
@@ -15782,7 +15782,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_openai_decorators_openai_auth_decorator",
-      "community": 140,
+      "community": 92,
       "norm_label": "openai-auth.decorator.ts"
     },
     {
@@ -15792,7 +15792,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_integrations_openai_decorators_openai_auth_decorator_openaiauth",
-      "community": 140,
+      "community": 92,
       "norm_label": "openaiauth()"
     },
     {
@@ -16192,7 +16192,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_openai_dtos_openai_error_response_dto",
-      "community": 10,
+      "community": 21,
       "norm_label": "openai-error-response.dto.ts"
     },
     {
@@ -16202,7 +16202,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "src_integrations_openai_dtos_openai_error_response_dto_openaierrorbodydto",
-      "community": 10,
+      "community": 21,
       "norm_label": "openaierrorbodydto"
     },
     {
@@ -16212,7 +16212,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_integrations_openai_dtos_openai_error_response_dto_ts_apiproperty",
-      "community": 10,
+      "community": 21,
       "norm_label": "apiproperty"
     },
     {
@@ -16222,7 +16222,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_integrations_openai_dtos_openai_error_response_dto_ts_apipropertyoptional",
-      "community": 10,
+      "community": 21,
       "norm_label": "apipropertyoptional"
     },
     {
@@ -16232,7 +16232,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "src_integrations_openai_dtos_openai_error_response_dto_openaierrorresponsedto",
-      "community": 10,
+      "community": 21,
       "norm_label": "openaierrorresponsedto"
     },
     {
@@ -16302,7 +16302,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "src_integrations_openai_filters_openai_exception_filter_openaiexceptionfilter",
-      "community": 140,
+      "community": 92,
       "norm_label": "openaiexceptionfilter"
     },
     {
@@ -16312,7 +16312,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_integrations_openai_filters_openai_exception_filter_ts_catch",
-      "community": 140,
+      "community": 92,
       "norm_label": "catch"
     },
     {
@@ -16322,7 +16322,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "src_integrations_openai_filters_openai_exception_filter_openaiexceptionfilter_maptype",
-      "community": 140,
+      "community": 92,
       "norm_label": ".maptype()"
     },
     {
@@ -16332,7 +16332,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "src_integrations_openai_filters_openai_exception_filter_openaiexceptionfilter_catch",
-      "community": 140,
+      "community": 92,
       "norm_label": ".catch()"
     },
     {
@@ -16342,7 +16342,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_openai_guards_openai_bearer_auth_guard_spec",
-      "community": 140,
+      "community": 92,
       "norm_label": "openai-bearer-auth.guard.spec.ts"
     },
     {
@@ -16352,7 +16352,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "src_integrations_openai_guards_openai_bearer_auth_guard_spec_initguard",
-      "community": 140,
+      "community": 92,
       "norm_label": "initguard()"
     },
     {
@@ -16392,7 +16392,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "src_integrations_openai_guards_openai_bearer_auth_guard_openaibearerauthguard",
-      "community": 140,
+      "community": 92,
       "norm_label": "openaibearerauthguard"
     },
     {
@@ -16402,7 +16402,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_integrations_openai_guards_openai_bearer_auth_guard_ts_injectable",
-      "community": 140,
+      "community": 92,
       "norm_label": "injectable"
     },
     {
@@ -16412,7 +16412,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "src_integrations_openai_guards_openai_bearer_auth_guard_openaibearerauthguard_constructor",
-      "community": 140,
+      "community": 92,
       "norm_label": ".constructor()"
     },
     {
@@ -16482,7 +16482,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_openai_helpers_openai_stream_api_description",
-      "community": 27,
+      "community": 21,
       "norm_label": "openai-stream-api-description.ts"
     },
     {
@@ -16492,7 +16492,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_integrations_openai_helpers_openai_stream_api_description_openai_stream_api_description",
-      "community": 27,
+      "community": 21,
       "norm_label": "openai_stream_api_description"
     },
     {
@@ -16712,7 +16712,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "src_integrations_openai_mappers_openai_stream_mapper_createopenaistreamstate",
-      "community": 27,
+      "community": 21,
       "norm_label": "createopenaistreamstate()"
     },
     {
@@ -18692,7 +18692,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_noop_app_metrics_adapter_noopappmetricsadapter_recordrequest",
-      "community": 77,
+      "community": 40,
       "norm_label": ".recordrequest()"
     },
     {
@@ -18852,7 +18852,7 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_noop_app_metrics_adapter_noopappmetricsadapter_observeprovidercall",
-      "community": 40,
+      "community": 77,
       "norm_label": ".observeprovidercall()"
     },
     {
@@ -18862,7 +18862,7 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_noop_app_metrics_adapter_noopappmetricsadapter_observeproviderstream",
-      "community": 40,
+      "community": 77,
       "norm_label": ".observeproviderstream()"
     },
     {
@@ -18962,7 +18962,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_prometheus_app_metrics_adapter_prometheusappmetricsadapter_observeproviderstream",
-      "community": 40,
+      "community": 77,
       "norm_label": ".observeproviderstream()"
     },
     {
@@ -19092,7 +19092,7 @@
       "source_location": "L204",
       "_origin": "ast",
       "id": "src_observability_app_metrics_adapters_prometheus_app_metrics_adapter_prometheusappmetricsadapter_setproviderhealth",
-      "community": 18,
+      "community": 40,
       "norm_label": ".setproviderhealth()"
     },
     {
@@ -19292,7 +19292,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_recordrequest",
-      "community": 77,
+      "community": 40,
       "norm_label": ".recordrequest()"
     },
     {
@@ -19342,7 +19342,7 @@
       "source_location": "L137",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_recordtokenusage",
-      "community": 40,
+      "community": 77,
       "norm_label": ".recordtokenusage()"
     },
     {
@@ -19452,7 +19452,7 @@
       "source_location": "L236",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_observeprovidercall",
-      "community": 40,
+      "community": 77,
       "norm_label": ".observeprovidercall()"
     },
     {
@@ -19462,7 +19462,7 @@
       "source_location": "L248",
       "_origin": "ast",
       "id": "src_observability_app_metrics_app_metrics_service_appmetricsservice_observeproviderstream",
-      "community": 40,
+      "community": 77,
       "norm_label": ".observeproviderstream()"
     },
     {
@@ -19562,7 +19562,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_apprequestlabels",
-      "community": 77,
+      "community": 40,
       "norm_label": "apprequestlabels"
     },
     {
@@ -19572,7 +19572,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_apptokenusage",
-      "community": 40,
+      "community": 77,
       "norm_label": "apptokenusage"
     },
     {
@@ -19582,7 +19582,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appprovidercallcontext",
-      "community": 40,
+      "community": 77,
       "norm_label": "appprovidercallcontext"
     },
     {
@@ -19592,7 +19592,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appproviderstreamscope",
-      "community": 40,
+      "community": 77,
       "norm_label": "appproviderstreamscope"
     },
     {
@@ -19602,7 +19602,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appproviderstreamscope_end",
-      "community": 40,
+      "community": 77,
       "norm_label": ".end()"
     },
     {
@@ -19612,7 +19612,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "src_observability_app_metrics_interfaces_app_metrics_backend_interface_appproviderstreamscope_fail",
-      "community": 40,
+      "community": 77,
       "norm_label": ".fail()"
     },
     {
@@ -22152,7 +22152,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "src_providers_provider_instances_bootstrap_providerinstancesbootstrap_onapplicationbootstrap",
-      "community": 3,
+      "community": 94,
       "norm_label": ".onapplicationbootstrap()"
     },
     {
@@ -22352,7 +22352,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "src_providers_provider_registry_service_providerregistryservice_registerinstance",
-      "community": 3,
+      "community": 94,
       "norm_label": ".registerinstance()"
     },
     {
@@ -23542,7 +23542,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "test_integration_gateway_openai_compatible_integration_spec",
-      "community": 0,
+      "community": 14,
       "norm_label": "gateway-openai-compatible.integration-spec.ts"
     },
     {
@@ -23552,7 +23552,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "test_integration_gateway_openai_compatible_integration_spec_loadrealgatewayconfig",
-      "community": 0,
+      "community": 14,
       "norm_label": "loadrealgatewayconfig()"
     },
     {
@@ -23562,7 +23562,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "test_integration_gateway_openai_compatible_integration_spec_gatewayconfig",
-      "community": 0,
+      "community": 14,
       "norm_label": "gatewayconfig"
     },
     {
@@ -23572,7 +23572,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "test_integration_gateway_openai_compatible_integration_spec_openaicompatibleproviders",
-      "community": 0,
+      "community": 14,
       "norm_label": "openaicompatibleproviders"
     },
     {
@@ -23582,7 +23582,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "test_integration_gateway_openai_compatible_integration_spec_rationale_36",
-      "community": 0,
+      "community": 14,
       "norm_label": "note: we can't use loadgatewayconfigfromfile() because it's globally mocked"
     },
     {
@@ -23672,7 +23672,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "test_integration_helpers_create_openai_compatible_integration_app",
-      "community": 0,
+      "community": 14,
       "norm_label": "create-openai-compatible-integration-app.ts"
     },
     {
@@ -23682,7 +23682,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "test_integration_helpers_create_openai_compatible_integration_app_createopenaicompatibleintegrationappoptions",
-      "community": 0,
+      "community": 14,
       "norm_label": "createopenaicompatibleintegrationappoptions"
     },
     {
@@ -23692,7 +23692,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "test_integration_helpers_create_openai_compatible_integration_app_openaicompatibleprovidertestconfig",
-      "community": 0,
+      "community": 14,
       "norm_label": "openaicompatibleprovidertestconfig"
     },
     {
@@ -23702,7 +23702,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "test_integration_helpers_create_openai_compatible_integration_app_openaicompatibleintegrationappcontext",
-      "community": 0,
+      "community": 14,
       "norm_label": "openaicompatibleintegrationappcontext"
     },
     {
@@ -23712,7 +23712,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "test_integration_helpers_create_openai_compatible_integration_app_buildintegrationenvrefs",
-      "community": 0,
+      "community": 14,
       "norm_label": "buildintegrationenvrefs()"
     },
     {
@@ -23722,7 +23722,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "test_integration_helpers_create_openai_compatible_integration_app_loadrealgatewayconfig",
-      "community": 0,
+      "community": 14,
       "norm_label": "loadrealgatewayconfig()"
     },
     {
@@ -23732,7 +23732,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "test_integration_helpers_create_openai_compatible_integration_app_buildopenaicompatibleintegrationconfigoptions",
-      "community": 3,
+      "community": 14,
       "norm_label": "buildopenaicompatibleintegrationconfigoptions()"
     },
     {
@@ -23752,7 +23752,7 @@
       "source_location": "L257",
       "_origin": "ast",
       "id": "test_integration_helpers_create_openai_compatible_integration_app_closeopenaicompatibleintegrationapp",
-      "community": 0,
+      "community": 14,
       "norm_label": "closeopenaicompatibleintegrationapp()"
     },
     {
@@ -23762,7 +23762,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "test_integration_helpers_create_openai_compatible_integration_app_rationale_72",
-      "community": 0,
+      "community": 14,
       "norm_label": "note: we can't use loadgatewayconfigfromfile() because it's globally mocked"
     },
     {
@@ -24892,7 +24892,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "test_security_rate_limit_bypass_security_spec_createperkeyburstratelimiter",
-      "community": 21,
+      "community": 14,
       "norm_label": "createperkeyburstratelimiter()"
     },
     {
@@ -79790,7 +79790,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L48",
+      "source_location": "L45",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_common_types_branded_types",
@@ -81517,7 +81517,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L47",
+      "source_location": "L44",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_common_types_branded_types_gatewaykey",
@@ -83200,7 +83200,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L48",
+      "source_location": "L45",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_common_types_branded_types_asport",
@@ -83212,7 +83212,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L260",
+      "source_location": "L257",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_common_types_branded_types_asport"
@@ -83288,7 +83288,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L48",
+      "source_location": "L45",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_common_types_branded_types_ascachettlseconds",
@@ -83300,7 +83300,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L254",
+      "source_location": "L251",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_common_types_branded_types_ascachettlseconds"
@@ -83420,7 +83420,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L48",
+      "source_location": "L45",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_common_types_branded_types_asratelimitrps",
@@ -83432,7 +83432,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L279",
+      "source_location": "L276",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_common_types_branded_types_asratelimitrps"
@@ -83508,7 +83508,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L48",
+      "source_location": "L45",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_common_types_branded_types_asratelimitburst",
@@ -83520,7 +83520,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L280",
+      "source_location": "L277",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_common_types_branded_types_asratelimitburst"
@@ -83640,7 +83640,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L48",
+      "source_location": "L45",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_common_types_branded_types_asmaxconcurrentstreams",
@@ -83652,7 +83652,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L281",
+      "source_location": "L278",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_common_types_branded_types_asmaxconcurrentstreams"
@@ -83893,7 +83893,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L47",
+      "source_location": "L44",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_common_types_branded_types_asgatewaykey",
@@ -83904,7 +83904,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L89",
+      "source_location": "L86",
       "weight": 1.0,
       "source": "src_config_configuration_buildgatewaykeyruntime",
       "target": "src_common_types_branded_types_asgatewaykey",
@@ -84597,7 +84597,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L48",
+      "source_location": "L45",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_common_types_branded_types_asproviderinstanceid",
@@ -84608,7 +84608,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L85",
+      "source_location": "L82",
       "weight": 1.0,
       "source": "src_config_configuration_buildgatewaykeyruntime",
       "target": "src_common_types_branded_types_asproviderinstanceid",
@@ -86234,7 +86234,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L47",
+      "source_location": "L44",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_common_types_index",
@@ -87177,7 +87177,7 @@
       "context": "export",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L58",
+      "source_location": "L55",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_config_configuration_validation_service",
@@ -87187,7 +87187,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L74",
+      "source_location": "L69",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_configuration_validation_service_assertenabledprovidersecretspresent",
@@ -87197,7 +87197,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L67",
+      "source_location": "L62",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_configuration_validation_service_assertmasterkeypresent",
@@ -87207,7 +87207,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L58",
+      "source_location": "L53",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_configuration_validation_service_configurationvalidation",
@@ -87217,7 +87217,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L20",
+      "source_location": "L17",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_configuration_validation_service_configurationvalidationservice",
@@ -87227,7 +87227,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L61",
+      "source_location": "L56",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_configuration_validation_service_validateenvironment",
@@ -87271,7 +87271,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L10",
+      "source_location": "L7",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_gateway_config_schema",
@@ -87282,7 +87282,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L10",
+      "source_location": "L7",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_gateway_config_schema_gatewayconfig",
@@ -87293,7 +87293,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L5",
+      "source_location": "L2",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_provider_api_key_validation",
@@ -87304,7 +87304,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L5",
+      "source_location": "L2",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_provider_api_key_validation_assertenabledproviderapikeyspresent",
@@ -87315,7 +87315,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L5",
+      "source_location": "L2",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_provider_api_key_validation_rawgatewayconfig",
@@ -87326,7 +87326,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L9",
+      "source_location": "L6",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_provider_base_url_validation",
@@ -87337,7 +87337,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L9",
+      "source_location": "L6",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service",
       "target": "src_config_provider_base_url_validation_assertenabledproviderbaseurlpresent",
@@ -87347,7 +87347,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L37",
+      "source_location": "L32",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice",
       "target": "src_config_configuration_validation_service_configurationvalidationservice_assertenabledprovidersecretspresent",
@@ -87357,7 +87357,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L27",
+      "source_location": "L22",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice",
       "target": "src_config_configuration_validation_service_configurationvalidationservice_assertmasterkeypresent",
@@ -87367,7 +87367,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L21",
+      "source_location": "L18",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice",
       "target": "src_config_configuration_validation_service_configurationvalidationservice_validateenvironment",
@@ -87377,7 +87377,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L49",
+      "source_location": "L44",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice",
       "target": "src_config_configuration_validation_service_configurationvalidationservice_validateparsedgatewayconfig",
@@ -87389,7 +87389,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L24",
+      "source_location": "L19",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice_validateenvironment",
       "target": "src_config_env_validation_validate"
@@ -87399,7 +87399,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L21",
+      "source_location": "L18",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice_validateenvironment",
       "target": "src_config_env_validation_validatedenvironment",
@@ -87410,21 +87410,10 @@
       "context": "generic_arg",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L27",
+      "source_location": "L22",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice_assertmasterkeypresent",
       "target": "src_config_gateway_config_schema_gatewayconfig",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "generic_arg",
-      "confidence": "EXTRACTED",
-      "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L27",
-      "weight": 1.0,
-      "source": "src_config_configuration_validation_service_configurationvalidationservice_assertmasterkeypresent",
-      "target": "src_config_provider_api_key_validation_rawgatewayconfig",
       "confidence_score": 1.0
     },
     {
@@ -87433,7 +87422,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L41",
+      "source_location": "L36",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice_assertenabledprovidersecretspresent",
       "target": "src_config_provider_api_key_validation_assertenabledproviderapikeyspresent"
@@ -87443,7 +87432,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L37",
+      "source_location": "L32",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice_assertenabledprovidersecretspresent",
       "target": "src_config_provider_api_key_validation_rawgatewayconfig",
@@ -87455,7 +87444,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L42",
+      "source_location": "L37",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice_assertenabledprovidersecretspresent",
       "target": "src_config_provider_base_url_validation_assertenabledproviderbaseurlpresent"
@@ -87465,7 +87454,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L54",
+      "source_location": "L49",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice_validateparsedgatewayconfig",
       "target": "src_config_configuration_validation_service_assertenabledprovidersecretspresent",
@@ -87476,7 +87465,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L53",
+      "source_location": "L48",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice_validateparsedgatewayconfig",
       "target": "src_config_configuration_validation_service_assertmasterkeypresent",
@@ -87487,7 +87476,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration-validation.service.ts",
-      "source_location": "L49",
+      "source_location": "L44",
       "weight": 1.0,
       "source": "src_config_configuration_validation_service_configurationvalidationservice_validateparsedgatewayconfig",
       "target": "src_config_provider_api_key_validation_rawgatewayconfig",
@@ -87498,7 +87487,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L42",
+      "source_location": "L39",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_config_configuration_validation_service_validateenvironment",
@@ -87510,7 +87499,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L200",
+      "source_location": "L197",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_config_configuration_validation_service_validateenvironment"
@@ -87520,7 +87509,7 @@
       "context": "re-export",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L58",
+      "source_location": "L55",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_config_configuration_validation_service_assertmasterkeypresent",
@@ -87531,7 +87520,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L77",
+      "source_location": "L74",
       "weight": 1.0,
       "source": "src_config_configuration_buildgatewaykeyruntime",
       "target": "src_config_configuration_validation_service_assertmasterkeypresent",
@@ -87542,7 +87531,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L42",
+      "source_location": "L39",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_config_configuration_validation_service_assertenabledprovidersecretspresent",
@@ -87554,7 +87543,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L151",
+      "source_location": "L148",
       "weight": 1.0,
       "source": "src_config_configuration_buildeffectivegatewayconfig",
       "target": "src_config_configuration_validation_service_assertenabledprovidersecretspresent"
@@ -87617,7 +87606,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L205",
+      "source_location": "L202",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_config_configuration_helpers_readrequiredprompt"
@@ -87650,7 +87639,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L209",
+      "source_location": "L206",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_config_configuration_helpers_tryreadoptionalprompts"
@@ -87659,7 +87648,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L197",
+      "source_location": "L194",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_config_configuration_buildappconfiguration",
@@ -87669,7 +87658,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L110",
+      "source_location": "L107",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_config_configuration_buildeffectivegatewayconfig",
@@ -87679,7 +87668,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L73",
+      "source_location": "L70",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_config_configuration_buildgatewaykeyruntime",
@@ -87689,7 +87678,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L162",
+      "source_location": "L159",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_config_configuration_loadgatewayconfigfromfile",
@@ -87699,7 +87688,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L60",
+      "source_location": "L57",
       "weight": 1.0,
       "source": "src_config_configuration",
       "target": "src_config_configuration_providerinstanceruntime",
@@ -88062,7 +88051,7 @@
       "context": "field",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L61",
+      "source_location": "L58",
       "weight": 1.0,
       "source": "src_config_configuration_providerinstanceruntime",
       "target": "src_config_provider_types_gatewayprovidertype",
@@ -88095,7 +88084,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L202",
+      "source_location": "L199",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_config_configuration_buildgatewaykeyruntime",
@@ -88106,7 +88095,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L181",
+      "source_location": "L178",
       "weight": 1.0,
       "source": "src_config_configuration_loadgatewayconfigfromfile",
       "target": "src_config_configuration_buildeffectivegatewayconfig",
@@ -88117,7 +88106,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/config/configuration.ts",
-      "source_location": "L201",
+      "source_location": "L198",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_config_configuration_loadgatewayconfigfromfile",
@@ -88129,7 +88118,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L171",
+      "source_location": "L168",
       "weight": 1.0,
       "source": "src_config_configuration_loadgatewayconfigfromfile",
       "target": "src_config_gateway_config_schema_gatewayconfigschema"
@@ -88140,7 +88129,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L253",
+      "source_location": "L250",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_config_env_validation_parsecachebackend"
@@ -88151,7 +88140,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L239",
+      "source_location": "L236",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_config_provider_base_url_validation_resolvebaseurlfromenv"
@@ -88162,7 +88151,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/config/configuration.ts",
-      "source_location": "L235",
+      "source_location": "L232",
       "weight": 1.0,
       "source": "src_config_configuration_buildappconfiguration",
       "target": "src_config_provider_types_isopenaiprovidertype"
@@ -125719,5 +125708,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "49a96f730b33459107467389e753ee65e62ad0e2"
+  "built_at_commit": "e215fa0287d091f3ab542ff3f16261719820d74b"
 }

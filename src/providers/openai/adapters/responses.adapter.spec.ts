@@ -9,11 +9,13 @@ import {
 } from '../../../common/types/branded.types';
 
 function createMockClient() {
-  return {
+  const create = jest.fn();
+  const client = {
     responses: {
-      create: jest.fn(),
+      create,
     },
   } as unknown as OpenAI;
+  return { client, create };
 }
 
 describe('createResponsesAdapter', () => {
@@ -24,8 +26,8 @@ describe('createResponsesAdapter', () => {
   });
 
   it('complete delegates to responses.create and maps thinkingContent', async function (this: void) {
-    const client = createMockClient();
-    (client.responses.create as jest.Mock).mockResolvedValue({
+    const { client, create } = createMockClient();
+    create.mockResolvedValue({
       model: 'gpt-5.4-mini',
       output_text: 'Answer',
       output: [
@@ -45,9 +47,7 @@ describe('createResponsesAdapter', () => {
       { thinkingEnabled: true },
     );
 
-    expect(
-      (client.responses.create as jest.Mock).bind(client.responses),
-    ).toHaveBeenCalledWith(
+    expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         model: 'gpt-5.4-mini',
         reasoning: { effort: 'medium', summary: 'auto' },
@@ -58,8 +58,8 @@ describe('createResponsesAdapter', () => {
   });
 
   it('complete passes metadata to responses.create when provided', async function (this: void) {
-    const client = createMockClient();
-    (client.responses.create as jest.Mock).mockResolvedValue({
+    const { client, create } = createMockClient();
+    create.mockResolvedValue({
       model: 'gpt-5.4-mini',
       output_text: 'OK',
       output: [],
@@ -75,9 +75,7 @@ describe('createResponsesAdapter', () => {
       'gpt-5.4-mini',
     );
 
-    expect(
-      (client.responses.create as jest.Mock).bind(client.responses),
-    ).toHaveBeenCalledWith(
+    expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: { userId: '123', sessionId: 'abc' },
       }),
@@ -85,8 +83,8 @@ describe('createResponsesAdapter', () => {
   });
 
   it('complete omits metadata when not provided or empty', async function (this: void) {
-    const client = createMockClient();
-    (client.responses.create as jest.Mock).mockResolvedValue({
+    const { client, create } = createMockClient();
+    create.mockResolvedValue({
       model: 'gpt-5.4-mini',
       output_text: 'OK',
       output: [],
@@ -98,16 +96,14 @@ describe('createResponsesAdapter', () => {
       'gpt-5.4-mini',
     );
 
-    expect(
-      (client.responses.create as jest.Mock).bind(client.responses),
-    ).toHaveBeenCalledWith(
+    expect(create).toHaveBeenCalledWith(
       expect.not.objectContaining({ metadata: expect.anything() }),
     );
   });
 
   it('complete passes parallel_tool_calls to responses.create', async function (this: void) {
-    const client = createMockClient();
-    (client.responses.create as jest.Mock).mockResolvedValue({
+    const { client, create } = createMockClient();
+    create.mockResolvedValue({
       model: 'gpt-5.4-mini',
       output_text: 'OK',
       output: [],
@@ -123,9 +119,7 @@ describe('createResponsesAdapter', () => {
       { parallelToolCalls: false },
     );
 
-    expect(
-      (client.responses.create as jest.Mock).bind(client.responses),
-    ).toHaveBeenCalledWith(
+    expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         parallel_tool_calls: false,
       }),
@@ -133,8 +127,8 @@ describe('createResponsesAdapter', () => {
   });
 
   it('passes AbortSignal as request options when provided', async function (this: void) {
-    const client = createMockClient();
-    (client.responses.create as jest.Mock).mockResolvedValue({
+    const { client, create } = createMockClient();
+    create.mockResolvedValue({
       output_text: 'Hi',
       output: [],
       usage: { input_tokens: 1, output_tokens: 1 },
@@ -149,16 +143,14 @@ describe('createResponsesAdapter', () => {
       { signal },
     );
 
-    expect(
-      (client.responses.create as jest.Mock).bind(client.responses),
-    ).toHaveBeenCalledWith(expect.any(Object), {
+    expect(create).toHaveBeenCalledWith(expect.any(Object), {
       signal,
     });
   });
 
   it('maps SDK errors to HttpException', async function (this: void) {
-    const client = createMockClient();
-    (client.responses.create as jest.Mock).mockRejectedValue(
+    const { client, create } = createMockClient();
+    create.mockRejectedValue(
       new OpenAI.APIError(500, undefined, 'Server error', undefined),
     );
 
@@ -184,8 +176,8 @@ describe('createResponsesAdapter', () => {
   });
 
   it('stream exposes thinking content from reasoning summary events', async function (this: void) {
-    const client = createMockClient();
-    (client.responses.create as jest.Mock).mockResolvedValue(
+    const { client, create } = createMockClient();
+    create.mockResolvedValue(
       (function* () {
         yield {
           type: 'response.reasoning_summary_text.delta',
@@ -232,8 +224,8 @@ describe('createResponsesAdapter', () => {
   });
 
   it('stream exposes final tool calls from function_call_arguments.done', async function (this: void) {
-    const client = createMockClient();
-    (client.responses.create as jest.Mock).mockResolvedValue(
+    const { client, create } = createMockClient();
+    create.mockResolvedValue(
       (function* () {
         yield {
           type: 'response.output_item.added',
