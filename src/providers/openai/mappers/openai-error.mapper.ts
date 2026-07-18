@@ -6,6 +6,13 @@ import {
   readNumericStatus,
   nameLooksLikeTimeout,
 } from '../../../common/errors/provider-error.mapper.helpers';
+import {
+  isRateLimitStatus,
+  isAuthError,
+  isTimeoutStatus,
+  isServerError,
+  isInvalidRequestStatus,
+} from '../../../common/errors/errors.utils';
 import type { MappedProviderError } from '../../../common/errors/error.types';
 
 function payloadOf(message: string, code: ApiErrorCode) {
@@ -19,32 +26,32 @@ export function mapOpenAiSdkError(error: unknown): MappedProviderError {
     const status =
       typeof error.status === 'number' ? error.status : HttpStatus.BAD_GATEWAY;
 
-    if (status === 429) {
+    if (isRateLimitStatus(status)) {
       return {
         httpStatus: HttpStatus.TOO_MANY_REQUESTS,
         payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_RATE_LIMITED),
       };
     }
 
-    if (status === 401 || status === 403) {
+    if (isAuthError(status)) {
       return {
         httpStatus: HttpStatus.UNAUTHORIZED,
         payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_AUTH_FAILED),
       };
     }
-    if (status === 408 || status === 504) {
+    if (isTimeoutStatus(status)) {
       return {
         httpStatus: HttpStatus.GATEWAY_TIMEOUT,
         payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_TIMEOUT),
       };
     }
-    if (status >= 500) {
+    if (isServerError(status)) {
       return {
         httpStatus: HttpStatus.BAD_GATEWAY,
         payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_UNAVAILABLE),
       };
     }
-    if (status >= 400) {
+    if (isInvalidRequestStatus(status)) {
       return {
         httpStatus: HttpStatus.BAD_REQUEST,
         payload: payloadOf(fallbackMsg, ApiErrorCode.VALIDATION_FAILED),
@@ -53,7 +60,7 @@ export function mapOpenAiSdkError(error: unknown): MappedProviderError {
   }
 
   const status = readNumericStatus(error);
-  if (nameLooksLikeTimeout(error) || status === 408 || status === 504) {
+  if (nameLooksLikeTimeout(error) || isTimeoutStatus(status)) {
     return {
       httpStatus: HttpStatus.GATEWAY_TIMEOUT,
       payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_TIMEOUT),

@@ -5,6 +5,11 @@ import {
   asProviderInstanceId,
   type GatewayKey,
 } from '../../common/types/branded.types';
+import {
+  isProviderRateLimitError,
+  isRateLimitStatus,
+  isClientError,
+} from '../../common/errors/errors.utils';
 
 @Injectable()
 export class ChatErrorHandlerService {
@@ -16,11 +21,7 @@ export class ChatErrorHandlerService {
     providerName: string,
     gatewayKey?: GatewayKey,
   ): Promise<void> {
-    if (
-      gatewayKey &&
-      error instanceof HttpException &&
-      error.getStatus() === 429
-    ) {
+    if (gatewayKey && isProviderRateLimitError(error)) {
       await this.rateLimiter.setCooldown(gatewayKey, providerName);
     }
 
@@ -35,9 +36,9 @@ export class ChatErrorHandlerService {
         const errorObject = body as Record<string, unknown>;
         if (typeof errorObject.code === 'string') ctx.code = errorObject.code;
       }
-      if (status === 429) {
+      if (isRateLimitStatus(status)) {
         log.warn('Chat provider rate limited', ctx);
-      } else if (status < 500) {
+      } else if (isClientError(status)) {
         log.warn('Chat provider request failed', ctx);
       }
       return;
