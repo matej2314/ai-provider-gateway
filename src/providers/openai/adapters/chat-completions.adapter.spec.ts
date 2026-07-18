@@ -25,7 +25,7 @@ describe('createChatCompletionsAdapter', () => {
     jest.clearAllMocks();
   });
 
-  it('complete delegates to chat.completions.create and maps response', async () => {
+  it('complete delegates to chat.completions.create and maps response', async function (this: void) {
     const client = createMockClient();
     (client.chat.completions.create as jest.Mock).mockResolvedValue({
       id: 'cmpl_1',
@@ -46,7 +46,9 @@ describe('createChatCompletionsAdapter', () => {
     );
 
     expect(
-      (client.chat.completions as unknown as Record<string, unknown>).create,
+      (client.chat.completions.create as jest.Mock).bind(
+        client.chat.completions,
+      ),
     ).toHaveBeenCalledWith(
       expect.objectContaining({
         model: 'gpt-4o',
@@ -61,10 +63,15 @@ describe('createChatCompletionsAdapter', () => {
     });
   });
 
-  it('passes AbortSignal as request options when provided', async () => {
+  it('passes AbortSignal as request options when provided', async function (this: void) {
     const client = createMockClient();
     (client.chat.completions.create as jest.Mock).mockResolvedValue({
-      choices: [{ message: { role: 'assistant', content: 'Hi' }, finish_reason: 'stop' }],
+      choices: [
+        {
+          message: { role: 'assistant', content: 'Hi' },
+          finish_reason: 'stop',
+        },
+      ],
       usage: { prompt_tokens: 1, completion_tokens: 1 },
       model: 'gpt-4o',
     });
@@ -77,13 +84,14 @@ describe('createChatCompletionsAdapter', () => {
       { signal },
     );
 
-    expect(client.chat.completions.create).toHaveBeenCalledWith(
-      expect.any(Object),
-      { signal },
-    );
+    expect(
+      (client.chat.completions.create as jest.Mock).bind(
+        client.chat.completions,
+      ),
+    ).toHaveBeenCalledWith(expect.any(Object), { signal });
   });
 
-  it('maps SDK errors to HttpException', async () => {
+  it('maps SDK errors to HttpException', async function (this: void) {
     const client = createMockClient();
     (client.chat.completions.create as jest.Mock).mockRejectedValue(
       new OpenAI.APIError(429, undefined, 'Rate limited', undefined),
@@ -110,7 +118,7 @@ describe('createChatCompletionsAdapter', () => {
     });
   });
 
-  it('stream yields text deltas and exposes final tool calls', async () => {
+  it('stream yields text deltas and exposes final tool calls', async function (this: void) {
     const client = createMockClient();
     (client.chat.completions.create as jest.Mock).mockResolvedValue(
       (function* () {
@@ -166,7 +174,7 @@ describe('createChatCompletionsAdapter', () => {
     await expect(stream.getStopReason?.()).resolves.toBe('tool_calls');
   });
 
-  it('stream omits stream_options by default (openai-compatible path)', async () => {
+  it('stream omits stream_options by default (openai-compatible path)', async function (this: void) {
     const client = createMockClient();
     (client.chat.completions.create as jest.Mock).mockResolvedValue(
       (function* () {
@@ -187,13 +195,15 @@ describe('createChatCompletionsAdapter', () => {
     }
 
     expect(
-      (client.chat.completions as unknown as Record<string, unknown>).create,
+      (client.chat.completions.create as jest.Mock).bind(
+        client.chat.completions,
+      ),
     ).toHaveBeenCalledWith(
       expect.not.objectContaining({ stream_options: expect.anything() }),
     );
   });
 
-  it('stream sends stream_options when includeStreamUsage is true', async () => {
+  it('stream sends stream_options when includeStreamUsage is true', async function (this: void) {
     const client = createMockClient();
     (client.chat.completions.create as jest.Mock).mockResolvedValue(
       (function* () {
@@ -217,7 +227,9 @@ describe('createChatCompletionsAdapter', () => {
     }
 
     expect(
-      (client.chat.completions as unknown as Record<string, unknown>).create,
+      (client.chat.completions.create as jest.Mock).bind(
+        client.chat.completions,
+      ),
     ).toHaveBeenCalledWith(
       expect.objectContaining({
         stream_options: { include_usage: true },

@@ -35,10 +35,7 @@ export type {
   GatewayParamsBoundConfig,
 } from './gateway-config.schema';
 import { GatewayProviderType } from './provider-types';
-import {
-  parseCacheBackend,
-  type ValidatedEnvironment,
-} from './env.validation';
+import { parseCacheBackend, type ValidatedEnvironment } from './env.validation';
 import {
   assertEnabledProviderSecretsPresent,
   assertMasterKeyPresent,

@@ -1,7 +1,4 @@
-import {
-  validate,
-  type ValidatedEnvironment,
-} from './env.validation';
+import { validate, type ValidatedEnvironment } from './env.validation';
 import {
   assertEnabledProviderApiKeysPresent,
   type RawGatewayConfig,
@@ -18,14 +15,12 @@ import type { GatewayConfig } from './gateway-config.schema';
  * before the DI container exists.
  */
 export class ConfigurationValidationService {
-  validateEnvironment(
-    config: Record<string, unknown>,
-  ): ValidatedEnvironment {
+  validateEnvironment(config: Record<string, unknown>): ValidatedEnvironment {
     return validate(config);
   }
 
   assertMasterKeyPresent(
-    config: Pick<GatewayConfig, 'masterKeyRef'> | Pick<RawGatewayConfig, 'masterKeyRef'>,
+    config: Pick<GatewayConfig, 'masterKeyRef'>,
     env: NodeJS.ProcessEnv = process.env,
   ): void {
     const masterRaw = (env[config.masterKeyRef] ?? '').trim();
@@ -65,7 +60,7 @@ export function validateEnvironment(
 }
 
 export function assertMasterKeyPresent(
-  config: Pick<GatewayConfig, 'masterKeyRef'> | Pick<RawGatewayConfig, 'masterKeyRef'>,
+  config: Pick<GatewayConfig, 'masterKeyRef'>,
   env: NodeJS.ProcessEnv = process.env,
 ): void {
   configurationValidation.assertMasterKeyPresent(config, env);
