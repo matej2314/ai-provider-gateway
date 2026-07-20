@@ -1,0 +1,162 @@
+// =============================================================================
+// TEMPLATE — Declarative Jenkins Pipeline (CI)
+// =============================================================================
+// Purpose:
+//   Example / starting point for running CI on Jenkins as an alternative to
+//   GitHub Actions (.github/workflows/ci.yml). Not a production deploy pipeline.
+//
+// Job setup (Jenkins GUI):
+//   - Pipeline → "Pipeline script from SCM" (or Multibranch Pipeline)
+//   - Script Path: deployment/jenkins/Jenkinsfile
+//
+// Before using on a real controller, copy/adapt and replace:
+//   - agent label / docker image
+//   - credential IDs (Jenkins Credentials store)
+//   - optional Docker smoke steps for your environment
+//
+// Intentionally omitted from this template:
+//   - Vault / secret backends
+//   - host deploy paths, compose overlays, rollback
+//   - infrastructure-specific URLs and labels
+// =============================================================================
+
+pipeline {
+  agent none
+
+  options {
+    timestamps()
+    timeout(time: 45, unit: 'MINUTES')
+    disableConcurrentBuilds(abortPrevious: true)
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    skipDefaultCheckout(true)
+  }
+
+  parameters {
+    booleanParam(
+      name: 'RUN_ALL_TESTS',
+      defaultValue: false,
+      description: 'Also run e2e + security suites (full CI). Default = lint + unit only.'
+    )
+    booleanParam(
+      name: 'RUN_DOCKER_BUILD',
+      defaultValue: false,
+      description: 'Build the application Docker image (no push, no deploy).'
+    )
+  }
+
+  environment {
+    NODE_ENV = 'test'
+    // Bind secret text credentials on your Jenkins controller, then uncomment:
+    // MASTER_KEY        = credentials('REPLACE_WITH_CREDENTIAL_ID')
+    // ANTHROPIC_API_KEY = credentials('REPLACE_WITH_CREDENTIAL_ID')
+    // GOOGLE_API_KEY    = credentials('REPLACE_WITH_CREDENTIAL_ID')
+    // GATEWAY_KEY       = credentials('REPLACE_WITH_CREDENTIAL_ID')
+  }
+
+  stages {
+    stage('Checkout') {
+      agent { label 'linux' } // TEMPLATE: replace with your agent label
+      steps {
+        checkout scm
+        stash name: 'workspace', includes: '**', excludes: 'node_modules/**,.git/**'
+      }
+    }
+
+    stage('Quality') {
+      failFast true
+      parallel {
+        stage('Lint') {
+          agent { label 'linux' } // TEMPLATE: replace with your agent label
+          steps {
+            unstash 'workspace'
+            sh '''
+              set -euo pipefail
+              node --version
+              npm --version
+              npm ci
+              npm run lint
+            '''
+          }
+        }
+
+        stage('Unit') {
+          agent { label 'linux' } // TEMPLATE: replace with your agent label
+          steps {
+            unstash 'workspace'
+            sh '''
+              set -euo pipefail
+              npm ci
+              npm run test:cov
+            '''
+          }
+          post {
+            always {
+              archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true
+            }
+          }
+        }
+      }
+    }
+
+    stage('E2E') {
+      when {
+        beforeAgent true
+        expression { return params.RUN_ALL_TESTS }
+      }
+      agent { label 'linux' } // TEMPLATE: replace with your agent label
+      steps {
+        unstash 'workspace'
+        sh '''
+          set -euo pipefail
+          npm ci
+          npm run test:e2e
+        '''
+      }
+    }
+
+    stage('Security') {
+      when {
+        beforeAgent true
+        expression { return params.RUN_ALL_TESTS }
+      }
+      agent { label 'linux' } // TEMPLATE: replace with your agent label
+      steps {
+        unstash 'workspace'
+        sh '''
+          set -euo pipefail
+          npm ci
+          npm run test:security:ci
+        '''
+      }
+    }
+
+    stage('Docker build') {
+      when {
+        beforeAgent true
+        expression { return params.RUN_DOCKER_BUILD }
+      }
+      // TEMPLATE: agent needs a Docker CLI (and daemon) — adjust label/image locally.
+      agent { label 'linux' }
+      steps {
+        unstash 'workspace'
+        sh '''
+          set -euo pipefail
+          docker version
+          docker build \
+            -f deployment/docker/Dockerfile \
+            -t ai-provider-gateway:ci-"${BUILD_NUMBER}" \
+            .
+        '''
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "TEMPLATE CI OK — RUN_ALL_TESTS=${params.RUN_ALL_TESTS}, RUN_DOCKER_BUILD=${params.RUN_DOCKER_BUILD}"
+    }
+    failure {
+      echo 'TEMPLATE CI failed — inspect the failing stage log.'
+    }
+  }
+}
