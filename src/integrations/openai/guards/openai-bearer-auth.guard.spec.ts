@@ -13,8 +13,16 @@ import {
   createMockConfigService,
   type MockConfigServiceOptions,
 } from '../../../common/mocks/createMockConfigService';
-import { TEST_GATEWAY_KEY } from '../../../common/mocks/test-constants';
-import { asClientId } from '../../../common/types/branded.types';
+import {
+  TEST_GATEWAY_KEY,
+  TEST_GATEWAY_KEY_BRANDED,
+} from '../../../common/mocks/test-constants';
+import {
+  asClientId,
+  asEnvRef,
+  asGatewayKey,
+  asProviderInstanceId,
+} from '../../../common/types/branded.types';
 import type { Request } from 'express';
 
 describe('OpenAiBearerAuthGuard', () => {
@@ -60,11 +68,14 @@ describe('OpenAiBearerAuthGuard', () => {
     it('should set clientId on request', async () => {
       await initGuard({
         gatewayKey: {
-          allowList: [TEST_GATEWAY_KEY],
+          allowList: [TEST_GATEWAY_KEY_BRANDED],
           clients: [
             {
+              instanceId: asProviderInstanceId('openai-client'),
               name: 'openai-client',
-              gatewayKey: TEST_GATEWAY_KEY,
+              type: 'ide',
+              gatewayKeyRef: asEnvRef('OPENAI_CLIENT_GATEWAY_KEY'),
+              gatewayKey: TEST_GATEWAY_KEY_BRANDED,
             },
           ],
         },
@@ -119,7 +130,10 @@ describe('OpenAiBearerAuthGuard', () => {
   describe('Invalid token scenarios', () => {
     it('should throw ForbiddenException when token not in allowList', async () => {
       await initGuard({
-        gatewayKey: { allowList: ['gw_some_other_valid_key'], clients: [] },
+        gatewayKey: {
+          allowList: [asGatewayKey('gw_some_other_valid_key')],
+          clients: [],
+        },
       });
 
       const mockRequest = createMockExpressRequest({

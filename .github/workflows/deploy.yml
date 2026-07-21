@@ -6,7 +6,7 @@ on:
       branch:
         description: 'Branch to deploy (tip used when sha is empty)'
         required: true
-        default: feat/production-readiness
+        default: main
         type: string
       sha:
         description: 'Optional commit SHA or tag (overrides branch tip when set)'

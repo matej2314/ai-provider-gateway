@@ -10,11 +10,14 @@ import {
   createMockExpressRequest,
   createMockExpressResponse,
 } from '../common/mocks/http-mocks';
-import { TEST_MODEL_ALIAS } from '../common/mocks/test-constants';
+import {
+  TEST_GATEWAY_KEY_BRANDED,
+  TEST_MODEL_ALIAS,
+  TEST_REQUEST_ID,
+} from '../common/mocks/test-constants';
 import { GatewayKeyGuard } from '../guards/gateway-key.guard';
 import { SmartRateLimitGuard } from '../guards/smart-rate-limit-guard';
 import { StreamCleanupInterceptor } from '../common/interceptors/stream-cleanup.interceptor';
-import { asGatewayKey } from '../common/types';
 
 describe('ChatStreamController', () => {
   let controller: ChatStreamController;
@@ -62,8 +65,8 @@ describe('ChatStreamController', () => {
 
     function createStreamRequest() {
       return createMockExpressRequest({
-        requestId: 'req-123',
-        gatewayKey: asGatewayKey('gw_key_123'),
+        requestId: TEST_REQUEST_ID,
+        gatewayKey: TEST_GATEWAY_KEY_BRANDED,
         header: jest.fn().mockReturnValue('gw_key_123'),
         headers: { 'x-gateway-key': 'gw_key_123' },
       });

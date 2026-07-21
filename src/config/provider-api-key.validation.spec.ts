@@ -4,6 +4,10 @@ import {
   formatMissingProviderApiKeyError,
   isApiKeyRequiredForProviderType,
 } from './provider-api-key.validation';
+import {
+  asEnvRef,
+  asProviderInstanceId,
+} from '../common/types/branded.types';
 
 describe('provider-api-key.validation', () => {
   describe('collectMissingEnabledProviderApiKeyErrors', () => {
@@ -12,13 +16,13 @@ describe('provider-api-key.validation', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
             enabled: true,
           },
         },
         models: {
           'chat-default': {
-            providerInstance: 'anthropic-primary',
+            providerInstance: asProviderInstanceId('anthropic-primary'),
             modelId: 'claude-sonnet-4-5',
           },
         },
@@ -36,7 +40,7 @@ describe('provider-api-key.validation', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
             enabled: true,
           },
         },
@@ -44,8 +48,8 @@ describe('provider-api-key.validation', () => {
 
       expect(collectMissingEnabledProviderApiKeyErrors(config, {})).toEqual([
         {
-          instanceId: 'anthropic-primary',
-          apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+          instanceId: asProviderInstanceId('anthropic-primary'),
+          apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
         },
       ]);
     });
@@ -55,7 +59,7 @@ describe('provider-api-key.validation', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
             enabled: false,
           },
         },
@@ -69,7 +73,7 @@ describe('provider-api-key.validation', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
             enabled: true,
           },
         },
@@ -79,8 +83,8 @@ describe('provider-api-key.validation', () => {
 
       expect(collectMissingEnabledProviderApiKeyErrors(config, env)).toEqual([
         {
-          instanceId: 'anthropic-primary',
-          apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+          instanceId: asProviderInstanceId('anthropic-primary'),
+          apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
         },
       ]);
     });
@@ -90,8 +94,8 @@ describe('provider-api-key.validation', () => {
     it('includes instanceId and apiKeyRef in message', () => {
       expect(
         formatMissingProviderApiKeyError({
-          instanceId: 'anthropic-primary',
-          apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+          instanceId: asProviderInstanceId('anthropic-primary'),
+          apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
         }),
       ).toContain('ANTHROPIC_PRIMARY_API_KEY');
     });
@@ -114,8 +118,8 @@ describe('openai types with empty api key', () => {
         'anthropic-primary': { enabled: false },
         'openai-primary': {
           type: 'openai',
-          apiKeyRef: 'OPENAI_API_KEY',
-          baseUrlRef: 'OPENAI_BASE_URL',
+          apiKeyRef: asEnvRef('OPENAI_API_KEY'),
+          baseUrlRef: asEnvRef('OPENAI_BASE_URL'),
           enabled: true,
         },
       },

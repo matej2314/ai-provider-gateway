@@ -31,7 +31,7 @@ describe('mapTurnsToResponsesInput', () => {
         content: '',
         toolCalls: [{ id: CALL_1, name: 'fn', arguments: '{}' }],
       },
-      { role: 'tool', toolCallId: 'call_1', content: '{"ok":true}' },
+      { role: 'tool', toolCallId: CALL_1, content: '{"ok":true}' },
     ]);
 
     expect(input).toEqual([

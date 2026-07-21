@@ -13,6 +13,7 @@ import { parseGatewaySseEvents } from '../integration/helpers/parse-gateway-sse-
 import {
   asInputTokens,
   asOutputTokens,
+  asSystemFingerprint,
 } from '../../src/common/types/branded.types';
 
 describe('Gateway Chat API — OpenAI provider (E2E)', () => {
@@ -66,7 +67,9 @@ describe('Gateway Chat API — OpenAI provider (E2E)', () => {
       await withE2eApp(
         {
           providerRegistry: createE2eOpenAiProviderRegistry({
-            completeResponse: { systemFingerprint: 'fp_openai_e2e' },
+            completeResponse: {
+              systemFingerprint: asSystemFingerprint('fp_openai_e2e'),
+            },
           }),
         },
         async ({ app }) => {

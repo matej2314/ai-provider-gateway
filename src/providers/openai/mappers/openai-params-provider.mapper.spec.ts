@@ -3,6 +3,7 @@ import {
   mapCallOptionsToResponsesParams,
   mapMaxOutputTokensForChatCompletions,
 } from './openai-params-provider.mapper';
+import { asJsonSchemaName } from '../../../common/types/branded.types';
 
 describe('openai-params-provider.mapper', () => {
   describe('mapMaxOutputTokensForChatCompletions', () => {
@@ -113,7 +114,7 @@ describe('openai-params-provider.mapper', () => {
         mapCallOptionsToResponsesParams({
           responseFormat: {
             type: 'json_schema',
-            jsonSchemaName: 'my_schema',
+            jsonSchemaName: asJsonSchemaName('my_schema'),
             jsonSchema: { type: 'object' },
           },
         }),

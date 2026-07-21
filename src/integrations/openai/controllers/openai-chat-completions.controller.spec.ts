@@ -270,7 +270,7 @@ describe('OpenAiChatCompletionsController', () => {
         gatewayKey: GW_KEY,
         header: jest.fn(),
         headers: {},
-      } as Request;
+      } as unknown as Request;
       const { res, setHeader } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
       executeStreamMock.mockResolvedValue(undefined);

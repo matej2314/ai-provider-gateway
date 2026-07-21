@@ -37,6 +37,8 @@
     "test:security:watch": "jest --config ./test/jest-security.json --watch --runInBand",
     "test:security:ci": "jest --config ./test/jest-security.json --coverage --ci --runInBand",
     "typecheck:coverage": "type-coverage",
+    "typecheck:build": "npx tsc -p tsconfig.build.json --noEmit",
+    "typecheck:tests": "npx tsc -p tsconfig.test.json --noEmit",
     "docker:build": "docker build --no-cache -f deployment/docker/Dockerfile -t ai-provider-gateway:latest .",
     "docker:up": "docker-compose --env-file .env -f deployment/docker/docker-compose.yml up --build -d",
     "docker:up:redis": "docker-compose --env-file .env -f deployment/docker/docker-compose.yml -f deployment/docker/docker-compose.redis.yml up -d",

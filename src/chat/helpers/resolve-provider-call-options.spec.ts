@@ -175,8 +175,9 @@ describe('resolveProviderCallOptions', () => {
         resolveProviderCallOptions(policy, bodyParams);
       } catch (e) {
         expect(e).toBeInstanceOf(HttpException);
-        expect(e.getStatus()).toBe(HttpStatus.BAD_REQUEST);
-        expect(e.getResponse()).toMatchObject({
+        const error = e as HttpException;
+        expect(error.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+        expect(error.getResponse()).toMatchObject({
           code: ApiErrorCode.MODEL_NOT_ALLOWED,
           message: 'Parameter temperature is not allowed for this model alias',
         });
@@ -327,9 +328,10 @@ describe('resolveProviderCallOptions', () => {
       try {
         resolveProviderCallOptions(policy, bodyParams);
       } catch (e) {
-        expect(e).toBeInstanceOf(HttpException);
-        expect(e.getStatus()).toBe(HttpStatus.BAD_REQUEST);
-        expect(e.getResponse()).toMatchObject({
+        const error = e as HttpException;
+        expect(error).toBeInstanceOf(HttpException);
+        expect(error.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+        expect(error.getResponse()).toMatchObject({
           code: ApiErrorCode.VALIDATION_FAILED,
           message: expect.stringContaining(
             'maxOutputTokens (1024) is insufficient for thinking mode',

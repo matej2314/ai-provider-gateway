@@ -7,7 +7,7 @@ import type {
   ProviderCallOptions,
 } from '../interfaces/ai-provider.interface';
 import { mapToolChoiceToGemini } from '../google/google-tools.mapper';
-import { asProviderApiKey } from '../../common/types';
+import { asProviderApiKey, asModelId } from '../../common/types/branded.types';
 
 jest.mock('@google/genai');
 
@@ -89,7 +89,7 @@ describe('createGoogleProvider', () => {
         },
       });
 
-      await provider.complete(input, 'gemini-2.5-flash');
+      await provider.complete(input, asModelId('gemini-2.5-flash'));
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -110,7 +110,7 @@ describe('createGoogleProvider', () => {
       });
 
       const options: ProviderCallOptions = { temperature: 0.7 };
-      await provider.complete(input, 'gemini-2.5-flash', options);
+      await provider.complete(input, asModelId('gemini-2.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -128,7 +128,7 @@ describe('createGoogleProvider', () => {
       });
       const signal = new AbortController().signal;
 
-      await provider.complete(input, 'gemini-2.5-flash', { signal });
+      await provider.complete(input, asModelId('gemini-2.5-flash'), { signal });
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -146,7 +146,7 @@ describe('createGoogleProvider', () => {
       });
 
       const options: ProviderCallOptions = { topP: 0.9, topK: 40 };
-      await provider.complete(input, 'gemini-2.5-flash', options);
+      await provider.complete(input, asModelId('gemini-2.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -165,7 +165,7 @@ describe('createGoogleProvider', () => {
       });
 
       const options: ProviderCallOptions = { stop: ['STOP', 'END'] };
-      await provider.complete(input, 'gemini-2.5-flash', options);
+      await provider.complete(input, asModelId('gemini-2.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -183,7 +183,7 @@ describe('createGoogleProvider', () => {
       });
 
       const options: ProviderCallOptions = { stop: 'STOP' };
-      await provider.complete(input, 'gemini-2.5-flash', options);
+      await provider.complete(input, asModelId('gemini-2.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -201,7 +201,7 @@ describe('createGoogleProvider', () => {
       });
 
       const options: ProviderCallOptions = { maxOutputTokens: 2048 };
-      await provider.complete(input, 'gemini-2.5-flash', options);
+      await provider.complete(input, asModelId('gemini-2.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -220,7 +220,7 @@ describe('createGoogleProvider', () => {
 
       await provider.complete(
         { messages: [{ role: 'user', content: 'Hello' }], system: '   ' },
-        'gemini-2.5-flash',
+        asModelId('gemini-2.5-flash'),
       );
 
       const call = mockGoogleClient.models.generateContent.mock.calls[0][0];
@@ -234,7 +234,7 @@ describe('createGoogleProvider', () => {
       });
 
       const options: ProviderCallOptions = { seed: 42 };
-      await provider.complete(input, 'gemini-2.5-flash', options);
+      await provider.complete(input, asModelId('gemini-2.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -254,7 +254,7 @@ describe('createGoogleProvider', () => {
       const options: ProviderCallOptions = {
         responseFormat: { type: 'json_object' },
       };
-      await provider.complete(input, 'gemini-2.5-flash', options);
+      await provider.complete(input, asModelId('gemini-2.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -277,7 +277,7 @@ describe('createGoogleProvider', () => {
           jsonSchema: { type: 'object', properties: {} },
         },
       };
-      await provider.complete(input, 'gemini-2.5-flash', options);
+      await provider.complete(input, asModelId('gemini-2.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -298,7 +298,7 @@ describe('createGoogleProvider', () => {
         thinkingEnabled: true,
         thinkingBudget: 'high',
       };
-      await provider.complete(input, 'gemini-3.5-flash', options);
+      await provider.complete(input, asModelId('gemini-3.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -322,7 +322,7 @@ describe('createGoogleProvider', () => {
         thinkingEnabled: true,
         thinkingBudget: 5000,
       };
-      await provider.complete(input, 'gemini-3.5-flash', options);
+      await provider.complete(input, asModelId('gemini-3.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -344,7 +344,7 @@ describe('createGoogleProvider', () => {
       });
 
       const options: ProviderCallOptions = { thinkingEnabled: true };
-      await provider.complete(input, 'gemini-3.5-flash', options);
+      await provider.complete(input, asModelId('gemini-3.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -370,7 +370,7 @@ describe('createGoogleProvider', () => {
         thinkingEnabled: true,
         thinkingBudget: 'low',
       };
-      await provider.complete(input, 'gemini-3.5-flash', options);
+      await provider.complete(input, asModelId('gemini-3.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -395,7 +395,7 @@ describe('createGoogleProvider', () => {
         thinkingBudget:
           'unknown-level' as ProviderCallOptions['thinkingBudget'],
       };
-      await provider.complete(input, 'gemini-3.5-flash', options);
+      await provider.complete(input, asModelId('gemini-3.5-flash'), options);
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -417,7 +417,7 @@ describe('createGoogleProvider', () => {
       const options: ProviderCallOptions = {
         thinkingEnabled: true,
       };
-      await provider.complete(input, 'gemini-2.5-flash', options);
+      await provider.complete(input, asModelId('gemini-2.5-flash'), options);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         'ThinkingConfig requested but model does not support it.',
@@ -441,7 +441,7 @@ describe('createGoogleProvider', () => {
 
       const result = await provider.complete(
         inputWithTools,
-        'gemini-2.5-flash',
+        asModelId('gemini-2.5-flash'),
       );
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
@@ -467,7 +467,7 @@ describe('createGoogleProvider', () => {
         toolChoice: 'required',
       };
 
-      await provider.complete(inputWithTools, 'gemini-2.5-flash');
+      await provider.complete(inputWithTools, asModelId('gemini-2.5-flash'));
 
       expect(mockGoogleClient.models.generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -487,7 +487,7 @@ describe('createGoogleProvider', () => {
         usageMetadata: {},
       });
 
-      const result = await provider.complete(input, 'gemini-3.5-flash', {
+      const result = await provider.complete(input, asModelId('gemini-3.5-flash'), {
         thinkingEnabled: true,
       });
 
@@ -501,7 +501,7 @@ describe('createGoogleProvider', () => {
         usageMetadata: {},
       });
 
-      const result = await provider.complete(input, 'gemini-3.5-flash', {
+      const result = await provider.complete(input, asModelId('gemini-3.5-flash'), {
         thinkingEnabled: true,
       });
 
@@ -515,7 +515,7 @@ describe('createGoogleProvider', () => {
         usageMetadata: {},
       });
 
-      const result = await provider.complete(input, 'gemini-3.5-flash', {
+      const result = await provider.complete(input, asModelId('gemini-3.5-flash'), {
         thinkingEnabled: true,
       });
 
@@ -532,7 +532,7 @@ describe('createGoogleProvider', () => {
         },
       });
 
-      const result = await provider.complete(input, 'gemini-2.5-flash');
+      const result = await provider.complete(input, asModelId('gemini-2.5-flash'));
 
       expect(result).toEqual({
         text: 'Hello there!',
@@ -547,7 +547,7 @@ describe('createGoogleProvider', () => {
         usageMetadata: {},
       });
 
-      const result = await provider.complete(input, 'gemini-2.5-flash');
+      const result = await provider.complete(input, asModelId('gemini-2.5-flash'));
 
       expect(result.model).toBe('gemini-2.5-flash');
     });
@@ -558,7 +558,7 @@ describe('createGoogleProvider', () => {
         modelVersion: 'gemini-2.5-flash',
       });
 
-      const result = await provider.complete(input, 'gemini-2.5-flash');
+      const result = await provider.complete(input, asModelId('gemini-2.5-flash'));
 
       expect(result.usage).toBeUndefined();
     });
@@ -568,7 +568,7 @@ describe('createGoogleProvider', () => {
       mockGoogleClient.models.generateContent.mockRejectedValue(error);
 
       await expect(
-        provider.complete(input, 'gemini-2.5-flash'),
+        provider.complete(input, asModelId('gemini-2.5-flash')),
       ).rejects.toThrow();
       expect(mockLogger.warn).toHaveBeenCalled();
     });
@@ -599,7 +599,7 @@ describe('createGoogleProvider', () => {
         mockStream,
       );
 
-      const result = provider.stream!(input, 'gemini-2.5-flash');
+      const result = provider.stream!(input, asModelId('gemini-2.5-flash'));
 
       expect(result.textStream).toBeDefined();
       expect(result.getUsageMetadata).toBeDefined();
@@ -620,7 +620,7 @@ describe('createGoogleProvider', () => {
         mockStream,
       );
 
-      const result = provider.stream!(input, 'gemini-2.5-flash');
+      const result = provider.stream!(input, asModelId('gemini-2.5-flash'));
       const chunks: string[] = [];
 
       for await (const chunk of result.textStream) {
@@ -649,7 +649,7 @@ describe('createGoogleProvider', () => {
         mockStream,
       );
 
-      const result = provider.stream!(input, 'gemini-2.5-flash');
+      const result = provider.stream!(input, asModelId('gemini-2.5-flash'));
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -675,7 +675,7 @@ describe('createGoogleProvider', () => {
         mockStream,
       );
 
-      const result = provider.stream!(input, 'gemini-2.5-flash');
+      const result = provider.stream!(input, asModelId('gemini-2.5-flash'));
       const metadata = await result.getUsageMetadata();
 
       expect(metadata).toBeUndefined();
@@ -692,7 +692,7 @@ describe('createGoogleProvider', () => {
         mockStream,
       );
 
-      const result = provider.stream!(input, 'gemini-2.5-flash');
+      const result = provider.stream!(input, asModelId('gemini-2.5-flash'));
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -715,7 +715,7 @@ describe('createGoogleProvider', () => {
         mockStream,
       );
 
-      const result = provider.stream!(input, 'gemini-2.5-flash');
+      const result = provider.stream!(input, asModelId('gemini-2.5-flash'));
       const chunks: string[] = [];
 
       for await (const chunk of result.textStream) {
@@ -730,7 +730,7 @@ describe('createGoogleProvider', () => {
         new Error('stream failed'),
       );
 
-      const result = provider.stream!(input, 'gemini-2.5-flash');
+      const result = provider.stream!(input, asModelId('gemini-2.5-flash'));
 
       await expect(async () => {
         for await (const chunk of result.textStream) {
@@ -757,7 +757,7 @@ describe('createGoogleProvider', () => {
         mockStream,
       );
 
-      const result = provider.stream!(input, 'gemini-2.5-flash', {
+      const result = provider.stream!(input, asModelId('gemini-2.5-flash'), {
         thinkingEnabled: true,
       });
 
@@ -794,7 +794,7 @@ describe('createGoogleProvider', () => {
         toolChoice: 'required',
       };
 
-      const result = provider.stream!(inputWithTools, 'gemini-2.5-flash');
+      const result = provider.stream!(inputWithTools, asModelId('gemini-2.5-flash'));
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -832,7 +832,7 @@ describe('createGoogleProvider', () => {
         mockStream,
       );
 
-      const result = provider.stream!(input, 'gemini-2.5-flash');
+      const result = provider.stream!(input, asModelId('gemini-2.5-flash'));
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -855,7 +855,7 @@ describe('createGoogleProvider', () => {
         mockStream,
       );
 
-      const result = provider.stream!(input, 'gemini-3.5-flash', {
+      const result = provider.stream!(input, asModelId('gemini-3.5-flash'), {
         thinkingEnabled: true,
       });
 
@@ -879,7 +879,7 @@ describe('createGoogleProvider', () => {
         mockStream,
       );
 
-      const result = provider.stream!(input, 'gemini-2.5-flash');
+      const result = provider.stream!(input, asModelId('gemini-2.5-flash'));
 
       await expect(result.getFinalToolCalls!()).resolves.toBeUndefined();
       await expect(result.getStopReason!()).resolves.toBeUndefined();
@@ -904,7 +904,7 @@ describe('createGoogleProvider', () => {
         thinkingBudget: 'medium',
       };
 
-      const result = provider.stream!(input, 'gemini-3.5-flash', options);
+      const result = provider.stream!(input, asModelId('gemini-3.5-flash'), options);
 
       for await (const chunk of result.textStream) {
         void chunk;

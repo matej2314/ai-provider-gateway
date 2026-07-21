@@ -20,8 +20,11 @@ import {
 } from '../../common/mocks/test-constants';
 import {
   asInputTokens,
+  asModelAlias,
   asOutputTokens,
   asPromptCacheHitTokens,
+  asSystemFingerprint,
+  asToolCallId,
 } from '../../common/types/branded.types';
 import type { GatewayToolCall } from '../../providers/types/tooling-types';
 
@@ -77,10 +80,10 @@ describe('ChatResponseBuilderService', () => {
         const result = service.buildChatResponse(
           baseProviderResponse,
           'anthropic',
-          'primary-model',
+          asModelAlias('primary-model'),
           TEST_REQUEST_ID,
           TEST_CONVERSATION_ID,
-          'fallback-model',
+          asModelAlias('fallback-model'),
         );
 
         expect(result.effectiveModelAlias).toBe('fallback-model');
@@ -90,7 +93,7 @@ describe('ChatResponseBuilderService', () => {
       it('should include toolCalls when present', () => {
         const toolCalls: GatewayToolCall[] = [
           {
-            id: 'tc_1',
+            id: asToolCallId('tc_1'),
             name: 'get_weather',
             arguments: JSON.stringify({ city: 'Warsaw' }),
           },
@@ -119,7 +122,7 @@ describe('ChatResponseBuilderService', () => {
           usageDetails: {
             promptCacheHitTokens: asPromptCacheHitTokens(5),
           },
-          systemFingerprint: 'fp_abc123',
+          systemFingerprint: asSystemFingerprint('fp_abc123'),
           thinkingContent: 'Let me think...',
         };
 
@@ -336,7 +339,7 @@ describe('ChatResponseBuilderService', () => {
       it('should include toolCalls and map finishReason to tool_calls', () => {
         const toolCalls: GatewayToolCall[] = [
           {
-            id: 'tc_1',
+            id: asToolCallId('tc_1'),
             name: 'search',
             arguments: JSON.stringify({ q: 'test' }),
           },
@@ -349,7 +352,7 @@ describe('ChatResponseBuilderService', () => {
           },
           toolCalls,
           'tool_use',
-          'fp_stream',
+          asSystemFingerprint('fp_stream'),
           'reasoning block',
         );
 
@@ -382,7 +385,7 @@ describe('ChatResponseBuilderService', () => {
             promptCacheHitTokens: TEST_PROMPT_CACHE_HIT_TOKENS,
             promptCacheCreationTokens: TEST_PROMPT_CACHE_CREATION_TOKENS,
           },
-          'fallback-model',
+          asModelAlias('fallback-model'),
         );
 
         expect(event).toEqual({
@@ -459,7 +462,7 @@ describe('ChatResponseBuilderService', () => {
           { inputTokens: asInputTokens(1), outputTokens: asOutputTokens(1) },
           undefined,
           'end_turn',
-          '',
+          asSystemFingerprint(''),
           '',
         );
 
@@ -473,7 +476,7 @@ describe('ChatResponseBuilderService', () => {
 
       it('should prefer toolCalls length over stopReason for finishReason', () => {
         const toolCalls: GatewayToolCall[] = [
-          { id: 'tc_1', name: 'fn', arguments: '{}' },
+          { id: asToolCallId('tc_1'), name: 'fn', arguments: '{}' },
         ];
 
         const event = service.buildStreamDoneEvent(

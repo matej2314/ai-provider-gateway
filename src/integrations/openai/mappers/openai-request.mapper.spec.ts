@@ -112,7 +112,7 @@ describe('mapOpenAiChatRequestToGateway', () => {
 
       expect(result.tooling).toBeDefined();
       expect(result.tooling?.definitions).toHaveLength(1);
-      expect(result.tooling?.definitions[0]).toEqual({
+      expect(result.tooling?.definitions?.[0]).toEqual({
         name: 'get_weather',
         description: 'Get weather',
         parameters: { type: 'object', properties: {} },

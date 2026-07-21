@@ -7,6 +7,11 @@ import {
   mapSseEventToAnthropic,
 } from './anthropic-stream.mapper';
 import type { SseEvent } from '../../../chat/sse/sse-event.type';
+import {
+  asMessageId,
+  asPromptCacheCreationTokens,
+  asPromptCacheHitTokens,
+} from '../../../common/types/branded.types';
 
 describe('anthropic-stream.mapper', () => {
   it('createAnthropicStreamState should initialize state', () => {
@@ -71,7 +76,7 @@ describe('anthropic-stream.mapper', () => {
   describe('done', () => {
     it('should close text block and emit message_delta + message_stop', () => {
       const state = createAnthropicStreamState('claude-sonnet-4-5');
-      state.messageId = 'msg_123';
+      state.messageId = asMessageId('msg_123');
       state.messageSent = true;
       state.textBlockStarted = true;
 
@@ -244,8 +249,8 @@ describe('anthropic-stream.mapper', () => {
             finishReason: 'stop',
             usage: { inputTokens: 100, outputTokens: 50 },
             usageDetails: {
-              promptCacheCreationTokens: 20,
-              promptCacheHitTokens: 30,
+              promptCacheCreationTokens: asPromptCacheCreationTokens(20),
+              promptCacheHitTokens: asPromptCacheHitTokens(30),
             },
           },
         },

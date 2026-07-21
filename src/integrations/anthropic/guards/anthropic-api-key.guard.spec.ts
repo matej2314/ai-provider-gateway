@@ -16,8 +16,16 @@ import {
   createMockConfigService,
   type MockConfigServiceOptions,
 } from '../../../common/mocks/createMockConfigService';
-import { TEST_GATEWAY_KEY } from '../../../common/mocks/test-constants';
-import { asClientId } from '../../../common/types/branded.types';
+import {
+  TEST_GATEWAY_KEY,
+  TEST_GATEWAY_KEY_BRANDED,
+} from '../../../common/mocks/test-constants';
+import {
+  asClientId,
+  asEnvRef,
+  asGatewayKey,
+  asProviderInstanceId,
+} from '../../../common/types/branded.types';
 import type { Request } from 'express';
 
 describe('readAnthropicApiKey', () => {
@@ -120,11 +128,14 @@ describe('AnthropicApiKeyGuard', () => {
     it('should set clientId on request', async () => {
       await initGuard({
         gatewayKey: {
-          allowList: [TEST_GATEWAY_KEY],
+          allowList: [TEST_GATEWAY_KEY_BRANDED],
           clients: [
             {
+              instanceId: asProviderInstanceId('claude-client'),
               name: 'claude-client',
-              gatewayKey: TEST_GATEWAY_KEY,
+              type: 'ide',
+              gatewayKeyRef: asEnvRef('CLAUDE_CLIENT_GATEWAY_KEY'),
+              gatewayKey: TEST_GATEWAY_KEY_BRANDED,
             },
           ],
         },
@@ -179,7 +190,10 @@ describe('AnthropicApiKeyGuard', () => {
   describe('Invalid key scenarios', () => {
     it('should throw ForbiddenException when key not in allowList', async () => {
       await initGuard({
-        gatewayKey: { allowList: ['gw_some_other_valid_key'], clients: [] },
+        gatewayKey: {
+          allowList: [asGatewayKey('gw_some_other_valid_key')],
+          clients: [],
+        },
       });
 
       const mockRequest = createMockExpressRequest({

@@ -2,7 +2,7 @@ import {
   mapOpenAiMessagesToGateway,
   mapOpenAiToolCalls,
 } from './openai-messages.mapper';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, HttpException } from '@nestjs/common';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { TEST_TOOL_CALL_ID } from '../../../common/mocks/test-constants';
 
@@ -187,7 +187,9 @@ describe('mapOpenAiMessagesToGateway', () => {
       try {
         mapOpenAiMessagesToGateway(messages as any);
       } catch (e) {
-        expect(e.getResponse()).toMatchObject({
+        const error = e as HttpException;
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.getResponse()).toMatchObject({
           code: ApiErrorCode.VALIDATION_FAILED,
           message: expect.stringContaining('tool_call_id'),
         });

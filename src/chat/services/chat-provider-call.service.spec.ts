@@ -32,6 +32,7 @@ import {
 import type { ResolvedProviderConfig } from '../../providers/provider-registry.service';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { SseEvent } from '../sse/sse-event.type';
+import { AppProviderCallContext } from 'src/observability/app-metrics/interfaces/app-metrics-backend.interface';
 
 describe('ChatProviderCallService', () => {
   let service: ChatProviderCallService;
@@ -72,7 +73,10 @@ describe('ChatProviderCallService', () => {
     };
 
     mockAppMetrics = {
-      observeProviderCall: jest.fn((_ctx, fn) => fn()),
+      observeProviderCall: jest.fn(
+        (_ctx: AppProviderCallContext, fn: () => Promise<any>) =>
+          fn() as Promise<any>,
+      ),
       observeProviderStream: jest.fn().mockReturnValue({
         end: jest.fn(),
         fail: jest.fn(),

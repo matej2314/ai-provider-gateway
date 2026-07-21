@@ -148,10 +148,16 @@
   "146": "Data flow — AI Provider Gateway",
   "147": "OpenAI adapter (provider runtime)",
   "148": "ChatResponseDto",
-  "149": "anthropic-messages-response.dto.ts",
-  "150": "provider-base-url.validation.ts",
+  "149": "PrometheusService",
+  "150": "provider-instances.bootstrap.spec.ts",
   "151": "Directory and file architecture",
   "152": "Documentation — AI Provider Gateway",
-  "153": "ResponseFormatDto",
-  "154": "CliModule"
+  "153": "openai-messages-provider.mapper.ts",
+  "154": "wait-for-redis.ts",
+  "155": "MetricsController",
+  "156": "anthropic-stream.mapper.ts",
+  "157": "NoopAppMetricsAdapter",
+  "158": "chat-completions.adapter.ts",
+  "159": "resolve-provider-call-options.ts",
+  "160": "openai-chat-completion-response.dto.ts"
 }

@@ -25,7 +25,7 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
           inputTokens: TEST_INPUT_TOKENS,
           outputTokens: TEST_OUTPUT_TOKENS,
         },
-      } as ChatResponseDto,
+      } as unknown as ChatResponseDto,
       'claude-sonnet-4-5',
     );
 
@@ -56,7 +56,7 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
           inputTokens: asInputTokens(1),
           outputTokens: asOutputTokens(2),
         },
-      } as ChatResponseDto,
+      } as unknown as ChatResponseDto,
       'claude',
     );
 
@@ -82,7 +82,7 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
           inputTokens: asInputTokens(1),
           outputTokens: asOutputTokens(2),
         },
-      } as ChatResponseDto,
+      } as unknown as ChatResponseDto,
       'claude',
     );
 
@@ -109,7 +109,7 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
           inputTokens: asInputTokens(1),
           outputTokens: asOutputTokens(2),
         },
-      } as ChatResponseDto,
+      } as unknown as ChatResponseDto,
       'claude',
     );
 
@@ -121,7 +121,7 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
       id: 'gw_1',
       output: { text: 'x' },
       usage: { inputTokens: 1, outputTokens: 2 },
-    } as ChatResponseDto;
+    } as unknown as ChatResponseDto;
 
     expect(
       mapGatewayResponseToAnthropicFormat(
@@ -156,7 +156,7 @@ describe('mapGatewayResponseToAnthropicFormat', () => {
           promptCacheCreationTokens: 20,
           promptCacheHitTokens: 30,
         },
-      } as ChatResponseDto,
+      } as unknown as ChatResponseDto,
       'claude',
     );
 

@@ -7,6 +7,7 @@ import {
   configurationValidation,
   validateEnvironment,
 } from './configuration-validation.service';
+import { asEnvRef } from '../common/types/branded.types';
 
 describe('ConfigurationValidationService', () => {
   const service = new ConfigurationValidationService();
@@ -31,7 +32,7 @@ describe('ConfigurationValidationService', () => {
     it('passes when master key env is non-empty', () => {
       expect(() =>
         service.assertMasterKeyPresent(
-          { masterKeyRef: 'MASTER_KEY' },
+          { masterKeyRef: asEnvRef('MASTER_KEY') },
           { MASTER_KEY: 'gw_mk_test' },
         ),
       ).not.toThrow();
@@ -39,7 +40,10 @@ describe('ConfigurationValidationService', () => {
 
     it('throws when master key is missing', () => {
       expect(() =>
-        service.assertMasterKeyPresent({ masterKeyRef: 'MASTER_KEY' }, {}),
+        service.assertMasterKeyPresent(
+          { masterKeyRef: asEnvRef('MASTER_KEY') },
+          {},
+        ),
       ).toThrow('[GatewayKey] Missing master key.');
     });
   });
@@ -50,7 +54,7 @@ describe('ConfigurationValidationService', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
             enabled: true,
           },
         },
@@ -68,7 +72,7 @@ describe('ConfigurationValidationService', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
             enabled: true,
           },
         },
@@ -85,8 +89,8 @@ describe('ConfigurationValidationService', () => {
           'anthropic-primary': { enabled: false },
           'openai-primary': {
             type: 'openai',
-            apiKeyRef: 'OPENAI_API_KEY',
-            baseUrlRef: 'OPENAI_BASE_URL',
+            apiKeyRef: asEnvRef('OPENAI_API_KEY'),
+            baseUrlRef: asEnvRef('OPENAI_BASE_URL'),
             enabled: true,
           },
         },
@@ -107,7 +111,7 @@ describe('ConfigurationValidationService', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
             enabled: true,
           },
         },
@@ -127,7 +131,7 @@ describe('ConfigurationValidationService', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
             enabled: true,
           },
         },
@@ -150,7 +154,7 @@ describe('ConfigurationValidationService', () => {
 
     it('assertMasterKeyPresent delegates to singleton', () => {
       expect(() =>
-        assertMasterKeyPresent({ masterKeyRef: 'MASTER_KEY' }, {}),
+        assertMasterKeyPresent({ masterKeyRef: asEnvRef('MASTER_KEY') }, {}),
       ).toThrow('[GatewayKey] Missing master key.');
     });
 
@@ -159,7 +163,7 @@ describe('ConfigurationValidationService', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_PRIMARY_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_PRIMARY_API_KEY'),
             enabled: true,
           },
         },

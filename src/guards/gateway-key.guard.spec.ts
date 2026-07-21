@@ -17,7 +17,10 @@ import {
 import { TEST_GATEWAY_KEY } from '../common/mocks/test-constants';
 import {
   asClientId,
+  asEnvRef,
   asGatewayKey,
+  asProviderInstanceId,
+  asRequestId,
   type GatewayKey,
 } from '../common/types/branded.types';
 import type { Request } from 'express';
@@ -81,7 +84,10 @@ describe('GatewayKeyGuard', () => {
           allowList: [asGatewayKey('gw_valid_key_123')],
           clients: [
             {
+              instanceId: asProviderInstanceId('ide-client'),
               name: 'ide-client',
+              type: 'ide',
+              gatewayKeyRef: asEnvRef('IDE_CLIENT_GATEWAY_KEY'),
               gatewayKey: asGatewayKey('gw_valid_key_123'),
             },
           ],
@@ -267,7 +273,7 @@ describe('GatewayKeyGuard', () => {
 
       const context = createMockContext(
         { 'x-gateway-key': 'gw_invalid' },
-        'req-456',
+        asRequestId('req-456'),
       );
 
       try {

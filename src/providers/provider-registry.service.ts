@@ -21,6 +21,7 @@ import { LoggingService } from '../logging/logging.service';
 import { RETRY_POLICY_DEFAULTS } from '../common/retry-policy-defaults';
 import type { ProviderToolCall } from './interfaces/ai-provider.interface';
 import type { GatewayProviderType } from '../config/provider-types';
+import type { OpenAiApiSurface } from './openai/openai-provider.types';
 import {
   asModelAlias,
   asModelId,
@@ -54,6 +55,8 @@ export interface ResolvedProviderConfig {
   params?: GatewayParamsConfig;
   toolCalls?: ProviderToolCall[];
   providerType: GatewayProviderType;
+  /** Present for OpenAI / openai-compatible instances only. */
+  openAiApiSurface?: OpenAiApiSurface;
 }
 
 @Injectable()

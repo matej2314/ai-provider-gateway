@@ -44,7 +44,7 @@ describe('mapChatResponseToOpenAi', () => {
       inputTokens: TEST_INPUT_TOKENS,
       outputTokens: TEST_OUTPUT_TOKENS,
     },
-  } as ChatResponseDto;
+  } as unknown as ChatResponseDto;
 
   it('should map basic text completion', () => {
     const result = mapChatResponseToOpenAi(baseResponse, 'gpt-4');
@@ -78,7 +78,7 @@ describe('mapChatResponseToOpenAi', () => {
           inputTokens: asInputTokens(1),
           outputTokens: asOutputTokens(2),
         },
-      } as ChatResponseDto,
+      } as unknown as ChatResponseDto,
       'gpt-4',
     );
 
@@ -103,7 +103,7 @@ describe('mapChatResponseToOpenAi', () => {
           inputTokens: asInputTokens(1),
           outputTokens: asOutputTokens(2),
         },
-      } as ChatResponseDto,
+      } as unknown as ChatResponseDto,
       'gpt-4',
     );
 
