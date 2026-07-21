@@ -487,9 +487,13 @@ describe('createGoogleProvider', () => {
         usageMetadata: {},
       });
 
-      const result = await provider.complete(input, asModelId('gemini-3.5-flash'), {
-        thinkingEnabled: true,
-      });
+      const result = await provider.complete(
+        input,
+        asModelId('gemini-3.5-flash'),
+        {
+          thinkingEnabled: true,
+        },
+      );
 
       expect(result.thinkingContent).toBe('Reasoning...');
     });
@@ -501,9 +505,13 @@ describe('createGoogleProvider', () => {
         usageMetadata: {},
       });
 
-      const result = await provider.complete(input, asModelId('gemini-3.5-flash'), {
-        thinkingEnabled: true,
-      });
+      const result = await provider.complete(
+        input,
+        asModelId('gemini-3.5-flash'),
+        {
+          thinkingEnabled: true,
+        },
+      );
 
       expect(result.thinkingContent).toBe('Step 1\nStep 2');
     });
@@ -515,9 +523,13 @@ describe('createGoogleProvider', () => {
         usageMetadata: {},
       });
 
-      const result = await provider.complete(input, asModelId('gemini-3.5-flash'), {
-        thinkingEnabled: true,
-      });
+      const result = await provider.complete(
+        input,
+        asModelId('gemini-3.5-flash'),
+        {
+          thinkingEnabled: true,
+        },
+      );
 
       expect(result.thinkingContent).toBe('Reasoning...');
     });
@@ -532,7 +544,10 @@ describe('createGoogleProvider', () => {
         },
       });
 
-      const result = await provider.complete(input, asModelId('gemini-2.5-flash'));
+      const result = await provider.complete(
+        input,
+        asModelId('gemini-2.5-flash'),
+      );
 
       expect(result).toEqual({
         text: 'Hello there!',
@@ -547,7 +562,10 @@ describe('createGoogleProvider', () => {
         usageMetadata: {},
       });
 
-      const result = await provider.complete(input, asModelId('gemini-2.5-flash'));
+      const result = await provider.complete(
+        input,
+        asModelId('gemini-2.5-flash'),
+      );
 
       expect(result.model).toBe('gemini-2.5-flash');
     });
@@ -558,7 +576,10 @@ describe('createGoogleProvider', () => {
         modelVersion: 'gemini-2.5-flash',
       });
 
-      const result = await provider.complete(input, asModelId('gemini-2.5-flash'));
+      const result = await provider.complete(
+        input,
+        asModelId('gemini-2.5-flash'),
+      );
 
       expect(result.usage).toBeUndefined();
     });
@@ -794,7 +815,10 @@ describe('createGoogleProvider', () => {
         toolChoice: 'required',
       };
 
-      const result = provider.stream!(inputWithTools, asModelId('gemini-2.5-flash'));
+      const result = provider.stream!(
+        inputWithTools,
+        asModelId('gemini-2.5-flash'),
+      );
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -904,7 +928,11 @@ describe('createGoogleProvider', () => {
         thinkingBudget: 'medium',
       };
 
-      const result = provider.stream!(input, asModelId('gemini-3.5-flash'), options);
+      const result = provider.stream!(
+        input,
+        asModelId('gemini-3.5-flash'),
+        options,
+      );
 
       for await (const chunk of result.textStream) {
         void chunk;

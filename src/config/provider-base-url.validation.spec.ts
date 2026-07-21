@@ -33,7 +33,10 @@ describe('provider-base-url.validation', () => {
         },
       });
       expect(collectMissingBaseUrlErrors(config, {})).toEqual([
-        { instanceId: 'openai-primary', baseUrlRef: asEnvRef('OPENAI_BASE_URL') },
+        {
+          instanceId: 'openai-primary',
+          baseUrlRef: asEnvRef('OPENAI_BASE_URL'),
+        },
       ]);
     });
 

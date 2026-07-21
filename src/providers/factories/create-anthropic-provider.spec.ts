@@ -253,7 +253,10 @@ describe('createAnthropicProvider', () => {
         usage: { input_tokens: 10, output_tokens: 5 },
       });
 
-      const result = await provider.complete(input, asModelId('claude-sonnet-4'));
+      const result = await provider.complete(
+        input,
+        asModelId('claude-sonnet-4'),
+      );
 
       expect(result).toEqual({
         text: 'Hello there!',
@@ -272,7 +275,10 @@ describe('createAnthropicProvider', () => {
         usage: { input_tokens: 10, output_tokens: 5 },
       });
 
-      const result = await provider.complete(input, asModelId('claude-sonnet-4'));
+      const result = await provider.complete(
+        input,
+        asModelId('claude-sonnet-4'),
+      );
 
       expect(result.text).toBe('Hello world');
     });
@@ -287,7 +293,10 @@ describe('createAnthropicProvider', () => {
         usage: { input_tokens: 10, output_tokens: 5 },
       });
 
-      const result = await provider.complete(input, asModelId('claude-sonnet-4'));
+      const result = await provider.complete(
+        input,
+        asModelId('claude-sonnet-4'),
+      );
 
       expect(result.thinkingContent).toBe('Let me think...');
       expect(result.text).toBe('Answer');
@@ -377,7 +386,10 @@ describe('createAnthropicProvider', () => {
         tools: [{ name: 'weather', parameters: {} }],
       };
 
-      const result = await provider.complete(inputWithTools, asModelId('claude-sonnet-4'));
+      const result = await provider.complete(
+        inputWithTools,
+        asModelId('claude-sonnet-4'),
+      );
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -693,7 +705,10 @@ describe('createAnthropicProvider', () => {
         toolChoice: 'auto',
       };
 
-      const result = provider.stream!(inputWithTools, asModelId('claude-sonnet-4'));
+      const result = provider.stream!(
+        inputWithTools,
+        asModelId('claude-sonnet-4'),
+      );
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -804,7 +819,8 @@ describe('createAnthropicProvider', () => {
       };
 
       const result = provider.stream!(
-        inputWithMetadata, asModelId('claude-sonnet-4'),
+        inputWithMetadata,
+        asModelId('claude-sonnet-4'),
         options,
       );
 

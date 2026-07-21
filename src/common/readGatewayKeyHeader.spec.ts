@@ -217,8 +217,11 @@ describe('readGatewayKeyHeader', () => {
       const req = {
         header: (name: string) => {
           const lowerName = name.toLowerCase();
-          const headers = { 'x-gateway-key': 'gw_key_123' } as Record<string, string>;
-          return (headers as Record<string, string>)[lowerName];
+          const headers = { 'x-gateway-key': 'gw_key_123' } as Record<
+            string,
+            string
+          >;
+          return headers[lowerName];
         },
         headers: { 'x-gateway-key': 'gw_key_123' },
       } as unknown as Request;

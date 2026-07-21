@@ -74,8 +74,7 @@ describe('ChatProviderCallService', () => {
 
     mockAppMetrics = {
       observeProviderCall: jest.fn(
-        (_ctx: AppProviderCallContext, fn: () => Promise<any>) =>
-          fn() as Promise<any>,
+        (_ctx: AppProviderCallContext, fn: () => Promise<any>) => fn(),
       ),
       observeProviderStream: jest.fn().mockReturnValue({
         end: jest.fn(),

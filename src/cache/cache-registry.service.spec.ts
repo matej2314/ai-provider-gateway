@@ -93,7 +93,9 @@ describe('CacheRegistryService', () => {
     });
 
     it('should default to noop when backend is null', async () => {
-      await initService({ cache: { backend: null as unknown as CACHE_BACKEND_TYPE } });
+      await initService({
+        cache: { backend: null as unknown as CACHE_BACKEND_TYPE },
+      });
       service.register('redis', mockBackend as CacheBackend);
       service.register('noop', mockNoopBackend as CacheBackend);
 
@@ -103,7 +105,9 @@ describe('CacheRegistryService', () => {
     });
 
     it('should fallback to noop when backend not found', async () => {
-      await initService({ cache: { backend: 'nonexistent' as CACHE_BACKEND_TYPE } });
+      await initService({
+        cache: { backend: 'nonexistent' as CACHE_BACKEND_TYPE },
+      });
       service.register('redis', mockBackend as CacheBackend);
       service.register('noop', mockNoopBackend as CacheBackend);
 

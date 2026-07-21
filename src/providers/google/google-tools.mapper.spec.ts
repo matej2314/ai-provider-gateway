@@ -229,7 +229,9 @@ describe('mapTurnsToGeminiContents', () => {
       {
         role: 'assistant',
         content: '',
-        toolCalls: [{ id: asToolCallId('call_1'), name: 'weather', arguments: '{}' }],
+        toolCalls: [
+          { id: asToolCallId('call_1'), name: 'weather', arguments: '{}' },
+        ],
       },
     ];
 

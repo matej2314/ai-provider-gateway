@@ -128,7 +128,10 @@ describe('isCachedChatAllowedForModelAlias', () => {
   });
 
   it('should return false when gateway config undefined', () => {
-    const result = isCachedChatAllowedForModelAlias(undefined, TEST_MODEL_ALIAS);
+    const result = isCachedChatAllowedForModelAlias(
+      undefined,
+      TEST_MODEL_ALIAS,
+    );
 
     expect(result).toBe(false);
   });

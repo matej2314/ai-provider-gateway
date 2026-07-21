@@ -4,10 +4,7 @@ import {
   formatMissingProviderApiKeyError,
   isApiKeyRequiredForProviderType,
 } from './provider-api-key.validation';
-import {
-  asEnvRef,
-  asProviderInstanceId,
-} from '../common/types/branded.types';
+import { asEnvRef, asProviderInstanceId } from '../common/types/branded.types';
 
 describe('provider-api-key.validation', () => {
   describe('collectMissingEnabledProviderApiKeyErrors', () => {
