@@ -721,5 +721,61 @@ describe('ProviderRegistryService', () => {
         createMockAIProvider() as AIProvider,
       );
     });
+
+    it('should set openAiApiSurface to responses for type openai', () => {
+      const result = service.resolve(OPENAI_ALIAS);
+
+      expect(result).toMatchObject({
+        modelAlias: OPENAI_ALIAS,
+        modelId: 'gpt-4o',
+        providerName: OPENAI_INSTANCE,
+        providerType: 'openai',
+        openAiApiSurface: 'responses',
+      });
+    });
+
+    it('should set openAiApiSurface to chat-completions for type openai-compatible', () => {
+      const result = service.resolve(OLLAMA_ALIAS);
+
+      expect(result).toMatchObject({
+        modelAlias: OLLAMA_ALIAS,
+        modelId: 'llama3.2',
+        providerName: OLLAMA_INSTANCE,
+        providerType: 'openai-compatible',
+        openAiApiSurface: 'chat-completions',
+      });
+    });
+
+    it('should omit openAiApiSurface for non-OpenAI provider types', async () => {
+      await initService({
+        gateway: buildResolveGateway({
+          replace: { clients: true, providers: true, models: true },
+          providers: {
+            [TEST_PROVIDER_INSTANCE]: {
+              type: 'anthropic',
+              apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
+              enabled: true,
+            },
+          },
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              modelId: 'claude-sonnet-4-5',
+              providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
+              policy: EMPTY_MODEL_POLICY,
+            },
+          },
+        }),
+      });
+      service.registerInstance(
+        TEST_PROVIDER_INSTANCE_BRANDED,
+        'anthropic',
+        createMockAIProvider() as AIProvider,
+      );
+
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
+
+      expect(result.providerType).toBe('anthropic');
+      expect(result.openAiApiSurface).toBeUndefined();
+    });
   });
 });

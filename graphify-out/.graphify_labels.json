@@ -110,7 +110,6 @@
   "108": "Anti-patterns / what to watch for — AI Provider Gateway",
   "109": "resolve-provider-call-options.ts",
   "110": "Conceptual documentation — AI Provider Gateway",
-  "111": "OpenAiChatMessageDto",
   "112": "provider-base-url.validation.ts",
   "113": "rollback.sh",
   "114": "nest-cli.json",
@@ -122,7 +121,6 @@
   "120": "gateway-cli-wrapper.js",
   "121": "deploy-staging.sh",
   "122": "Conversation tracking (`conversationId`)",
-  "123": "AnthropicContentBlockDto",
   "124": "AppMetricsBackend",
   "125": "OpenAI contract facade (Cursor IDE)",
   "126": "tsconfig.build.json",
@@ -142,9 +140,7 @@
   "140": "Architecture — AI Provider Gateway",
   "141": "Dictionary — AI Provider Gateway",
   "142": "Testing — AI Provider Gateway",
-  "143": "chat-response-builder.service.spec.ts",
   "144": "anthropic-response.mapper.ts",
-  "145": "anthropic-stream.mapper.ts",
   "146": "Data flow — AI Provider Gateway",
   "147": "OpenAI adapter (provider runtime)",
   "148": "ChatResponseDto",
@@ -155,9 +151,6 @@
   "153": "openai-messages-provider.mapper.ts",
   "154": "wait-for-redis.ts",
   "155": "MetricsController",
-  "156": "anthropic-stream.mapper.ts",
-  "157": "NoopAppMetricsAdapter",
   "158": "chat-completions.adapter.ts",
-  "159": "resolve-provider-call-options.ts",
-  "160": "openai-chat-completion-response.dto.ts"
+  "159": "resolve-provider-call-options.ts"
 }
