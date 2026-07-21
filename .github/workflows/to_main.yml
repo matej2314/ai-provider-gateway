@@ -1,0 +1,123 @@
+# Gate for merges into main (production).
+# Require the "Main gate" check in branch protection / rulesets.
+name: Protect Main
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+concurrency:
+  group: to-main-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_ENV: test
+  MASTER_KEY: ${{ secrets.MASTER_KEY }}
+  MASTER_KEY_TEST: ${{ secrets.MASTER_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  ANTHROPIC_API_KEY_TEST: ${{ secrets.ANTHROPIC_API_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+  GOOGLE_API_KEY_TEST: ${{ secrets.GOOGLE_API_KEY }}
+  GATEWAY_KEY: ${{ secrets.GATEWAY_KEY }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Typecheck build (tsconfig.build.json)
+        run: npm run typecheck:build
+      - name: Typecheck tests (tsconfig.test.json)
+        run: npm run typecheck:tests
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:cov
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:e2e
+
+  trivy-deps:
+    name: Trivy Dependency Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan npm dependencies (package-lock.json)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          vuln-type: library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: '1'
+
+  # Single required status check for branch protection.
+  gate:
+    name: Main gate
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test, e2e, trivy-deps]
+    if: always()
+    steps:
+      - name: Require lint, typecheck, unit, e2e, and trivy success
+        run: |
+          set -euo pipefail
+          echo "Lint:      ${{ needs.lint.result }}"
+          echo "Typecheck: ${{ needs.typecheck.result }}"
+          echo "Unit:      ${{ needs.test.result }}"
+          echo "E2E:       ${{ needs.e2e.result }}"
+          echo "Trivy:     ${{ needs.trivy-deps.result }}"
+          test "${{ needs.lint.result }}" = "success"
+          test "${{ needs.typecheck.result }}" = "success"
+          test "${{ needs.test.result }}" = "success"
+          test "${{ needs.e2e.result }}" = "success"
+          test "${{ needs.trivy-deps.result }}" = "success"
