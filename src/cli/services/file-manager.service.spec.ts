@@ -2,7 +2,10 @@ import { mkdtempSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { FileManagerService } from './file-manager.service';
-import { asGatewayKey, asProviderApiKey } from '../../common/types/branded.types';
+import {
+  asGatewayKey,
+  asProviderApiKey,
+} from '../../common/types/branded.types';
 
 describe('FileManagerService', () => {
   let service: FileManagerService;

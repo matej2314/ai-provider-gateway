@@ -10,7 +10,9 @@ import {
 
 @Injectable()
 export class KeyPromptService {
-  async promptMasterKey(keyGenerator: KeyGeneratorService): Promise<GatewayKey> {
+  async promptMasterKey(
+    keyGenerator: KeyGeneratorService,
+  ): Promise<GatewayKey> {
     CliLogger.section('Step 1/5: Master Key');
     console.log(
       chalk.dim(

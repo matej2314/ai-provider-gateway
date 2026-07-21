@@ -140,11 +140,7 @@ export class ProviderManagerService {
       await this.modelManager.addModelForProvider(config, id, cwd);
     }
 
-    await this.envPatch.setVar(
-      cwd,
-      apiKeyRef,
-      asProviderApiKey(apiKey.trim()),
-    );
+    await this.envPatch.setVar(cwd, apiKeyRef, asProviderApiKey(apiKey.trim()));
     if (baseUrlRef && baseUrl) {
       await this.envPatch.setVar(cwd, baseUrlRef, baseUrl);
     }

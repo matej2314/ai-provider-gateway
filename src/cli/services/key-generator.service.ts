@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { asGatewayKey, type GatewayKey } from '../../common/types/branded.types';
+import {
+  asGatewayKey,
+  type GatewayKey,
+} from '../../common/types/branded.types';
 
 @Injectable()
 export class KeyGeneratorService {

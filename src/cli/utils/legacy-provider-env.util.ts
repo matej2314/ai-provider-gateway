@@ -66,11 +66,7 @@ export async function syncLegacyProviderApiKeysInEnv(
 
     const apiKey = await envPatch.getVar(cwd, providerRow.apiKeyRef);
     if (apiKey?.trim()) {
-      await envPatch.setVar(
-        cwd,
-        legacyEnvRef,
-        asProviderApiKey(apiKey.trim()),
-      );
+      await envPatch.setVar(cwd, legacyEnvRef, asProviderApiKey(apiKey.trim()));
     } else {
       await envPatch.removeVar(cwd, legacyEnvRef);
     }

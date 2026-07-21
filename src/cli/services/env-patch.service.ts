@@ -37,11 +37,7 @@ export class EnvPatchService {
     return undefined;
   }
 
-  async setVar(
-    cwd: string,
-    key: EnvRef,
-    value: EnvPatchValue,
-  ): Promise<void> {
+  async setVar(cwd: string, key: EnvRef, value: EnvPatchValue): Promise<void> {
     const lines = await this.readLines(cwd);
     const prefix = `${key}=`;
     const serialized = String(value);
