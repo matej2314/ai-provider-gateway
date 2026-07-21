@@ -1,276 +1,28 @@
 schemaVersion: 1
-masterKeyRef: MASTER_KEY
+masterKeyRef: MASTER_KEY_PLACEHOLDER
+
 providers:
-  anthropic:
+  placeholder-provider:
     type: anthropic
-    apiKeyRef: ANTHROPIC_API_KEY
+    apiKeyRef: ANTHROPIC_API_KEY_PLACEHOLDER
     enabled: true
-  google:
-    type: google
-    apiKeyRef: GOOGLE_API_KEY
-    enabled: true
-  openai:
-    type: openai
-    apiKeyRef: OPENAI_API_KEY
-    enabled: true
-    baseUrlRef: OPENAI_BASE_URL
-  ollama-local:
-    type: openai-compatible
-    apiKeyRef: OLLAMA_API_KEY
-    enabled: false
-    baseUrlRef: OLLAMA_BASE_URL
-  deepseek:
-    type: openai-compatible
-    apiKeyRef: DEEPSEEK_API_KEY
-    enabled: true
-    baseUrlRef: DEEPSEEK_BASE_URL
+
 clients:
-  webapp:
-    name: My web app
-    type: webapp
-    gatewayKeyRef: GATEWAY_KEY_WEBAPP
-    rateLimit:
-      rps: 10
-      burst: 10
-      maxConcurrentStreams: 3
-  ide-plugin:
-    name: IDE INTEGRATION
+  placeholder-client:
+    name: Placeholder Client
     type: ide
-    gatewayKeyRef: GATEWAY_KEY_IDE_PLUGIN
+    gatewayKeyRef: GATEWAY_KEY_PLACEHOLDER
+
 models:
-  chat-default:
-    providerInstance: anthropic
-    modelId: claude-sonnet-4-5-20250929
+  placeholder-model:
+    providerInstance: placeholder-provider
+    modelId: placeholder-modelId
     capabilities:
       streaming: true
       tools: true
       thinking: true
     policy:
       timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus:
-          - 429
-          - 500
-          - 502
-          - 503
-          - 504
-      params:
-        defaults:
-          temperature: 0.4
-          maxOutputTokens: 500
-          thinkingEnabled: false
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-          - topP
-          - topK
-          - stop
-          - frequencyPenalty
-          - presencePenalty
-          - seed
-          - responseFormat
-          - thinkingEnabled
-          - thinkingBudget
-        bounds:
-          temperature:
-            min: 0
-            max: 2
-          maxOutputTokens:
-            min: 1
-            max: 8192
-          topP:
-            min: 0
-            max: 1
-          frequencyPenalty:
-            min: -2
-            max: 2
-          presencePenalty:
-            min: -2
-            max: 2
-  claude-sonnet:
-    providerInstance: anthropic
-    modelId: claude-sonnet-4-5-20250929
-    fallback: chat-default
-    capabilities:
-      streaming: true
-      tools: true
-      thinking: true
-    policy:
-      timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus:
-          - 429
-          - 500
-          - 502
-          - 503
-          - 504
-      params:
-        defaults:
-          temperature: 0.4
-          maxOutputTokens: 1024
-          thinkingEnabled: false
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-          - topP
-          - topK
-          - stop
-          - frequencyPenalty
-          - presencePenalty
-          - seed
-          - responseFormat
-          - thinkingEnabled
-          - thinkingBudget
-        bounds:
-          temperature:
-            min: 0
-            max: 2
-          maxOutputTokens:
-            min: 1
-            max: 8192
-          topP:
-            min: 0
-            max: 1
-          frequencyPenalty:
-            min: -2
-            max: 2
-          presencePenalty:
-            min: -2
-            max: 2
-  gemini-flash:
-    providerInstance: google
-    modelId: gemini-2.5-flash
-    fallback: chat-default
-    capabilities:
-      streaming: true
-      tools: true
-      thinking: false
-    policy:
-      timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus:
-          - 429
-          - 500
-          - 502
-          - 503
-          - 504
-      params:
-        defaults:
-          temperature: 0.4
-          maxOutputTokens: 1024
-          topP: 0.95
-          thinkingEnabled: false
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-          - topP
-          - topK
-          - stop
-          - frequencyPenalty
-          - presencePenalty
-          - seed
-          - responseFormat
-          - thinkingEnabled
-          - thinkingBudget
-        bounds:
-          temperature:
-            min: 0
-            max: 2
-          maxOutputTokens:
-            min: 1
-            max: 8192
-          topP:
-            min: 0
-            max: 1
-          frequencyPenalty:
-            min: -2
-            max: 2
-          presencePenalty:
-            min: -2
-            max: 2
-  gpt-cheap:
-    providerInstance: openai
-    modelId: gpt-5.4-nano
-    capabilities:
-      streaming: true
-      tools: true
-      thinking: false
-    policy:
-      timeoutMs: 30000
-      retry:
-        maxAttempts: 3
-        onStatus:
-          - 429
-          - 500
-          - 502
-          - 503
-          - 504
-      params:
-        defaults:
-          maxOutputTokens: 1024
-        allowOverrides:
-          - maxOutputTokens
-        bounds:
-          maxOutputTokens:
-            min: 1
-            max: 8192
-  ollama-local-chat:
-    providerInstance: ollama-local
-    modelId: llama3.1:8b
-    capabilities:
-      streaming: true
-      tools: false
-      thinking: false
-    policy:
-      timeoutMs: 120000
-      retry:
-        maxAttempts: 3
-        onStatus:
-          - 429
-          - 502
-          - 503
-          - 504
-      params:
-        defaults:
-          temperature: 0.4
-          maxOutputTokens: 1024
-        allowOverrides:
-          - temperature
-          - maxOutputTokens
-          - topP
-          - stop
-          - frequencyPenalty
-          - presencePenalty
-          - seed
-          - responseFormat
-        bounds:
-          temperature:
-            min: 0
-            max: 2
-          maxOutputTokens:
-            min: 1
-            max: 8192
-          topP:
-            min: 0
-            max: 1
-          frequencyPenalty:
-            min: -2
-            max: 2
-          presencePenalty:
-            min: -2
-            max: 2
-  deepseek-chat:
-    providerInstance: deepseek
-    modelId: deepseek-v4-flash
-    capabilities:
-      streaming: true
-      tools: true
-      thinking: false
-    policy:
-      timeoutMs: 60000
       retry:
         maxAttempts: 3
         onStatus:
@@ -282,16 +34,20 @@ models:
       params:
         defaults:
           temperature: 0.7
-          maxOutputTokens: 2048
+          maxOutputTokens: 4096
+          thinkingEnabled: false
         allowOverrides:
           - temperature
           - maxOutputTokens
           - topP
+          - topK
           - stop
           - frequencyPenalty
           - presencePenalty
           - seed
           - responseFormat
+          - thinkingEnabled
+          - thinkingBudget
         bounds:
           temperature:
             min: 0
