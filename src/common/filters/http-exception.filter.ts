@@ -16,6 +16,21 @@ import { asRequestId } from '../../common/types/branded.types';
 
 type RequestWithId = Request & { requestId: string };
 
+type PayloadTooLargeError = Error & {
+  type: 'entity.too.large';
+  status: number;
+  statusCode: number;
+};
+
+function isPayloadTooLargeError(
+  exception: unknown,
+): exception is PayloadTooLargeError {
+  return (
+    exception instanceof Error &&
+    (exception as Partial<PayloadTooLargeError>).type === 'entity.too.large'
+  );
+}
+
 @Catch()
 @Injectable()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -58,6 +73,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       } else {
         code = this.mapHttpStatusToCode(status);
       }
+    } else if (isPayloadTooLargeError(exception)) {
+      status = HttpStatus.PAYLOAD_TOO_LARGE;
+      code = ApiErrorCode.VALIDATION_FAILED;
+      message = 'request entity too large';
+      details = [];
     }
 
     const requestId =
@@ -67,7 +87,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       ? message.join('; ')
       : message;
 
-    if (status >= 500 || !(exception instanceof HttpException)) {
+    if (status >= 500) {
       const err =
         exception instanceof Error
           ? exception

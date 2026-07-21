@@ -10,7 +10,8 @@ import {
   asRateLimitRps,
   asRateLimitBurst,
   asMaxConcurrentStreams,
-} from '../../../src/common/types';
+  asProviderInstanceId,
+} from '../../../src/common/types/branded.types';
 import {
   INTEGRATION_ANTHROPIC_API_KEY_REF,
   INTEGRATION_GATEWAY_CLIENT_ID,
@@ -41,6 +42,7 @@ const integrationGatewayConfig: GatewayConfig = {
       type: 'anthropic',
       apiKeyRef: asEnvRef(INTEGRATION_ANTHROPIC_API_KEY_REF),
       enabled: true,
+      baseUrlRef: undefined,
     },
   },
   models: buildIntegrationGatewayModels(),
@@ -55,7 +57,7 @@ function buildGatewayKeyRuntime(): GatewayKeyRuntimeConfig {
     masterKey: masterKeyRaw ? getIntegrationMasterKey() : asGatewayKey(''),
     clients: [
       {
-        instanceId: INTEGRATION_GATEWAY_CLIENT_ID,
+        instanceId: asProviderInstanceId(INTEGRATION_GATEWAY_CLIENT_ID),
         name: 'Integration IDE Client',
         type: 'ide' as const,
         gatewayKeyRef: asEnvRef(INTEGRATION_GATEWAY_KEY_REF),

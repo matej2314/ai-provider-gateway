@@ -3,7 +3,7 @@ import { createOpenAiProviderCore } from './create-openai-provider.core';
 import { createChatCompletionsAdapter } from '../openai/adapters/chat-completions.adapter';
 import { createResponsesAdapter } from '../openai/adapters/responses.adapter';
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
-import { asProviderApiKey } from '../../common/types';
+import { asProviderApiKey, asModelId } from '../../common/types';
 
 jest.mock('openai');
 jest.mock('../openai/adapters/chat-completions.adapter');
@@ -61,14 +61,14 @@ describe('createOpenAiProviderCore', () => {
 
     it('routes type openai always to responses adapter', async () => {
       const provider = createOpenAiProviderCore('openai', baseConfig, logger);
-      await provider.complete(input, 'gpt-4o');
+      await provider.complete(input, asModelId('gpt-4o'));
       expect(responsesComplete).toHaveBeenCalled();
       expect(chatComplete).not.toHaveBeenCalled();
     });
 
     it('routes type openai stream to responses adapter', () => {
       const provider = createOpenAiProviderCore('openai', baseConfig, logger);
-      provider.stream?.(input, 'o3-mini');
+      provider.stream?.(input, asModelId('o3-mini'));
       expect(responsesStream).toHaveBeenCalled();
       expect(chatStream).not.toHaveBeenCalled();
     });
@@ -79,7 +79,9 @@ describe('createOpenAiProviderCore', () => {
         baseConfig,
         logger,
       );
-      await provider.complete(input, 'llama3.2', { thinkingEnabled: true });
+      await provider.complete(input, asModelId('llama3.2'), {
+        thinkingEnabled: true,
+      });
       expect(chatComplete).toHaveBeenCalled();
       expect(responsesComplete).not.toHaveBeenCalled();
     });
@@ -90,7 +92,7 @@ describe('createOpenAiProviderCore', () => {
         baseConfig,
         logger,
       );
-      provider.stream?.(input, 'llama3.2');
+      provider.stream?.(input, asModelId('llama3.2'));
       expect(chatStream).toHaveBeenCalled();
       expect(responsesStream).not.toHaveBeenCalled();
     });

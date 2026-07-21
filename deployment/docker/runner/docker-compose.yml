@@ -1,0 +1,47 @@
+# GitHub Actions self-hosted runner (Docker).
+#
+# Prerequisites:
+#   1. Shared Docker network with Vault (internal only).
+#   2. Registration token from GitHub (one-time): Settings → Actions → Runners → New runner
+#   3. Copy .env.example → .env and fill values.
+#
+# Usage:
+#   cd deployment/docker/runner
+#   cp .env.example .env   # edit RUNNER_* and INTERNAL_DOCKER_NETWORK
+#   docker compose build
+#   docker compose up -d
+#
+# After first registration you can remove RUNNER_TOKEN from .env and restart.
+
+services:
+  github-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-gateway-github-runner
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR:-https://vault-prod:8200}
+      VAULT_SKIP_VERIFY: ${VAULT_SKIP_VERIFY:-true}
+    volumes:
+      # Build and run application stacks on the host Docker daemon
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persistent runner registration and job workspaces
+      - github-runner-data:/home/runner
+      # Optional: fixed deploy directory on the host
+      - ${DEPLOY_HOST_PATH:-/opt/ai-provider-gateway}:/opt/ai-provider-gateway
+    group_add:
+      # Match host docker group GID: getent group docker | cut -d: -f3
+      - ${DOCKER_GID:-999}
+    networks:
+      - internal-infra
+
+volumes:
+  github-runner-data:
+
+networks:
+  internal-infra:
+    external: true
+    name: ${INTERNAL_DOCKER_NETWORK:-internal-infra}

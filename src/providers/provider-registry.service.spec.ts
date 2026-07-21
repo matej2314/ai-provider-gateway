@@ -5,7 +5,13 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { asModelAlias } from '../common/types/branded.types';
+import {
+  asEnvRef,
+  asMaxAttempts,
+  asModelAlias,
+  asProviderInstanceId,
+  asTimeoutMs,
+} from '../common/types/branded.types';
 import { ProviderRegistryService } from './provider-registry.service';
 import { LoggingService } from '../logging/logging.service';
 import { ApiErrorCode } from '../common/errors/api-error.code';
@@ -23,7 +29,10 @@ import {
 } from '../common/mocks/createTestGatewayConfig';
 import {
   TEST_MASTER_KEY_REF,
+  TEST_MAX_ATTEMPTS,
   TEST_PROVIDER_INSTANCE,
+  TEST_PROVIDER_INSTANCE_BRANDED,
+  TEST_TIMEOUT_MS,
 } from '../common/mocks/test-constants';
 import type { AIProvider } from './interfaces/ai-provider.interface';
 
@@ -33,10 +42,10 @@ const RESOLVE_MODEL_ALIAS = asModelAlias('test-model');
 
 const DEFAULT_RESOLVE_MODEL: GatewayConfig['models'][string] = {
   modelId: 'claude-sonnet-4-5',
-  providerInstance: TEST_PROVIDER_INSTANCE,
+  providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
   policy: {
-    timeoutMs: 30000,
-    retry: { maxAttempts: 3, onStatus: [429, 500] },
+    timeoutMs: TEST_TIMEOUT_MS,
+    retry: { maxAttempts: TEST_MAX_ATTEMPTS, onStatus: [429, 500] },
     params: {
       defaults: { temperature: 0.7 },
       allowOverrides: ['temperature'],
@@ -51,14 +60,16 @@ const DEFAULT_RESOLVE_MODEL: GatewayConfig['models'][string] = {
 const DEFAULT_RESOLVE_PROVIDERS: GatewayConfig['providers'] = {
   [TEST_PROVIDER_INSTANCE]: {
     type: 'anthropic',
-    apiKeyRef: 'ANTHROPIC_API_KEY',
+    apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
     enabled: true,
+    baseUrlRef: undefined,
   },
 };
 
 const EMPTY_MODEL_POLICY: NonNullable<
   GatewayConfig['models'][string]['policy']
 > = {
+  timeoutMs: undefined,
   retry: {},
   params: {
     defaults: {},
@@ -68,7 +79,7 @@ const EMPTY_MODEL_POLICY: NonNullable<
 };
 
 const TIMEOUT_ONLY_MODEL_POLICY = {
-  timeoutMs: 5000,
+  timeoutMs: asTimeoutMs(5000),
   params: {
     defaults: {},
     allowOverrides: [] as string[],
@@ -133,7 +144,11 @@ describe('ProviderRegistryService', () => {
   function registerAnthropicPrimary(
     provider: AIProvider = mockProvider as AIProvider,
   ) {
-    service.registerInstance(TEST_PROVIDER_INSTANCE, 'anthropic', provider);
+    service.registerInstance(
+      TEST_PROVIDER_INSTANCE_BRANDED,
+      'anthropic',
+      provider,
+    );
   }
 
   beforeEach(async () => {
@@ -162,13 +177,13 @@ describe('ProviderRegistryService', () => {
           models: {
             [RESOLVE_MODEL_ALIAS]: {
               modelId: 'claude-sonnet-4-5',
-              providerInstance: TEST_PROVIDER_INSTANCE,
+              providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
             },
           },
           providers: {
             [TEST_PROVIDER_INSTANCE]: {
               type: 'anthropic',
-              apiKeyRef: 'ANTHROPIC_API_KEY',
+              apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
               enabled: true,
             },
           },
@@ -176,12 +191,12 @@ describe('ProviderRegistryService', () => {
       });
 
       service.registerInstance(
-        TEST_PROVIDER_INSTANCE,
+        TEST_PROVIDER_INSTANCE_BRANDED,
         'anthropic',
         firstProvider,
       );
       service.registerInstance(
-        TEST_PROVIDER_INSTANCE,
+        TEST_PROVIDER_INSTANCE_BRANDED,
         'anthropic',
         secondProvider,
       );
@@ -193,12 +208,12 @@ describe('ProviderRegistryService', () => {
 
     it('should register multiple instances', () => {
       service.registerInstance(
-        'anthropic-1',
+        asProviderInstanceId('anthropic-1'),
         'anthropic',
         mockProvider as AIProvider,
       );
       service.registerInstance(
-        'google-1',
+        asProviderInstanceId('google-1'),
         'google',
         mockProvider as AIProvider,
       );
@@ -263,6 +278,7 @@ describe('ProviderRegistryService', () => {
           models: {
             [RESOLVE_MODEL_ALIAS]: {
               policy: {
+                timeoutMs: undefined,
                 retry: {},
                 params: EMPTY_MODEL_POLICY.params,
               },
@@ -287,12 +303,12 @@ describe('ProviderRegistryService', () => {
       await initService({
         gateway: {
           schemaVersion: 1,
-          masterKeyRef: TEST_MASTER_KEY_REF,
+          masterKeyRef: asEnvRef(TEST_MASTER_KEY_REF),
           clients: {},
           models: {
             [RESOLVE_MODEL_ALIAS]: {
               modelId: 'claude-sonnet-4-5',
-              providerInstance: TEST_PROVIDER_INSTANCE,
+              providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
               capabilities: {},
               policy: TIMEOUT_ONLY_MODEL_POLICY,
             },
@@ -316,8 +332,8 @@ describe('ProviderRegistryService', () => {
           models: {
             [RESOLVE_MODEL_ALIAS]: {
               policy: {
-                timeoutMs: 15000,
-                retry: { maxAttempts: 2 },
+                timeoutMs: asTimeoutMs(15000),
+                retry: { maxAttempts: asMaxAttempts(2) },
                 params: EMPTY_MODEL_POLICY.params,
               },
             },
@@ -371,7 +387,7 @@ describe('ProviderRegistryService', () => {
           models: {
             [RESOLVE_MODEL_ALIAS]: {
               modelId: 'test',
-              providerInstance: 'nonexistent-provider',
+              providerInstance: asProviderInstanceId('nonexistent-provider'),
               policy: EMPTY_MODEL_POLICY,
             },
           },
@@ -406,14 +422,14 @@ describe('ProviderRegistryService', () => {
           models: {
             [RESOLVE_MODEL_ALIAS]: {
               modelId: 'test',
-              providerInstance: 'unregistered-provider',
+              providerInstance: asProviderInstanceId('unregistered-provider'),
               policy: EMPTY_MODEL_POLICY,
             },
           },
           providers: {
             'unregistered-provider': {
               type: 'anthropic',
-              apiKeyRef: 'ANTHROPIC_API_KEY',
+              apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
               enabled: true,
             },
           },
@@ -445,7 +461,7 @@ describe('ProviderRegistryService', () => {
 
     it('should throw when registered provider type mismatches config', () => {
       service.registerInstance(
-        TEST_PROVIDER_INSTANCE,
+        TEST_PROVIDER_INSTANCE_BRANDED,
         'google',
         mockProvider as AIProvider,
       );
@@ -475,7 +491,7 @@ describe('ProviderRegistryService', () => {
             },
             'fallback-model': {
               modelId: 'claude-haiku',
-              providerInstance: TEST_PROVIDER_INSTANCE,
+              providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
               policy: EMPTY_MODEL_POLICY,
             },
           },
@@ -522,7 +538,7 @@ describe('ProviderRegistryService', () => {
           models: {
             [RESOLVE_MODEL_ALIAS]: {
               modelId: 'test',
-              providerInstance: TEST_PROVIDER_INSTANCE,
+              providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
               policy: EMPTY_MODEL_POLICY,
             },
           },
@@ -543,7 +559,7 @@ describe('ProviderRegistryService', () => {
           models: {
             [RESOLVE_MODEL_ALIAS]: {
               modelId: 'test',
-              providerInstance: TEST_PROVIDER_INSTANCE,
+              providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
             },
           },
           providers: DEFAULT_RESOLVE_PROVIDERS,
@@ -562,8 +578,8 @@ describe('ProviderRegistryService', () => {
   describe('resolve — multiple model aliases sequentially', () => {
     const ALIAS_A = 'chat-default';
     const ALIAS_B = 'fast-chat';
-    const PROVIDER_A = 'anthropic-primary';
-    const PROVIDER_B = 'google-primary';
+    const PROVIDER_A = asProviderInstanceId('anthropic-primary');
+    const PROVIDER_B = asProviderInstanceId('google-primary');
     const MODEL_ID_A = 'claude-sonnet-4-5';
     const MODEL_ID_B = 'gemini-2.5-flash';
 
@@ -580,12 +596,12 @@ describe('ProviderRegistryService', () => {
           providers: {
             [PROVIDER_A]: {
               type: 'anthropic',
-              apiKeyRef: 'ANTHROPIC_API_KEY',
+              apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
               enabled: true,
             },
             [PROVIDER_B]: {
               type: 'google',
-              apiKeyRef: 'GOOGLE_API_KEY',
+              apiKeyRef: asEnvRef('GOOGLE_API_KEY'),
               enabled: true,
             },
           },
@@ -658,8 +674,8 @@ describe('ProviderRegistryService', () => {
   describe('resolve — OpenAI apiSurface', () => {
     const OPENAI_ALIAS = 'gpt-4o-alias';
     const OLLAMA_ALIAS = 'ollama-alias';
-    const OPENAI_INSTANCE = 'openai-main';
-    const OLLAMA_INSTANCE = 'ollama-local';
+    const OPENAI_INSTANCE = asProviderInstanceId('openai-main');
+    const OLLAMA_INSTANCE = asProviderInstanceId('ollama-local');
 
     beforeEach(async () => {
       await initService({
@@ -668,14 +684,14 @@ describe('ProviderRegistryService', () => {
           providers: {
             [OPENAI_INSTANCE]: {
               type: 'openai',
-              apiKeyRef: 'OPENAI_API_KEY',
-              baseUrlRef: 'OPENAI_BASE_URL',
+              apiKeyRef: asEnvRef('OPENAI_API_KEY'),
+              baseUrlRef: asEnvRef('OPENAI_BASE_URL'),
               enabled: true,
             },
             [OLLAMA_INSTANCE]: {
               type: 'openai-compatible',
-              apiKeyRef: 'OLLAMA_API_KEY',
-              baseUrlRef: 'OLLAMA_BASE_URL',
+              apiKeyRef: asEnvRef('OLLAMA_API_KEY'),
+              baseUrlRef: asEnvRef('OLLAMA_BASE_URL'),
               enabled: true,
             },
           },
@@ -706,14 +722,60 @@ describe('ProviderRegistryService', () => {
       );
     });
 
-    it('should expose responses openAiApiSurface for OpenAI provider instances', () => {
+    it('should set openAiApiSurface to responses for type openai', () => {
       const result = service.resolve(OPENAI_ALIAS);
-      expect(result.openAiApiSurface).toBe('responses');
+
+      expect(result).toMatchObject({
+        modelAlias: OPENAI_ALIAS,
+        modelId: 'gpt-4o',
+        providerName: OPENAI_INSTANCE,
+        providerType: 'openai',
+        openAiApiSurface: 'responses',
+      });
     });
 
-    it('should expose chat-completions apiSurface for openai-compatible', () => {
+    it('should set openAiApiSurface to chat-completions for type openai-compatible', () => {
       const result = service.resolve(OLLAMA_ALIAS);
-      expect(result.openAiApiSurface).toBe('chat-completions');
+
+      expect(result).toMatchObject({
+        modelAlias: OLLAMA_ALIAS,
+        modelId: 'llama3.2',
+        providerName: OLLAMA_INSTANCE,
+        providerType: 'openai-compatible',
+        openAiApiSurface: 'chat-completions',
+      });
+    });
+
+    it('should omit openAiApiSurface for non-OpenAI provider types', async () => {
+      await initService({
+        gateway: buildResolveGateway({
+          replace: { clients: true, providers: true, models: true },
+          providers: {
+            [TEST_PROVIDER_INSTANCE]: {
+              type: 'anthropic',
+              apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
+              enabled: true,
+            },
+          },
+          models: {
+            [RESOLVE_MODEL_ALIAS]: {
+              modelId: 'claude-sonnet-4-5',
+              providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
+              policy: EMPTY_MODEL_POLICY,
+            },
+          },
+        }),
+      });
+      service.registerInstance(
+        TEST_PROVIDER_INSTANCE_BRANDED,
+        'anthropic',
+        createMockAIProvider() as AIProvider,
+      );
+
+      const result = service.resolve(RESOLVE_MODEL_ALIAS);
+
+      expect(result.providerType).toBe('anthropic');
+      expect(result.openAiApiSurface).toBeUndefined();
     });
   });
 });

@@ -4,6 +4,7 @@ import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { LoggingService } from './logging/logging.service';
+import helmet from 'helmet';
 import { setupSwagger } from './swagger/swagger.setup';
 import { setupApp, PORT } from './setup.app';
 
@@ -11,6 +12,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = app.get(LoggingService);
 
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
   setupApp(app);
   setupSwagger(app, { logger, port: PORT });
 

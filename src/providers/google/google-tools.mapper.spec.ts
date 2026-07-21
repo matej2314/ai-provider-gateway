@@ -183,7 +183,11 @@ describe('mapTurnsToGeminiContents', () => {
         role: 'assistant',
         content: 'Let me check',
         toolCalls: [
-          { id: 'call_1', name: 'weather', arguments: '{"location":"SF"}' },
+          {
+            id: asToolCallId('call_1'),
+            name: 'weather',
+            arguments: '{"location":"SF"}',
+          },
         ],
       },
     ];
@@ -209,7 +213,7 @@ describe('mapTurnsToGeminiContents', () => {
     const turns: ProviderChatTurn[] = [
       {
         role: 'tool',
-        toolCallId: 'call_1',
+        toolCallId: asToolCallId('call_1'),
         content: '{"temp":72}',
       },
     ];
@@ -225,7 +229,9 @@ describe('mapTurnsToGeminiContents', () => {
       {
         role: 'assistant',
         content: '',
-        toolCalls: [{ id: 'call_1', name: 'weather', arguments: '{}' }],
+        toolCalls: [
+          { id: asToolCallId('call_1'), name: 'weather', arguments: '{}' },
+        ],
       },
     ];
 
@@ -257,7 +263,7 @@ describe('mapTurnsToGeminiContents', () => {
         content: '',
         toolCalls: [
           {
-            id: 'call_1',
+            id: asToolCallId('call_1'),
             name: 'weather',
             arguments: '{"location":"SF","units":"celsius"}',
           },

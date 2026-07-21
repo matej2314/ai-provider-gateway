@@ -1,9 +1,11 @@
 import { createTestGatewayConfig } from '../../../src/common/mocks/createTestGatewayConfig';
 import {
   TEST_API_KEY_REF,
+  TEST_MAX_ATTEMPTS,
   TEST_PROVIDER_INSTANCE,
   TEST_PROVIDER_INSTANCE_BRANDED,
   TEST_MODEL_ALIAS,
+  TEST_TIMEOUT_MS,
 } from '../../../src/common/mocks/test-constants';
 import {
   asEnvRef,
@@ -18,9 +20,9 @@ export const E2E_SECOND_MODEL_ID = 'gemini-2.5-flash-lite';
 export const E2E_PRIMARY_MODEL_ID = 'claude-sonnet-4-5';
 
 const EMPTY_POLICY = {
-  timeoutMs: 30000,
+  timeoutMs: TEST_TIMEOUT_MS,
   retry: {
-    maxAttempts: 3,
+    maxAttempts: TEST_MAX_ATTEMPTS,
     onStatus: [429, 500, 502, 503, 504] as number[],
   },
   params: {

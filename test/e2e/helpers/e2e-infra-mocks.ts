@@ -9,7 +9,8 @@ export function createE2eRedisConnectionMock(): Partial<RedisConnectionService> 
     onModuleDestroy: jest.fn().mockResolvedValue(undefined),
     onApplicationShutdown: jest.fn().mockResolvedValue(undefined),
     getClient: jest.fn().mockReturnValue(null),
-    isReady: jest.fn().mockReturnValue(false),
+    isReady: jest.fn().mockReturnValue(true),
+    ping: jest.fn().mockResolvedValue(true),
   };
 }
 

@@ -12,6 +12,10 @@ export const createOpenAiProvider: ProviderFactoryFn = (config, logger) => {
       `[createOpenAiProvider] Missing baseUrl for instance ${config.instanceId}`,
     );
   }
+
+  const instanceLogger = logger.child({ module: 'OpenAiProvider' });
+  instanceLogger.info('OpenAI provider instance created.');
+
   return createOpenAiProviderCore(
     config.type,
     {

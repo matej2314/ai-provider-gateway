@@ -62,7 +62,11 @@ export function createChatCompletionsAdapter(
             }
           : baseParams;
 
-        const response = await client.chat.completions.create(params);
+        const response = options?.signal
+          ? await client.chat.completions.create(params, {
+              signal: options.signal,
+            })
+          : await client.chat.completions.create(params);
         return parseOpenAiCompletionWithTools(response);
       } catch (error) {
         logger.warn('OpenAI chat.completions error', {
@@ -87,10 +91,10 @@ export function createChatCompletionsAdapter(
             input.messages,
             input.system,
           );
-          const stream = await client.chat.completions.create({
+          const streamParams = {
             model: modelId,
             messages,
-            stream: true,
+            stream: true as const,
             ...(includeStreamUsage && {
               stream_options: { include_usage: true },
             }),
@@ -99,7 +103,12 @@ export function createChatCompletionsAdapter(
               tools: mapToolsToOpenAi(input.tools),
               tool_choice: mapToolChoiceToOpenAi(input.toolChoice),
             }),
-          });
+          };
+          const stream = options?.signal
+            ? await client.chat.completions.create(streamParams, {
+                signal: options.signal,
+              })
+            : await client.chat.completions.create(streamParams);
 
           for await (const chunk of stream) {
             finalChunk = chunk;

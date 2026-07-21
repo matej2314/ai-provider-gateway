@@ -1,0 +1,38 @@
+# Prometheus configuration for AI Provider Gateway
+#
+# Health gauges (gateway_readiness, gateway_health_status) are refreshed by the
+# application on each GET /metrics scrape (PreMetricsScrapeRegistry hook in
+# HealthService). App-side throttle: 5s between full readiness evaluations;
+# scrape_interval below should be >= 5s so Prometheus sees up-to-date gauges.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'ai-gateway'
+    environment: 'production'
+
+rule_files:
+  - '/etc/prometheus/alerts.yml'
+
+scrape_configs:
+  # AI Gateway — /metrics triggers health gauge refresh before export
+  - job_name: 'ai-gateway'
+    static_configs:
+      - targets: ['ai-gateway:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    honor_labels: false
+    honor_timestamps: true
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Redis metrics (optional, if using Redis + redis_exporter)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+  #   scrape_interval: 30s

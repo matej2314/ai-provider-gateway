@@ -27,6 +27,7 @@ import { requireOpenAiIntegrationEnv } from './require-integration-env';
 import {
   asBaseUrl,
   asEnvRef,
+  asGatewayKey,
   asProviderApiKey,
 } from '../../../src/common/types';
 
@@ -72,8 +73,8 @@ function buildOpenAiIntegrationConfigOptions(
       models: buildOpenAiIntegrationGatewayModels(),
     },
     gatewayKey: {
-      allowList: [gatewayKey, masterKey].filter(Boolean),
-      masterKey,
+      allowList: [gatewayKey, ...(masterKey ? [asGatewayKey(masterKey)] : [])],
+      masterKey: masterKey ? asGatewayKey(masterKey) : asGatewayKey(''),
     },
     providers: {
       [INTEGRATION_OPENAI_PROVIDER_INSTANCE]: {

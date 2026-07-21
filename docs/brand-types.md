@@ -1,21 +1,21 @@
-# Brand types — przewodnik dla developerów
+# Brand types — developer guide
 
-Ten dokument opisuje infrastrukturę **brand types** w projekcie (plan implementacji: `brand-types-plan.md` w katalogu głównym repo — plik lokalny, ignorowany przez git). Celem jest zwiększenie type safety: semantycznie różne wartości oparte na tym samym typie prymitywnym (`string` / `number`) nie powinny dać się przypadkowo zamienić w compile time.
+This document describes the **brand types** infrastructure in the project. The goal is stronger type safety: semantically different values based on the same primitive type (`string` / `number`) should not be accidentally interchangeable at compile time.
 
-**Stan (2026-07):** Fazy **0–5** wdrożone w runtime (`src/`), testach jednostkowych, E2E i integracyjnych (`test/`). Warstwa **CLI** (`src/cli/`) — planowana w **Fazie 5a** planu; nadal używa zwykłych `string` / `number` w typach wewnętrznych.
+**Scope (2026-07):** Brand types in runtime (`src/`), unit tests, E2E, and integration tests (`test/`). The **CLI** layer (`src/cli/`) — **partial** brand adoption (`asGatewayKey`, `asModelAlias`, `asProviderInstanceId` in commands and the wizard); full CLI migration can continue with subsequent CLI changes.
 
 ---
 
-## Pliki i importy
+## Files and imports
 
-| Plik                                 | Rola                                                                  |
+| File                                 | Role                                                                  |
 | ------------------------------------ | --------------------------------------------------------------------- |
-| `src/common/types/branded.types.ts`  | Typ `Brand`, utility `brand` / `unbrand`, aliasy typów, helpery `as*` |
-| `src/common/types/branded.guards.ts` | Walidacja runtime (`create*`), type guardy (`is*`), wzorce regex      |
-| `src/common/types/branded.spec.ts`   | Testy jednostkowe (wymaganie: 100% coverage utilities)                |
-| `src/common/types/index.ts`          | Barrel export — typy, `brand` / `unbrand`, guardy, wzorce             |
+| `src/common/types/branded.types.ts`  | `Brand` type, `brand` / `unbrand` utilities, type aliases, `as*` helpers |
+| `src/common/types/branded.guards.ts` | Runtime validation (`create*`), type guards (`is*`), regex patterns      |
+| `src/common/types/branded.spec.ts`   | Unit tests (requirement: 100% coverage of utilities)                |
+| `src/common/types/index.ts`          | Barrel export — types, `brand` / `unbrand`, guards, patterns             |
 
-**Import zalecany (barrel):**
+**Recommended import (barrel):**
 
 ```typescript
 import {
@@ -29,7 +29,7 @@ import {
 } from '../common/types';
 ```
 
-Typy bez eksportu w barrel (np. `WarningCode`, `ResponseId`, `ToolCallId`) — import z `branded.types.ts`:
+Types not exported from the barrel (e.g. `WarningCode`, `ResponseId`, `ToolCallId`) — import from `branded.types.ts`:
 
 ```typescript
 import { asWarningCode, type WarningCode } from '../common/types/branded.types';
@@ -37,39 +37,39 @@ import { asWarningCode, type WarningCode } from '../common/types/branded.types';
 
 ---
 
-## Infrastruktura generyczna
+## Generic infrastructure
 
 ### `Brand<K, T>`
 
-Nominalny „brand” na typie prymitywnym:
+A nominal “brand” on a primitive type:
 
 ```typescript
 export type Brand<K, T> = K & { readonly __brand: T };
 ```
 
-- `K` — typ bazowy (np. `string`)
-- `T` — unikalny identyfikator brandu (literal type, np. `'RequestId'`)
+- `K` — base type (e.g. `string`)
+- `T` — unique brand identifier (literal type, e.g. `'RequestId'`)
 
-W runtime nie ma dodatkowej struktury — to wyłącznie kontrakt TypeScript.
+At runtime there is no extra structure — this is a TypeScript-only contract.
 
 ### `UnBrand<T>`
 
-Wyciąga typ bazowy z branded type:
+Extracts the base type from a branded type:
 
 ```typescript
 export type UnBrand<T> = T extends Brand<infer K, any> ? K : T;
 ```
 
-### `brand()` i `unbrand()`
+### `brand()` and `unbrand()`
 
-Runtime **no-op** — służą do rzutowania w compile time:
+Runtime **no-op** — used for compile-time casting:
 
 ```typescript
 export const brand = <B>(value: UnBrand<B>): B => value as B;
 export const unbrand = <B>(value: B): UnBrand<B> => value as UnBrand<B>;
 ```
 
-**Uwaga:** unikaj jawnego `brand<RequestId>(plainString)` — TypeScript często nie rozwiązuje `UnBrand<RequestId>` jako `string`. Preferuj helpery `as*` albo inferencję z typu docelowego:
+**Note:** avoid explicit `brand<RequestId>(plainString)` — TypeScript often fails to resolve `UnBrand<RequestId>` as `string`. Prefer `as*` helpers or inference from the target type:
 
 ```typescript
 const id: RequestId = brand(raw as RequestId);
@@ -77,34 +77,34 @@ const id: RequestId = brand(raw as RequestId);
 
 ---
 
-## Katalog typów (wg faz planu)
+## Type catalog
 
-### Faza 1 — security-critical
+### Security-critical
 
-| Typ              | Helper           | Użycie w runtime                                                                 |
+| Type              | Helper           | Runtime usage                                                                 |
 | ---------------- | ---------------- | -------------------------------------------------------------------------------- |
-| `GatewayKey`     | `asGatewayKey`   | Allowlista klienta (`express.d.ts`, guardy, rate limit)                          |
-| `ProviderApiKey` | `asProviderApiKey` | Klucze SDK providerów (`ProviderFactoryParams`, fabryki w `src/providers/`)   |
-| `EnvRef`         | `asEnvRef`       | Nazwy zmiennych env w YAML (`apiKeyRef`, `gatewayKeyRef`, `baseUrlRef`)          |
+| `GatewayKey`     | `asGatewayKey`   | Client allowlist (`express.d.ts`, guards, rate limit)                          |
+| `ProviderApiKey` | `asProviderApiKey` | Provider SDK keys (`ProviderFactoryParams`, factories in `src/providers/`)   |
+| `EnvRef`         | `asEnvRef`       | Env variable names in YAML (`apiKeyRef`, `gatewayKeyRef`, `baseUrlRef`)          |
 
-### Faza 2 — identifiers & tracking
+### Identifiers & tracking
 
-| Typ                  | Helper / guard                          | Użycie w runtime                                                          |
+| Type                  | Helper / guard                          | Runtime usage                                                          |
 | -------------------- | --------------------------------------- | ------------------------------------------------------------------------- |
-| `RequestId`        | `createRequestId`, `isRequestId`, `asRequestId` | `RequestIdMiddleware`, `ChatExecutionContext`, envelope błędów, metryki |
-| `ConversationId`   | `createConversationId`, `isConversationId`, `asConversationId` | `conversation-id.ts`, Sentry, odpowiedzi czatu                 |
-| `ResponseId`       | `asResponseId`                          | ID odpowiedzi gateway (`gw_*`) w serwisach czatu i cache                  |
-| `MessageId`        | `asMessageId`                           | ID wiadomości upstream (np. Anthropic stream mapper)                      |
-| `ToolCallId`       | `asToolCallId`                          | Wiadomości `role: tool`, `toolCalls` w kontrakcie wewnętrznym             |
-| `ClientId`         | `asClientId`                            | Identyfikator klienta z YAML                                              |
-| `ProviderInstanceId` | `asProviderInstanceId`                | Klucz wpisu w `providers:` YAML, `ProviderRegistryService`                |
-| `JsonSchemaName`   | `asJsonSchemaName`                      | Structured output w `ProviderCallOptions`                                 |
-| `ModelAlias`       | `asModelAlias`                          | Routing modeli — alias z YAML (≠ vendor `modelId`)                          |
-| `ModelId`          | `asModelId`                             | Vendorowy identyfikator modelu w wywołaniach SDK                            |
+| `RequestId`        | `createRequestId`, `isRequestId`, `asRequestId` | `RequestIdMiddleware`, `ChatExecutionContext`, error envelopes, metrics |
+| `ConversationId`   | `createConversationId`, `isConversationId`, `asConversationId` | `conversation-id.ts`, Sentry, chat responses                 |
+| `ResponseId`       | `asResponseId`                          | Gateway response IDs (`gw_*`) in chat services and cache                  |
+| `MessageId`        | `asMessageId`                           | Upstream message IDs (e.g. Anthropic stream mapper)                      |
+| `ToolCallId`       | `asToolCallId`                          | `role: tool` messages, `toolCalls` in the internal contract             |
+| `ClientId`         | `asClientId`                            | Client identifier from YAML                                              |
+| `ProviderInstanceId` | `asProviderInstanceId`                | Key of an entry in `providers:` YAML, `ProviderRegistryService`                |
+| `JsonSchemaName`   | `asJsonSchemaName`                      | Structured output in `ProviderCallOptions`                                 |
+| `ModelAlias`       | `asModelAlias`                          | Model routing — alias from YAML (≠ vendor `modelId`)                          |
+| `ModelId`          | `asModelId`                             | Vendor model identifier in SDK calls                            |
 
-### Faza 3 — metrics & usage
+### Metrics & usage
 
-| Typ                         | Helper                        |
+| Type                         | Helper                        |
 | --------------------------- | ----------------------------- |
 | `InputTokens`               | `asInputTokens`               |
 | `OutputTokens`              | `asOutputTokens`              |
@@ -113,64 +113,64 @@ const id: RequestId = brand(raw as RequestId);
 | `PromptCacheHitTokens`      | `asPromptCacheHitTokens`      |
 | `PromptCacheCreationTokens` | `asPromptCacheCreationTokens` |
 
-### Faza 4 — configuration & policy
+### Configuration & policy
 
-| Typ                    | Helper / guard (`is*`)     | Walidacja runtime                          |
+| Type                    | Helper / guard (`is*`)     | Runtime validation                          |
 | ---------------------- | -------------------------- | ------------------------------------------ |
 | `TimeoutMs`            | `asTimeoutMs` / `isTimeoutMs` | min 1                                 |
-| `RateLimitRps`         | `asRateLimitRps` / `isRateLimitRps` | min 1, floor na cast              |
-| `RateLimitBurst`       | `asRateLimitBurst` / `isRateLimitBurst` | j.w.                              |
+| `RateLimitRps`         | `asRateLimitRps` / `isRateLimitRps` | min 1, floor on cast              |
+| `RateLimitBurst`       | `asRateLimitBurst` / `isRateLimitBurst` | same as above                              |
 | `MaxConcurrentStreams` | `asMaxConcurrentStreams` / `isMaxConcurrentStreams` | min 1                     |
 | `MaxAttempts`          | `asMaxAttempts` / `isMaxAttempts` | 1–5                               |
 | `AttemptNumber`        | `asAttemptNumber` / `isAttemptNumber` | min 1                             |
-| `BaseUrl`              | `asBaseUrl` / `isBaseUrl`  | prefiks `http://` lub `https://`           |
+| `BaseUrl`              | `asBaseUrl` / `isBaseUrl`  | prefix `http://` or `https://`           |
 | `CacheKey`             | `asCacheKey`               | —                                          |
 | `CacheTtlSeconds`      | `asCacheTtlSeconds` / `isCacheTtlSeconds` | min 0                          |
 | `Port`                 | `asPort` / `isPort`        | 1–65535                                    |
 | `SchemaVersion`        | `asSchemaVersion` / `isSchemaVersion` | min 1                          |
-| `SystemFingerprint`    | `asSystemFingerprint`      | pass-through z OpenAI Chat Completions     |
+| `SystemFingerprint`    | `asSystemFingerprint`      | pass-through from OpenAI Chat Completions     |
 
-### Faza 5 — warning codes
+### Warning codes
 
-| Typ           | Helper          | Użycie w runtime                                      |
+| Type           | Helper          | Runtime usage                                      |
 | ------------- | --------------- | ----------------------------------------------------- |
-| `WarningCode` | `asWarningCode` | `generation-warnings.ts` → `ChatWarningDto.code` (wewnętrznie); pole DTO/OpenAPI pozostaje `string` |
+| `WarningCode` | `asWarningCode` | `generation-warnings.ts` → `ChatWarningDto.code` (internally); DTO/OpenAPI field remains `string` |
 
 ---
 
-## Szczegóły: `RequestId` i `ConversationId`
+## Details: `RequestId` and `ConversationId`
 
 ### `RequestId`
 
-Identyfikator korelacyjny żądania. Powiązany termin: **Request ID** w `dictionary.md`; middleware: `src/common/middleware/request-id.middleware.ts`; typ na `Express.Request`: `src/common/types/express.d.ts`.
+Correlational request identifier. Related term: **Request ID** in `dictionary.md`; middleware: `src/common/middleware/request-id.middleware.ts`; type on `Express.Request`: `src/common/types/express.d.ts`.
 
-| Helper                   | Walidacja                | Kiedy używać                                    |
+| Helper                   | Validation                | When to use                                    |
 | ------------------------ | ------------------------ | ----------------------------------------------- |
-| `createRequestId(value)` | Tak — regex `req_<uuid>` | Generowanie nowego ID w formacie gateway        |
-| `isRequestId(value)`     | Tak (type guard)         | Warunki, filtrowanie                            |
-| `asRequestId(value)`     | **Nie**                  | Echo `x-request-id` od klienta, mocki w testach |
+| `createRequestId(value)` | Yes — regex `req_<uuid>` | Generating a new ID in gateway format        |
+| `isRequestId(value)`     | Yes (type guard)         | Conditions, filtering                            |
+| `asRequestId(value)`     | **No**                  | Echoing `x-request-id` from the client, mocks in tests |
 
-**Generated vs echo:** middleware generuje `req_<uuid>` gdy brak nagłówka, ale **echo** dowolnego niepustego `x-request-id` od klienta — wtedy użyj `asRequestId`, nie `createRequestId`.
+**Generated vs echo:** middleware generates `req_<uuid>` when the header is missing, but **echoes** any non-empty `x-request-id` from the client — then use `asRequestId`, not `createRequestId`.
 
-Wzorzec (`REQUEST_ID_PATTERN`):
+Pattern (`REQUEST_ID_PATTERN`):
 
 ```text
 ^req_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
 ```
 
-(flag `i` — wielkość liter UUID bez znaczenia)
+(`i` flag — UUID letter case is insignificant)
 
 ### `ConversationId`
 
-Identyfikator sesji rozmowy (`conversationId` w body czatu). Szczegóły produktowe: `conversation-tracking.md`; helpery: `src/chat/helpers/conversation-id.ts`.
+Conversation session identifier (`conversationId` in the chat body). Product details: `conversation-tracking.md`; helpers: `src/chat/helpers/conversation-id.ts`.
 
-| Helper                        | Walidacja                 | Kiedy używać                                             |
+| Helper                        | Validation                 | When to use                                             |
 | ----------------------------- | ------------------------- | -------------------------------------------------------- |
-| `createConversationId(value)` | Tak — regex `conv_<uuid>` | Po walidacji DTO lub przy generowaniu `conv_${uuidv4()}` |
-| `isConversationId(value)`     | Tak (type guard)          | Warunki przed Sentry / metrykami                         |
-| `asConversationId(value)`     | **Nie**                   | Tylko gdy format jest już gwarantowany (np. testy)       |
+| `createConversationId(value)` | Yes — regex `conv_<uuid>` | After DTO validation or when generating `conv_${uuidv4()}` |
+| `isConversationId(value)`     | Yes (type guard)          | Conditions before Sentry / metrics                         |
+| `asConversationId(value)`     | **No**                   | Only when the format is already guaranteed (e.g. tests)       |
 
-Wzorzec (`CONVERSATION_ID_PATTERN`) — zgodny z `@Matches` w `ChatRequestDto`:
+Pattern (`CONVERSATION_ID_PATTERN`) — aligned with `@Matches` in `ChatRequestDto`:
 
 ```text
 ^conv_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
@@ -178,23 +178,23 @@ Wzorzec (`CONVERSATION_ID_PATTERN`) — zgodny z `@Matches` w `ChatRequestDto`:
 
 ---
 
-## Kiedy brand type, kiedy zwykły `string`
+## When to use a brand type vs plain `string`
 
-| Sytuacja                                                                                    | Podejście                                                            |
+| Situation                                                                                    | Approach                                                            |
 | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Dwa stringi, których **nie wolno** zamienić (np. klucz klienta vs klucz providera — Faza 1) | Osobne brand types                                                   |
-| Pole w DTO HTTP (`class-validator`, OpenAPI)                                                | **`string`** w klasie DTO; konwersja do brandu w mapperze / serwisie |
-| Wartość zaufana (wewnętrzny helper, znany format)                                           | `create*` (z walidacją) lub `as*` (cast)                             |
-| Wartość od klienta z wymaganym formatem                                                     | Walidacja DTO **lub** `create*` — nie sam `as*`                      |
-| Serializacja JSON / SSE                                                                     | `unbrand(id)` lub implicit string — brand istnieje tylko w TS        |
+| Two strings that **must not** be swapped (e.g. client key vs provider key) | Separate brand types                                                   |
+| Field in an HTTP DTO (`class-validator`, OpenAPI)                                                | **`string`** in the DTO class; convert to brand in the mapper / service |
+| Trusted value (internal helper, known format)                                           | `create*` (with validation) or `as*` (cast)                             |
+| Client value with a required format                                                     | DTO validation **or** `create*` — not `as*` alone                      |
+| JSON / SSE serialization                                                                     | `unbrand(id)` or implicit string — the brand exists only in TS        |
 
 ---
 
-## Jak dodać nowy brand type
+## How to add a new brand type
 
-Wzorzec stosowany w projekcie (kolejność):
+Pattern used in the project (order):
 
-1. **Definicja typu** w `branded.types.ts`:
+1. **Type definition** in `branded.types.ts`:
 
    ```typescript
    export type GatewayKey = Brand<string, 'GatewayKey'>;
@@ -202,7 +202,7 @@ Wzorzec stosowany w projekcie (kolejność):
      value as GatewayKey;
    ```
 
-2. **Opcjonalna walidacja** w `branded.guards.ts` (gdy format ma znaczenie runtime):
+2. **Optional validation** in `branded.guards.ts` (when format matters at runtime):
 
    ```typescript
    export function createGatewayKey(value: string): GatewayKey {
@@ -211,77 +211,75 @@ Wzorzec stosowany w projekcie (kolejność):
    }
    ```
 
-3. **Eksport** z `index.ts`.
+3. **Export** from `index.ts`.
 
-4. **Testy** w `branded.spec.ts` (lub dedykowany `.spec.ts` przy złożonej logice).
+4. **Tests** in `branded.spec.ts` (or a dedicated `.spec.ts` for complex logic).
 
-5. **Refaktoryzacja modułu** zgodnie z fazą w `brand-types-plan.md` + aktualizacja `.spec.ts` modułu.
+5. **Module refactor** + update the module’s `.spec.ts`.
 
-Dla typów **bez** walidacji formatu wystarczy para: `export type X = Brand<...>` + `asX`.
+For types **without** format validation, a pair is enough: `export type X = Brand<...>` + `asX`.
 
 ---
 
-## Migracja istniejącego kodu (fazy planu)
+## Code coverage
 
-| Faza    | Status runtime | Zakres                                                                 |
-| ------- | -------------- | ---------------------------------------------------------------------- |
-| **0**   | ✅             | Infrastruktura (`Brand`, guardy, testy, dokumentacja)                  |
-| **1**   | ✅             | `GatewayKey`, `ProviderApiKey`, `EnvRef` — config, guardy, rate limit   |
-| **2**   | ✅             | Identyfikatory, routing modeli, middleware, typy czatu                 |
-| **3**   | ✅             | Tokeny, koszty, usage w metrykach i odpowiedziach                      |
-| **4**   | ✅             | Policy, resilience, cache, port, `SystemFingerprint`                   |
-| **5**   | ✅             | Providery, fasady, `WarningCode`, audyt testów i mocków                |
-| **5a**  | ⏳ plan        | Refaktoryzacja `src/cli/` (~50 plików)                                 |
-| **6**   | ⏳ plan        | Walidacja końcowa, type coverage, migration guide                    |
+| Area | Runtime status | Scope |
+| ------ | -------------- | ------ |
+| Infrastructure | ✅ | `Brand`, guards, tests, documentation |
+| Security keys | ✅ | `GatewayKey`, `ProviderApiKey`, `EnvRef` — config, guards, rate limit |
+| Identifiers | ✅ | Model routing, middleware, chat types |
+| Metrics / usage | ✅ | Tokens, costs, usage in metrics and responses |
+| Config / policy | ✅ | Policy, resilience, cache, port, `SystemFingerprint` |
+| Providers / facades | ✅ | `WarningCode`, test and mock audit |
+| CLI | partial | Full brand adoption in `src/cli/` — to finish with subsequent CLI changes |
 
-**Granica HTTP (bez zmian):** klasy DTO (`class-validator`, OpenAPI) nadal deklarują `string` / `number`; konwersja do brand type następuje w serwisach, mapperach i helperach po walidacji wejścia.
+**HTTP boundary (unchanged):** DTO classes (`class-validator`, OpenAPI) still declare `string` / `number`; conversion to brand type happens in services, mappers, and helpers after input validation.
 
-**Workflow per moduł** (przy kolejnych typach lub Fazie 5a):
+**Workflow per module** (for subsequent types):
 
-1. Zmień typy w kodzie produkcyjnym.
-2. Zaktualizuj mocki w `.spec.ts` i helpery w `src/common/mocks/`, `test/e2e/helpers/`, `test/integration/helpers/` (`as*` zamiast surowych stringów).
-3. Uruchom `npm test`, `npm run test:e2e` (+ `npm run test:integration` po większej fazie).
-4. Checkpoint: `npm run build` bez błędów TS.
+1. Change types in production code.
+2. Update mocks in `.spec.ts` and helpers in `src/common/mocks/`, `test/e2e/helpers/`, `test/integration/helpers/` (`as*` instead of raw strings).
+3. Run `npm test`, `npm run test:e2e` (+ `npm run test:integration` after a larger change).
+4. Checkpoint: `npm run build` with no TS errors.
 
 ---
 
 ## Best practices
 
-1. **`create*` vs `as*`** — `create*` rzuca przy złym formacie; `as*` to świadomy cast na granicy zaufania.
-2. **Granica HTTP** — DTO pozostają `string`; brand w warstwie domenowej (`ChatService`, context objects).
-3. **Testy** — mocki: `asRequestId('req_123e4567-e89b-12d3-a456-426614174000')` lub krótsze ID przez `as*` gdy test nie weryfikuje formatu.
-4. **Regex** — jeden source of truth: `CONVERSATION_ID_PATTERN` / `REQUEST_ID_PATTERN` w `branded.guards.ts`; DTO i helpery importują te same stałe.
-5. **Nie mieszaj semantyk** — np. `GatewayKey` ≠ `ProviderApiKey`, `ModelAlias` ≠ `ModelId`, `InputTokens` ≠ `OutputTokens`.
-6. **Mocki testowe** — `src/common/mocks/createMockContext.ts`, `createTestGatewayConfig.ts`, stałe w `test/e2e/helpers/e2e-constants.ts` i `test/integration/helpers/integration-constants.ts` używają branded types tam, gdzie runtime wymaga semantyki (np. `RequestId`, `GatewayKey`, `ModelAlias`).
+1. **`create*` vs `as*`** — `create*` throws on a bad format; `as*` is a deliberate cast at a trust boundary.
+2. **HTTP boundary** — DTOs remain `string`; brand in the domain layer (`ChatService`, context objects).
+3. **Tests** — mocks: `asRequestId('req_123e4567-e89b-12d3-a456-426614174000')` or shorter IDs via `as*` when the test does not verify format.
+4. **Regex** — single source of truth: `CONVERSATION_ID_PATTERN` / `REQUEST_ID_PATTERN` in `branded.guards.ts`; DTOs and helpers import the same constants.
+5. **Do not mix semantics** — e.g. `GatewayKey` ≠ `ProviderApiKey`, `ModelAlias` ≠ `ModelId`, `InputTokens` ≠ `OutputTokens`.
+6. **Test mocks** — `src/common/mocks/createMockContext.ts`, `createTestGatewayConfig.ts`, constants in `test/e2e/helpers/e2e-constants.ts` and `test/integration/helpers/integration-constants.ts` use branded types where runtime requires the semantics (e.g. `RequestId`, `GatewayKey`, `ModelAlias`).
 
 ---
 
-## Anty-wzorce
+## Anti-patterns
 
-| Anty-wzorzec                                                | Dlaczego                                                |
+| Anti-pattern                                                | Why                                                |
 | ----------------------------------------------------------- | ------------------------------------------------------- |
-| `asConversationId(clientInput)` bez wcześniejszej walidacji | Omija regex; błędne ID trafi do runtime                 |
-| `brand<RequestId>(anyString)` z jawnym generykiem           | Często błąd kompilacji TS (`UnBrand` nie ściąga brandu) |
-| Brand type w `@ApiProperty` / OpenAPI jako „magiczny” typ   | OpenAPI i JSON widzą `string`; dokumentuj w opisie pola |
-| Masowa migracja całego repo w jednym PR                     | Łamie plan faz; utrudnia review i rollback              |
+| `asConversationId(clientInput)` without prior validation | Bypasses the regex; a bad ID reaches runtime                 |
+| `brand<RequestId>(anyString)` with an explicit generic           | Often a TS compile error (`UnBrand` does not strip the brand) |
+| Brand type in `@ApiProperty` / OpenAPI as a “magic” type   | OpenAPI and JSON see `string`; document in the field description |
+| Mass migration of the whole repo in one PR                     | Breaks the phased plan; harder review and rollback              |
 
 ---
 
-## Testy
+## Tests
 
 ```bash
-# Tylko brand utilities
+# Brand utilities only
 npm test -- common/types/branded.spec.ts
 
-# Coverage (target: 100% dla branded*.ts)
+# Coverage (target: 100% for branded*.ts)
 npm run test:cov -- --collectCoverageFrom="common/types/branded*.ts" common/types/branded.spec.ts
 ```
 
 ---
 
-## Powiązane dokumenty
+## Related documents
 
-- `dictionary.md` — terminy Request ID, Conversation ID, sekcja Brand types
-- `conversation-tracking.md` — semantyka `conversationId` w API i Sentry
-- `architektura_api.md` — propagacja `requestId`, nagłówek `x-request-id`
-- `brand-types-plan.md` (root repo) — pełny harmonogram faz 1–5
+- `dictionary.md` — Request ID, Conversation ID terms, Brand types section
+- `conversation-tracking.md` — `conversationId` semantics in the API and Sentry
+- `api-architecture.md` — `requestId` propagation, `x-request-id` header

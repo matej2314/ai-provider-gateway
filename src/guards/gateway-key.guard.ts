@@ -11,6 +11,7 @@ import { getAppConfig } from '../config/typed-config';
 import { Request } from 'express';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { readGatewayKeyHeader } from '../common/readGatewayKeyHeader';
+import { enrichRequestWithClientId } from './helpers/resolve-and-enrich-request.helper';
 
 @Injectable()
 export class GatewayKeyGuard implements CanActivate {
@@ -53,7 +54,7 @@ export class GatewayKeyGuard implements CanActivate {
         details: [],
       });
     }
-    req.gatewayKey = headerValue;
+    enrichRequestWithClientId(req, headerValue, this.configService);
     return true;
   }
 }

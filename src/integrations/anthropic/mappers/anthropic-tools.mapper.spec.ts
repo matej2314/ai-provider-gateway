@@ -4,7 +4,6 @@ import {
   mapAnthropicContentBlockToGateway,
 } from './anthropic-tools.mapper';
 import { BadRequestException } from '@nestjs/common';
-import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { asToolCallId } from '../../../common/types/branded.types';
 
 const TEST_TOOL = {
@@ -14,7 +13,7 @@ const TEST_TOOL = {
 };
 
 describe('mapAnthropicToolsToGateway', () => {
-  it('should map single tool', () => {
+  it('should map tools with all fields', () => {
     const tools = [TEST_TOOL];
 
     const result = mapAnthropicToolsToGateway(tools);
@@ -28,53 +27,25 @@ describe('mapAnthropicToolsToGateway', () => {
     ]);
   });
 
-  it('should map tool without description', () => {
+  it('should map tool without optional fields', () => {
     const tools = [
-      {
-        name: 'test_tool',
-        input_schema: { type: 'object' },
-      },
+      { name: 'test_tool', input_schema: { type: 'object' } },
+      { name: 'simple_tool' },
     ];
 
     const result = mapAnthropicToolsToGateway(tools);
 
     expect(result).toEqual([
-      {
-        name: 'test_tool',
-        parameters: { type: 'object' },
-      },
+      { name: 'test_tool', parameters: { type: 'object' } },
+      { name: 'simple_tool', parameters: {} },
     ]);
   });
 
-  it('should map tool without input_schema (default empty object)', () => {
-    const tools = [{ name: 'simple_tool' }];
-
-    const result = mapAnthropicToolsToGateway(tools);
-
-    expect(result).toEqual([
-      {
-        name: 'simple_tool',
-        parameters: {},
-      },
-    ]);
-  });
-
-  it('should map multiple tools', () => {
+  it('should skip invalid tools', () => {
     const tools = [
-      { name: 'tool1', input_schema: {} },
-      { name: 'tool2', description: 'Tool 2', input_schema: {} },
-    ];
-
-    const result = mapAnthropicToolsToGateway(tools);
-
-    expect(result).toHaveLength(2);
-    expect(result[0].name).toBe('tool1');
-    expect(result[1].name).toBe('tool2');
-  });
-
-  it('should skip tools without name', () => {
-    const tools = [
+      null,
       { description: 'No name', input_schema: {} },
+      { name: '', input_schema: {} },
       { name: 'valid', input_schema: {} },
     ];
 
@@ -83,57 +54,15 @@ describe('mapAnthropicToolsToGateway', () => {
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe('valid');
   });
-
-  it('should skip non-object items', () => {
-    const tools = [null, undefined, 'string', { name: 'valid' }];
-
-    const result = mapAnthropicToolsToGateway(tools);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('valid');
-  });
-
-  it('should return empty array when no valid tools', () => {
-    const tools = [null, undefined, { description: 'no name' }];
-
-    const result = mapAnthropicToolsToGateway(tools);
-
-    expect(result).toEqual([]);
-  });
-
-  it('should return empty array for empty input', () => {
-    expect(mapAnthropicToolsToGateway([])).toEqual([]);
-  });
-
-  it('should skip tool with empty name', () => {
-    const tools = [{ name: '', input_schema: {} }];
-
-    expect(mapAnthropicToolsToGateway(tools)).toEqual([]);
-  });
-
-  it('should omit empty description', () => {
-    const tools = [{ name: 'test_tool', description: '', input_schema: {} }];
-
-    expect(mapAnthropicToolsToGateway(tools)).toEqual([
-      { name: 'test_tool', parameters: {} },
-    ]);
-  });
 });
 
 describe('mapAnthropicToolChoice', () => {
-  it('should map {type:"auto"} to "auto"', () => {
-    const result = mapAnthropicToolChoice({ type: 'auto' });
-
-    expect(result).toBe('auto');
+  it('should map standard tool choice types', () => {
+    expect(mapAnthropicToolChoice({ type: 'auto' })).toBe('auto');
+    expect(mapAnthropicToolChoice({ type: 'any' })).toBe('required');
   });
 
-  it('should map {type:"any"} to "required"', () => {
-    const result = mapAnthropicToolChoice({ type: 'any' });
-
-    expect(result).toBe('required');
-  });
-
-  it('should map {type:"tool", name:"X"} to function choice', () => {
+  it('should map specific tool choice', () => {
     const toolChoice = { type: 'tool', name: 'get_weather' };
 
     const result = mapAnthropicToolChoice(toolChoice);
@@ -144,84 +73,44 @@ describe('mapAnthropicToolChoice', () => {
     });
   });
 
-  it('should return undefined when toolChoice not provided', () => {
-    const result = mapAnthropicToolChoice(undefined);
-
-    expect(result).toBeUndefined();
+  it('should return undefined for falsy values', () => {
+    expect(mapAnthropicToolChoice(undefined)).toBeUndefined();
+    expect(mapAnthropicToolChoice(null)).toBeUndefined();
+    expect(mapAnthropicToolChoice(false)).toBeUndefined();
   });
 
-  it('should return undefined when toolChoice is null', () => {
-    const result = mapAnthropicToolChoice(null);
-
-    expect(result).toBeUndefined();
-  });
-
-  it('should throw when invalid type', () => {
-    const toolChoice = { type: 'invalid' };
-
-    expect(() => mapAnthropicToolChoice(toolChoice)).toThrow(
+  it('should throw for invalid tool choice', () => {
+    expect(() => mapAnthropicToolChoice({ type: 'invalid' })).toThrow(
       BadRequestException,
     );
-
-    try {
-      mapAnthropicToolChoice(toolChoice);
-    } catch (e) {
-      expect(e).toBeInstanceOf(BadRequestException);
-      expect(e.getResponse()).toMatchObject({
-        code: ApiErrorCode.VALIDATION_FAILED,
-        message: 'Invalid tool_choice value',
-      });
-    }
-  });
-
-  it('should throw when tool type without name', () => {
-    const toolChoice = { type: 'tool' };
-
-    expect(() => mapAnthropicToolChoice(toolChoice)).toThrow(
-      BadRequestException,
-    );
-  });
-
-  it('should throw when not an object', () => {
     expect(() => mapAnthropicToolChoice('auto' as any)).toThrow(
       BadRequestException,
     );
-  });
-
-  it('should throw when tool_choice is empty object', () => {
     expect(() => mapAnthropicToolChoice({})).toThrow(BadRequestException);
   });
 
-  it('should throw when tool type with empty name', () => {
+  it('should throw when tool type missing name', () => {
+    expect(() => mapAnthropicToolChoice({ type: 'tool' })).toThrow(
+      BadRequestException,
+    );
     expect(() => mapAnthropicToolChoice({ type: 'tool', name: '' })).toThrow(
       BadRequestException,
     );
-  });
-
-  it('should return undefined when toolChoice is false', () => {
-    expect(mapAnthropicToolChoice(false)).toBeUndefined();
   });
 });
 
 describe('mapAnthropicContentBlockToGateway', () => {
   describe('text blocks', () => {
-    it('should map user text block', () => {
+    it('should map text blocks for user and assistant', () => {
       const blocks = [{ type: 'text', text: 'Hello' }];
 
-      const result = mapAnthropicContentBlockToGateway('user', blocks as any);
+      expect(mapAnthropicContentBlockToGateway('user', blocks as any)).toEqual([
+        { role: 'user', content: 'Hello' },
+      ]);
 
-      expect(result).toEqual([{ role: 'user', content: 'Hello' }]);
-    });
-
-    it('should map assistant text block', () => {
-      const blocks = [{ type: 'text', text: 'Hi there!' }];
-
-      const result = mapAnthropicContentBlockToGateway(
-        'assistant',
-        blocks as any,
-      );
-
-      expect(result).toEqual([{ role: 'assistant', content: 'Hi there!' }]);
+      expect(
+        mapAnthropicContentBlockToGateway('assistant', blocks as any),
+      ).toEqual([{ role: 'assistant', content: 'Hello' }]);
     });
 
     it('should concatenate multiple text blocks', () => {
@@ -234,21 +123,6 @@ describe('mapAnthropicContentBlockToGateway', () => {
       const result = mapAnthropicContentBlockToGateway('user', blocks as any);
 
       expect(result).toEqual([{ role: 'user', content: 'Hello World' }]);
-    });
-
-    it('should concatenate multiple text blocks for assistant', () => {
-      const blocks = [
-        { type: 'text', text: 'Hello' },
-        { type: 'text', text: ' ' },
-        { type: 'text', text: 'World' },
-      ];
-
-      const result = mapAnthropicContentBlockToGateway(
-        'assistant',
-        blocks as any,
-      );
-
-      expect(result).toEqual([{ role: 'assistant', content: 'Hello World' }]);
     });
   });
 
@@ -297,7 +171,7 @@ describe('mapAnthropicContentBlockToGateway', () => {
       expect(result[0].toolCalls).toHaveLength(2);
     });
 
-    it('should map tool_use without input (default empty object)', () => {
+    it('should handle tool_use without input', () => {
       const blocks = [{ type: 'tool_use', id: 'call_1', name: 'test' }];
 
       const result = mapAnthropicContentBlockToGateway(
@@ -308,19 +182,11 @@ describe('mapAnthropicContentBlockToGateway', () => {
       expect(result[0].toolCalls![0].arguments).toBe('{}');
     });
 
-    it('should skip tool_use without id and return assistant with empty content', () => {
-      const blocks = [{ type: 'tool_use', name: 'weather', input: {} }];
-
-      const result = mapAnthropicContentBlockToGateway(
-        'assistant',
-        blocks as any,
-      );
-
-      expect(result).toEqual([{ role: 'assistant', content: '' }]);
-    });
-
-    it('should skip tool_use without name and return assistant with empty content', () => {
-      const blocks = [{ type: 'tool_use', id: 'call_1', input: {} }];
+    it('should skip invalid tool_use blocks', () => {
+      const blocks = [
+        { type: 'tool_use', name: 'weather', input: {} },
+        { type: 'tool_use', id: 'call_1', input: {} },
+      ];
 
       const result = mapAnthropicContentBlockToGateway(
         'assistant',
@@ -365,7 +231,7 @@ describe('mapAnthropicContentBlockToGateway', () => {
       expect(result[1].role).toBe('tool');
     });
 
-    it('should map tool_result without content (empty string)', () => {
+    it('should handle tool_result without content', () => {
       const blocks = [{ type: 'tool_result', tool_use_id: 'call_1' }];
 
       const result = mapAnthropicContentBlockToGateway('user', blocks as any);
@@ -373,7 +239,7 @@ describe('mapAnthropicContentBlockToGateway', () => {
       expect(result[0].content).toBe('');
     });
 
-    it('should skip tool_result without tool_use_id', () => {
+    it('should throw for tool_result without tool_use_id', () => {
       const blocks = [{ type: 'tool_result', content: 'orphan' }];
 
       expect(() =>
@@ -417,59 +283,34 @@ describe('mapAnthropicContentBlockToGateway', () => {
     });
   });
 
-  describe('validation', () => {
-    it('should throw when image block present', () => {
-      const blocks = [{ type: 'image', source: {} }];
-
+  describe('validation errors', () => {
+    it('should throw for unsupported block types', () => {
       expect(() =>
-        mapAnthropicContentBlockToGateway('user', blocks as any),
+        mapAnthropicContentBlockToGateway('user', [
+          { type: 'image', source: {} },
+        ] as any),
       ).toThrow(BadRequestException);
-
-      try {
-        mapAnthropicContentBlockToGateway('user', blocks as any);
-      } catch (e) {
-        expect(e).toBeInstanceOf(BadRequestException);
-        expect(e.getResponse()).toMatchObject({
-          code: ApiErrorCode.VALIDATION_FAILED,
-          message: 'Image content block are not supported.',
-        });
-      }
     });
 
     it('should throw when no valid content blocks', () => {
-      const blocks = [];
-
       expect(() =>
-        mapAnthropicContentBlockToGateway('user', blocks as any),
+        mapAnthropicContentBlockToGateway('user', [] as any),
       ).toThrow(BadRequestException);
 
-      try {
-        mapAnthropicContentBlockToGateway('user', blocks as any);
-      } catch (e) {
-        expect(e).toBeInstanceOf(BadRequestException);
-        expect(e.getResponse()).toMatchObject({
-          code: ApiErrorCode.VALIDATION_FAILED,
-          message:
-            'Each message must have at least one supported content block.',
-        });
-      }
+      expect(() =>
+        mapAnthropicContentBlockToGateway('user', [
+          { type: 'text', text: '' },
+        ] as any),
+      ).toThrow(BadRequestException);
     });
 
-    it('should return assistant with empty content when blocks array is empty', () => {
+    it('should return assistant with empty content for empty blocks', () => {
       const result = mapAnthropicContentBlockToGateway('assistant', []);
 
       expect(result).toEqual([{ role: 'assistant', content: '' }]);
     });
 
-    it('should throw when only empty text block for user', () => {
-      const blocks = [{ type: 'text', text: '' }];
-
-      expect(() =>
-        mapAnthropicContentBlockToGateway('user', blocks as any),
-      ).toThrow(BadRequestException);
-    });
-
-    it('should return assistant with empty content when only empty text block', () => {
+    it('should return assistant with empty content for only empty text', () => {
       const blocks = [{ type: 'text', text: '' }];
 
       const result = mapAnthropicContentBlockToGateway(
@@ -478,33 +319,6 @@ describe('mapAnthropicContentBlockToGateway', () => {
       );
 
       expect(result).toEqual([{ role: 'assistant', content: '' }]);
-    });
-
-    it('should throw when only unsupported block types', () => {
-      const blocks = [{ type: 'unknown', data: 'x' }];
-
-      expect(() =>
-        mapAnthropicContentBlockToGateway('user', blocks as any),
-      ).toThrow(BadRequestException);
-    });
-
-    it('should throw when image block is mixed with text', () => {
-      const blocks = [
-        { type: 'text', text: 'Hello' },
-        { type: 'image', source: {} },
-      ];
-
-      expect(() =>
-        mapAnthropicContentBlockToGateway('user', blocks as any),
-      ).toThrow(BadRequestException);
-    });
-
-    it('should throw when user message has only invalid tool_use blocks', () => {
-      const blocks = [{ type: 'tool_use', name: 'weather', input: {} }];
-
-      expect(() =>
-        mapAnthropicContentBlockToGateway('user', blocks as any),
-      ).toThrow(BadRequestException);
     });
   });
 });

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { SmartRateLimiterService } from './smart-rate-limiter.service';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
 import { LoggingService } from '../logging/logging.service';
+import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockConfigService } from '../common/mocks/createMockConfigService';
 import {
@@ -13,13 +14,17 @@ import {
   asRateLimitBurst,
   asRateLimitRps,
 } from '../common/types';
+import { asClientId } from '../common/types/branded.types';
 import type { ResolvedGatewayClient } from '../config/configuration.types';
+
+const UNKNOWN_CLIENT_ID = asClientId('unknown');
 
 describe('SmartRateLimiterService', () => {
   let service: SmartRateLimiterService;
   let mockConfig: Partial<ConfigService>;
   let mockRedis: Partial<RedisConnectionService>;
   let mockLogger: Partial<LoggingService>;
+  let mockAppMetrics: Partial<AppMetricsService>;
   let mockRedisClient: any;
 
   beforeEach(async () => {
@@ -48,6 +53,9 @@ describe('SmartRateLimiterService', () => {
     };
 
     mockLogger = createMockLoggingService();
+    mockAppMetrics = {
+      recordRateLimit: jest.fn(),
+    };
 
     const module = await Test.createTestingModule({
       providers: [
@@ -55,6 +63,7 @@ describe('SmartRateLimiterService', () => {
         { provide: ConfigService, useValue: mockConfig },
         { provide: RedisConnectionService, useValue: mockRedis },
         { provide: LoggingService, useValue: mockLogger },
+        { provide: AppMetricsService, useValue: mockAppMetrics },
       ],
     }).compile();
 
@@ -87,6 +96,7 @@ describe('SmartRateLimiterService', () => {
         { provide: ConfigService, useValue: config },
         { provide: RedisConnectionService, useValue: mockRedis },
         { provide: LoggingService, useValue: mockLogger },
+        { provide: AppMetricsService, useValue: mockAppMetrics },
       ],
     }).compile();
 
@@ -120,6 +130,19 @@ describe('SmartRateLimiterService', () => {
       expect(result.allowed).toBe(false);
       expect(result.remaining).toBe(0);
       expect(result.reason).toContain('Rate limit exceeded');
+      expect(mockAppMetrics.recordRateLimit).toHaveBeenCalledWith(
+        UNKNOWN_CLIENT_ID,
+        'rate',
+      );
+      expect(mockLogger.warn).toHaveBeenCalled();
+    });
+
+    it('should not record metrics when request is allowed', async () => {
+      mockRedisClient.eval.mockResolvedValue([1, 19, Date.now()]);
+
+      await service.checkRateLimit(asGatewayKey('gw_key_123'));
+
+      expect(mockAppMetrics.recordRateLimit).not.toHaveBeenCalled();
     });
 
     it('should use default limits when client not configured', async () => {
@@ -194,6 +217,20 @@ describe('SmartRateLimiterService', () => {
       expect(args[4]).toBe('10');
       expect(args[5]).toBe('20');
     });
+
+    it('records rate limit metric with configured client name', async () => {
+      mockRedisClient.eval.mockResolvedValue([0, 0, Date.now()]);
+      const configuredService = await createServiceWithGatewayClients([
+        configuredClient,
+      ]);
+
+      await configuredService.checkRateLimit(configuredKey);
+
+      expect(mockAppMetrics.recordRateLimit).toHaveBeenCalledWith(
+        asClientId('Web Client'),
+        'rate',
+      );
+    });
   });
 
   describe('checkConcurrentStreams — configured vs unknown gateway keys (Faza 1.6)', () => {
@@ -219,8 +256,10 @@ describe('SmartRateLimiterService', () => {
         configuredClient,
       ]);
 
-      const result =
-        await configuredService.checkConcurrentStreams(configuredKey);
+      const result = await configuredService.checkConcurrentStreams(
+        configuredKey,
+        asClientId('Stream Client'),
+      );
 
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(0);
@@ -232,7 +271,10 @@ describe('SmartRateLimiterService', () => {
         configuredClient,
       ]);
 
-      const result = await configuredService.checkConcurrentStreams(unknownKey);
+      const result = await configuredService.checkConcurrentStreams(
+        unknownKey,
+        UNKNOWN_CLIENT_ID,
+      );
 
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(1);
@@ -245,6 +287,7 @@ describe('SmartRateLimiterService', () => {
 
       const result = await service.checkConcurrentStreams(
         asGatewayKey('gw_key_123'),
+        UNKNOWN_CLIENT_ID,
       );
 
       expect(result.allowed).toBe(true);
@@ -255,10 +298,12 @@ describe('SmartRateLimiterService', () => {
 
       const result = await service.checkConcurrentStreams(
         asGatewayKey('gw_key_123'),
+        UNKNOWN_CLIENT_ID,
       );
 
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(1);
+      expect(mockAppMetrics.recordRateLimit).not.toHaveBeenCalled();
     });
 
     it('should deny when at limit', async () => {
@@ -266,17 +311,25 @@ describe('SmartRateLimiterService', () => {
 
       const result = await service.checkConcurrentStreams(
         asGatewayKey('gw_key_123'),
+        UNKNOWN_CLIENT_ID,
       );
 
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('Max concurrent streams');
       expect(mockRedisClient.decr).toHaveBeenCalled();
+      expect(mockAppMetrics.recordRateLimit).toHaveBeenCalledWith(
+        UNKNOWN_CLIENT_ID,
+        'concurrency',
+      );
     });
 
     it('should set expire on counter', async () => {
       mockRedisClient.incr.mockResolvedValue(1);
 
-      await service.checkConcurrentStreams(asGatewayKey('gw_key_123'));
+      await service.checkConcurrentStreams(
+        asGatewayKey('gw_key_123'),
+        UNKNOWN_CLIENT_ID,
+      );
 
       expect(mockRedisClient.expire).toHaveBeenCalledWith(
         'rateLimit:streams:gw_key_123',
@@ -289,10 +342,12 @@ describe('SmartRateLimiterService', () => {
 
       const result = await service.checkConcurrentStreams(
         asGatewayKey('gw_key_123'),
+        UNKNOWN_CLIENT_ID,
       );
 
       expect(result.allowed).toBe(true);
       expect(mockLogger.error).toHaveBeenCalled();
+      expect(mockAppMetrics.recordRateLimit).not.toHaveBeenCalled();
     });
   });
 
@@ -423,6 +478,7 @@ describe('SmartRateLimiterService', () => {
         mockConfig as any,
         mockRedis as any,
         mockLogger as any,
+        mockAppMetrics as AppMetricsService,
       );
 
       await newService.setCooldown(asGatewayKey('gw_key_123'), 'anthropic');

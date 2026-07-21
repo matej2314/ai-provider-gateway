@@ -7,6 +7,12 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import {
+  isRateLimitStatus,
+  isAuthError,
+  isServerError,
+  isInvalidRequestStatus,
+} from '../../../common/errors/errors.utils';
 
 @Catch()
 export class AnthropicExceptionFilter implements ExceptionFilter {
@@ -24,10 +30,10 @@ export class AnthropicExceptionFilter implements ExceptionFilter {
     ) {
       return 'invalid_request_error';
     }
-    if (status === 401 || status === 403) return 'authentication_error';
-    if (status === 429) return 'rate_limit_error';
-    if (status === 400) return 'invalid_request_error';
-    if (status >= 500) return 'api_error';
+    if (isAuthError(status)) return 'authentication_error';
+    if (isRateLimitStatus(status)) return 'rate_limit_error';
+    if (isInvalidRequestStatus(status)) return 'invalid_request_error';
+    if (isServerError(status)) return 'api_error';
     return 'api_error';
   }
 

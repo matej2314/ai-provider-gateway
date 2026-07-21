@@ -199,7 +199,7 @@ describe('readGatewayKeyHeader', () => {
     it('should work with typical Express request', () => {
       const req = {
         header: function (name: string) {
-          return this.headers[name.toLowerCase()];
+          return (this as Request).headers[name.toLowerCase()];
         },
         headers: {
           'x-gateway-key': 'gw_production_key_abc123',
@@ -217,7 +217,10 @@ describe('readGatewayKeyHeader', () => {
       const req = {
         header: (name: string) => {
           const lowerName = name.toLowerCase();
-          const headers = { 'x-gateway-key': 'gw_key_123' };
+          const headers = { 'x-gateway-key': 'gw_key_123' } as Record<
+            string,
+            string
+          >;
           return headers[lowerName];
         },
         headers: { 'x-gateway-key': 'gw_key_123' },

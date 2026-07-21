@@ -9,13 +9,15 @@ import {
 } from '../../../common/types/branded.types';
 
 function createMockClient() {
-  return {
+  const create = jest.fn();
+  const client = {
     chat: {
       completions: {
-        create: jest.fn(),
+        create,
       },
     },
   } as unknown as OpenAI;
+  return { client, create };
 }
 
 describe('createChatCompletionsAdapter', () => {
@@ -25,9 +27,9 @@ describe('createChatCompletionsAdapter', () => {
     jest.clearAllMocks();
   });
 
-  it('complete delegates to chat.completions.create and maps response', async () => {
-    const client = createMockClient();
-    (client.chat.completions.create as jest.Mock).mockResolvedValue({
+  it('complete delegates to chat.completions.create and maps response', async function (this: void) {
+    const { client, create } = createMockClient();
+    create.mockResolvedValue({
       id: 'cmpl_1',
       model: 'gpt-4o',
       choices: [
@@ -45,9 +47,7 @@ describe('createChatCompletionsAdapter', () => {
       'gpt-4o',
     );
 
-    expect(
-      (client.chat.completions as unknown as Record<string, unknown>).create,
-    ).toHaveBeenCalledWith(
+    expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         model: 'gpt-4o',
         messages: [{ role: 'user', content: 'Hi' }],
@@ -61,9 +61,33 @@ describe('createChatCompletionsAdapter', () => {
     });
   });
 
-  it('maps SDK errors to HttpException', async () => {
-    const client = createMockClient();
-    (client.chat.completions.create as jest.Mock).mockRejectedValue(
+  it('passes AbortSignal as request options when provided', async function (this: void) {
+    const { client, create } = createMockClient();
+    create.mockResolvedValue({
+      choices: [
+        {
+          message: { role: 'assistant', content: 'Hi' },
+          finish_reason: 'stop',
+        },
+      ],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+      model: 'gpt-4o',
+    });
+    const adapter = createChatCompletionsAdapter(client, logger as never);
+    const signal = new AbortController().signal;
+
+    await adapter.complete(
+      { messages: [{ role: 'user', content: 'Hi' }] },
+      'gpt-4o',
+      { signal },
+    );
+
+    expect(create).toHaveBeenCalledWith(expect.any(Object), { signal });
+  });
+
+  it('maps SDK errors to HttpException', async function (this: void) {
+    const { client, create } = createMockClient();
+    create.mockRejectedValue(
       new OpenAI.APIError(429, undefined, 'Rate limited', undefined),
     );
 
@@ -88,9 +112,9 @@ describe('createChatCompletionsAdapter', () => {
     });
   });
 
-  it('stream yields text deltas and exposes final tool calls', async () => {
-    const client = createMockClient();
-    (client.chat.completions.create as jest.Mock).mockResolvedValue(
+  it('stream yields text deltas and exposes final tool calls', async function (this: void) {
+    const { client, create } = createMockClient();
+    create.mockResolvedValue(
       (function* () {
         yield {
           model: 'gpt-4o',
@@ -144,9 +168,9 @@ describe('createChatCompletionsAdapter', () => {
     await expect(stream.getStopReason?.()).resolves.toBe('tool_calls');
   });
 
-  it('stream omits stream_options by default (openai-compatible path)', async () => {
-    const client = createMockClient();
-    (client.chat.completions.create as jest.Mock).mockResolvedValue(
+  it('stream omits stream_options by default (openai-compatible path)', async function (this: void) {
+    const { client, create } = createMockClient();
+    create.mockResolvedValue(
       (function* () {
         yield {
           choices: [{ delta: { content: 'Hi' } }],
@@ -164,16 +188,14 @@ describe('createChatCompletionsAdapter', () => {
       void chunk;
     }
 
-    expect(
-      (client.chat.completions as unknown as Record<string, unknown>).create,
-    ).toHaveBeenCalledWith(
+    expect(create).toHaveBeenCalledWith(
       expect.not.objectContaining({ stream_options: expect.anything() }),
     );
   });
 
-  it('stream sends stream_options when includeStreamUsage is true', async () => {
-    const client = createMockClient();
-    (client.chat.completions.create as jest.Mock).mockResolvedValue(
+  it('stream sends stream_options when includeStreamUsage is true', async function (this: void) {
+    const { client, create } = createMockClient();
+    create.mockResolvedValue(
       (function* () {
         yield {
           choices: [{ delta: { content: 'Hi' } }],
@@ -194,9 +216,7 @@ describe('createChatCompletionsAdapter', () => {
       void chunk;
     }
 
-    expect(
-      (client.chat.completions as unknown as Record<string, unknown>).create,
-    ).toHaveBeenCalledWith(
+    expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         stream_options: { include_usage: true },
       }),

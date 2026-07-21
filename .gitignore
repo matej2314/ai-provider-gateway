@@ -17,6 +17,7 @@ lerna-debug.log*
 
 # Tests
 /coverage
+/coverage-security
 /.nyc_output
 
 # IDEs and editors
@@ -74,15 +75,10 @@ gateway-to-contracts-last-step.md
 tools_implementation.md
 cli-implementation-plan.md
 backup/*
-tests-plans/*
 
-rozjazdy_likwidacja_plan.md
-type-safety-plan.md
 .env.test
 .env.example.old
 gateway.config.placeholder.yaml
-check-models-implementation-plan.md
-openai-compat-providers-plan-2.md
-analiza_obszary_do_poprawy.md
-brand-types-plan.md
-object-values-entities-plan.md
+
+production-readiness-plan.md
+prometheus-grafana-implementation-plan.md

@@ -11,6 +11,7 @@ import type {
 } from '../interfaces/ai-provider.interface';
 import type { GatewayToolChoice } from '../types/tooling-types';
 import type Anthropic from '@anthropic-ai/sdk';
+import { asToolCallId } from '../../common/types/branded.types';
 
 describe('mapToolsToAnthropic', () => {
   it('should map single tool', () => {
@@ -176,9 +177,9 @@ describe('mapTurnsToAnthropicMessages', () => {
         role: 'assistant',
         content: 'Let me check',
         toolCalls: [
-          { id: 'call_1', name: 'weather', arguments: '{}' },
+          { id: asToolCallId('call_1'), name: 'weather', arguments: '{}' },
           {
-            id: 'call_2',
+            id: asToolCallId('call_2'),
             name: 'search',
             arguments: '{"query":"rain"}',
           },
@@ -208,7 +209,9 @@ describe('mapTurnsToAnthropicMessages', () => {
       {
         role: 'assistant',
         content: '',
-        toolCalls: [{ id: 'call_1', name: 'weather', arguments: '{}' }],
+        toolCalls: [
+          { id: asToolCallId('call_1'), name: 'weather', arguments: '{}' },
+        ],
       },
     ];
 
@@ -225,7 +228,13 @@ describe('mapTurnsToAnthropicMessages', () => {
       {
         role: 'assistant',
         content: 'Calling tool',
-        toolCalls: [{ id: 'call_1', name: 'weather', arguments: 'not-json' }],
+        toolCalls: [
+          {
+            id: asToolCallId('call_1'),
+            name: 'weather',
+            arguments: 'not-json',
+          },
+        ],
       },
     ];
 
@@ -244,7 +253,7 @@ describe('mapTurnsToAnthropicMessages', () => {
     const turns: ProviderChatTurn[] = [
       {
         role: 'tool',
-        toolCallId: 'call_1',
+        toolCallId: asToolCallId('call_1'),
         content: '{"temp":72}',
       },
     ];
@@ -267,8 +276,8 @@ describe('mapTurnsToAnthropicMessages', () => {
 
   it('should merge consecutive tool results into single user message', () => {
     const turns: ProviderChatTurn[] = [
-      { role: 'tool', toolCallId: 'call_1', content: 'result1' },
-      { role: 'tool', toolCallId: 'call_2', content: 'result2' },
+      { role: 'tool', toolCallId: asToolCallId('call_1'), content: 'result1' },
+      { role: 'tool', toolCallId: asToolCallId('call_2'), content: 'result2' },
     ];
 
     const result = mapTurnsToAnthropicMessages(turns);

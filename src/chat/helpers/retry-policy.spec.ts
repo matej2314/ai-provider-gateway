@@ -26,6 +26,8 @@ describe('buildRetryPolicyFromResolved', () => {
       maxAttempts: 5,
       onStatus: [429, 503],
       timeoutMs: 60000,
+      initialDelayMs: RETRY_POLICY_DEFAULTS.initialDelayMs,
+      maxDelayMs: RETRY_POLICY_DEFAULTS.maxDelayMs,
     });
   });
 
@@ -38,6 +40,8 @@ describe('buildRetryPolicyFromResolved', () => {
       maxAttempts: RETRY_POLICY_DEFAULTS.maxAttempts,
       onStatus: RETRY_POLICY_DEFAULTS.onStatus,
       timeoutMs: RETRY_POLICY_DEFAULTS.timeoutMs,
+      initialDelayMs: RETRY_POLICY_DEFAULTS.initialDelayMs,
+      maxDelayMs: RETRY_POLICY_DEFAULTS.maxDelayMs,
     });
   });
 
@@ -103,6 +107,8 @@ describe('buildRetryPolicyFromResolved', () => {
       maxAttempts: RETRY_POLICY_DEFAULTS.maxAttempts,
       onStatus: RETRY_POLICY_DEFAULTS.onStatus,
       timeoutMs: RETRY_POLICY_DEFAULTS.timeoutMs,
+      initialDelayMs: RETRY_POLICY_DEFAULTS.initialDelayMs,
+      maxDelayMs: RETRY_POLICY_DEFAULTS.maxDelayMs,
     });
   });
 
@@ -117,7 +123,25 @@ describe('buildRetryPolicyFromResolved', () => {
       maxAttempts: RETRY_POLICY_DEFAULTS.maxAttempts,
       onStatus: RETRY_POLICY_DEFAULTS.onStatus,
       timeoutMs: RETRY_POLICY_DEFAULTS.timeoutMs,
+      initialDelayMs: RETRY_POLICY_DEFAULTS.initialDelayMs,
+      maxDelayMs: RETRY_POLICY_DEFAULTS.maxDelayMs,
     });
+  });
+
+  it('should apply default backoff delays when policy has no delay fields', () => {
+    const resolved: ModelRetrySource = {
+      policy: {
+        retry: {
+          maxAttempts: asMaxAttempts(2),
+          onStatus: [429],
+        },
+      },
+    };
+
+    const result = buildRetryPolicyFromResolved(resolved);
+
+    expect(result.initialDelayMs).toBe(RETRY_POLICY_DEFAULTS.initialDelayMs);
+    expect(result.maxDelayMs).toBe(RETRY_POLICY_DEFAULTS.maxDelayMs);
   });
 
   it('should accept zero maxAttempts when already branded', () => {

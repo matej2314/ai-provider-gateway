@@ -5,7 +5,7 @@
 services:
   redis-integration:
     image: redis:7-alpine
-    container_name: ai-gateway-integration-redis
+    container_name: integration-redis-test
     ports:
       # Celowo 6380 na hoście — unikamy konfliktu z Redis dev/prod na 6379
       - "6380:6379"

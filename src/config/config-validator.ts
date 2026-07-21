@@ -7,10 +7,8 @@ import {
   EXPECTED_SCHEMA_VERSION,
   type GatewayConfig,
 } from './gateway-config.schema';
-import {
-  buildEffectiveGatewayConfig,
-  assertMasterKeyPresent,
-} from './configuration';
+import { buildEffectiveGatewayConfig } from './configuration';
+import { assertMasterKeyPresent } from './configuration-validation.service';
 
 export interface ValidationResult {
   success: boolean;

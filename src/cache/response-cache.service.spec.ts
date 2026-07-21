@@ -10,6 +10,7 @@ import type { CacheBackend } from './interfaces/cache-backend-interface';
 import type { ChatRequestDto } from '../chat/dto/chat-request.dto';
 import type { ChatResponseData } from '../chat/services/chat-response-builder.service';
 import type { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
+import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { createMockCacheBackend } from '../common/mocks/createMockCacheBackend';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockConfigService } from '../common/mocks/createMockConfigService';
@@ -33,6 +34,7 @@ describe('ResponseCacheService', () => {
   let mockCacheBackend: Partial<CacheBackend>;
   let mockConfig: Partial<ConfigService>;
   let mockLogger: Partial<LoggingService>;
+  let mockAppMetrics: Partial<AppMetricsService>;
 
   beforeEach(async () => {
     mockCacheBackend = createMockCacheBackend();
@@ -42,6 +44,9 @@ describe('ResponseCacheService', () => {
     });
 
     mockLogger = createMockLoggingService();
+    mockAppMetrics = {
+      recordCacheAccess: jest.fn(),
+    };
 
     const module = await Test.createTestingModule({
       providers: [
@@ -49,6 +54,7 @@ describe('ResponseCacheService', () => {
         { provide: CACHE_BACKEND, useValue: mockCacheBackend },
         { provide: ConfigService, useValue: mockConfig },
         { provide: LoggingService, useValue: mockLogger },
+        { provide: AppMetricsService, useValue: mockAppMetrics },
       ],
     }).compile();
 
@@ -68,6 +74,7 @@ describe('ResponseCacheService', () => {
 
       expect(result).toBeNull();
       expect(mockCacheBackend.get).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordCacheAccess).not.toHaveBeenCalled();
     });
 
     it('should return null when cache miss', async () => {
@@ -78,6 +85,10 @@ describe('ResponseCacheService', () => {
       expect(result).toBeNull();
       expect(mockLogger.debug).toHaveBeenCalledWith(
         expect.stringContaining('Cache MISS'),
+      );
+      expect(mockAppMetrics.recordCacheAccess).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        false,
       );
     });
 
@@ -105,6 +116,10 @@ describe('ResponseCacheService', () => {
       expect(result).toEqual(cached);
       expect(mockLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Cache HIT'),
+      );
+      expect(mockAppMetrics.recordCacheAccess).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        true,
       );
     });
 
@@ -162,6 +177,10 @@ describe('ResponseCacheService', () => {
         expect.stringContaining('Failed to parse cached response'),
         expect.any(Error),
       );
+      expect(mockAppMetrics.recordCacheAccess).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        false,
+      );
     });
 
     it('should include cache key prefix from config', async () => {
@@ -196,6 +215,10 @@ describe('ResponseCacheService', () => {
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Invalid cached response shape'),
       );
+      expect(mockAppMetrics.recordCacheAccess).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        false,
+      );
     });
 
     it('should delete cache entry when output.type is not text', async () => {
@@ -218,6 +241,10 @@ describe('ResponseCacheService', () => {
 
       expect(result).toBeNull();
       expect(mockCacheBackend.delete).toHaveBeenCalled();
+      expect(mockAppMetrics.recordCacheAccess).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        false,
+      );
     });
   });
 

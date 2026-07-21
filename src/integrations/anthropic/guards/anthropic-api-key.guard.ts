@@ -11,6 +11,7 @@ import { getAppConfig } from '../../../config/typed-config';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { readBearerToken } from '../../../integrations/openai/guards/openai-bearer-auth.guard';
 import { asGatewayKey } from '../../../common/types';
+import { enrichRequestWithClientId } from '../../../guards/helpers/resolve-and-enrich-request.helper';
 import type { Request } from 'express';
 
 export function readAnthropicApiKey(req: Request): string | undefined {
@@ -63,7 +64,7 @@ export class AnthropicApiKeyGuard implements CanActivate {
         details: [],
       });
     }
-    req.gatewayKey = brandedKey;
+    enrichRequestWithClientId(req, brandedKey, this.config);
     return true;
   }
 }

@@ -18,7 +18,7 @@ import {
 import { ApiGatewayChatErrorResponses } from '../common/decorators/api-gateway-error-responses.decorator';
 import { ApiRequestIdHeader } from '../common/decorators/api-request-id-header.decorator';
 import { requireClientGatewayKey } from '../common/requireClientGatewayKey';
-import { asRequestId } from 'src/common/types/branded.types';
+import { asRequestId, asClientId } from 'src/common/types/branded.types';
 
 @ApiTags('Chat')
 @ApiSecurity('GatewayKeyAuth')
@@ -41,6 +41,7 @@ export class ChatController {
     const gatewayKey = requireClientGatewayKey(req);
     const result = await this.chatService.executeChat(
       requestBody,
+      req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
       asRequestId(req.requestId),
       gatewayKey,
       'native',

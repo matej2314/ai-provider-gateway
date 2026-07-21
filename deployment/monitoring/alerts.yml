@@ -1,0 +1,76 @@
+# Alert rules for AI Provider Gateway
+#
+# Health gauges are sourced from GET /metrics (refreshed on scrape via
+# HealthService → PreMetricsScrapeRegistry). Tune `for:` durations after a
+# baseline period if needed; event-loop threshold is a starting point.
+
+groups:
+  - name: gateway_alerts
+    interval: 30s
+    rules:
+      - alert: GatewayDown
+        expr: up{job="ai-gateway"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'AI Gateway scrape target down'
+          description: >-
+            Prometheus cannot scrape {{ $labels.instance }} (job ai-gateway).
+            Process may be down or /metrics unreachable.
+
+      - alert: GatewayNotReady
+        expr: gateway_readiness == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'AI Gateway not ready'
+          description: >-
+            gateway_readiness is 0 while the scrape target is up. The gateway
+            process is running but not ready to serve traffic (config, redis,
+            or cache checks failing).
+
+      - alert: GatewayConfigUnhealthy
+        expr: gateway_health_status{component="config"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Gateway config check unhealthy'
+          description: >-
+            gateway_health_status{component="config"} is 0 (unhealthy).
+            Gateway config or resolved prompts may be missing.
+
+      - alert: GatewayRedisDegraded
+        expr: gateway_health_status{component="redis"} < 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Redis health degraded or unavailable'
+          description: >-
+            gateway_health_status{component="redis"} is below 1 (degraded or
+            unhealthy). Redis may be required for rate limiting or cache.
+
+      - alert: GatewayCacheDegraded
+        expr: gateway_health_status{component="cache"} < 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Cache health degraded or unavailable'
+          description: >-
+            gateway_health_status{component="cache"} is below 1 (degraded).
+            Cache backend may be unavailable while the gateway remains ready.
+
+      - alert: GatewayHighEventLoopLag
+        expr: gateway_nodejs_eventloop_lag_seconds > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Node.js event loop lag high'
+          description: >-
+            gateway_nodejs_eventloop_lag_seconds exceeds 0.5s on
+            {{ $labels.instance }}. Investigate CPU blocking or load.

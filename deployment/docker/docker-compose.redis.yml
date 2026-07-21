@@ -1,0 +1,37 @@
+name: ai-provider-gateway-redis
+
+# Redis gatewaya na porcie 6380 (wewnątrz kontenera i na hoście) —
+# celowo nie 6379, żeby nie kolidować z innym Redisem na hoście.
+# Vault / .env: REDIS_HOST=ai-gateway-redis (lub redis), REDIS_PORT=6380
+# Gateway + Redis: npm run docker:up:redis
+
+services:
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai-gateway-redis
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:6380:6380"
+    command: >-
+      redis-server
+      --port 6380
+      --maxmemory ${REDIS_MAX_MEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ai-gateway-network
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
+
+networks:
+  ai-gateway-network:
+    external: true
+    name: ai-gateway-network

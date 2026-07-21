@@ -37,7 +37,7 @@ import { OPENAI_INTEGRATION_PATH } from '../../../integrations/integrations.cons
 import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-header.decorator';
 import { ApiOpenAiErrorResponses } from '../../../common/decorators/api-openai-error-response.decorator';
 import { OpenAiChatCompletionResponseDto } from '../dtos/openai-chat-completion-response.dto';
-import { asRequestId } from 'src/common/types/branded.types';
+import { asRequestId, asClientId } from 'src/common/types/branded.types';
 import type { GatewayKey } from '../../../common/types';
 
 @ApiTags('OpenAI API')
@@ -58,8 +58,10 @@ export class OpenAiChatCompletionsController {
   ) {
     this.chatService.validateForStreaming(body.model);
 
-    const streamsCheck =
-      await this.rateLimiter.checkConcurrentStreams(gatewayKey);
+    const streamsCheck = await this.rateLimiter.checkConcurrentStreams(
+      gatewayKey,
+      req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
+    );
 
     if (!streamsCheck.allowed) {
       throw new HttpException(
@@ -93,6 +95,7 @@ export class OpenAiChatCompletionsController {
       await this.chatService.executeStream(
         gatewayRequest,
         asRequestId(req.requestId),
+        req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
         (event: SseEvent) => {
           const lines = mapSseEventToOpenAi(event, state);
           for (const line of lines) {
@@ -160,6 +163,7 @@ export class OpenAiChatCompletionsController {
     const gatewayRequest = mapOpenAiChatRequestToGateway(body);
     const result = (await this.chatService.executeChat(
       gatewayRequest,
+      req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
       asRequestId(req.requestId),
       gatewayKey,
       'facade-openai',

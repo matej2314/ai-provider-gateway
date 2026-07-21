@@ -1,9 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { ProviderRegistryService } from '../../providers/provider-registry.service';
-import { MetricsService } from '../../metrics/metrics.service';
+import { AiMetricsService } from '../../observability/ai-metrics/ai-metrics.service';
+import { AppMetricsService } from '../../observability/app-metrics/app-metrics.service';
 import { resolveProviderCallOptions } from '../helpers/resolve-provider-call-options';
 import { buildProviderInputForAlias } from '../helpers/provider-input';
-import { buildLlmMetricsContext } from '../helpers/metrics';
+import {
+  buildAppProviderMetricsContext,
+  buildLlmMetricsContext,
+  mapProviderResponseToAiObservation,
+  mapProviderResponseToUsage,
+} from '../helpers/metrics';
 import type { ResolvedSystemPrompts } from '../../config/configuration.types';
 import type {
   ProviderChatResponse,
@@ -27,6 +33,7 @@ import {
   InputTokens,
   OutputTokens,
   type SystemFingerprint,
+  type ClientId,
 } from '../../common/types/branded.types';
 
 export interface CompleteOnceResult {
@@ -58,6 +65,7 @@ export interface StreamOnceParams {
   requestBody: ChatRequestDto;
   alias: ModelAlias;
   requestId: RequestId;
+  clientId: ClientId;
   resolvedPrompts: ResolvedSystemPrompts;
   emit: (event: SseEvent) => void;
   streamMeta: {
@@ -66,13 +74,15 @@ export interface StreamOnceParams {
     responseConversationId: ConversationId;
     metaEmitted: { value: boolean };
   };
+  signal?: AbortSignal;
 }
 
 @Injectable()
 export class ChatProviderCallService {
   constructor(
     private readonly registry: ProviderRegistryService,
-    private readonly metricsService: MetricsService,
+    private readonly aiMetrics: AiMetricsService,
+    private readonly appMetrics: AppMetricsService,
   ) {}
 
   // runOnce from executeChat
@@ -80,19 +90,21 @@ export class ChatProviderCallService {
     requestBody: ChatRequestDto,
     alias: ModelAlias,
     requestId: RequestId,
+    clientId: ClientId,
     resolvedPrompts: ResolvedSystemPrompts,
+    signal?: AbortSignal,
   ): Promise<CompleteOnceResult> {
     const resolved = this.registry.resolve(alias);
-    const aliasOptions = resolveProviderCallOptions(
-      resolved.params,
-      requestBody.params,
-    );
+    const aliasOptions = {
+      ...resolveProviderCallOptions(resolved.params, requestBody.params),
+      ...(signal ? { signal } : {}),
+    };
     const providerInput = buildProviderInputForAlias(
       requestBody,
       alias,
       resolvedPrompts,
     );
-    const metricsCtx = buildLlmMetricsContext(
+    const aiMetricsCtx = buildLlmMetricsContext(
       requestBody,
       asProviderInstanceId(resolved.providerName),
       alias,
@@ -100,24 +112,27 @@ export class ChatProviderCallService {
       requestId,
     );
 
-    const response = await this.metricsService.observeLlmCall(
-      metricsCtx,
+    const appMetricsCtx = buildAppProviderMetricsContext(
+      'chat',
+      resolved,
+      alias,
+      clientId,
+    );
+
+    const response = await this.appMetrics.observeProviderCall(
+      appMetricsCtx,
       () =>
-        resolved.provider.complete(
-          providerInput,
-          resolved.modelId,
-          aliasOptions,
+        this.aiMetrics.observeLlmCall(
+          aiMetricsCtx,
+          () =>
+            resolved.provider.complete(
+              providerInput,
+              resolved.modelId,
+              aliasOptions,
+            ),
+          mapProviderResponseToAiObservation,
         ),
-      (res) => ({
-        responseModel: res.model,
-        outputText: res.text,
-        usage: res.usage
-          ? {
-              inputTokens: asInputTokens(res.usage.inputTokens),
-              outputTokens: asOutputTokens(res.usage.outputTokens),
-            }
-          : undefined,
-      }),
+      mapProviderResponseToUsage,
     );
 
     return {
@@ -130,15 +145,23 @@ export class ChatProviderCallService {
 
   // runOnce from executeStream
   async streamOnce(params: StreamOnceParams): Promise<StreamOnceResult> {
-    const { requestBody, alias, requestId, resolvedPrompts, emit, streamMeta } =
-      params;
+    const {
+      requestBody,
+      alias,
+      requestId,
+      clientId,
+      resolvedPrompts,
+      emit,
+      streamMeta,
+      signal,
+    } = params;
 
     const resolved = this.registry.resolve(alias);
 
-    const aliasOptions = resolveProviderCallOptions(
-      resolved.params,
-      requestBody.params,
-    );
+    const aliasOptions = {
+      ...resolveProviderCallOptions(resolved.params, requestBody.params),
+      ...(signal ? { signal } : {}),
+    };
 
     const providerInput = buildProviderInputForAlias(
       requestBody,
@@ -146,7 +169,7 @@ export class ChatProviderCallService {
       resolvedPrompts,
     );
 
-    const metricsCtx = buildLlmMetricsContext(
+    const aiMetricsCtx = buildLlmMetricsContext(
       requestBody,
       asProviderInstanceId(resolved.providerName),
       alias,
@@ -154,11 +177,19 @@ export class ChatProviderCallService {
       requestId,
     );
 
-    const spanController = this.metricsService.observeLlmStream(metricsCtx);
+    const appMetricsCtx = buildAppProviderMetricsContext(
+      'stream',
+      resolved,
+      alias,
+      clientId,
+    );
+
+    const appScope = this.appMetrics.observeProviderStream(appMetricsCtx);
+    const aiSpan = this.aiMetrics.observeLlmStream(aiMetricsCtx);
     let assembledText = '';
 
     try {
-      const streamResult = spanController.withActiveSpan(() =>
+      const streamResult = aiSpan.withActiveSpan(() =>
         resolved.provider.stream!(
           providerInput,
           resolved.modelId,
@@ -197,7 +228,8 @@ export class ChatProviderCallService {
 
       const usageMetadata = await streamResult.getUsageMetadata();
 
-      spanController.end({
+      appScope.end(usageMetadata);
+      aiSpan.end({
         responseModel: usageMetadata?.model,
         outputText: assembledText || undefined,
         usage: usageMetadata
@@ -238,7 +270,8 @@ export class ChatProviderCallService {
         ...(usageDetails ? { usageDetails } : {}),
       };
     } catch (error) {
-      spanController.fail({
+      appScope.fail(error);
+      aiSpan.fail({
         outputText: assembledText || undefined,
       });
       throw error;

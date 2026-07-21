@@ -15,6 +15,7 @@ import { AnthropicApiKeyGuard } from '../guards/anthropic-api-key.guard';
 import { SmartRateLimitGuard } from '../../../guards/smart-rate-limit-guard';
 import { createMockExpressRequest } from '../../../common/mocks/http-mocks';
 import { asGatewayKey, asRequestId } from '../../../common/types';
+import { asClientId } from '../../../common/types/branded.types';
 
 jest.mock('../mappers/anthropic-request.mapper', () => ({
   mapAnthropicRequestToGateway: jest.fn((body) => ({
@@ -125,6 +126,7 @@ describe('AnthropicMessagesController', () => {
 
     expect(executeChatMock).toHaveBeenCalledWith(
       expect.objectContaining({ modelAlias: 'claude-3' }),
+      asClientId('unknown'),
       REQ_ID,
       GW_KEY,
       'facade-anthropic',
@@ -186,7 +188,7 @@ describe('AnthropicMessagesController', () => {
       }) as Request;
       const { res, status, setHeader, write, end } = mockResponse();
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
-      executeStreamMock.mockImplementation((_req, _id, onEvent) => {
+      executeStreamMock.mockImplementation((_req, _id, _clientId, onEvent) => {
         onEvent({ name: 'delta', data: { text: 'Hi' } });
       });
 

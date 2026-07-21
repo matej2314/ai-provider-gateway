@@ -72,9 +72,10 @@ export function createResponsesAdapter(client: OpenAI, logger: LoggingService) {
       options?: ProviderCallOptions,
     ): Promise<ProviderChatResponse> {
       try {
-        const response = await client.responses.create(
-          buildResponsesCreateParams(input, modelId, options),
-        );
+        const params = buildResponsesCreateParams(input, modelId, options);
+        const response = options?.signal
+          ? await client.responses.create(params, { signal: options.signal })
+          : await client.responses.create(params);
         const parsed = parseOpenAiResponse(response, modelId);
         const thinkingContent = extractResponsesReasoningSummaryText(
           response.output,
@@ -107,10 +108,15 @@ export function createResponsesAdapter(client: OpenAI, logger: LoggingService) {
 
       async function* textStream(): AsyncIterable<string> {
         try {
-          const stream = await client.responses.create({
+          const params = {
             ...buildResponsesCreateParams(input, modelId, options),
-            stream: true,
-          });
+            stream: true as const,
+          };
+          const stream = options?.signal
+            ? await client.responses.create(params, {
+                signal: options.signal,
+              })
+            : await client.responses.create(params);
 
           for await (const event of stream) {
             accumulateResponsesReasoningDelta(event, reasoningBuffer);

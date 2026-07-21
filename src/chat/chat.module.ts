@@ -4,7 +4,7 @@ import { ChatService } from './chat.service';
 import { ChatStreamController } from './chat-stream.controller';
 import { GatewayKeyGuard } from '../guards/gateway-key.guard';
 import { SmartRateLimitGuard } from '../guards/smart-rate-limit-guard';
-import { ResilientExecutor } from 'src/common/resilience/resilient-executor';
+import { ResilientExecutor } from './resilience/resilient-executor';
 import { ChatProviderCallService } from './services/chat-provider-call.service';
 import { StreamCleanupInterceptor } from 'src/common/interceptors/stream-cleanup.interceptor';
 import { ChatErrorHandlerService } from './services/chat-error-handler.service';

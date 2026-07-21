@@ -29,16 +29,16 @@ import {
   createAnthropicStreamState,
   mapSseEventToAnthropic,
 } from '../mappers/anthropic-stream.mapper';
-import type { SseEvent } from '../../../chat/sse/sse-event.type';
-import type { Request, Response } from 'express';
-import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
 
 import { ANTHROPIC_INTEGRATION_PATH } from '../../../integrations/integrations.constants';
 import { ANTHROPIC_STREAM_API_DESCRIPTION } from '../helpers/anthropic-stream-api-description';
 import { requireClientGatewayKey } from '../../../common/requireClientGatewayKey';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import { asRequestId, asClientId } from '../../../common/types/branded.types';
+import type { SseEvent } from '../../../chat/sse/sse-event.type';
+import type { Request, Response } from 'express';
+import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
 import type { GatewayKey } from '../../../common/types';
-import { asRequestId } from 'src/common/types/branded.types';
 
 @ApiTags('Anthropic API')
 @ApiSecurity('ApiKeyAuth')
@@ -101,6 +101,7 @@ export class AnthropicMessagesController {
     const gatewayRequest = mapAnthropicRequestToGateway(body);
     const result = (await this.chatService.executeChat(
       gatewayRequest,
+      req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
       asRequestId(req.requestId),
       gatewayKey,
       'facade-anthropic',
@@ -116,8 +117,10 @@ export class AnthropicMessagesController {
   ) {
     this.chatService.validateForStreaming(body.model);
 
-    const streamsCheck =
-      await this.rateLimiter.checkConcurrentStreams(gatewayKey);
+    const streamsCheck = await this.rateLimiter.checkConcurrentStreams(
+      gatewayKey,
+      req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
+    );
 
     if (!streamsCheck.allowed) {
       throw new HttpException(
@@ -148,6 +151,7 @@ export class AnthropicMessagesController {
       await this.chatService.executeStream(
         gatewayRequest,
         asRequestId(req.requestId),
+        req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
         (event: SseEvent) => {
           const lines = mapSseEventToAnthropic(event, state);
           for (const line of lines) {

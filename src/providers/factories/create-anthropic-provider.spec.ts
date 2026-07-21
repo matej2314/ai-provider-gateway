@@ -2,7 +2,7 @@ import { createAnthropicProvider } from './create-anthropic-provider';
 import { LoggingService } from '../../logging/logging.service';
 import Anthropic from '@anthropic-ai/sdk';
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
-import { asProviderApiKey } from '../../common/types';
+import { asProviderApiKey, asModelId } from '../../common/types';
 import type {
   ProviderChatInput,
   ProviderCallOptions,
@@ -87,7 +87,7 @@ describe('createAnthropicProvider', () => {
         stop_reason: 'end_turn',
       });
 
-      await provider.complete(input, 'claude-sonnet-4');
+      await provider.complete(input, asModelId('claude-sonnet-4'));
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -107,7 +107,7 @@ describe('createAnthropicProvider', () => {
       });
 
       const options: ProviderCallOptions = { temperature: 0.7 };
-      await provider.complete(input, 'claude-sonnet-4', options);
+      await provider.complete(input, asModelId('claude-sonnet-4'), options);
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -124,7 +124,7 @@ describe('createAnthropicProvider', () => {
       });
 
       const options: ProviderCallOptions = { topP: 0.9 };
-      await provider.complete(input, 'claude-sonnet-4', options);
+      await provider.complete(input, asModelId('claude-sonnet-4'), options);
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -141,7 +141,7 @@ describe('createAnthropicProvider', () => {
       });
 
       const options: ProviderCallOptions = { topK: 40 };
-      await provider.complete(input, 'claude-sonnet-4', options);
+      await provider.complete(input, asModelId('claude-sonnet-4'), options);
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -162,7 +162,7 @@ describe('createAnthropicProvider', () => {
         topP: 0.9,
         temperature: 0.7,
       };
-      await provider.complete(input, 'claude-sonnet-4', options);
+      await provider.complete(input, asModelId('claude-sonnet-4'), options);
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -182,7 +182,7 @@ describe('createAnthropicProvider', () => {
       });
 
       const options: ProviderCallOptions = { stop: ['STOP', 'END'] };
-      await provider.complete(input, 'claude-sonnet-4', options);
+      await provider.complete(input, asModelId('claude-sonnet-4'), options);
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -199,7 +199,7 @@ describe('createAnthropicProvider', () => {
       });
 
       const options: ProviderCallOptions = { stop: 'STOP' };
-      await provider.complete(input, 'claude-sonnet-4', options);
+      await provider.complete(input, asModelId('claude-sonnet-4'), options);
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -216,7 +216,7 @@ describe('createAnthropicProvider', () => {
       });
 
       const options: ProviderCallOptions = { maxOutputTokens: 2000 };
-      await provider.complete(input, 'claude-sonnet-4', options);
+      await provider.complete(input, asModelId('claude-sonnet-4'), options);
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -237,7 +237,7 @@ describe('createAnthropicProvider', () => {
         metadata: { userId: 'user-123' },
       };
 
-      await provider.complete(inputWithMetadata, 'claude-sonnet-4');
+      await provider.complete(inputWithMetadata, asModelId('claude-sonnet-4'));
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -253,7 +253,10 @@ describe('createAnthropicProvider', () => {
         usage: { input_tokens: 10, output_tokens: 5 },
       });
 
-      const result = await provider.complete(input, 'claude-sonnet-4');
+      const result = await provider.complete(
+        input,
+        asModelId('claude-sonnet-4'),
+      );
 
       expect(result).toEqual({
         text: 'Hello there!',
@@ -272,7 +275,10 @@ describe('createAnthropicProvider', () => {
         usage: { input_tokens: 10, output_tokens: 5 },
       });
 
-      const result = await provider.complete(input, 'claude-sonnet-4');
+      const result = await provider.complete(
+        input,
+        asModelId('claude-sonnet-4'),
+      );
 
       expect(result.text).toBe('Hello world');
     });
@@ -287,7 +293,10 @@ describe('createAnthropicProvider', () => {
         usage: { input_tokens: 10, output_tokens: 5 },
       });
 
-      const result = await provider.complete(input, 'claude-sonnet-4');
+      const result = await provider.complete(
+        input,
+        asModelId('claude-sonnet-4'),
+      );
 
       expect(result.thinkingContent).toBe('Let me think...');
       expect(result.text).toBe('Answer');
@@ -301,7 +310,7 @@ describe('createAnthropicProvider', () => {
       });
 
       const options: ProviderCallOptions = { thinkingEnabled: true };
-      await provider.complete(input, 'claude-sonnet-4', options);
+      await provider.complete(input, asModelId('claude-sonnet-4'), options);
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -324,7 +333,7 @@ describe('createAnthropicProvider', () => {
         thinkingEnabled: true,
         thinkingBudget: 5000,
       };
-      await provider.complete(input, 'claude-sonnet-4', options);
+      await provider.complete(input, asModelId('claude-sonnet-4'), options);
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -347,7 +356,7 @@ describe('createAnthropicProvider', () => {
       const options: ProviderCallOptions = {
         responseFormat: { type: 'json_object' },
       };
-      await provider.complete(input, 'claude-sonnet-4', options);
+      await provider.complete(input, asModelId('claude-sonnet-4'), options);
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -377,7 +386,10 @@ describe('createAnthropicProvider', () => {
         tools: [{ name: 'weather', parameters: {} }],
       };
 
-      const result = await provider.complete(inputWithTools, 'claude-sonnet-4');
+      const result = await provider.complete(
+        inputWithTools,
+        asModelId('claude-sonnet-4'),
+      );
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -403,7 +415,7 @@ describe('createAnthropicProvider', () => {
         toolChoice: 'required',
       };
 
-      await provider.complete(inputWithTools, 'claude-sonnet-4');
+      await provider.complete(inputWithTools, asModelId('claude-sonnet-4'));
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -417,9 +429,25 @@ describe('createAnthropicProvider', () => {
       mockAnthropicClient.messages.create.mockRejectedValue(error);
 
       await expect(
-        provider.complete(input, 'claude-sonnet-4'),
+        provider.complete(input, asModelId('claude-sonnet-4')),
       ).rejects.toThrow();
       expect(mockLogger.warn).toHaveBeenCalled();
+    });
+
+    it('should pass AbortSignal as request options when provided', async () => {
+      mockAnthropicClient.messages.create.mockResolvedValue({
+        content: [{ type: 'text', text: 'Hi' }],
+        model: 'claude-sonnet-4',
+        usage: { input_tokens: 1, output_tokens: 1 },
+      });
+      const signal = new AbortController().signal;
+
+      await provider.complete(input, asModelId('claude-sonnet-4'), { signal });
+
+      expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
+        expect.any(Object),
+        { signal },
+      );
     });
   });
 
@@ -454,7 +482,7 @@ describe('createAnthropicProvider', () => {
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
 
       expect(result.textStream).toBeDefined();
       expect(result.getUsageMetadata).toBeDefined();
@@ -485,7 +513,7 @@ describe('createAnthropicProvider', () => {
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
       const chunks: string[] = [];
 
       for await (const chunk of result.textStream) {
@@ -507,7 +535,7 @@ describe('createAnthropicProvider', () => {
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -539,7 +567,7 @@ describe('createAnthropicProvider', () => {
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -570,7 +598,7 @@ describe('createAnthropicProvider', () => {
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
       const metadata = await result.getUsageMetadata();
 
       expect(metadata).toBeUndefined();
@@ -586,7 +614,7 @@ describe('createAnthropicProvider', () => {
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -625,7 +653,7 @@ describe('createAnthropicProvider', () => {
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
       const chunks: string[] = [];
 
       for await (const chunk of result.textStream) {
@@ -640,7 +668,7 @@ describe('createAnthropicProvider', () => {
         throw new Error('stream failed');
       });
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
 
       await expect(async () => {
         for await (const chunk of result.textStream) {
@@ -677,7 +705,10 @@ describe('createAnthropicProvider', () => {
         toolChoice: 'auto',
       };
 
-      const result = provider.stream!(inputWithTools, 'claude-sonnet-4');
+      const result = provider.stream!(
+        inputWithTools,
+        asModelId('claude-sonnet-4'),
+      );
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -709,7 +740,7 @@ describe('createAnthropicProvider', () => {
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -735,7 +766,7 @@ describe('createAnthropicProvider', () => {
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
 
       for await (const chunk of result.textStream) {
         void chunk;
@@ -758,7 +789,7 @@ describe('createAnthropicProvider', () => {
 
       mockAnthropicClient.messages.stream.mockReturnValue(mockStream);
 
-      const result = provider.stream!(input, 'claude-sonnet-4');
+      const result = provider.stream!(input, asModelId('claude-sonnet-4'));
 
       await expect(result.getFinalToolCalls!()).resolves.toBeUndefined();
       await expect(result.getStopReason!()).resolves.toBeUndefined();
@@ -789,7 +820,7 @@ describe('createAnthropicProvider', () => {
 
       const result = provider.stream!(
         inputWithMetadata,
-        'claude-sonnet-4',
+        asModelId('claude-sonnet-4'),
         options,
       );
 

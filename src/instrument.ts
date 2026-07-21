@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/nestjs';
 const dsn = process.env.SENTRY_DSN?.trim() ?? '';
 
 function isSentryMetricsEnabled(): boolean {
-  const override = process.env.METRICS_BACKEND?.toLowerCase();
+  const override = process.env.AI_METRICS_BACKEND?.toLowerCase();
   if (override === 'noop') return false;
   if (override === 'sentry') return true;
   return process.env.NODE_ENV === 'production';

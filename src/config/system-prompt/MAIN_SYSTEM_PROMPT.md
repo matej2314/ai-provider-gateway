@@ -5,7 +5,7 @@
   Trzymać opcjonalne instrukcje wdrożeniowe (np. styl odpowiedzi, format wyjścia,
   zachowanie produktowe) — server-side, w repo — bez możliwości nadpisania przez klienta API.
 
-  Kontekst architektury (patrz `docs/architektura.md`, `docs/konfiguracja.md`):
+  Kontekst architektury (patrz `docs/pl/architektura.md`, `docs/pl/konfiguracja.md`):
   - System prompt to polityka gatewaya, nie dane z requestu HTTP.
   - Składanie: system = MASTER + "\n\n" + MAIN? + "\n\n" + PER_MODEL?
   - MASTER (MASTER_SYSTEM_PROMPT.md) — obowiązkowe guardrails bezpieczeństwa.

@@ -7,6 +7,11 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import {
+  isAuthError,
+  isServerError,
+  isInvalidRequestStatus,
+} from '../../../common/errors/errors.utils';
 
 @Catch()
 export class OpenAiExceptionFilter implements ExceptionFilter {
@@ -25,9 +30,9 @@ export class OpenAiExceptionFilter implements ExceptionFilter {
       return 'invalid_request_error';
     }
 
-    if (status === 401 || status === 403) return 'authentication_error';
-    if (status === 400) return 'invalid_request_error';
-    if (status >= 500) return 'server_error';
+    if (isAuthError(status)) return 'authentication_error';
+    if (isInvalidRequestStatus(status)) return 'invalid_request_error';
+    if (isServerError(status)) return 'server_error';
     return 'invalid_request_error';
   }
   catch(exception: unknown, host: ArgumentsHost) {

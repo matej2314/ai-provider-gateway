@@ -118,6 +118,7 @@ export interface ProviderCallOptions {
     | 'max'
     | number;
   parallelToolCalls?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface AIProvider {

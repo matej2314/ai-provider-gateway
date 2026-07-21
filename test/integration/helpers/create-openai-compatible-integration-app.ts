@@ -26,10 +26,15 @@ import type { GatewayConfig } from '../../../src/config/configuration';
 import {
   asBaseUrl,
   asEnvRef,
+  asGatewayKey,
   asModelId,
   asProviderApiKey,
   asProviderInstanceId,
 } from '../../../src/common/types';
+import {
+  TEST_MAX_ATTEMPTS,
+  TEST_TIMEOUT_MS,
+} from '../../../src/common/mocks/test-constants';
 
 export type CreateOpenAiCompatibleIntegrationAppOptions = {
   cacheEnabled?: boolean;
@@ -180,8 +185,11 @@ function buildOpenAiCompatibleIntegrationConfigOptions(
             thinking: false,
           },
           policy: modelConfig.policy ?? {
-            timeoutMs: 30000,
-            retry: { maxAttempts: 3, onStatus: [429, 500, 502, 503, 504] },
+            timeoutMs: TEST_TIMEOUT_MS,
+            retry: {
+              maxAttempts: TEST_MAX_ATTEMPTS,
+              onStatus: [429, 500, 502, 503, 504],
+            },
             params: {
               defaults: {},
               allowOverrides: ['maxOutputTokens', 'temperature'],
@@ -192,8 +200,8 @@ function buildOpenAiCompatibleIntegrationConfigOptions(
       },
     },
     gatewayKey: {
-      allowList: [gatewayKey, masterKey].filter(Boolean),
-      masterKey,
+      allowList: [gatewayKey, ...(masterKey ? [asGatewayKey(masterKey)] : [])],
+      masterKey: masterKey ? asGatewayKey(masterKey) : asGatewayKey(''),
     },
     providers: {
       [integrationInstanceId]: {

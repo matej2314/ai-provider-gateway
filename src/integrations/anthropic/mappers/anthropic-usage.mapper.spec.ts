@@ -56,7 +56,7 @@ describe('anthropic-usage.mapper', () => {
     expect(
       mapSseDoneUsageToAnthropic({
         usage: { inputTokens: 10, outputTokens: 20 },
-        usageDetails: { promptCacheHitTokens: 5 },
+        usageDetails: { promptCacheHitTokens: asPromptCacheHitTokens(5) },
       }),
     ).toMatchObject({
       input_tokens: 10,

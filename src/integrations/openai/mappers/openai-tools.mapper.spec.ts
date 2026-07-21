@@ -2,7 +2,7 @@ import {
   mapOpenAiToolsToGateway,
   mapOpenAiToolChoice,
 } from './openai-tools.mapper';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, HttpException } from '@nestjs/common';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 
 describe('mapOpenAiToolsToGateway', () => {
@@ -171,7 +171,8 @@ describe('mapOpenAiToolsToGateway', () => {
       mapOpenAiToolsToGateway(tools);
     } catch (e) {
       expect(e).toBeInstanceOf(BadRequestException);
-      expect(e.getResponse()).toMatchObject({
+      const error = e as HttpException;
+      expect(error.getResponse()).toMatchObject({
         code: ApiErrorCode.VALIDATION_FAILED,
         message: 'Tools must contain at least one valid function tool',
       });
@@ -190,7 +191,8 @@ describe('mapOpenAiToolsToGateway', () => {
       mapOpenAiToolsToGateway(tools);
     } catch (e) {
       expect(e).toBeInstanceOf(BadRequestException);
-      expect(e.getResponse()).toMatchObject({
+      const error = e as HttpException;
+      expect(error.getResponse()).toMatchObject({
         code: ApiErrorCode.VALIDATION_FAILED,
         message: 'Tools must contain at least one valid function tool',
       });
@@ -198,7 +200,7 @@ describe('mapOpenAiToolsToGateway', () => {
   });
 
   it('should not throw when empty tools array', () => {
-    const tools = [];
+    const tools: unknown[] = [];
 
     const result = mapOpenAiToolsToGateway(tools);
 
@@ -257,8 +259,9 @@ describe('mapOpenAiToolChoice', () => {
     try {
       mapOpenAiToolChoice('invalid');
     } catch (e) {
-      expect(e).toBeInstanceOf(BadRequestException);
-      expect(e.getResponse()).toMatchObject({
+      const error = e as HttpException;
+      expect(error).toBeInstanceOf(BadRequestException);
+      expect(error.getResponse()).toMatchObject({
         code: ApiErrorCode.VALIDATION_FAILED,
         message: 'Invalid tool_choice value',
       });

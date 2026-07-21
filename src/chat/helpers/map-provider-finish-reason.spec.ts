@@ -1,4 +1,5 @@
 import { mapStopReasonToFinishReason } from './map-provider-finish-reason';
+import { asToolCallId } from '../../common/types/branded.types';
 
 describe('mapStopReasonToFinishReason', () => {
   describe('Happy path - max_tokens', () => {
@@ -24,7 +25,7 @@ describe('mapStopReasonToFinishReason', () => {
 
     it('should map to tool_calls when toolCalls present', () => {
       const toolCalls = [
-        { id: 'call_1', name: 'get_weather', arguments: '{}' },
+        { id: asToolCallId('call_1'), name: 'get_weather', arguments: '{}' },
       ];
 
       const result = mapStopReasonToFinishReason('end_turn', toolCalls);
@@ -33,7 +34,9 @@ describe('mapStopReasonToFinishReason', () => {
     });
 
     it('should prioritize toolCalls over stopReason', () => {
-      const toolCalls = [{ id: 'call_1', name: 'test', arguments: '{}' }];
+      const toolCalls = [
+        { id: asToolCallId('call_1'), name: 'test', arguments: '{}' },
+      ];
 
       const result = mapStopReasonToFinishReason('stop_sequence', toolCalls);
 
@@ -42,8 +45,8 @@ describe('mapStopReasonToFinishReason', () => {
 
     it('should map to tool_calls when multiple toolCalls', () => {
       const toolCalls = [
-        { id: 'call_1', name: 'weather', arguments: '{}' },
-        { id: 'call_2', name: 'time', arguments: '{}' },
+        { id: asToolCallId('call_1'), name: 'weather', arguments: '{}' },
+        { id: asToolCallId('call_2'), name: 'time', arguments: '{}' },
       ];
 
       const result = mapStopReasonToFinishReason(undefined, toolCalls);
@@ -118,7 +121,9 @@ describe('mapStopReasonToFinishReason', () => {
     });
 
     it('should still prioritize max_tokens over toolCalls', () => {
-      const toolCalls = [{ id: 'call_1', name: 'test', arguments: '{}' }];
+      const toolCalls = [
+        { id: asToolCallId('call_1'), name: 'test', arguments: '{}' },
+      ];
       expect(mapStopReasonToFinishReason('max_tokens', toolCalls)).toBe(
         'length',
       );
@@ -133,7 +138,9 @@ describe('mapStopReasonToFinishReason', () => {
     });
 
     it('should prioritize toolCalls over content_filter', () => {
-      const toolCalls = [{ id: 'call_1', name: 'test', arguments: '{}' }];
+      const toolCalls = [
+        { id: asToolCallId('call_1'), name: 'test', arguments: '{}' },
+      ];
 
       const result = mapStopReasonToFinishReason('refusal', toolCalls);
 
@@ -149,7 +156,9 @@ describe('mapStopReasonToFinishReason', () => {
 
   describe('Edge case - precedence', () => {
     it('should prioritize max_tokens over toolCalls', () => {
-      const toolCalls = [{ id: 'call_1', name: 'test', arguments: '{}' }];
+      const toolCalls = [
+        { id: asToolCallId('call_1'), name: 'test', arguments: '{}' },
+      ];
 
       const result = mapStopReasonToFinishReason('max_tokens', toolCalls);
 
@@ -157,7 +166,9 @@ describe('mapStopReasonToFinishReason', () => {
     });
 
     it('should check toolCalls before stopReason mapping', () => {
-      const toolCalls = [{ id: 'call_1', name: 'test', arguments: '{}' }];
+      const toolCalls = [
+        { id: asToolCallId('call_1'), name: 'test', arguments: '{}' },
+      ];
 
       const result = mapStopReasonToFinishReason('end_turn', toolCalls);
 
@@ -213,7 +224,7 @@ describe('mapStopReasonToFinishReason', () => {
     it('should handle tool call with content', () => {
       const toolCalls = [
         {
-          id: 'toolu_123',
+          id: asToolCallId('toolu_123'),
           name: 'get_weather',
           arguments: '{"location":"SF"}',
         },

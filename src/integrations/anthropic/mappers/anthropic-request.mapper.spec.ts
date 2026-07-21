@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, HttpException } from '@nestjs/common';
 import { mapAnthropicRequestToGateway } from './anthropic-request.mapper';
 import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { TEST_MODEL_ALIAS } from '../../../common/mocks/test-constants';
@@ -383,8 +383,9 @@ describe('mapAnthropicRequestToGateway', () => {
       try {
         mapAnthropicRequestToGateway(anthropicRequest);
       } catch (e) {
-        expect(e).toBeInstanceOf(BadRequestException);
-        expect(e.getResponse()).toMatchObject({
+        const error = e as HttpException;
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.getResponse()).toMatchObject({
           code: ApiErrorCode.VALIDATION_FAILED,
           message: 'At least one message is required.',
         });
@@ -792,8 +793,9 @@ describe('mapAnthropicRequestToGateway', () => {
       try {
         mapAnthropicRequestToGateway(anthropicRequest);
       } catch (e) {
-        expect(e).toBeInstanceOf(BadRequestException);
-        expect(e.getResponse()).toMatchObject({
+        const error = e as HttpException;
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error.getResponse()).toMatchObject({
           code: ApiErrorCode.VALIDATION_FAILED,
           message: 'Image content block are not supported.',
         });

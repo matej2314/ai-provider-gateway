@@ -1,53 +1,51 @@
-# Adapter OpenAI (provider runtime)
+# OpenAI adapter (provider runtime)
 
-> **Fasada ≠ adapter:** ten dokument dotyczy **wyłącznie** warstwy `src/providers/` (`type: openai` i `type: openai-compatible` w YAML).  
-> Kontrakt HTTP dla Cursor (`/api/v1/openai/*`, `src/integrations/openai/`) opisuje [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md).  
-> Definicje terminów: [`dictionary.md`](dictionary.md) (sekcja „Fasada vs provider runtime”).
+> **Facade ≠ adapter:** this document covers **only** the `src/providers/` layer (`type: openai` and `type: openai-compatible` in YAML).  
+> The HTTP contract for Cursor (`/api/v1/openai/*`, `src/integrations/openai/`) is described in [`openai-contract-integration.md`](openai-contract-integration.md).  
+> Term definitions: [`dictionary.md`](dictionary.md) (section “Facade vs provider runtime”).
 
-## Rola adaptera
+## Adapter role
 
-| | **Fasada OpenAI** | **Adapter OpenAI (ten dokument)** |
+| | **OpenAI facade** | **OpenAI adapter (this document)** |
 |---|---|---|
-| **Katalog** | `src/integrations/openai/` | `src/providers/factories/create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts` |
-| **Wejście** | HTTP od klienta (Cursor) | `ChatProviderCallService` przez `ProviderRegistryService` |
-| **Wyjście** | JSON/SSE w kształcie OpenAI API | Wywołanie endpointu OpenAI (oficjalny lub compatible) przez SDK |
-| **Auth klienta** | Bearer = klucz gateway | — |
-| **Auth vendora** | — | `apiKeyRef` + `baseUrlRef` w YAML |
-| **Wymaga drugiej warstwy?** | Nie | Nie |
-| **Status** | Wdrożone | **Wdrożone** |
+| **Directory** | `src/integrations/openai/` | `src/providers/factories/create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts` |
+| **Input** | HTTP from the client (Cursor) | `ChatProviderCallService` via `ProviderRegistryService` |
+| **Output** | JSON/SSE in OpenAI API shape | Call to an OpenAI endpoint (official or compatible) via SDK |
+| **Client auth** | Bearer = gateway key | — |
+| **Vendor auth** | — | `apiKeyRef` + `baseUrlRef` in YAML |
+| **Requires the other layer?** | No | No |
 
-Adapter implementuje port **`AIProvider`** — ten sam kontrakt co `create-anthropic-provider.ts` i `create-google-provider.ts`. Nie rejestruje tras HTTP i nie obsługuje autoryzacji klientów IDE.
+The adapter implements the **`AIProvider`** port — the same contract as `create-anthropic-provider.ts` and `create-google-provider.ts`. It does not register HTTP routes and does not handle IDE client authorization.
 
-Routing między Chat Completions a Responses API odbywa się w `create-openai-provider.core.ts` według **`type`** wpisu w YAML (nie w fasadzie HTTP): `openai` → Responses API, `openai-compatible` → Chat Completions.
+Routing between Chat Completions and Responses API happens in `create-openai-provider.core.ts` according to the YAML entry **`type`** (not in the HTTP facade): `openai` → Responses API, `openai-compatible` → Chat Completions.
 
-## Kiedy adapter jest używany
+## When the adapter is used
 
-1. W `gateway.config.yaml` wpis `providers:` ma `type: openai` lub `type: openai-compatible` i unikalny `providerInstance`.
-2. Alias w `models[]` wskazuje ten `providerInstance` oraz vendorowy `modelId` (np. `gpt-4o`).
-3. `ChatService` / `ChatProviderCallService` wywołuje `AIProvider.complete` / `stream` — **niezależnie** od tego, czy klient użył natywnego `/chat`, fasady `/openai` czy `/anthropic`.
+1. In `gateway.config.yaml`, a `providers:` entry has `type: openai` or `type: openai-compatible` and a unique `providerInstance`.
+2. An alias in `models[]` points to that `providerInstance` and a vendor `modelId` (e.g. `gpt-4o`).
+3. `ChatService` / `ChatProviderCallService` calls `AIProvider.complete` / `stream` — **regardless** of whether the client used native `/chat`, the `/openai` facade, or `/anthropic`.
 
-## Stan wdrożenia
+## Adapter components
 
-| Element | Status |
-|---------|--------|
-| `PROVIDER_TYPES`: `openai`, `openai-compatible` | Wdrożone |
-| `create-openai-provider.ts` | Wdrożone |
-| `create-openai-compatible-provider-instance.ts` | Wdrożone |
-| `create-openai-provider.core.ts` | Wdrożone |
-| Mapery `*-provider.mapper.ts` | Wdrożone |
-| Adaptery `chat-completions` / `responses` | Wdrożone |
-| Routing `create-openai-provider.core.ts` | Wdrożone |
-| Testy jednostkowe fabryk i mapperów | Wdrożone |
-| Fasada `/api/v1/openai` mapująca `params.*` | Wdrożona |
-| `provider:test` dla typu OpenAI (CLI) | Wdrożone |
+| Element | Role |
+|---------|------|
+| `PROVIDER_TYPES`: `openai`, `openai-compatible` | Types in the YAML schema |
+| `create-openai-provider.ts` | Factory for `type: openai` |
+| `create-openai-compatible-provider-instance.ts` | Factory for `type: openai-compatible` |
+| `create-openai-provider.core.ts` | Responses vs Chat Completions routing |
+| Mappers `*-provider.mapper.ts` | Mapping gateway options → SDK |
+| `chat-completions` / `responses` adapters | SDK calls |
+| Unit tests for factories and mappers | `src/providers/**/*.spec.ts` |
+| `/api/v1/openai` facade mapping `params.*` | Separate HTTP layer — [`openai-contract-integration.md`](openai-contract-integration.md) |
+| `provider:test` for the OpenAI type (CLI) | SDK test from CLI |
 
-Szczegóły procesu dodania typu: [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md) (scenariusz A).
+Details of the add-type process: [`pl/spec/SPEC-PROVIDERS.md`](pl/spec/SPEC-PROVIDERS.md) (scenario A).
 
-## Mapowanie SDK
+## SDK mapping
 
 ### Chat Completions
 
-| Parametr gateway | Pole SDK |
+| Gateway parameter | SDK field |
 |------------------|----------|
 | `temperature` | `temperature` |
 | `topP` | `top_p` |
@@ -57,24 +55,24 @@ Szczegóły procesu dodania typu: [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS
 | `presencePenalty` | `presence_penalty` |
 | `seed` | `seed` |
 | `responseFormat` | `response_format` |
-| `systemFingerprint` (odpowiedź) | `system_fingerprint` → `systemFingerprint` w gateway |
+| `systemFingerprint` (response) | `system_fingerprint` → `systemFingerprint` in gateway |
 
 ### Responses API
 
-Używane **zawsze** dla instancji `type: openai` (`create-openai-provider.core.ts` → `createResponsesAdapter`). Parametry thinking (`thinkingEnabled`, string `thinkingBudget`) mapowane na `reasoning.effort` + `reasoning.summary: auto`.
+Used **always** for `type: openai` instances (`create-openai-provider.core.ts` → `createResponsesAdapter`). Thinking parameters (`thinkingEnabled`, string `thinkingBudget`) map to `reasoning.effort` + `reasoning.summary: auto`.
 
-| Parametr gateway | Pole SDK |
+| Gateway parameter | SDK field |
 |------------------|----------|
 | `temperature` | `temperature` |
 | `maxOutputTokens` | `max_output_tokens` |
 | `topP` | `top_p` |
 | `thinkingEnabled` + effort | `reasoning.effort` + `reasoning.summary: auto` |
 | `responseFormat: json_object` | `text.format.type: json_object` |
-| `thinkingContent` (odpowiedź) | reasoning summary z output / stream |
+| `thinkingContent` (response) | reasoning summary from output / stream |
 
-Macierz wsparcia względem innych adapterów: [`dictionary.md`](dictionary.md) (tabela parametrów generacji).
+Support matrix vs other adapters: [`dictionary.md`](dictionary.md) (generation parameters table).
 
-## Konfiguracja
+## Configuration
 
 ```yaml
 providers:
@@ -83,14 +81,14 @@ providers:
     enabled: true
     apiKeyRef: OPENAI_API_KEY
     baseUrlRef: OPENAI_BASE_URL
-    # type: openai zawsze używa Responses API — pole apiSurface jest zabronione (walidacja Zod)
+    # type: openai always uses Responses API — the apiSurface field is forbidden (Zod validation)
 
   ollama-local:
     type: openai-compatible
     enabled: true
     apiKeyRef: OLLAMA_API_KEY
     baseUrlRef: OLLAMA_BASE_URL
-    # apiSurface: chat-completions  # opcjonalne; jedyna dozwolona wartość
+    # apiSurface: chat-completions  # optional; only allowed value
 
 models:
   gpt-cheap:
@@ -99,7 +97,7 @@ models:
     capabilities:
       streaming: true
       tools: true
-      thinking: false  # Responses API wspiera thinking, ale wymaga capabilities.thinking: true
+      thinking: false  # Responses API supports thinking, but requires capabilities.thinking: true
   ollama-local-chat:
     providerInstance: ollama-local
     modelId: llama3.1:8b
@@ -109,7 +107,7 @@ models:
       thinking: false
 ```
 
-W `.env`:
+In `.env`:
 
 ```env
 OPENAI_API_KEY=sk-...
@@ -118,13 +116,13 @@ OLLAMA_API_KEY=
 OLLAMA_BASE_URL=http://localhost:11434/v1
 ```
 
-Pole `baseUrl` **nie** występuje w YAML — tylko `baseUrlRef` wskazujący zmienną środowiskową.
+The `baseUrl` field does **not** appear in YAML — only `baseUrlRef` pointing to an environment variable.
 
-## Powiązane dokumenty
+## Related documents
 
-- [`integracja-openai-kontrakt.md`](integracja-openai-kontrakt.md) — fasada HTTP (Cursor)
-- [`integracje.md`](integracje.md) — architektura fasad IDE
-- [`dictionary.md`](dictionary.md) — słownik, macierz parametrów
-- [`konfiguracja.md`](konfiguracja.md) — YAML, env, reguły `policy.params`
-- [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md) — kryteria akceptacji adapterów
-- [`testy.md`](testy.md) — `*-facade*.e2e-spec.ts` testują fasadę HTTP, nie adapter SDK
+- [`openai-contract-integration.md`](openai-contract-integration.md) — HTTP facade (Cursor)
+- [`integrations.md`](integrations.md) — IDE facade architecture
+- [`dictionary.md`](dictionary.md) — glossary, parameter matrix
+- [`configuration.md`](configuration.md) — YAML, env, `policy.params` rules
+- [`pl/spec/SPEC-PROVIDERS.md`](pl/spec/SPEC-PROVIDERS.md) — adapter acceptance criteria
+- [`testing.md`](testing.md) — `*-facade*.e2e-spec.ts` tests the HTTP facade, not the SDK adapter

@@ -10,6 +10,7 @@ import {
   type MockConfigServiceOptions,
 } from '../common/mocks/createMockConfigService';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
+import { CACHE_BACKEND_TYPE } from '../cache/interfaces/cache-backend-interface';
 
 describe('CacheRegistryService', () => {
   let service: CacheRegistryService;
@@ -50,7 +51,7 @@ describe('CacheRegistryService', () => {
     });
 
     it('should normalize backend id to lowercase', async () => {
-      await initService({ cache: { backend: 'REDIS' } });
+      await initService({ cache: { backend: 'REDIS' as CACHE_BACKEND_TYPE } });
 
       service.register('Redis', mockBackend as CacheBackend);
       service.register('noop', mockNoopBackend as CacheBackend);
@@ -92,7 +93,9 @@ describe('CacheRegistryService', () => {
     });
 
     it('should default to noop when backend is null', async () => {
-      await initService({ cache: { backend: null as unknown as string } });
+      await initService({
+        cache: { backend: null as unknown as CACHE_BACKEND_TYPE },
+      });
       service.register('redis', mockBackend as CacheBackend);
       service.register('noop', mockNoopBackend as CacheBackend);
 
@@ -102,7 +105,9 @@ describe('CacheRegistryService', () => {
     });
 
     it('should fallback to noop when backend not found', async () => {
-      await initService({ cache: { backend: 'nonexistent' } });
+      await initService({
+        cache: { backend: 'nonexistent' as CACHE_BACKEND_TYPE },
+      });
       service.register('redis', mockBackend as CacheBackend);
       service.register('noop', mockNoopBackend as CacheBackend);
 
@@ -115,7 +120,7 @@ describe('CacheRegistryService', () => {
     });
 
     it('should normalize backend id from config to lowercase', async () => {
-      await initService({ cache: { backend: 'REDIS' } });
+      await initService({ cache: { backend: 'REDIS' as CACHE_BACKEND_TYPE } });
       service.register('redis', mockBackend as CacheBackend);
       service.register('noop', mockNoopBackend as CacheBackend);
 
@@ -126,7 +131,7 @@ describe('CacheRegistryService', () => {
 
     it('should throw when noop backend not registered', () => {
       const configWithoutNoop = createMockConfigService({
-        cache: { backend: 'nonexistent' },
+        cache: { backend: 'nonexistent' as CACHE_BACKEND_TYPE },
       });
       const serviceWithoutNoop = new CacheRegistryService(
         configWithoutNoop as ConfigService,
@@ -141,7 +146,7 @@ describe('CacheRegistryService', () => {
     });
 
     it('should handle empty backend string', async () => {
-      await initService({ cache: { backend: '' } });
+      await initService({ cache: { backend: '' as CACHE_BACKEND_TYPE } });
       service.register('redis', mockBackend as CacheBackend);
       service.register('noop', mockNoopBackend as CacheBackend);
 

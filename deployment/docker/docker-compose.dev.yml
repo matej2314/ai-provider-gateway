@@ -1,0 +1,23 @@
+# Development mode overrides
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  gateway:
+    build:
+      context: ../.. # Build from repo root
+      dockerfile: deployment/docker/Dockerfile
+      target: builder # Use builder stage (includes dev dependencies)
+    environment:
+      NODE_ENV: development
+      PINO_LOG_LEVEL: debug
+    command: npm run start:dev # Watch mode with hot reload
+    volumes:
+      # Mount source for hot reload (from repo root)
+      - ../../src:/app/src:ro
+      - ../../test:/app/test:ro
+      - ../../tsconfig.json:/app/tsconfig.json:ro
+      - ../../tsconfig.build.json:/app/tsconfig.build.json:ro
+      - ../../nest-cli.json:/app/nest-cli.json:ro
+    ports:
+      - "3000:3000"
+      - "9229:9229" # Node.js debugger port

@@ -17,6 +17,14 @@ export const createOpenAiCompatibleProviderInstance: ProviderFactoryFn = (
     );
   }
 
+  const instanceLogger = logger.child({
+    module: 'OpenAiCompatibleProvider',
+    instanceId: config.instanceId,
+  });
+  instanceLogger.info(
+    `OpenAI-compatible provider instance "${config.instanceId}" created.`,
+  );
+
   return createOpenAiProviderCore(
     config.type,
     {

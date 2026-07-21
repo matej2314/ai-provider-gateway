@@ -89,6 +89,9 @@ export function createAnthropicProvider(
       try {
         const outputConfig = resolveAnthropicOutputConfig(options);
         const thinking = mapThinkingToAnthropic(options);
+        const requestOptions = options?.signal
+          ? { signal: options.signal }
+          : undefined;
         const baseParams = {
           model: modelId,
           max_tokens: options?.maxOutputTokens ?? 1024,
@@ -111,11 +114,15 @@ export function createAnthropicProvider(
             tools: mapToolsToAnthropic(input.tools),
             tool_choice: mapToolChoiceToAnthropic(input.toolChoice),
           };
-          const response = await client.messages.create(params);
+          const response = requestOptions
+            ? await client.messages.create(params, requestOptions)
+            : await client.messages.create(params);
           return parseAnthropicResponseWithTools(response);
         }
 
-        const response = await client.messages.create(baseParams);
+        const response = requestOptions
+          ? await client.messages.create(baseParams, requestOptions)
+          : await client.messages.create(baseParams);
 
         let text = '';
 
@@ -161,6 +168,9 @@ export function createAnthropicProvider(
           const outputConfig = resolveAnthropicOutputConfig(options);
           const thinking = mapThinkingToAnthropic(options);
 
+          const requestOptions = options?.signal
+            ? { signal: options.signal }
+            : undefined;
           const streamParams = {
             model: modelId,
             max_tokens: options?.maxOutputTokens ?? 1024,
@@ -183,7 +193,18 @@ export function createAnthropicProvider(
                 : undefined,
           };
 
-          streamObject = client.messages.stream(streamParams);
+          streamObject = requestOptions
+            ? client.messages.stream(streamParams, requestOptions)
+            : client.messages.stream(streamParams);
+
+          if (options?.signal) {
+            const onAbort = () => streamObject?.abort();
+            if (options.signal.aborted) {
+              onAbort();
+            } else {
+              options.signal.addEventListener('abort', onAbort, { once: true });
+            }
+          }
 
           for await (const event of streamObject) {
             if (

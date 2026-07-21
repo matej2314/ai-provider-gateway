@@ -111,9 +111,11 @@ export function generateEnvTemplate(
   env.LOG_ADAPTER = 'pino';
   env.LOG_PRETTY = input.nodeEnv === 'development' ? 'true' : 'false';
 
-  const isSentryEnabled = input.metricsBackend === 'sentry';
+  const aiMetricsBackend = input.metricsBackend ?? 'noop';
+  const isSentryEnabled = aiMetricsBackend === 'sentry';
 
-  env.METRICS_BACKEND = input.metricsBackend ?? 'noop';
+  env.AI_METRICS_BACKEND = aiMetricsBackend;
+  env.METRICS_BACKEND = input.nodeEnv === 'production' ? 'prometheus' : 'noop';
   env.ERROR_REPORTING_ADAPTER = isSentryEnabled ? 'sentry' : 'noop';
 
   env.SENTRY_ENABLED = String(isSentryEnabled);

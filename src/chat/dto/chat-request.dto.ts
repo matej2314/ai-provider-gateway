@@ -11,12 +11,11 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsPrimitiveMetadataRecord } from '../validation/is-primitive-metadata-record.validator';
+import { CHAT_MESSAGE_LIMITS } from '../validation/chat-ingress.constants';
 
 import { ChatMessageDto } from './chat-message.dto';
 import { ChatParamsDto } from './chat-params.dto';
 import { ChatToolingDto } from './chat-tooling.dto';
-
-const MAX_MESSAGES = 150;
 
 export class ChatRequestDto {
   @ApiProperty({
@@ -31,7 +30,7 @@ export class ChatRequestDto {
   @ApiProperty({
     type: [ChatMessageDto],
     minItems: 1,
-    maxItems: MAX_MESSAGES,
+    maxItems: CHAT_MESSAGE_LIMITS.NATIVE_MAX,
     description:
       'Array of messages to send in the request. Each message must have a role and content. Maximum 150 messages.',
     required: true,
@@ -39,7 +38,7 @@ export class ChatRequestDto {
   })
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(MAX_MESSAGES)
+  @ArrayMaxSize(CHAT_MESSAGE_LIMITS.NATIVE_MAX)
   @ValidateNested({ each: true })
   @Type(() => ChatMessageDto)
   messages: ChatMessageDto[];

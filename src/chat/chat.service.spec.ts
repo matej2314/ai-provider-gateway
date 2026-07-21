@@ -18,13 +18,25 @@ import {
   type ProviderResponse,
 } from './services/chat-response-builder.service';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
-import { ResilientExecutor } from '../common/resilience/resilient-executor';
+import { ResilientExecutor } from './resilience/resilient-executor';
+import { ActiveStreamsTracker } from '../observability/app-metrics/active-streams.tracker';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockResilientExecutor } from '../common/mocks/createMockResilientExecutor';
 import { createMockProviderRegistryService } from '../common/mocks/createMockProviderRegistryService';
 import { createMockDefaultResolvedConfig } from '../common/mocks/createMockResolvedProviderConfig';
 import { createMockConfigService } from '../common/mocks/createMockConfigService';
-import { asGatewayKey } from '../common/types/branded.types';
+import {
+  asGatewayKey,
+  asClientId,
+  asModelAlias,
+  asResponseId,
+  asAttemptNumber,
+  type ClientId,
+  type ModelAlias,
+  type RequestId,
+  type ConversationId,
+  type ProviderInstanceId,
+} from '../common/types/branded.types';
 import {
   TEST_CONVERSATION_ID,
   TEST_GATEWAY_KEY_BRANDED,
@@ -46,7 +58,10 @@ describe('ChatService', () => {
   let mockValidation: Partial<ChatValidationService>;
   let mockErrorHandler: Partial<ChatErrorHandlerService>;
   let mockResponseBuilder: Partial<ChatResponseBuilderService>;
+  let mockActiveStreams: Partial<ActiveStreamsTracker>;
   let resolvedConfig: ResolvedProviderConfig;
+
+  const TEST_CLIENT_ID = asClientId('test-client');
 
   function mockExecutorChatSuccess(
     responseOverrides: Record<string, unknown> = {},
@@ -61,8 +76,8 @@ describe('ChatService', () => {
         },
         resolved: resolvedConfig,
       },
-      usedAlias: TEST_MODEL_ALIAS,
-      attempts: 1,
+      usedAlias: asModelAlias(TEST_MODEL_ALIAS),
+      attempts: asAttemptNumber(1),
       didFallback: false,
     });
   }
@@ -79,8 +94,8 @@ describe('ChatService', () => {
         stopReason: 'end_turn',
         ...valueOverrides,
       },
-      usedAlias: TEST_MODEL_ALIAS,
-      attempts: 1,
+      usedAlias: asModelAlias(TEST_MODEL_ALIAS),
+      attempts: asAttemptNumber(1),
       didFallback: false,
     });
   }
@@ -123,13 +138,13 @@ describe('ChatService', () => {
       buildChatResponse: jest.fn(
         (
           response: ProviderResponse,
-          providerName: string,
-          modelAlias: string,
-          requestId: string,
-          conversationId: string,
-          effectiveModelAlias?: string,
+          providerName: ProviderInstanceId,
+          modelAlias: ModelAlias,
+          requestId: RequestId,
+          conversationId: ConversationId,
+          effectiveModelAlias?: ModelAlias,
         ) => ({
-          id: TEST_RESPONSE_ID_PREFIX,
+          id: asResponseId(TEST_RESPONSE_ID_PREFIX),
           provider: providerName,
           model: modelAlias,
           ...(effectiveModelAlias && { effectiveModelAlias }),
@@ -137,7 +152,7 @@ describe('ChatService', () => {
           usage: response.usage,
           requestId,
           conversationId,
-          finishReason: 'stop',
+          finishReason: 'stop' as const,
         }),
       ),
       buildStreamDoneEvent: jest.fn().mockReturnValue({
@@ -160,6 +175,12 @@ describe('ChatService', () => {
       streamOnce: jest.fn(),
     };
 
+    mockActiveStreams = {
+      trackStream: jest.fn((_client: ClientId, fn: () => Promise<unknown>) =>
+        fn(),
+      ) as unknown as ActiveStreamsTracker['trackStream'],
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         ChatService,
@@ -172,6 +193,7 @@ describe('ChatService', () => {
         { provide: ChatValidationService, useValue: mockValidation },
         { provide: ChatErrorHandlerService, useValue: mockErrorHandler },
         { provide: ChatResponseBuilderService, useValue: mockResponseBuilder },
+        { provide: ActiveStreamsTracker, useValue: mockActiveStreams },
       ],
     }).compile();
 
@@ -271,6 +293,7 @@ describe('ChatService', () => {
 
       const result = await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -306,6 +329,7 @@ describe('ChatService', () => {
 
       const result = await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -329,6 +353,7 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           baseRequest,
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -348,6 +373,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         toolingRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -371,6 +397,7 @@ describe('ChatService', () => {
             ...baseRequest,
             tooling: { definitions: [{ name: 'test', parameters: {} }] },
           },
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -387,6 +414,7 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           baseRequest,
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -404,6 +432,7 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           oversizedRequest,
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -425,6 +454,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         largeRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'facade-openai',
@@ -442,6 +472,7 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           longContentRequest,
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -467,6 +498,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         request,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -489,6 +521,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -508,6 +541,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         asGatewayKey(''),
         'native',
@@ -527,11 +561,11 @@ describe('ChatService', () => {
             },
             resolved: {
               ...resolvedConfig,
-              modelAlias: 'fallback-model',
+              modelAlias: asModelAlias('fallback-model'),
             },
           },
-          usedAlias: 'fallback-model',
-          attempts: 3,
+          usedAlias: asModelAlias('fallback-model'),
+          attempts: asAttemptNumber(3),
           didFallback: true,
         },
       );
@@ -543,6 +577,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -571,6 +606,7 @@ describe('ChatService', () => {
 
       await service.executeChat(
         toolingRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -587,13 +623,14 @@ describe('ChatService', () => {
     it('should use primary fallbackAlias for non-tooling requests', async () => {
       resolvedConfig = {
         ...createMockDefaultResolvedConfig(),
-        fallbackAlias: 'fallback-model',
+        fallbackAlias: asModelAlias('fallback-model'),
       };
       (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
       mockExecutorChatSuccess();
 
       await service.executeChat(
         baseRequest,
+        TEST_CLIENT_ID,
         TEST_REQUEST_ID,
         TEST_GATEWAY_KEY_BRANDED,
         'native',
@@ -602,7 +639,7 @@ describe('ChatService', () => {
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
           primaryAlias: TEST_MODEL_ALIAS,
-          fallbackAlias: 'fallback-model',
+          fallbackAlias: asModelAlias('fallback-model'),
         }),
       );
     });
@@ -616,6 +653,7 @@ describe('ChatService', () => {
       await expect(
         service.executeChat(
           baseRequest,
+          TEST_CLIENT_ID,
           TEST_REQUEST_ID,
           TEST_GATEWAY_KEY_BRANDED,
           'native',
@@ -649,6 +687,7 @@ describe('ChatService', () => {
       await service.executeStream(
         baseRequest,
         TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
         (event) => {
           emitted.push(event);
         },
@@ -692,6 +731,7 @@ describe('ChatService', () => {
         service.executeStream(
           oversizedRequest,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           jest.fn(),
           'native',
           TEST_GATEWAY_KEY_BRANDED,
@@ -725,6 +765,7 @@ describe('ChatService', () => {
       await service.executeStream(
         baseRequest,
         TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
         jest.fn(),
         'native',
         TEST_GATEWAY_KEY_BRANDED,
@@ -756,6 +797,7 @@ describe('ChatService', () => {
         service.executeStream(
           baseRequest,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           jest.fn(),
           'native',
           TEST_GATEWAY_KEY_BRANDED,
@@ -774,6 +816,7 @@ describe('ChatService', () => {
         service.executeStream(
           baseRequest,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           jest.fn(),
           'native',
           TEST_GATEWAY_KEY_BRANDED,
@@ -794,6 +837,7 @@ describe('ChatService', () => {
       await service.executeStream(
         toolingRequest,
         TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
         jest.fn(),
         'native',
         TEST_GATEWAY_KEY_BRANDED,
@@ -815,8 +859,8 @@ describe('ChatService', () => {
             usageMetadata: { inputTokens: 5, outputTokens: 10 },
             stopReason: 'end_turn',
           },
-          usedAlias: 'fallback-model',
-          attempts: 2,
+          usedAlias: asModelAlias('fallback-model'),
+          attempts: asAttemptNumber(2),
           didFallback: true,
         },
       );
@@ -829,6 +873,7 @@ describe('ChatService', () => {
       await service.executeStream(
         baseRequest,
         TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
         jest.fn(),
         'native',
         TEST_GATEWAY_KEY_BRANDED,
@@ -843,14 +888,14 @@ describe('ChatService', () => {
         expectedOptions,
         resolvedConfig.providerType,
         undefined,
-        'fallback-model',
+        asModelAlias('fallback-model'),
       );
     });
 
     it('should use primary fallbackAlias for streaming', async () => {
       resolvedConfig = {
         ...createMockDefaultResolvedConfig(),
-        fallbackAlias: 'fallback-model',
+        fallbackAlias: asModelAlias('fallback-model'),
       };
       (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
       mockStreamExecutorSuccess();
@@ -858,6 +903,7 @@ describe('ChatService', () => {
       await service.executeStream(
         baseRequest,
         TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
         jest.fn(),
         'native',
         TEST_GATEWAY_KEY_BRANDED,
@@ -866,7 +912,7 @@ describe('ChatService', () => {
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledWith(
         expect.objectContaining({
           primaryAlias: TEST_MODEL_ALIAS,
-          fallbackAlias: 'fallback-model',
+          fallbackAlias: asModelAlias('fallback-model'),
         }),
       );
     });
@@ -881,6 +927,7 @@ describe('ChatService', () => {
         service.executeStream(
           baseRequest,
           TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
           jest.fn(),
           'native',
           TEST_GATEWAY_KEY_BRANDED,

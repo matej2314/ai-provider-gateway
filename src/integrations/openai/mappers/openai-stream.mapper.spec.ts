@@ -3,6 +3,7 @@ import {
   mapSseEventToOpenAi,
 } from './openai-stream.mapper';
 import type { SseEvent } from '../../../chat/sse/sse-event.type';
+import { asToolCallId } from '../../../common/types/branded.types';
 
 describe('openai-stream.mapper', () => {
   it('createOpenAiStreamState should store model, includeUsage and created timestamp', () => {
@@ -249,8 +250,16 @@ describe('openai-stream.mapper', () => {
         data: {
           finishReason: 'stop',
           toolCalls: [
-            { id: 'call_1', name: 'get_weather', arguments: '{"city":"NYC"}' },
-            { id: 'call_2', name: 'get_time', arguments: '{}' },
+            {
+              id: asToolCallId('call_1'),
+              name: 'get_weather',
+              arguments: '{"city":"NYC"}',
+            },
+            {
+              id: asToolCallId('call_2'),
+              name: 'get_time',
+              arguments: '{}',
+            },
           ],
           usage: { inputTokens: 1, outputTokens: 2 },
         },
@@ -289,7 +298,11 @@ describe('openai-stream.mapper', () => {
         name: 'done',
         data: {
           toolCalls: [
-            { id: 'call_1', name: 'get_weather', arguments: '{"city":"NYC"}' },
+            {
+              id: asToolCallId('call_1'),
+              name: 'get_weather',
+              arguments: '{"city":"NYC"}',
+            },
           ],
         },
       },

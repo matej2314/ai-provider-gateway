@@ -1,0 +1,1 @@
+export const APP_METRICS_BACKEND = Symbol('APP_METRICS_BACKEND');

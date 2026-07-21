@@ -15,10 +15,21 @@ import {
 } from '../../common/mocks/createMockConfigService';
 import {
   TEST_API_KEY_REF,
+  TEST_CONVERSATION_ID,
+  TEST_GATEWAY_KEY_BRANDED,
   TEST_MODEL_ALIAS,
+  TEST_MODEL_ALIAS_BRANDED,
   TEST_PROVIDER_INSTANCE,
-  VALID_CONVERSATION_ID,
+  TEST_PROVIDER_INSTANCE_BRANDED,
+  TEST_REQUEST_ID,
 } from '../../common/mocks/test-constants';
+import {
+  asConversationId,
+  asEnvRef,
+  asProviderInstanceId,
+  asRequestId,
+  asResponseId,
+} from '../../common/types/branded.types';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
@@ -27,14 +38,14 @@ const cacheEnabledGatewayConfig: MockConfigServiceOptions = {
   gatewayOptions: {
     models: {
       [TEST_MODEL_ALIAS]: {
-        providerInstance: TEST_PROVIDER_INSTANCE,
+        providerInstance: TEST_PROVIDER_INSTANCE_BRANDED,
         modelId: 'test-model',
       },
     },
     providers: {
       [TEST_PROVIDER_INSTANCE]: {
         type: 'anthropic',
-        apiKeyRef: TEST_API_KEY_REF,
+        apiKeyRef: asEnvRef(TEST_API_KEY_REF),
         enabled: true,
       },
     },
@@ -53,22 +64,22 @@ describe('ChatCacheGuardService', () => {
   };
 
   const cachedResponse = {
-    id: 'cached-123',
-    provider: 'anthropic',
-    model: TEST_MODEL_ALIAS,
+    id: asResponseId('cached-123'),
+    provider: asProviderInstanceId('anthropic'),
+    model: TEST_MODEL_ALIAS_BRANDED,
     output: { type: 'text' as const, text: 'Cached answer' },
-    requestId: 'req-1',
-    conversationId: VALID_CONVERSATION_ID,
+    requestId: asRequestId('req-1'),
+    conversationId: TEST_CONVERSATION_ID,
     cached: true,
   };
 
   const chatResponse: ChatResponseData = {
-    id: 'gw_new',
-    provider: 'anthropic',
-    model: TEST_MODEL_ALIAS,
+    id: asResponseId('gw_new'),
+    provider: asProviderInstanceId('anthropic'),
+    model: TEST_MODEL_ALIAS_BRANDED,
     output: { type: 'text', text: 'Fresh answer' },
-    requestId: 'req-2',
-    conversationId: 'conv_2',
+    requestId: asRequestId('req-2'),
+    conversationId: asConversationId('conv_2'),
   };
 
   const providerOptions: ProviderCallOptions = { temperature: 0.5 };
@@ -103,11 +114,15 @@ describe('ChatCacheGuardService', () => {
     describe('Happy path', () => {
       it('should resolve when cooldown allows request', async () => {
         await expect(
-          service.checkRateLimit('gw_key_123', 'anthropic', 'req-123'),
+          service.checkRateLimit(
+            TEST_GATEWAY_KEY_BRANDED,
+            'anthropic',
+            TEST_REQUEST_ID,
+          ),
         ).resolves.toBeUndefined();
 
         expect(mockRateLimiter.checkCooldown).toHaveBeenCalledWith(
-          'gw_key_123',
+          TEST_GATEWAY_KEY_BRANDED,
           'anthropic',
         );
       });
@@ -121,14 +136,18 @@ describe('ChatCacheGuardService', () => {
         });
 
         await expect(
-          service.checkRateLimit('gw_key_123', 'anthropic', 'req-123'),
+          service.checkRateLimit(
+            TEST_GATEWAY_KEY_BRANDED,
+            'anthropic',
+            TEST_REQUEST_ID,
+          ),
         ).rejects.toMatchObject({
           status: HttpStatus.TOO_MANY_REQUESTS,
           response: {
             statusCode: 429,
             code: ApiErrorCode.RATE_LIMITED,
             message: 'Cooldown active for provider',
-            requestId: 'req-123',
+            requestId: TEST_REQUEST_ID,
             details: [],
           },
         });
@@ -149,7 +168,11 @@ describe('ChatCacheGuardService', () => {
         });
 
         await expect(
-          service.checkRateLimit('gw_key_123', 'anthropic', 'req-456'),
+          service.checkRateLimit(
+            TEST_GATEWAY_KEY_BRANDED,
+            'anthropic',
+            asRequestId('req-456'),
+          ),
         ).rejects.toMatchObject({
           response: expect.objectContaining({
             message: 'Rate limit exceeded',
@@ -165,7 +188,11 @@ describe('ChatCacheGuardService', () => {
         );
 
         await expect(
-          service.checkRateLimit('gw_key_123', 'anthropic', 'req-789'),
+          service.checkRateLimit(
+            TEST_GATEWAY_KEY_BRANDED,
+            'anthropic',
+            asRequestId('req-789'),
+          ),
         ).rejects.toThrow('Redis unavailable');
       });
     });
@@ -261,7 +288,7 @@ describe('ChatCacheGuardService', () => {
             providers: {
               [TEST_PROVIDER_INSTANCE]: {
                 type: 'anthropic',
-                apiKeyRef: TEST_API_KEY_REF,
+                apiKeyRef: asEnvRef(TEST_API_KEY_REF),
                 enabled: false,
               },
             },

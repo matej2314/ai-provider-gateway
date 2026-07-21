@@ -5,7 +5,7 @@ import {
   validateGatewayConfig,
   type ValidationResult,
 } from 'src/config/config-validator';
-import { validate as validateEnv } from 'src/config/env.validation';
+import { validateEnvironment } from 'src/config/configuration-validation.service';
 
 export interface CliValidateOptions {
   cwd?: string;
@@ -30,7 +30,7 @@ export class CliGatewayValidatorService {
 
     if (options.validateEnvFormat !== false && result.success) {
       try {
-        validateEnv(process.env);
+        validateEnvironment(process.env);
       } catch (err) {
         return {
           ...result,

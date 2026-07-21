@@ -3,19 +3,20 @@ import {
   collectMissingBaseUrlErrors,
   resolveBaseUrlFromEnv,
 } from './provider-base-url.validation';
+import { asEnvRef } from '../common/types/branded.types';
 
 describe('provider-base-url.validation', () => {
   describe('resolveBaseUrlFromEnv', () => {
     it('returns trimmed URL without trailing slash', () => {
       expect(
-        resolveBaseUrlFromEnv('OPENAI_BASE_URL', {
+        resolveBaseUrlFromEnv(asEnvRef('OPENAI_BASE_URL'), {
           OPENAI_BASE_URL: 'https://api.openai.com/v1/',
         }),
       ).toBe('https://api.openai.com/v1');
     });
 
     it('returns empty for missing env', () => {
-      expect(resolveBaseUrlFromEnv('OPENAI_BASE_URL', {})).toBe('');
+      expect(resolveBaseUrlFromEnv(asEnvRef('OPENAI_BASE_URL'), {})).toBe('');
     });
   });
 
@@ -25,14 +26,17 @@ describe('provider-base-url.validation', () => {
         providers: {
           'openai-primary': {
             type: 'openai',
-            apiKeyRef: 'OPENAI_API_KEY',
-            baseUrlRef: 'OPENAI_BASE_URL',
+            apiKeyRef: asEnvRef('OPENAI_API_KEY'),
+            baseUrlRef: asEnvRef('OPENAI_BASE_URL'),
             enabled: true,
           },
         },
       });
       expect(collectMissingBaseUrlErrors(config, {})).toEqual([
-        { instanceId: 'openai-primary', baseUrlRef: 'OPENAI_BASE_URL' },
+        {
+          instanceId: 'openai-primary',
+          baseUrlRef: asEnvRef('OPENAI_BASE_URL'),
+        },
       ]);
     });
 
@@ -41,7 +45,7 @@ describe('provider-base-url.validation', () => {
         providers: {
           'anthropic-primary': {
             type: 'anthropic',
-            apiKeyRef: 'ANTHROPIC_API_KEY',
+            apiKeyRef: asEnvRef('ANTHROPIC_API_KEY'),
             enabled: true,
           },
         },
