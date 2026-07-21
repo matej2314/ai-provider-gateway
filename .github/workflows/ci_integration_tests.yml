@@ -1,0 +1,214 @@
+name: CI Integration Tests
+
+# Manual-only full test battery (no Docker image / compose smoke).
+# Includes everything from ci.yml test jobs + live test:integration (Redis via pretest/posttest).
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to checkout and test'
+        required: true
+        default: developer
+        type: string
+
+concurrency:
+  group: ci-integration-${{ inputs.branch }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_ENV: test
+  MASTER_KEY: ${{ secrets.MASTER_KEY }}
+  MASTER_KEY_TEST: ${{ secrets.MASTER_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  ANTHROPIC_API_KEY_TEST: ${{ secrets.ANTHROPIC_API_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+  GOOGLE_API_KEY_TEST: ${{ secrets.GOOGLE_API_KEY }}
+  GATEWAY_KEY: ${{ secrets.GATEWAY_KEY }}
+
+jobs:
+  clone:
+    name: Clone Repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Display workflow info
+        run: |
+          echo "CI Integration Tests"
+          echo "===================="
+          echo "Event: ${{ github.event_name }}"
+          echo "Requested branch: ${{ inputs.branch }}"
+          echo "Workflow ref (definition): ${{ github.ref_name }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo ""
+          echo "Jobs: lint, unit, e2e, security, integration"
+          echo "Skipped: Docker build, Docker Compose smoke"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Resolve revision
+        run: |
+          set -euo pipefail
+          echo "Checked out: $(git rev-parse --abbrev-ref HEAD) @ $(git rev-parse HEAD)"
+
+      - name: Upload workspace for downstream jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: |
+            .
+            !.git
+            !node_modules
+          include-hidden-files: true
+          retention-days: 1
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [clone]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [clone]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:cov
+      - name: Upload coverage
+        if: always()
+        continue-on-error: true
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [clone]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:e2e
+
+  security:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [clone]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:security:ci
+
+  integration:
+    name: Integration Tests (live + Redis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [clone]
+    environment: test
+    env:
+      # Resolve under Environment "test" (not only repo-level workflow env)
+      MASTER_KEY: ${{ secrets.MASTER_KEY }}
+      MASTER_KEY_TEST: ${{ secrets.MASTER_KEY }}
+      # Live provider / gateway keys from GitHub Environment "test"
+      INTEGRATION_GATEWAY_KEY: ${{ secrets.INTEGRATION_GATEWAY_KEY }}
+      INTEGRATION_ANTHROPIC_API_KEY: ${{ secrets.INTEGRATION_ANTHROPIC_API_KEY }}
+      INTEGRATION_GOOGLE_API_KEY: ${{ secrets.INTEGRATION_GOOGLE_API_KEY }}
+      INTEGRATION_OPENAI_API_KEY: ${{ secrets.INTEGRATION_OPENAI_API_KEY }}
+      INTEGRATION_OPENAI_BASE_URL: ${{ secrets.INTEGRATION_OPENAI_BASE_URL }}
+      # openai-compatible providers discovered from gateway.config.yaml
+      # (see test/integration/gateway-openai-compatible.integration-spec.ts)
+      INTEGRATION_DEEPSEEK_API_KEY: ${{ secrets.INTEGRATION_DEEPSEEK_API_KEY }}
+      INTEGRATION_DEEPSEEK_BASE_URL: ${{ secrets.INTEGRATION_DEEPSEEK_BASE_URL }}
+      INTEGRATION_OLLAMA_LOCAL_API_KEY: ${{ secrets.INTEGRATION_OLLAMA_LOCAL_API_KEY }}
+      INTEGRATION_OLLAMA_LOCAL_BASE_URL: ${{ secrets.INTEGRATION_OLLAMA_LOCAL_BASE_URL }}
+      # Redis for test/integration/docker-compose.redis.yml (host port 6380, DB 15)
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: '6380'
+      REDIS_PASSWORD: ''
+      REDIS_DB: '15'
+      REDIS_KEY_PREFIX: 'it:'
+      CACHE_ENABLED: 'true'
+      CACHE_BACKEND: redis
+      CACHE_TTL: '60'
+      CACHE_KEY_PREFIX: 'it-cache:'
+      RATE_LIMIT_SMART_ENABLED: 'false'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Require core INTEGRATION_* secrets
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "${INTEGRATION_GATEWAY_KEY:-}" ]; then
+            echo "::error::Missing secret INTEGRATION_GATEWAY_KEY (environment: test)"
+            missing=1
+          fi
+          if [ -z "${INTEGRATION_ANTHROPIC_API_KEY:-}" ] && [ -z "${INTEGRATION_GOOGLE_API_KEY:-}" ]; then
+            echo "::error::Need at least one of INTEGRATION_ANTHROPIC_API_KEY or INTEGRATION_GOOGLE_API_KEY (environment: test)"
+            missing=1
+          fi
+          if [ -z "${MASTER_KEY:-}" ]; then
+            echo "::error::Missing secret MASTER_KEY (used by integration suite)"
+            missing=1
+          fi
+          if [ "${missing}" -ne 0 ]; then
+            exit 1
+          fi
+          echo "Core INTEGRATION_* / MASTER_KEY secrets present"
+          if [ -n "${INTEGRATION_OPENAI_API_KEY:-}" ] && [ -n "${INTEGRATION_OPENAI_BASE_URL:-}" ]; then
+            echo "OpenAI integration env present (OpenAI specs will run)"
+          else
+            echo "OpenAI integration env incomplete — OpenAI specs will be skipped"
+          fi
+      - run: npm ci
+      # pretest:integration → redis:up; posttest:integration → redis:down (npm lifecycle)
+      - name: Run integration tests
+        run: npm run test:integration
+      - name: Ensure Redis test container is down
+        if: always()
+        run: npm run test:integration:redis:down || true

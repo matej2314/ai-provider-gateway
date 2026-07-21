@@ -1,0 +1,244 @@
+name: Deploy to VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy (tip used when sha is empty)'
+        required: true
+        default: main
+        type: string
+      sha:
+        description: 'Optional commit SHA or tag (overrides branch tip when set)'
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  CONT_NAME: ai-provider-gateway
+  VAULT_ADDR: https://vault-prod:8200
+  VAULT_SKIP_VERIFY: 'true'
+  VAULT_ENV: prod
+  # Paths the Docker *daemon* bind-mounts — must exist on the host FS, not only
+  # inside a containerized Actions runner (docker.sock / DooD).
+  DEPLOY_DIR: /opt/ai-provider-gateway
+  CI_WORKFLOW_FILE: ci.yml
+  LAST_GOOD_SHA_FILE: .deployed-sha
+  DEPLOY_SCRIPT: deployment/scripts/deploy-production.sh
+  ROLLBACK_SCRIPT: deployment/scripts/rollback.sh
+
+jobs:
+  deploy:
+    name: Deploy full stack
+    runs-on: [self-hosted, linux]
+    environment: production
+    timeout-minutes: 45
+
+    steps:
+      - name: Resolve deploy ref
+        id: target
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.sha }}" ]; then
+            ref='${{ inputs.sha }}'
+            echo "Using explicit sha/tag input: ${ref}"
+          else
+            ref='${{ inputs.branch }}'
+            echo "Using branch tip: ${ref}"
+          fi
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.target.outputs.ref }}
+
+      - name: Resolve deploy revision
+        id: revision
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          echo "ref=${sha}" >> "$GITHUB_OUTPUT"
+          echo "Deploy SHA: ${sha}"
+          echo "Requested ref: ${{ steps.target.outputs.ref }}"
+
+      - name: Require green CI for deploy SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.revision.outputs.ref }}"
+          API="https://api.github.com/repos/${{ github.repository }}/actions/workflows/${CI_WORKFLOW_FILE}/runs?head_sha=${SHA}&per_page=20"
+
+          echo "Checking CI (${CI_WORKFLOW_FILE}) for commit ${SHA} ..."
+          response="$(curl -sS \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "${API}")"
+
+          if ! echo "${response}" | jq -e '.workflow_runs' >/dev/null 2>&1; then
+            echo "Failed to query GitHub Actions API:"
+            echo "${response}" | jq . 2>/dev/null || echo "${response}"
+            exit 1
+          fi
+
+          echo "${response}" | jq '[.workflow_runs[] | {id, status, conclusion, event, html_url, created_at}]'
+
+          success_count="$(echo "${response}" | jq '[.workflow_runs[] | select(.status=="completed" and .conclusion=="success")] | length')"
+          in_progress="$(echo "${response}" | jq '[.workflow_runs[] | select(.status=="in_progress" or .status=="queued" or .status=="pending" or .status=="waiting")] | length')"
+
+          if [ "${success_count}" -ge 1 ]; then
+            echo "${response}" | jq -r '
+              .workflow_runs[]
+              | select(.status=="completed" and .conclusion=="success")
+              | "OK: green CI run \(.id) (\(.event)) — \(.html_url)"
+            ' | head -n 1
+            exit 0
+          fi
+
+          if [ "${in_progress}" -ge 1 ]; then
+            echo "CI for ${SHA} is still running. Wait for it to finish, then re-run deploy."
+            echo "${response}" | jq -r '.workflow_runs[] | select(.status!="completed") | "- \(.status) \(.html_url)"'
+            exit 1
+          fi
+
+          echo "No successful CI run for ${SHA}."
+          echo "Push to ${{ inputs.branch }} (fast CI) or run workflow_dispatch on ${CI_WORKFLOW_FILE} (full CI), then deploy again."
+          total="$(echo "${response}" | jq '.total_count')"
+          if [ "${total}" = "0" ]; then
+            echo "API returned zero workflow runs for this commit."
+          else
+            echo "${response}" | jq -r '.workflow_runs[] | "- \(.status)/\(.conclusion // "n/a") \(.html_url)"'
+          fi
+          exit 1
+
+      - name: Read last known-good SHA from host
+        id: last_good
+        run: |
+          set -euo pipefail
+          last="$(
+            docker run --rm \
+              -e "LAST_GOOD_SHA_FILE=${LAST_GOOD_SHA_FILE}" \
+              -v "${DEPLOY_DIR}:/dest:ro" \
+              alpine:3.20 \
+              sh -c 'if [ -f "/dest/$LAST_GOOD_SHA_FILE" ]; then tr -d "[:space:]" < "/dest/$LAST_GOOD_SHA_FILE"; fi'
+          )"
+          echo "sha=${last}" >> "$GITHUB_OUTPUT"
+          if [ -n "${last}" ]; then
+            echo "Last known-good SHA on host: ${last}"
+          else
+            echo "No last known-good SHA on host yet (first successful deploy will create ${DEPLOY_DIR}/${LAST_GOOD_SHA_FILE})"
+          fi
+
+      # From this point a failure may leave the host in a partial/broken deploy state.
+      - name: Begin host deploy (mutation point)
+        id: mutate
+        run: |
+          set -euo pipefail
+          echo "host_mutated=true" >> "$GITHUB_OUTPUT"
+          echo "Host mutation starting — auto-rollback eligible on later failure"
+
+      # Self-hosted runner often uses docker.sock from a container (DooD):
+      # stream checkout via tar in deploy-production.sh sync.
+      - name: Sync checkout onto Docker host deploy dir
+        id: sync
+        run: bash "${DEPLOY_SCRIPT}" sync
+
+      - name: Fetch secrets from Vault
+        id: vault
+        env:
+          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+        run: bash "${DEPLOY_SCRIPT}" secrets
+
+      - name: Build and deploy full stack
+        id: stack
+        run: bash "${DEPLOY_SCRIPT}" up
+
+      - name: Health check
+        id: health
+        run: |
+          set -euo pipefail
+          bash "${DEPLOY_SCRIPT}" health
+          echo "Deploy successful (ref: ${{ steps.revision.outputs.ref }})"
+
+      - name: Persist last known-good SHA on host
+        id: persist_sha
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.revision.outputs.ref }}"
+          printf '%s\n' "${SHA}" | docker run --rm -i \
+            -e "LAST_GOOD_SHA_FILE=${LAST_GOOD_SHA_FILE}" \
+            -v "${DEPLOY_DIR}:/dest" \
+            alpine:3.20 \
+            sh -c 'cat > "/dest/$LAST_GOOD_SHA_FILE" && chmod 644 "/dest/$LAST_GOOD_SHA_FILE" && echo "Wrote $LAST_GOOD_SHA_FILE on host"'
+          echo "Last known-good SHA is now: ${SHA}"
+          {
+            echo "## Deploy succeeded"
+            echo ""
+            echo "- Deployed SHA: \`${SHA}\`"
+            echo "- Recorded as last known-good in \`${DEPLOY_DIR}/${LAST_GOOD_SHA_FILE}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # --- Auto-rollback (only after host mutation; once per run) ---
+      # Conditions must match between checkout and rollback so we never enter
+      # rollback without a successful last-good checkout.
+      - name: Checkout last known-good SHA for auto-rollback
+        id: rollback_checkout
+        if: >-
+          failure()
+          && steps.mutate.outcome == 'success'
+          && steps.last_good.outputs.sha != ''
+          && steps.last_good.outputs.sha != steps.revision.outputs.ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.last_good.outputs.sha }}
+
+      - name: Auto-rollback to last known-good SHA
+        id: rollback
+        if: >-
+          failure()
+          && steps.mutate.outcome == 'success'
+          && steps.last_good.outputs.sha != ''
+          && steps.last_good.outputs.sha != steps.revision.outputs.ref
+          && steps.rollback_checkout.outcome == 'success'
+        env:
+          FAILED_SHA: ${{ steps.revision.outputs.ref }}
+          LAST_GOOD_SHA: ${{ steps.last_good.outputs.sha }}
+          SKIP_VAULT_FETCH: 'true'
+          # Fallback only if host .env is missing.
+          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+        run: bash "${ROLLBACK_SCRIPT}"
+
+      - name: Fail run after successful auto-rollback
+        if: steps.rollback.outputs.rolled_back == 'true'
+        run: |
+          set -euo pipefail
+          echo "::error::Primary deploy of ${{ steps.revision.outputs.ref }} failed; auto-rollback to ${{ steps.rollback.outputs.rollback_sha }} succeeded. Investigate the failed release before redeploying."
+          exit 1
+
+      # Wipe secrets from the Actions job workspace only — do NOT remove
+      # /opt/ai-provider-gateway/.env (host bind used by Compose).
+      - name: Cleanup workspace secrets
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "Removing job workspace .env (if present): ${GITHUB_WORKSPACE}/.env"
+          rm -f "${GITHUB_WORKSPACE}/.env"
+          rm -f /tmp/deploy-host-binds.yml
+          rm -f /tmp/deploy-extra-networks.yml
+          if [ -f "${GITHUB_WORKSPACE}/.env" ]; then
+            echo "WARNING: ${GITHUB_WORKSPACE}/.env still exists after rm"
+            exit 1
+          fi
+          echo "Workspace .env cleaned"
