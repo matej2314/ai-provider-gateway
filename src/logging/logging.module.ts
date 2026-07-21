@@ -8,7 +8,6 @@ import {
 } from './logging.tokens';
 import type {
   LoggerOptions,
-  LogLevel,
   ErrorReportingBackend,
   LoggerBackend,
 } from './interfaces/logger.interface';
@@ -16,25 +15,16 @@ import { ConsoleLoggerAdapter } from './adapters/console-logger.adapter';
 import { PinoLoggerAdapter } from './adapters/pino-logger.adapter';
 import { SentryErrorReportingAdapter } from './adapters/sentry-error-reporting.adapter';
 import { NoopErrorReportingAdapter } from './adapters/noop-error-reporting.adapter';
-
-function parseLogLevel(raw: string | undefined): LogLevel {
-  const allowed: LogLevel[] = [
-    'trace',
-    'debug',
-    'info',
-    'warn',
-    'error',
-    'fatal',
-  ];
-  const level = (raw ?? 'info').toLowerCase();
-  return allowed.includes(level as LogLevel)
-    ? (level as LogLevel)
-    : ('info' as LogLevel);
-}
+import { parseLogLevel } from './helpers/parseLogLevel';
 
 function isSentryEnabled(env: string): boolean {
-  if (process.env.NODE_ENV === 'production') return true;
-  return process.env.SENTRY_ENABLED === 'true';
+  if (process.env.SENTRY_ENABLED === 'false') return false;
+  if (process.env.SENTRY_ENABLED === 'true') return true;
+
+  if (env.toLowerCase() === 'production') {
+    return !!process.env.SENTRY_DSN?.trim();
+  }
+  return false;
 }
 
 function resolveErrorReportingBackend(
@@ -47,7 +37,10 @@ function resolveErrorReportingBackend(
   if (isSentryEnabled(env)) {
     const dsn = process.env.SENTRY_DSN?.trim();
     if (!dsn) {
-      throw new Error('SENTRY_DSN is not set');
+      console.warn(
+        '[LoggingModule] Sentry enabled but SENTRY_DSN is not set. Using noop adapter.',
+      );
+      return NoopErrorReportingAdapter;
     }
     return SentryErrorReportingAdapter;
   }

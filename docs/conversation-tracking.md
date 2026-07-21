@@ -1,98 +1,98 @@
-# Śledzenie rozmów (`conversationId`)
+# Conversation tracking (`conversationId`)
 
-## Cel
+## Purpose
 
-Gateway obsługuje opcjonalne pole **`conversationId`** w body żądań czatu (`POST /api/v1/chat` i `POST /api/v1/chat/stream`). Służy ono do:
+The gateway supports an optional **`conversationId`** field in chat request bodies (`POST /api/v1/chat` and `POST /api/v1/chat/stream`). It is used to:
 
-1. **Zwracania ID sesji do klienta** (echo lub nowe `conv_<uuid>`) — front może zapamiętać i wysłać w kolejnej turze.
-2. **Grupowania metryk LLM w Sentry** pod `gen_ai.conversation.id` — **tylko gdy klient poda `conversationId` w żądaniu**.
+1. **Return a session ID to the client** (echo or a new `conv_<uuid>`) — the front end can store it and send it on the next turn.
+2. **Group LLM metrics in Sentry** under `gen_ai.conversation.id` — **only when the client supplies `conversationId` in the request**.
 
-Gateway jest **stateless**: nie przechowuje historii rozmowy. Pełna treść wątku zależy od tablicy **`messages[]`** wysłanej przez klienta w każdym requeście.
+The gateway is **stateless**: it does not store conversation history. Full thread content depends on the **`messages[]`** array sent by the client in every request.
 
-Implementacja: `src/chat/chat.service.ts` (`getClientConversationId`, `getOrCreateConversationIdForResponse`, `buildLlmMetricsContext`), `src/metrics/adapters/sentry-metrics.adapter.ts`.
+Implementation: `src/chat/helpers/conversation-id.ts` (`getClientConversationId`, `getOrCreateConversationIdForResponse`), `src/chat/helpers/metrics.ts` (`buildLlmMetricsContext` — used from `ChatProviderCallService`), `src/observability/ai-metrics/adapters/sentry-ai-metrics.adapter.ts`.
 
 ---
 
-## Dwa tryby logowania w Sentry
+## Two Sentry logging modes
 
-Każde wywołanie providera (poza cache hit) generuje span `op: gen_ai.chat`.
+Every provider call (except a cache hit) produces a span `op: gen_ai.chat`.
 
-| Tryb | Warunek w request | `gen_ai.conversation.id` | Widok **Explore → Conversations** |
+| Mode | Request condition | `gen_ai.conversation.id` | **Explore → Conversations** view |
 |------|-------------------|--------------------------|-----------------------------------|
-| **Pojedyncza wiadomość** | Brak `conversationId` w body | **Nie** | Span w Traces; nie jest grupowany jako rozmowa |
-| **Konwersacja** | Jest `conversationId` w body | **Tak** (wartość z body) | Wiele spanów z tym samym ID = jedna rozmowa |
+| **Single message** | No `conversationId` in body | **No** | Span in Traces; not grouped as a conversation |
+| **Conversation** | `conversationId` present in body | **Yes** (value from body) | Multiple spans with the same ID = one conversation |
 
-Przy `SENTRY_INCLUDE_PROMPTS=true` (zob. `konfiguracja.md`) każdy span może mieć:
+With `SENTRY_INCLUDE_PROMPTS=true` (see `configuration.md`) each span may have:
 
-- `gen_ai.input.messages` — zawartość **`messages[]` z bieżącego requestu** (format Sentry: `role` + `parts[{ type: text, content }]`)
-- `gen_ai.output.messages` — odpowiedź modelu z **tego** wywołania LLM
+- `gen_ai.input.messages` — contents of **`messages[]` from the current request** (Sentry format: `role` + `parts[{ type: text, content }]`)
+- `gen_ai.output.messages` — model response from **this** LLM call
 
-`gen_ai.conversation.id` ustawia wyłącznie `SentryAiMetricsAdapter`, gdy `context.conversationId` pochodzi z body klienta (`getClientConversationId`).
+`gen_ai.conversation.id` is set only by `SentryAiMetricsAdapter` when `context.conversationId` comes from the client body (`getClientConversationId`).
 
 ---
 
-## Logowanie konwersacji od drugiej wiadomości (zalecany przepływ)
+## Logging conversations from the second message (recommended flow)
 
-Typowy scenariusz: pierwsza tura **bez** `conversationId`, kolejne **z** ID zwróconym przez gateway.
+Typical scenario: first turn **without** `conversationId`, subsequent turns **with** the ID returned by the gateway.
 
 ```mermaid
 sequenceDiagram
-  participant K as Klient
+  participant K as Client
   participant G as Gateway
   participant S as Sentry
 
-  Note over K,S: Tura 1 — start rozmowy (bez conversationId w request)
+  Note over K,S: Turn 1 — start conversation (no conversationId in request)
   K->>G: POST /chat { messages: [user₁] }
-  G->>S: span gen_ai.chat (bez conversation.id)
-  G-->>K: 200 { conversationId: conv_abc, output: assistant₁ }
+  G->>S: span gen_ai.chat (no conversation.id)
+  G-->>K: 201 { conversationId: conv_abc, output: assistant₁ }
 
-  Note over K,S: Tura 2 — konwersacja w Sentry + pełna historia w messages[]
+  Note over K,S: Turn 2 — conversation in Sentry + full history in messages[]
   K->>G: POST /chat { conversationId: conv_abc, messages: [user₁, assistant₁, user₂] }
-  G->>S: span gen_ai.chat (conversation.id = conv_abc, input = całe messages[])
-  G-->>K: 200 { conversationId: conv_abc, output: assistant₂ }
+  G->>S: span gen_ai.chat (conversation.id = conv_abc, input = full messages[])
+  G-->>K: 201 { conversationId: conv_abc, output: assistant₂ }
 ```
 
-### Tura 1 (pierwsza wiadomość użytkownika)
+### Turn 1 (first user message)
 
-**Request:** tylko `modelAlias` + `messages` (np. jedna wiadomość `user`). **Bez** `conversationId`.
+**Request:** only `modelAlias` + `messages` (e.g. one `user` message). **No** `conversationId`.
 
 **Sentry:**
 
-- Span `gen_ai.chat` z input/output tej tury (gdy `SENTRY_INCLUDE_PROMPTS=true`).
-- **Brak** `gen_ai.conversation.id` — to nie jest wpis w **Conversations**, tylko pojedyncze wywołanie LLM.
+- Span `gen_ai.chat` with this turn’s input/output (when `SENTRY_INCLUDE_PROMPTS=true`).
+- **No** `gen_ai.conversation.id` — this is not an entry in **Conversations**, only a single LLM call.
 
-**Response:** gateway zwraca **`conversationId`** = `conv_<uuid>` (wygenerowane). Klient **powinien zapisać** to ID na turę 2.
+**Response:** the gateway returns **`conversationId`** = `conv_<uuid>` (generated). The client **should store** this ID for turn 2.
 
-### Tura 2 i dalsze (konwersacja w Sentry)
+### Turn 2 and beyond (conversation in Sentry)
 
 **Request:**
 
-- **`conversationId`** — to samo co z tury 1 (echo lub własne UUID klienta od początku).
-- **`messages[]`** — **pełna historia** widoczna dla modelu, w tym:
-  - pierwsze pytanie użytkownika (`user`),
-  - pierwsza odpowiedź assistenta (`assistant`) — **klient musi ją dodać** z odpowiedzi tury 1,
-  - kolejne tury.
+- **`conversationId`** — the same as from turn 1 (echo or the client’s own UUID from the start).
+- **`messages[]`** — the **full history** visible to the model, including:
+  - the first user question (`user`),
+  - the first assistant reply (`assistant`) — the **client must add it** from the turn 1 response,
+  - subsequent turns.
 
 **Sentry:**
 
-- `gen_ai.conversation.id` = `conversationId` z body.
-- W `gen_ai.input.messages` **tej** tury widać całą przekazaną historię (w tym fragment startowy z tury 1), nawet jeśli tura 1 nie miała `conversation.id`.
-- `gen_ai.output.messages` = tylko odpowiedź z **bieżącego** wywołania.
+- `gen_ai.conversation.id` = `conversationId` from the body.
+- In `gen_ai.input.messages` for **this** turn you see the entire passed history (including the starting fragment from turn 1), even if turn 1 had no `conversation.id`.
+- `gen_ai.output.messages` = only the response from the **current** call.
 
-**Uwaga o grupowaniu spanów:** span z tury 1 **nie** zostanie retroaktywnie dołączony do tej samej encji Conversations co tura 2+. W UI konwersacji zobaczysz wątek od momentu, gdy zacząłeś wysyłać `conversationId`, z bogatym inputem na kolejnych spanach. Treść startowa jest w **`messages[]`**, nie w osobnym spanie zgrupowanym pod tym samym ID.
+**Note on span grouping:** the turn 1 span is **not** retroactively attached to the same Conversations entity as turn 2+. In the conversation UI you will see the thread from the moment you started sending `conversationId`, with rich input on later spans. The starting content is in **`messages[]`**, not in a separate span grouped under the same ID.
 
-### Obowiązek klienta przy starcie od tury 2
+### Client obligation when starting from turn 2
 
-Jeśli chcesz **pełną treść rozmowy** w Sentry (w tym pierwszą parę pytanie–odpowiedź):
+If you want the **full conversation content** in Sentry (including the first question–answer pair):
 
-1. Po turze 1 zapisz `output.text` jako wiadomość `assistant` w lokalnej historii.
-2. Od tury 2 wysyłaj **rosnącą** tablicę `messages[]` + **`conversationId`**.
+1. After turn 1, store `output.text` as an `assistant` message in local history.
+2. From turn 2, send a **growing** `messages[]` array + **`conversationId`**.
 
-Bez `assistant` z tury 1 w `messages[]` Sentry zobaczy tylko to, co jest w bieżącym requeście (np. samo `user₂`).
+Without the turn 1 `assistant` in `messages[]`, Sentry will only see what is in the current request (e.g. only `user₂`).
 
 ---
 
-## Kontrakt API
+## API contract
 
 ### Request
 
@@ -100,63 +100,63 @@ Bez `assistant` z tury 1 w `messages[]` Sentry zobaczy tylko to, co jest w bież
 {
   "modelAlias": "chat-default",
   "messages": [
-    { "role": "user", "content": "Cześć" },
-    { "role": "assistant", "content": "Witaj!" },
-    { "role": "user", "content": "Kontynuuj" }
+    { "role": "user", "content": "Hello" },
+    { "role": "assistant", "content": "Hi!" },
+    { "role": "user", "content": "Continue" }
   ],
   "conversationId": "conv_123e4567-e89b-12d3-a456-426614174000"
 }
 ```
 
-| Pole | Wymagane | Opis |
+| Field | Required | Description |
 |------|----------|------|
-| `messages` | Tak | 1–150 elementów; role `user` \| `assistant`; `content` max 3000 znaków. Historia rozmowy — **zawsze od klienta**. |
-| `conversationId` | Nie | String w formacie **`conv_<uuid>`** (regex w `ChatRequestDto`). **W request:** włącza grupowanie Sentry (`gen_ai.conversation.id`). **Brak w request:** span bez conversation id; gateway zwraca nowe `conv_<uuid>` w odpowiedzi. |
+| `messages` | Yes | 1–150 elements; roles `user` \| `assistant` \| `tool` (`toolCallId` required); `content` max 3000 (user/assistant) or 32000 (`tool`). History — **always from the client**. |
+| `conversationId` | No | String in format **`conv_<uuid>`** (regex in `ChatRequestDto`). **In request:** enables Sentry grouping (`gen_ai.conversation.id`). **Absent in request:** span without conversation id; gateway returns a new `conv_<uuid>` in the response. |
 
-Walidacja: `@IsOptional()`, `@IsString()`, `@Matches(/^conv_[0-9a-f]{8}-…/)`. Niepoprawny format (np. `conv_abc`) → **400** (`VALIDATION_FAILED`, komunikat: `conversationId must be conv_<uuid>`).
+Validation: `@IsOptional()`, `@IsString()`, `@Matches(/^conv_[0-9a-f]{8}-…/)`. Invalid format (e.g. `conv_abc`) → **400** (`VALIDATION_FAILED`, message: `conversationId must be conv_<uuid>`).
 
-### Odpowiedź
+### Response
 
-| Tryb | Gdzie jest `conversationId` |
+| Mode | Where `conversationId` appears |
 |------|----------------------------|
 | `POST /api/v1/chat` | JSON `ChatResponse.conversationId` |
 | `POST /api/v1/chat/stream` | SSE `event: meta` |
 
-Zasady:
+Rules:
 
-- Klient **podaje** `conversationId` → odpowiedź **echo** (to samo).
-- Klient **nie podaje** → odpowiedź zawiera **nowe** `conv_<uuid>` (do adopcji w kolejnej turze).
+- Client **supplies** `conversationId` → response **echo** (same value).
+- Client **does not supply** → response contains a **new** `conv_<uuid>` (to adopt on the next turn).
 
-### Różnica: pole w odpowiedzi vs pole w request (metryki)
+### Difference: field in response vs field in request (metrics)
 
-| | W **response** | W **request** (Sentry Conversations) |
+| | In **response** | In **request** (Sentry Conversations) |
 |---|----------------|--------------------------------------|
-| Brak pola | Zwracane `conv_<uuid>` | Brak `gen_ai.conversation.id` |
-| Jest pole | Echo | `gen_ai.conversation.id` + grupowanie tur |
+| Field absent | Returns `conv_<uuid>` | No `gen_ai.conversation.id` |
+| Field present | Echo | `gen_ai.conversation.id` + turn grouping |
 
 ---
 
-## Cache a metryki
+## Cache and metrics
 
-Przy **cache hit** (`POST /api/v1/chat`) gateway **nie** wywołuje providera i **nie** emituje nowego spana LLM (`observeLlmCall` jest pomijane). Odpowiedź może pochodzić z cache — bez śladu w Sentry dla tej tury.
+On a **cache hit** (`POST /api/v1/chat`) the gateway does **not** call the provider and does **not** emit a new LLM span (`observeLlmCall` is skipped). The response may come from cache — with no Sentry trace for that turn.
 
 ---
 
-## Konfiguracja Sentry
+## Sentry configuration
 
-| Zmienna | Znaczenie |
+| Variable | Meaning |
 |---------|-----------|
-| `SENTRY_DSN` | Wymagane do wysyłki |
-| `METRICS_BACKEND=sentry` | Adapter metryk LLM (`MetricsModule`); w **production** domyślnie Sentry gdy `METRICS_BACKEND` nie ustawiony na `noop` |
-| `SENTRY_TRACES_SAMPLE_RATE` | Np. `1.0` na test |
-| `SENTRY_INCLUDE_PROMPTS=true` | `gen_ai.input.messages` / `gen_ai.output.messages` na spanach |
-| `streamGenAiSpans: true` | W `src/instrument.ts` — **wymagane** dla widoku Conversations |
+| `SENTRY_DSN` | Required for sending |
+| `AI_METRICS_BACKEND=sentry` | LLM metrics adapter (`AiMetricsModule` / `ObservabilityModule`); in **production** defaults to Sentry when `AI_METRICS_BACKEND` is not set to `noop` (requires `SENTRY_DSN`) |
+| `SENTRY_TRACES_SAMPLE_RATE` | e.g. `1.0` for testing |
+| `SENTRY_INCLUDE_PROMPTS=true` | `gen_ai.input.messages` / `gen_ai.output.messages` on spans |
+| `streamGenAiSpans: true` | In `src/instrument.ts` — **required** for the Conversations view |
 
-Szczegóły env: `docs/konfiguracja.md`.
+Env details: `configuration.md`.
 
 ---
 
-## Przykład klienta (tura 1 → tura 2)
+## Client example (turn 1 → turn 2)
 
 ```typescript
 let conversationId: string | undefined;
@@ -184,30 +184,30 @@ async function sendUserTurn(userText: string) {
   return data;
 }
 
-// Tura 1: brak conversationId w request → Sentry: pojedynczy span
-await sendUserTurn('Cześć');
+// Turn 1: no conversationId in request → Sentry: single span
+await sendUserTurn('Hello');
 
-// Tura 2: conversationId z odpowiedzi + pełna historia w messages[]
-await sendUserTurn('Opowiedz więcej');
+// Turn 2: conversationId from response + full history in messages[]
+await sendUserTurn('Tell me more');
 ```
 
 ---
 
 ## FAQ
 
-**Czy muszę wysłać `conversationId` w pierwszej wiadomości?**  
-Nie. Pierwsza tura może być bez niego; weź `conversationId` z odpowiedzi i wyślij od drugiej tury, jeśli chcesz Conversations w Sentry.
+**Do I have to send `conversationId` in the first message?**  
+No. The first turn can omit it; take `conversationId` from the response and send it from the second turn if you want Conversations in Sentry.
 
-**Czy gateway przechowuje historię?**  
-Nie. Pełna historia = `messages[]` w każdym requeście.
+**Does the gateway store history?**  
+No. Full history = `messages[]` in every request.
 
-**Czy pierwsza tura trafi do tej samej konwersacji w Sentry co druga?**  
-Nie jako osobny span w grupie — tura 1 nie ma `conversation.id`. Treść tury 1 trafia do Sentry w **`gen_ai.input.messages`** tury 2+, jeśli klient doda `user` + `assistant` do `messages[]`.
+**Will the first turn land in the same Sentry conversation as the second?**  
+Not as a separate span in the group — turn 1 has no `conversation.id`. Turn 1 content reaches Sentry in **`gen_ai.input.messages`** of turn 2+, if the client adds `user` + `assistant` to `messages[]`.
 
-**Czy mogę generować `conversationId` na froncie od tury 1?**  
-Tak — wtedy wszystkie tury od początku mają `gen_ai.conversation.id` (scenariusz „konwersacja od pierwszej wiadomości”).
+**Can I generate `conversationId` on the front end from turn 1?**  
+Yes — then all turns from the start have `gen_ai.conversation.id` (scenario “conversation from the first message”).
 
 **Streaming?**  
-Ten sam kontrakt: `conversationId` w body; w SSE `meta` zwracane ID (echo lub `conv_*`).
+Same contract: `conversationId` in the body; in SSE `meta` the returned ID (echo or `conv_*`).
 
-Powiązane: `openapi.json`, `dokumentacja_api.md`, `data_flow.md`, `spec/SPEC-CHAT.md` (scenariusz D).
+Related: [`openapi.json`](../openapi.json), `api-documentation.md`, `data-flow.md`, `pl/spec/SPEC-CHAT.md` (scenario D).

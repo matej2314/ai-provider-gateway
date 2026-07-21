@@ -7,11 +7,16 @@ import {
   readNumericStatus,
   nameLooksLikeTimeout,
 } from './provider-error.mapper.helpers';
+import {
+  isRateLimitStatus,
+  isClientError,
+  isAuthError,
+  isTimeoutStatus,
+  isServerError,
+} from '../errors/errors.utils';
+import type { MappedProviderError } from './error.types';
 
-export type MappedProviderError = {
-  httpStatus: number;
-  payload: ApiErrorPayload;
-};
+export { mapOpenAiSdkError } from '../../providers/openai/mappers/openai-error.mapper';
 
 function payloadOf(message: string, code: ApiErrorCode): ApiErrorPayload {
   return { code, message, details: [] };
@@ -42,36 +47,37 @@ export function mapAnthropicSdkError(error: unknown): MappedProviderError {
   }
 
   if (error instanceof Anthropic.APIError) {
-    const status = error.status ?? HttpStatus.BAD_GATEWAY;
-    if (status === 429) {
+    const status =
+      typeof error.status === 'number' ? error.status : HttpStatus.BAD_GATEWAY;
+    if (isRateLimitStatus(status)) {
       return {
         httpStatus: HttpStatus.TOO_MANY_REQUESTS,
         payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_RATE_LIMITED),
       };
     }
 
-    if (status === 401 || status === 403) {
+    if (isAuthError(status)) {
       return {
         httpStatus: HttpStatus.UNAUTHORIZED,
         payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_AUTH_FAILED),
       };
     }
 
-    if (status === 408 || status === 504) {
+    if (isTimeoutStatus(status)) {
       return {
         httpStatus: HttpStatus.GATEWAY_TIMEOUT,
         payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_TIMEOUT),
       };
     }
 
-    if (status >= 500 && status <= 599) {
+    if (isServerError(status)) {
       return {
         httpStatus: HttpStatus.BAD_GATEWAY,
         payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_UNAVAILABLE),
       };
     }
 
-    if (status >= 400 && status <= 499) {
+    if (isClientError(status)) {
       return {
         httpStatus: HttpStatus.BAD_REQUEST,
         payload: payloadOf(fallbackMsg, ApiErrorCode.VALIDATION_FAILED),
@@ -109,35 +115,35 @@ export function mapGoogleGenAiError(error: unknown): MappedProviderError {
     };
   }
 
-  if (status === 429) {
+  if (isRateLimitStatus(status)) {
     return {
       httpStatus: HttpStatus.TOO_MANY_REQUESTS,
       payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_RATE_LIMITED),
     };
   }
 
-  if (status === 401 || status === 403) {
+  if (isAuthError(status)) {
     return {
       httpStatus: HttpStatus.UNAUTHORIZED,
       payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_AUTH_FAILED),
     };
   }
 
-  if (status === 408 || status === 504) {
+  if (isTimeoutStatus(status)) {
     return {
       httpStatus: HttpStatus.GATEWAY_TIMEOUT,
       payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_TIMEOUT),
     };
   }
 
-  if (status && status >= 500 && status <= 599) {
+  if (isServerError(status)) {
     return {
       httpStatus: HttpStatus.BAD_GATEWAY,
       payload: payloadOf(fallbackMsg, ApiErrorCode.PROVIDER_UNAVAILABLE),
     };
   }
 
-  if (status && status >= 400 && status <= 499) {
+  if (isClientError(status)) {
     return {
       httpStatus: HttpStatus.BAD_REQUEST,
       payload: payloadOf(fallbackMsg, ApiErrorCode.VALIDATION_FAILED),

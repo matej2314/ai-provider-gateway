@@ -18,12 +18,14 @@ import {
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseSerializer } from './sse/sse.serializer';
 import { ChatService } from './chat.service';
-import { GatewayKeyAndSmartRateLimit } from 'src/common/decorators/gateway-key-and-smart-rate-limit.decorator';
-import { StreamCleanupInterceptor } from 'src/common/interceptors/stream-cleanup.interceptor';
-import { ApiGatewayChatErrorResponses } from 'src/common/decorators/api-gateway-error-responses.decorator';
+import { GatewayKeyAndSmartRateLimit } from '../common/decorators/gateway-key-and-smart-rate-limit.decorator';
+import { StreamCleanupInterceptor } from '../common/interceptors/stream-cleanup.interceptor';
+import { ApiGatewayChatErrorResponses } from '../common/decorators/api-gateway-error-responses.decorator';
 import { SseMetaPayloadDto } from './dto/sse-meta-payload.dto';
 import { ApiRequestIdHeader } from '../common/decorators/api-request-id-header.decorator';
 import { CHAT_STREAM_API_DESCRIPTION } from './dto/sse-stream-description';
+import { requireClientGatewayKey } from '../common/requireClientGatewayKey';
+import { asClientId, asRequestId } from 'src/common/types/branded.types';
 
 @ApiTags('Chat')
 @ApiSecurity('GatewayKeyAuth')
@@ -73,6 +75,7 @@ export class ChatStreamController {
     @Body() requestBody: ChatRequestDto,
     @Res() res: Response,
   ) {
+    const gatewayKey = requireClientGatewayKey(req);
     this.chatService.validateForStreaming(requestBody.modelAlias);
     res.status(200);
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -83,10 +86,13 @@ export class ChatStreamController {
     try {
       await this.chatService.executeStream(
         requestBody,
-        req.requestId,
+        asRequestId(req.requestId),
+        req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
         (event) => {
           res.write(this.sse.serialize(event));
         },
+        'native',
+        gatewayKey,
       );
     } finally {
       res.end();

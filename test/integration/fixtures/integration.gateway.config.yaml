@@ -1,0 +1,30 @@
+schemaVersion: 1
+masterKeyRef: MASTER_KEY
+
+clients:
+  integration-ide:
+    name: Integration IDE Client
+    type: ide
+    gatewayKeyRef: INTEGRATION_GATEWAY_KEY
+
+providers:
+  anthropic-it:
+    type: anthropic
+    apiKeyRef: INTEGRATION_ANTHROPIC_API_KEY
+    enabled: true
+
+models:
+  it-chat:
+    providerInstance: anthropic-it
+    modelId: claude-sonnet-4-5-20250929
+    capabilities:
+      streaming: true
+      tools: false
+    policy:
+      retry: {}
+      params:
+        defaults: {}
+        allowOverrides:
+          - maxOutputTokens
+          - temperature
+        bounds: {}

@@ -6,11 +6,30 @@ import {
   HttpStatus,
   Injectable,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import {
   ApiErrorCode,
   DEFAULT_HTTP_STATUS_TO_CODE,
 } from '../errors/api-error.code';
 import { LoggingService } from '../../logging/logging.service';
+import { asRequestId } from '../../common/types/branded.types';
+
+type RequestWithId = Request & { requestId: string };
+
+type PayloadTooLargeError = Error & {
+  type: 'entity.too.large';
+  status: number;
+  statusCode: number;
+};
+
+function isPayloadTooLargeError(
+  exception: unknown,
+): exception is PayloadTooLargeError {
+  return (
+    exception instanceof Error &&
+    (exception as Partial<PayloadTooLargeError>).type === 'entity.too.large'
+  );
+}
 
 @Catch()
 @Injectable()
@@ -19,10 +38,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse();
-    const request = ctx.getRequest();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<RequestWithId>();
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let status: number = HttpStatus.INTERNAL_SERVER_ERROR;
     let code: string = ApiErrorCode.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'An unexpected error occurred';
     let details: unknown[] = [];
@@ -49,11 +68,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
         const requestId = body.requestId;
         if (typeof requestId === 'string' && requestId.trim()) {
-          request.requestId = requestId.trim();
+          request.requestId = asRequestId(requestId.trim());
         }
       } else {
         code = this.mapHttpStatusToCode(status);
       }
+    } else if (isPayloadTooLargeError(exception)) {
+      status = HttpStatus.PAYLOAD_TOO_LARGE;
+      code = ApiErrorCode.VALIDATION_FAILED;
+      message = 'request entity too large';
+      details = [];
     }
 
     const requestId =
@@ -63,17 +87,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       ? message.join('; ')
       : message;
 
-    if (status >= 500 || !(exception instanceof HttpException)) {
+    if (status >= 500) {
       const err =
         exception instanceof Error
           ? exception
           : new Error(
-              typeof exception === 'string'
-                ? exception
-                : 'Unhandled exception',
+              typeof exception === 'string' ? exception : 'Unhandled exception',
             );
       this.loggingService.error(normalizedMessage, err, {
-        requestId,
+        requestId: asRequestId(requestId),
         code,
         status,
         module: 'GlobalExceptionFilter',
@@ -92,7 +114,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private normalizeMessage(message: unknown): string | string[] {
     if (Array.isArray(message)) {
       return message.every((m) => typeof m === 'string')
-        ? (message as string[])
+        ? message
         : 'An unexpected error occurred';
     }
     if (typeof message === 'string') return message;

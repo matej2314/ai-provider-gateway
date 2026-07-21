@@ -9,11 +9,26 @@ import { ChatRequestDto } from '../chat/dto/chat-request.dto';
 import { ChatMessageDto } from '../chat/dto/chat-message.dto';
 import { ChatParamsDto } from '../chat/dto/chat-params.dto';
 import { ChatResponseDto } from '../chat/dto/chat-response.dto';
+import { SseDoneUsageDto } from '../chat/dto/sse-done-payload.dto';
 import { SseMetaPayloadDto } from '../chat/dto/sse-meta-payload.dto';
 import { SseDeltaPayloadDto } from '../chat/dto/sse-delta-payload.dto';
 import { SseDonePayloadDto } from '../chat/dto/sse-done-payload.dto';
 import { ChatOutputTextDto } from '../chat/dto/chat-output-text.dto';
 import { ChatUsageDto } from '../chat/dto/chat-usage.dto';
+import { ChatToolingDto } from '../chat/dto/chat-tooling.dto';
+import { GatewayToolCallDto } from '../common/dtos/gateway-tool-call.dto';
+import { GatewayToolDefinitionDto } from '../common/dtos/gateway-tool-definition.dto';
+import { GatewayNamedToolChoiceDto } from 'src/chat/dto/chat-tooling.dto';
+import { GatewayNamedToolChoiceFunctionDto } from 'src/chat/dto/chat-tooling.dto';
+import { OpenAiChatCompletionRequestDto } from '../integrations/openai/dtos/openai-chat-completion-request.dto';
+import { OpenAiChatCompletionResponseDto } from '../integrations/openai/dtos/openai-chat-completion-response.dto';
+import { OpenAiModelsListResponseDto } from '../integrations/openai/dtos/openai-models-list-response.dto';
+import { OpenAiErrorResponseDto } from '../integrations/openai/dtos/openai-error-response.dto';
+import { AnthropicMessagesRequestDto } from 'src/integrations/anthropic/dtos/anthropic-messages-request.dto';
+import { AnthropicMessagesResponseDto } from 'src/integrations/anthropic/dtos/anthropic-messages-response.dto';
+import { AnthropicModelsListResponseDto } from 'src/integrations/anthropic/dtos/anthropic-models-list-response.dto';
+import { AnthropicErrorResponseDto } from 'src/integrations/anthropic/dtos/anthropic-error-response.dto';
+
 import { OPENAPI_VERSION, SWAGGER_UI_PATH } from './swagger.constants';
 
 const OPENAPI_EXTRA_MODELS = [
@@ -27,8 +42,23 @@ const OPENAPI_EXTRA_MODELS = [
   ChatResponseDto,
   SseMetaPayloadDto,
   SseDeltaPayloadDto,
+  SseDonePayloadDto,
   ChatOutputTextDto,
   ChatUsageDto,
+  ChatToolingDto,
+  GatewayToolCallDto,
+  GatewayToolDefinitionDto,
+  OpenAiChatCompletionRequestDto,
+  OpenAiChatCompletionResponseDto,
+  OpenAiModelsListResponseDto,
+  AnthropicMessagesRequestDto,
+  AnthropicMessagesResponseDto,
+  AnthropicModelsListResponseDto,
+  OpenAiErrorResponseDto,
+  AnthropicErrorResponseDto,
+  GatewayNamedToolChoiceDto,
+  GatewayNamedToolChoiceFunctionDto,
+  SseDoneUsageDto,
 ] as const;
 
 export type SetupSwaggerOptions = {
@@ -48,9 +78,9 @@ function buildSwaggerConfig(port: number) {
   return new DocumentBuilder()
     .setTitle('AI Provider Gateway API')
     .setDescription(
-      'REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/dokumentacja_api.md`.',
+      'REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/pl/dokumentacja_api.md`.',
     )
-    .setVersion('0.12.0')
+    .setVersion(OPENAPI_VERSION)
     .addServer(`http://localhost:${port}`, 'Localhost')
     .addApiKey(
       {
@@ -62,9 +92,28 @@ function buildSwaggerConfig(port: number) {
       },
       'GatewayKeyAuth',
     )
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        description:
+          'OpenAI-compatible Bearer token Required for /openai/* endpopints.',
+      },
+      'BearerAuth',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-api-key',
+        description: 'Anthropic API key. Required for /anthropic/* endpoints.',
+      },
+      'ApiKeyAuth',
+    )
     .addTag('Health', 'Liveness and readiness - without X-Gateway-Key.')
     .addTag('Chat', 'Chat completions (standard + streaming SSE).')
-    .setVersion(OPENAPI_VERSION)
+    .addTag('OpenAI API')
+    .addTag('Anthropic API')
     .build();
 }
 

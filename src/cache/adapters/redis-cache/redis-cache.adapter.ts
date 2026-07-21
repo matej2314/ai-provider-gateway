@@ -1,9 +1,16 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfig } from '../../../config/typed-config';
 import type { CacheBackend } from '../../interfaces/cache-backend-interface';
 import { RedisConnectionService } from './redis-connection.service';
 import { CacheRegistryService } from '../../cache-registry.service';
-import { LoggingService } from 'src/logging/logging.service';
+import { LoggingService } from '../../../logging/logging.service';
+import {
+  asCacheTtlSeconds,
+  unbrand,
+  type CacheKey,
+  type CacheTtlSeconds,
+} from '../../../common/types/branded.types';
 
 @Injectable()
 export class RedisCacheAdapter implements CacheBackend, OnModuleInit {
@@ -29,7 +36,7 @@ export class RedisCacheAdapter implements CacheBackend, OnModuleInit {
     return this.connection.isReady();
   }
 
-  async get(key: string): Promise<string | null> {
+  async get(key: CacheKey): Promise<string | null> {
     const client = this.connection.getClient();
     if (!client) return null;
 
@@ -42,10 +49,18 @@ export class RedisCacheAdapter implements CacheBackend, OnModuleInit {
     }
   }
 
-  async set(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
+  async set(
+    key: CacheKey,
+    value: string,
+    ttlSeconds?: CacheTtlSeconds,
+  ): Promise<boolean> {
     const client = this.connection.getClient();
     if (!client) return false;
-    const ttl = ttlSeconds ?? this.config.get<number>('cache.ttl', 3600);
+    const ttl = unbrand(
+      ttlSeconds ??
+        getAppConfig(this.config, 'cache')?.ttl ??
+        asCacheTtlSeconds(3600),
+    );
 
     try {
       if (ttl > 0) {
@@ -61,7 +76,7 @@ export class RedisCacheAdapter implements CacheBackend, OnModuleInit {
     }
   }
 
-  async delete(key: string): Promise<boolean> {
+  async delete(key: CacheKey): Promise<boolean> {
     const client = this.connection.getClient();
     if (!client) return false;
     try {

@@ -1,88 +1,66 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import { ApiErrorCode } from '../common/errors/api-error.code';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfigOrThrow } from '../config/typed-config';
 import { LoggingService } from '../logging/logging.service';
-import { ChatProviderCallService } from './chat-provider-call.service';
-import { SmartRateLimiterService } from '../rate-limit/smart-rate-limiter.service';
 import { ProviderRegistryService } from '../providers/provider-registry.service';
 import { v4 as uuidv4 } from 'uuid';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
-import { ResilientExecutor } from 'src/common/resilience/resilient-executor';
+import { ResilientExecutor } from './resilience/resilient-executor';
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseEvent } from './sse/sse-event.type';
-import { ResponseCacheService } from '../cache/response-cache.service';
 import { getOrCreateConversationIdForResponse } from './helpers/conversation-id';
 import { getResolvedSystemPrompts } from './helpers/system-prompt';
-import { isCachedChatAllowedForModelAlias } from './helpers/cache-policy';
 import { buildRetryPolicyFromResolved } from './helpers/retry-policy';
-import type { GatewayConfig } from '../config/configuration';
+import { isToolingRequest } from './helpers/tooling-request';
+
+import { ChatProviderCallService } from './services/chat-provider-call.service';
+import { ChatCacheGuardService } from './services/chat-cache-guard.service';
+import { ChatErrorHandlerService } from './services/chat-error-handler.service';
+import { ChatValidationService } from './services/chat-validation.service';
+import { ChatResponseBuilderService } from './services/chat-response-builder.service';
+import { ActiveStreamsTracker } from '../observability/app-metrics/active-streams.tracker';
+import { validateChatIngress } from './validation/chat-ingress.validator';
+import type { ChatIngressProfile } from './validation/chat-ingress.types';
+import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
+import {
+  asProviderInstanceId,
+  asModelAlias,
+  asResponseId,
+  type GatewayKey,
+  type RequestId,
+  type ModelAlias,
+  ClientId,
+} from '../common/types/branded.types';
 
 @Injectable()
 export class ChatService {
   constructor(
     private readonly registry: ProviderRegistryService,
     private readonly config: ConfigService,
-    private readonly providerCallService: ChatProviderCallService,
-    private readonly cacheService: ResponseCacheService,
-    private readonly rateLimiter: SmartRateLimiterService,
     private readonly loggingService: LoggingService,
     private readonly resilientExecutor: ResilientExecutor,
+    private readonly providerCallService: ChatProviderCallService,
+    private readonly cacheGuardService: ChatCacheGuardService,
+    private readonly errorHandlerService: ChatErrorHandlerService,
+    private readonly responseBuilderService: ChatResponseBuilderService,
+    private readonly validationService: ChatValidationService,
+    private readonly activeStreams: ActiveStreamsTracker,
   ) {}
 
-  private async handleProviderError(
-    log: LoggingService,
-    error: unknown,
-    providerName: string,
-    gatewayKey?: string,
-  ): Promise<void> {
-    if (
-      gatewayKey &&
-      error instanceof HttpException &&
-      error.getStatus() === 429
-    ) {
-      await this.rateLimiter.setCooldown(gatewayKey, providerName);
-    }
-
-    if (error instanceof HttpException) {
-      const status = error.getStatus();
-      const body = error.getResponse();
-      const ctx: Record<string, unknown> = {
-        provider: providerName,
-        status,
-      };
-      if (body && typeof body === 'object' && !Array.isArray(body)) {
-        const o = body as Record<string, unknown>;
-        if (typeof o.code === 'string') ctx.code = o.code;
-      }
-      if (status === 429) {
-        log.warn('Chat provider rate limited', ctx);
-      } else if (status < 500) {
-        log.warn('Chat provider request failed', ctx);
-      }
-      return;
-    }
-
-    if (error instanceof Error) {
-      log.warn('Chat provider call failed', {
-        provider: providerName,
-        message: error.message,
-      });
-    }
+  validateForStreaming(modelAlias: string) {
+    return this.validationService.validateForStreaming(modelAlias);
   }
 
-  async executeChat(
+  async prepareRequestForExecution(
     requestBody: ChatRequestDto,
-    requestId: string,
-    gatewayKey: string,
-  ) {
-    const log = this.loggingService.child({
-      module: 'ChatService',
-      requestId,
-      modelAlias: requestBody.modelAlias,
-    });
+    requestId: RequestId,
+    ingressProfile: ChatIngressProfile,
+    gatewayKey: GatewayKey,
+  ): Promise<ChatExecutionPrep> {
+    validateChatIngress(requestBody, ingressProfile);
 
-    const resolvedPrompts = getResolvedSystemPrompts((key) =>
-      this.config.get(key),
+    const resolvedPrompts = getResolvedSystemPrompts(() =>
+      getAppConfigOrThrow(this.config, 'resolvedSystemPrompts'),
     );
 
     const responseConversationId =
@@ -90,70 +68,94 @@ export class ChatService {
 
     const primaryResolved = this.registry.resolve(requestBody.modelAlias);
 
+    this.validationService.validateTooling(requestBody, primaryResolved);
+
     const options = resolveProviderCallOptions(
       primaryResolved.params,
       requestBody.params,
     );
 
+    this.validationService.validateThinking(primaryResolved, options);
+
     if (gatewayKey) {
-      const cooldownResult = await this.rateLimiter.checkCooldown(
+      await this.cacheGuardService.checkRateLimit(
         gatewayKey,
         primaryResolved.providerName,
+        requestId,
       );
+    }
 
-      if (!cooldownResult.allowed) {
-        log.warn('Rate limit exceeded', {
-          provider: primaryResolved.providerName,
-          status: 429,
-          code: ApiErrorCode.RATE_LIMITED,
-        });
+    return {
+      primaryResolved,
+      options,
+      responseConversationId,
+      resolvedPrompts,
+    };
+  }
 
-        throw new HttpException(
-          {
-            statusCode: 429,
-            code: ApiErrorCode.RATE_LIMITED,
-            message: cooldownResult.reason || 'Rate limit exceeded',
-            requestId: requestId,
-            details: [],
-          },
-          429,
-        );
-      }
+  async executeChat(
+    requestBody: ChatRequestDto,
+    clientId: ClientId,
+    requestId: RequestId,
+    gatewayKey: GatewayKey,
+    ingressProfile: ChatIngressProfile,
+  ) {
+    const {
+      primaryResolved,
+      options,
+      responseConversationId,
+      resolvedPrompts,
+    } = await this.prepareRequestForExecution(
+      requestBody,
+      requestId,
+      ingressProfile,
+      gatewayKey,
+    );
 
-      const cachedResponse = await this.cacheService.getCachedResponse(
+    const log = this.loggingService.child({
+      module: 'ChatService',
+      requestId,
+      modelAlias: requestBody.modelAlias,
+    });
+
+    if (gatewayKey) {
+      const cachedResponse = await this.cacheGuardService.getCachedIfAllowed(
         requestBody,
         options,
       );
 
-      if (
-        cachedResponse &&
-        isCachedChatAllowedForModelAlias(
-          this.config.get<GatewayConfig>('gateway'),
-          requestBody.modelAlias,
-        )
-      ) {
+      if (cachedResponse) {
         log.info('Chat cache hit');
-        return cachedResponse;
+        return {
+          ...cachedResponse,
+          conversationId: responseConversationId,
+        };
       }
     }
 
     const startedAt = Date.now();
 
-    const runOnce = async (alias: string, _attemptNo: number) => {
-      const { response, resolved } =
-        await this.providerCallService.completeOnce(
-          requestBody,
-          alias,
-          requestId,
-          resolvedPrompts,
-        );
-      return { response, resolved };
+    const runOnce = async (
+      alias: ModelAlias,
+      _attemptNo: number,
+      signal: AbortSignal,
+    ) => {
+      return this.providerCallService.completeOnce(
+        requestBody,
+        alias,
+        requestId,
+        clientId,
+        resolvedPrompts,
+        signal,
+      );
     };
 
     try {
       const result = await this.resilientExecutor.executeWithRetryAndFallback({
-        primaryAlias: requestBody.modelAlias,
-        fallbackAlias: primaryResolved.fallbackAlias,
+        primaryAlias: asModelAlias(requestBody.modelAlias),
+        fallbackAlias: isToolingRequest(requestBody)
+          ? undefined
+          : primaryResolved.fallbackAlias,
         retry: buildRetryPolicyFromResolved(primaryResolved),
         runOnce,
         requestId,
@@ -163,29 +165,35 @@ export class ChatService {
       const usedAlias = result.usedAlias;
       const didFallback = result.didFallback;
 
-      const chatResult = {
-        id: `gw_${uuidv4()}`,
-        provider: resolved.providerName,
-        model: requestBody.modelAlias,
-        ...(didFallback && { effectiveModelAlias: usedAlias }),
-        output: {
-          type: 'text',
+      const chatResult = this.responseBuilderService.buildChatResponse(
+        {
           text: response.text,
+          usage: response.usage,
+          toolCalls: response.toolCalls,
+          stopReason: response.stopReason,
+          usageDetails: response.usageDetails,
+          systemFingerprint: response.systemFingerprint,
+          thinkingContent: response.thinkingContent,
         },
-        usage: response.usage,
-        requestId: requestId,
-        conversationId: responseConversationId,
-      };
+        resolved.providerName,
+        asModelAlias(requestBody.modelAlias),
+        requestId,
+        responseConversationId,
+        didFallback ? usedAlias : undefined,
+        options,
+        resolved.providerType,
+      );
 
       const latency = Date.now() - startedAt;
 
-      await this.cacheService.setCachedResponse(
+      await this.cacheGuardService.setCachedIfAllowed(
         requestBody,
         chatResult,
         options,
       );
+
       log.info('Chat completed successfully', {
-        provider: resolved.providerName,
+        provider: asProviderInstanceId(resolved.providerName),
         modelId: resolved.modelId,
         latency,
         tokensUsed:
@@ -201,7 +209,7 @@ export class ChatService {
       });
       return chatResult;
     } catch (error) {
-      await this.handleProviderError(
+      await this.errorHandlerService.handleProviderError(
         log,
         error,
         primaryResolved.providerName,
@@ -211,111 +219,118 @@ export class ChatService {
     }
   }
 
-  validateForStreaming(modelAlias: string) {
-    const log = this.loggingService.child({
-      module: 'ChatService',
-      modelAlias: modelAlias,
-    });
-    const resolved = this.registry.resolve(modelAlias);
-    if (!resolved.capabilities?.streaming) {
-      log.warn('Streaming not supported for this model', {
-        provider: resolved.providerName,
-        code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
-      });
-      throw new HttpException(
-        {
-          code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
-          message: 'Streaming not supported for this model.',
-          details: [],
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-    if (!resolved.provider.stream) {
-      log.warn('Streaming adapter not implemented for this provider', {
-        provider: resolved.providerName,
-        code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
-      });
-      throw new HttpException(
-        {
-          code: ApiErrorCode.STREAMING_NOT_SUPPORTED,
-          message: 'Streaming adapter not implemented for this provider.',
-          details: [],
-        },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-  }
-
   async executeStream(
     requestBody: ChatRequestDto,
-    requestId: string,
+    requestId: RequestId,
+    clientId: ClientId,
     emit: (event: SseEvent) => void,
+    ingressProfile: ChatIngressProfile,
+    gatewayKey: GatewayKey,
   ): Promise<void> {
+    const {
+      primaryResolved,
+      options,
+      responseConversationId,
+      resolvedPrompts,
+    } = await this.prepareRequestForExecution(
+      requestBody,
+      requestId,
+      ingressProfile,
+      gatewayKey,
+    );
+
     const log = this.loggingService.child({
       module: 'ChatService',
       requestId,
       modelAlias: requestBody.modelAlias,
     });
 
-    const resolvedPrompts = getResolvedSystemPrompts((key) =>
-      this.config.get(key),
-    );
-
-    const responseConversationId =
-      getOrCreateConversationIdForResponse(requestBody);
-
-    const primaryResolved = this.registry.resolve(requestBody.modelAlias);
-
     const startedAt = Date.now();
-    const id = `gw_${uuidv4()}`;
+    const id = asResponseId(`gw_${uuidv4()}`);
     const metaEmitted = { value: false };
 
-    const runOnce = async (alias: string, attemptNo: number) => {
-      const { assembledText, usageMetadata } =
-        await this.providerCallService.streamOnce({
-          requestBody,
-          alias,
-          requestId,
-          resolvedPrompts,
-          emit,
-          streamMeta: {
-            gatewayId: id,
-            primaryModelAlias: requestBody.modelAlias,
-            responseConversationId,
-            metaEmitted,
-          },
-        });
+    const runOnce = async (
+      alias: ModelAlias,
+      _attemptNo: number,
+      signal: AbortSignal,
+    ) => {
+      const streamResult = await this.providerCallService.streamOnce({
+        requestBody,
+        alias,
+        requestId,
+        clientId,
+        resolvedPrompts,
+        emit,
+        streamMeta: {
+          gatewayId: id,
+          primaryModelAlias: asModelAlias(requestBody.modelAlias),
+          responseConversationId,
+          metaEmitted,
+        },
+        signal,
+      });
+
       const resolved = this.registry.resolve(alias);
-      return { resolved, assembledText, usageMetadata };
+      return {
+        ...streamResult,
+        resolved,
+      };
     };
 
     try {
-      const result = await this.resilientExecutor.executeWithRetryAndFallback({
-        primaryAlias: requestBody.modelAlias,
-        fallbackAlias: primaryResolved.fallbackAlias,
-        retry: buildRetryPolicyFromResolved(primaryResolved),
-        runOnce,
-        requestId,
-      });
+      const result = await this.activeStreams.trackStream(clientId, () =>
+        this.resilientExecutor.executeWithRetryAndFallback({
+          primaryAlias: asModelAlias(requestBody.modelAlias),
+          fallbackAlias: isToolingRequest(requestBody)
+            ? undefined
+            : primaryResolved.fallbackAlias,
+          retry: buildRetryPolicyFromResolved(primaryResolved),
+          runOnce,
+          requestId,
+        }),
+      );
 
-      const { resolved } = result.value;
+      const {
+        resolved,
+        toolCalls,
+        stopReason,
+        usageMetadata,
+        systemFingerprint,
+        thinkingContent,
+        usageDetails,
+      } = result.value;
       const usedAlias = result.usedAlias;
       const didFallback = result.didFallback;
 
-      emit({ name: 'done', data: {} });
+      const doneEvent = this.responseBuilderService.buildStreamDoneEvent(
+        usageMetadata,
+        toolCalls,
+        stopReason,
+        systemFingerprint,
+        thinkingContent,
+        options,
+        resolved.providerType,
+        usageDetails,
+        didFallback ? usedAlias : undefined,
+      );
+      emit(doneEvent);
 
       const latency = Date.now() - startedAt;
 
       log.info('Chat stream completed', {
-        provider: resolved.providerName,
+        provider: asProviderInstanceId(resolved.providerName),
         modelId: resolved.modelId,
         latency,
         conversationId: responseConversationId,
         ...(didFallback && { effectiveModelAlias: usedAlias }),
       });
     } catch (error) {
-      await this.handleProviderError(log, error, primaryResolved.providerName);
+      await this.errorHandlerService.handleProviderError(
+        log,
+        error,
+        primaryResolved.providerName,
+        gatewayKey,
+      );
       throw error;
     }
   }

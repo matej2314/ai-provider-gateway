@@ -17,6 +17,7 @@ lerna-debug.log*
 
 # Tests
 /coverage
+/coverage-security
 /.nyc_output
 
 # IDEs and editors
@@ -56,6 +57,9 @@ pids
 *.seed
 *.pid.lock
 
+gateway.config.old.yaml
+.env.old
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 PLAN_IMPLEMENTACJI.md
@@ -66,11 +70,15 @@ conversation_id_refactor.md
 body-params-refactor.md
 api-documentation-finalize.md
 integrations-plan.md
-gateway-to-contracts.md
+gateway-to-contracts-last-step.md
+
 tools_implementation.md
 cli-implementation-plan.md
-gateway.config.PLACEHOLDER.yaml
-gateway.config.old.yaml
+backup/*
+
 .env.test
+.env.example.old
+gateway.config.placeholder.yaml
+
 production-readiness-plan.md
-coverage-security/*
+prometheus-grafana-implementation-plan.md

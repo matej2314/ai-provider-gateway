@@ -2,11 +2,6 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { z } from 'zod';
-import type {
-  ResolvedSystemPrompts,
-  ResolvedGatewayClient,
-  GatewayKeyRuntimeConfig,
-} from './configuration.types';
 import {
   readRequiredPrompt,
   tryReadOptionalPrompts,
@@ -17,6 +12,16 @@ import {
   GatewayConfig,
   GatewayModelConfig,
 } from './gateway-config.schema';
+
+import { isOpenAiProviderType } from './provider-types';
+import { resolveBaseUrlFromEnv } from './provider-base-url.validation';
+
+import type {
+  ResolvedSystemPrompts,
+  ResolvedGatewayClient,
+  GatewayKeyRuntimeConfig,
+} from './configuration.types';
+import type { AppConfiguration } from './app-configuration.types';
 
 export type {
   GatewayConfig,
@@ -29,22 +34,38 @@ export type {
   GatewayParamsConfig,
   GatewayParamsBoundConfig,
 } from './gateway-config.schema';
+import { GatewayProviderType } from './provider-types';
+import { parseCacheBackend, type ValidatedEnvironment } from './env.validation';
+import {
+  assertEnabledProviderSecretsPresent,
+  assertMasterKeyPresent,
+  validateEnvironment,
+} from './configuration-validation.service';
+import { asGatewayKey, type GatewayKey } from '../common/types';
+import {
+  asProviderInstanceId,
+  asRateLimitBurst,
+  asRateLimitRps,
+  asMaxConcurrentStreams,
+  asCacheTtlSeconds,
+  asPort,
+} from 'src/common/types/branded.types';
 
 export { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
+export { assertMasterKeyPresent } from './configuration-validation.service';
+
+export interface ProviderInstanceRuntime {
+  type: GatewayProviderType;
+  apiKeyRef: string;
+  apiKey: string;
+  baseUrlRef?: string;
+  baseUrl?: string;
+  apiSurface?: 'chat-completions';
+}
 
 const MASTER_PROMPT = 'src/config/system-prompt/MASTER_SYSTEM_PROMPT.md';
 const MAIN_PROMPT = 'src/config/system-prompt/MAIN_SYSTEM_PROMPT.md';
 const MODEL_PROMPTS = 'src/config/system-prompt/models/';
-
-export function assertMasterKeyPresent(
-  config: Pick<GatewayConfig, 'masterKeyRef'>,
-  env: NodeJS.ProcessEnv = process.env,
-) {
-  const masterRaw = (env[config.masterKeyRef] ?? '').trim();
-  if (!masterRaw) {
-    throw new Error('[GatewayKey] Missing master key.');
-  }
-}
 
 function buildGatewayKeyRuntime(
   config: GatewayConfig,
@@ -56,29 +77,29 @@ function buildGatewayKeyRuntime(
 
   const clients: ResolvedGatewayClient[] = [];
   for (const [instanceId, row] of Object.entries(config.clients)) {
-    const gatewayKey = (env[row.gatewayKeyRef] ?? '').trim();
+    const gatewayKeyRaw = (env[row.gatewayKeyRef] ?? '').trim();
     clients.push({
-      instanceId,
+      instanceId: asProviderInstanceId(instanceId),
       name: row.name,
       type: row.type,
       gatewayKeyRef: row.gatewayKeyRef,
-      gatewayKey,
+      gatewayKey: asGatewayKey(gatewayKeyRaw),
       rateLimit: row.rateLimit,
     });
   }
 
-  const allow = new Set<string>();
-  allow.add(masterRaw);
+  const allow = new Set<GatewayKey>();
+  allow.add(asGatewayKey(masterRaw));
   for (const client of clients) {
     if (client.gatewayKey) allow.add(client.gatewayKey);
   }
-  console.log(
+  console.error(
     'Registered clients:',
     clients.map((c) => ({ name: c.name, type: c.type })),
   );
   return {
     allowList: [...allow],
-    masterKey: masterRaw,
+    masterKey: asGatewayKey(masterRaw),
     clients,
   };
 }
@@ -124,14 +145,7 @@ export function buildEffectiveGatewayConfig(
     }
   }
 
-  for (const [instanceId, row] of Object.entries(effectiveProviders)) {
-    const apiKey = (env[row.apiKeyRef] ?? '').trim();
-    if (!apiKey) {
-      throw new Error(
-        `[GatewayConfig] Missing API key for enabled provider instance "${instanceId}" (expected non-empty env ${row.apiKeyRef})`,
-      );
-    }
-  }
+  assertEnabledProviderSecretsPresent(raw, env);
 
   return {
     ...raw,
@@ -177,9 +191,12 @@ export function loadGatewayConfigFromFile(): GatewayConfig {
   }
 }
 
-export default () => {
+export function buildAppConfiguration(
+  rawEnv: NodeJS.ProcessEnv = process.env,
+): AppConfiguration {
+  const env: ValidatedEnvironment = validateEnvironment(rawEnv);
   const gatewayConfig = loadGatewayConfigFromFile();
-  const gatewayKey = buildGatewayKeyRuntime(gatewayConfig);
+  const gatewayKey = buildGatewayKeyRuntime(gatewayConfig, rawEnv);
 
   const cwd = process.cwd();
   const master = readRequiredPrompt(
@@ -203,39 +220,67 @@ export default () => {
     perModelByAlias,
   };
 
-  const providersByType: Record<string, { apiKey: string }> = {};
+  const providersByInstance: Record<string, ProviderInstanceRuntime> = {};
 
-  for (const instance of Object.values(gatewayConfig.providers)) {
-    providersByType[instance.type] = {
-      apiKey: process.env[instance.apiKeyRef] ?? '',
+  for (const [instanceId, row] of Object.entries(gatewayConfig.providers)) {
+    const base: ProviderInstanceRuntime = {
+      type: row.type,
+      apiKeyRef: row.apiKeyRef,
+      apiKey: (rawEnv[row.apiKeyRef] ?? '').trim(),
     };
+
+    if (isOpenAiProviderType(row.type)) {
+      providersByInstance[instanceId] = {
+        ...base,
+        baseUrlRef: row.baseUrlRef,
+        baseUrl: resolveBaseUrlFromEnv(row.baseUrlRef, rawEnv),
+        ...(row.type === 'openai-compatible' && {
+          apiSurface: row.apiSurface ?? 'chat-completions',
+        }),
+      };
+    } else {
+      providersByInstance[instanceId] = base;
+    }
   }
 
-  const cacheEnabled = process.env.CACHE_ENABLED === 'true';
-  const cacheBackendRaw = (process.env.CACHE_BACKEND || 'noop').toLowerCase();
+  const cacheEnabled = env.CACHE_ENABLED ?? false;
+
   const cacheConfig = {
     enabled: cacheEnabled,
-    backend: cacheEnabled ? cacheBackendRaw : 'noop',
-    ttl: parseInt(process.env.CACHE_TTL || '3600', 10),
-    keyPrefix: process.env.CACHE_KEY_PREFIX || 'aigw:',
+    backend: parseCacheBackend(env.CACHE_BACKEND, cacheEnabled),
+    ttl: asCacheTtlSeconds(env.CACHE_TTL ?? 3600),
+    keyPrefix: env.CACHE_KEY_PREFIX ?? 'aigw:',
   };
 
   const redisConfig = {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    password: process.env.REDIS_PASSWORD || '',
-    db: parseInt(process.env.REDIS_DB || '0', 10),
-    keyPrefix: process.env.REDIS_KEY_PREFIX || 'aigw:',
+    host: env.REDIS_HOST ?? 'localhost',
+    port: asPort(env.REDIS_PORT ?? 6379),
+    password: env.REDIS_PASSWORD ?? '',
+    db: env.REDIS_DB ?? 0,
+    keyPrefix: env.REDIS_KEY_PREFIX ?? 'aigw:',
   };
+
+  const rateLimitSmartEnabled = env.RATE_LIMIT_SMART_ENABLED ?? false;
 
   return {
     gateway: gatewayConfig,
     gatewayKey,
-    port: parseInt(process.env.PORT || '3000', 10),
-    nodeEnv: process.env.NODE_ENV || 'development',
-    providers: providersByType,
+    port: asPort(parseInt(rawEnv.PORT || '3000', 10)),
+    nodeEnv: rawEnv.NODE_ENV || 'development',
+    providers: providersByInstance,
     resolvedSystemPrompts: systemPromptsResolved,
     cache: cacheConfig,
     redis: redisConfig,
+    RATE_LIMIT_SMART_ENABLED: rateLimitSmartEnabled,
+    rateLimit: {
+      rps: asRateLimitRps(env.RATE_LIMIT_RPS_PER_KEY ?? 10),
+      burst: asRateLimitBurst(env.RATE_LIMIT_BURST_PER_KEY ?? 20),
+      maxConcurrentStreams: asMaxConcurrentStreams(
+        env.RATE_LIMIT_STREAMS_CONCURRENT ?? 3,
+      ),
+      cooldownAfter429: env.RATE_LIMIT_COOLDOWN_AFTER_429 ?? 60,
+    },
   };
-};
+}
+
+export default () => buildAppConfiguration();

@@ -1,34 +1,83 @@
 import { z } from 'zod';
-import { PROVIDER_TYPES } from './provider-types';
+import { isOpenAiProviderType, PROVIDER_TYPES } from './provider-types';
+import { GATEWAY_CLIENT_TYPES } from './configuration.types';
+import { asEnvRef } from '../common/types';
+import {
+  asMaxAttempts,
+  asMaxConcurrentStreams,
+  asProviderInstanceId,
+  asRateLimitBurst,
+  asRateLimitRps,
+  asTimeoutMs,
+} from 'src/common/types/branded.types';
 
 export const EXPECTED_SCHEMA_VERSION = 1;
+
+export const OpenAiCompatibleApiSurfaceSchema = z.enum(['chat-completions']);
+
+export const EnvRefSchema = z.string().min(1).transform(asEnvRef);
+
+export const optionalEnvRefSchema = z
+  .string()
+  .min(1)
+  .optional()
+  .transform((value) => (value === undefined ? undefined : asEnvRef(value)));
 
 export const GatewayConfigSchema = z
   .object({
     schemaVersion: z.number().int().min(1),
-    masterKeyRef: z.string().min(1),
+    masterKeyRef: EnvRefSchema,
     providers: z
       .record(
         z.string(),
         z.object({
           type: z.enum(PROVIDER_TYPES),
-          apiKeyRef: z.string(),
+          apiKeyRef: EnvRefSchema,
           enabled: z.boolean().optional().default(false),
+          baseUrlRef: optionalEnvRefSchema,
+          apiSurface: OpenAiCompatibleApiSurfaceSchema.optional(),
         }),
       )
       .superRefine((providers, ctx) => {
-        const byType = new Map<string, string[]>();
-        for (const [instanceName, config] of Object.entries(providers)) {
-          const list = byType.get(config.type) ?? [];
-          list.push(instanceName);
-          byType.set(config.type, list);
-        }
-        for (const [type, instances] of byType) {
-          if (instances.length > 1) {
+        const refs = new Map<string, string>();
+        for (const [instanceId, row] of Object.entries(providers)) {
+          const prev = refs.get(row.apiKeyRef);
+          if (prev) {
             ctx.addIssue({
               code: 'custom',
-              message: `Provider type ${type} is declared more than once (instances: ${instances.join(',')}). Only one instance per type is allowed.`,
-              path: ['providers', type],
+              message: `Duplicate API key reference ${row.apiKeyRef}`,
+              path: ['providers', instanceId, 'apiKeyRef'],
+            });
+          }
+          refs.set(row.apiKeyRef, instanceId);
+
+          if (isOpenAiProviderType(row.type)) {
+            if (!row.baseUrlRef?.trim()) {
+              ctx.addIssue({
+                code: 'custom',
+                message: `baseUrlRef is required for provider type ${row.type}`,
+                path: ['providers', instanceId, 'baseUrlRef'],
+              });
+            }
+          }
+
+          if (row.type === 'openai' && row.apiSurface !== undefined) {
+            ctx.addIssue({
+              code: 'custom',
+              message: `apiSurface is not supported for type "openai" (always uses Responses API). Remove apiSurface from provider "${instanceId}".`,
+              path: ['providers', instanceId, 'apiSurface'],
+            });
+          }
+
+          if (
+            row.type === 'openai-compatible' &&
+            row.apiSurface !== undefined &&
+            row.apiSurface !== 'chat-completions'
+          ) {
+            ctx.addIssue({
+              code: 'custom',
+              message: `apiSurface for openai-compatible must be "chat-completions" or omitted.`,
+              path: ['providers', instanceId, 'apiSurface'],
             });
           }
         }
@@ -38,20 +87,17 @@ export const GatewayConfigSchema = z
         z.string(),
         z.object({
           name: z.string().min(1),
-          type: z.enum([
-            'webapp',
-            'ide',
-            'cli',
-            'service',
-            'backend',
-            'automation',
-          ]),
-          gatewayKeyRef: z.string().min(1),
+          type: z.enum(GATEWAY_CLIENT_TYPES),
+          gatewayKeyRef: EnvRefSchema,
           rateLimit: z
             .object({
-              rps: z.number().int().min(1),
-              burst: z.number().int().min(1),
-              maxConcurrentStreams: z.number().int().min(1),
+              rps: z.number().int().min(1).transform(asRateLimitRps),
+              burst: z.number().int().min(1).transform(asRateLimitBurst),
+              maxConcurrentStreams: z
+                .number()
+                .int()
+                .min(1)
+                .transform(asMaxConcurrentStreams),
             })
             .optional(),
         }),
@@ -60,25 +106,41 @@ export const GatewayConfigSchema = z
     models: z.record(
       z.string(),
       z.object({
-        providerInstance: z.string(),
+        providerInstance: z.string().transform(asProviderInstanceId),
         modelId: z.string(),
         fallback: z.string().min(1).optional(),
         capabilities: z
           .object({
             streaming: z.boolean().optional(),
             tools: z.boolean().optional(),
+            thinking: z.boolean().default(false).optional(),
           })
           .optional()
           .default({}),
         policy: z
           .object({
-            timeoutMs: z.number().int().min(1).optional(),
+            timeoutMs: z
+              .number()
+              .int()
+              .min(1)
+              .optional()
+              .transform((value) =>
+                value === undefined ? undefined : asTimeoutMs(value),
+              ),
             retry: z
               .object({
-                maxAttempts: z.number().int().min(1).max(5).optional(),
+                maxAttempts: z
+                  .number()
+                  .int()
+                  .min(1)
+                  .max(5)
+                  .optional()
+                  .transform((value) =>
+                    value === undefined ? undefined : asMaxAttempts(value),
+                  ),
                 onStatus: z.array(z.number().int().min(1)).optional(),
               })
-              .optional()
+              .partial()
               .default({}),
             params: z
               .object({
@@ -86,6 +148,11 @@ export const GatewayConfigSchema = z
                   .object({
                     temperature: z.number().min(0).max(2).optional(),
                     maxOutputTokens: z.number().int().min(1).optional(),
+                    topP: z.number().min(0).max(1).optional(),
+                    frequencyPenalty: z.number().min(-2).max(2).optional(),
+                    presencePenalty: z.number().min(-2).max(2).optional(),
+                    seed: z.number().int().optional(),
+                    thinkingEnabled: z.boolean().optional(),
                   })
                   .optional()
                   .default({}),
@@ -104,6 +171,15 @@ export const GatewayConfigSchema = z
                         max: z.number().max(8192),
                       })
                       .optional(),
+                    topP: z
+                      .object({ min: z.number(), max: z.number() })
+                      .optional(),
+                    frequencyPenalty: z
+                      .object({ min: z.number(), max: z.number() })
+                      .optional(),
+                    presencePenalty: z
+                      .object({ min: z.number(), max: z.number() })
+                      .optional(),
                   })
                   .optional()
                   .default({}),
@@ -117,6 +193,7 @@ export const GatewayConfigSchema = z
           })
           .optional()
           .default({
+            timeoutMs: undefined,
             retry: {},
             params: {
               defaults: {},

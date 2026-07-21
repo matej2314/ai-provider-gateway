@@ -1,0 +1,20 @@
+import {
+  asModelAlias,
+  asModelId,
+  asProviderInstanceId,
+} from '../../../src/common/types';
+
+export const INTEGRATION_OPENAI_API_KEY_REF = 'INTEGRATION_OPENAI_API_KEY';
+export const INTEGRATION_OPENAI_BASE_URL_REF = 'INTEGRATION_OPENAI_BASE_URL';
+export const INTEGRATION_OPENAI_PROVIDER_INSTANCE = 'openai-it';
+export const INTEGRATION_OPENAI_MODEL_ALIAS = 'it-openai-chat';
+export const INTEGRATION_OPENAI_MODEL_ID = 'gpt-4o-mini';
+
+export const INTEGRATION_OPENAI_MODEL_ALIAS_BRANDED = asModelAlias(
+  INTEGRATION_OPENAI_MODEL_ALIAS,
+);
+export const INTEGRATION_OPENAI_MODEL_ID_BRANDED = asModelId(
+  INTEGRATION_OPENAI_MODEL_ID,
+);
+export const INTEGRATION_OPENAI_PROVIDER_INSTANCE_BRANDED =
+  asProviderInstanceId(INTEGRATION_OPENAI_PROVIDER_INSTANCE);

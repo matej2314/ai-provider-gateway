@@ -1,15 +1,21 @@
 import { ChatRequestDto } from '../dto/chat-request.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { type ConversationId } from '../../common/types/branded.types';
+import { createConversationId } from '../../common/types/branded.guards';
 
 export function getClientConversationId(
   requestBody: ChatRequestDto,
-): string | undefined {
+): ConversationId | undefined {
   const id = requestBody.conversationId?.trim();
-  return id || undefined;
+  if (!id) return undefined;
+  return createConversationId(id);
 }
 
 export function getOrCreateConversationIdForResponse(
   requestBody: ChatRequestDto,
-): string {
-  return getClientConversationId(requestBody) ?? `conv_${uuidv4()}`;
+): ConversationId {
+  return (
+    getClientConversationId(requestBody) ??
+    createConversationId(`conv_${uuidv4()}`)
+  );
 }

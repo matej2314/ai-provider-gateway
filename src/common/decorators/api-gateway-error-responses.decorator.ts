@@ -1,7 +1,6 @@
-import { applyDecorators, Type } from '@nestjs/common';
+import { applyDecorators } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 import { ErrorEnvelopeDto } from '../dtos/error-envelope.dto';
-import { ApiErrorCode } from '../errors/api-error.code';
 
 export function ApiGatewayChatErrorResponses() {
   return applyDecorators(

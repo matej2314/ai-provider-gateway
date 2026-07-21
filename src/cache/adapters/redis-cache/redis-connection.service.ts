@@ -5,7 +5,9 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfigOrThrow } from '../../../config/typed-config';
 import { LoggingService } from '../../../logging/logging.service';
+import { isRedisRequiredFromConfig } from '../../should-include-redis-stack';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -23,19 +25,11 @@ export class RedisConnectionService
   }
 
   async onModuleInit(): Promise<void> {
-    const redis = this.config.get<{
-      host: string;
-      port: number;
-      password: string;
-      db: number;
-    }>('redis');
-
-    if (!redis) {
-      this.logger.warn(
-        'Redis config missing. Redis client will not be created.',
-      );
+    if (!isRedisRequiredFromConfig(this.config)) {
       return;
     }
+
+    const redis = getAppConfigOrThrow(this.config, 'redis');
 
     const password =
       redis.password && redis.password.trim().length > 0
@@ -48,16 +42,9 @@ export class RedisConnectionService
         port: redis.port,
         password,
         db: redis.db,
-        lazyConnect: false,
+        lazyConnect: true,
         maxRetriesPerRequest: 2,
         retryStrategy: (times: number) => Math.min(times * 100, 3000),
-      });
-
-      await this.client.ping();
-      this.logger.info('Redis connected.', {
-        host: redis.host,
-        port: redis.port,
-        db: redis.db,
       });
 
       this.client.on('error', (err) => {
@@ -71,6 +58,14 @@ export class RedisConnectionService
           host: this.client?.options.host,
           port: this.client?.options.port,
         });
+      });
+
+      await this.client.connect();
+      await this.client.ping();
+      this.logger.info('Redis connected.', {
+        host: redis.host,
+        port: redis.port,
+        db: redis.db,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -115,5 +110,18 @@ export class RedisConnectionService
 
   isReady(): boolean {
     return this.client !== null && this.client.status === 'ready';
+  }
+
+  async ping(): Promise<boolean> {
+    if (!this.isReady() || !this.client) {
+      return false;
+    }
+
+    try {
+      const result = await this.client.ping();
+      return result === 'PONG';
+    } catch {
+      return false;
+    }
   }
 }

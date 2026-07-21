@@ -3,9 +3,9 @@ import {
   HttpException,
   HttpStatus,
   InternalServerErrorException,
-  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfigOrThrow } from '../config/typed-config';
 import { AIProvider } from './interfaces/ai-provider.interface';
 import {
   GatewayConfig,
@@ -13,31 +13,55 @@ import {
   GatewayCapabilitiesConfig,
   GatewayParamsConfig,
 } from '../config/configuration';
+import { isOpenAiProviderType } from '../config/provider-types';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { UnsupportedProviderException } from '../common/exceptions/unsupported-provider.exception';
 import { LoggingService } from '../logging/logging.service';
-import { RETRY_POLICY_DEFAULTS } from 'src/common/retry-policy-defaults';
+
+import { RETRY_POLICY_DEFAULTS } from '../common/retry-policy-defaults';
+import type { ProviderToolCall } from './interfaces/ai-provider.interface';
+import type { GatewayProviderType } from '../config/provider-types';
+import type { OpenAiApiSurface } from './openai/openai-provider.types';
+import {
+  asModelAlias,
+  asModelId,
+  type MaxAttempts,
+  type ModelId,
+  type ModelAlias,
+  type TimeoutMs,
+  ProviderInstanceId,
+} from '../common/types/branded.types';
+
+export interface RegisteredProviderInstance {
+  instanceId: ProviderInstanceId;
+  type: GatewayProviderType;
+  provider: AIProvider;
+}
 
 export interface ResolvedProviderConfig {
   provider: AIProvider;
-  providerName: string;
-  modelId: string;
-  modelAlias: string;
-  fallbackAlias?: string;
+  providerName: ProviderInstanceId;
+  modelId: ModelId;
+  modelAlias: ModelAlias;
+  fallbackAlias?: ModelAlias;
   capabilities: GatewayCapabilitiesConfig;
   policy?: {
-    timeoutMs?: number;
+    timeoutMs?: TimeoutMs;
     retry?: {
-      maxAttempts?: number;
+      maxAttempts?: MaxAttempts;
       onStatus?: number[];
     };
   };
   params?: GatewayParamsConfig;
+  toolCalls?: ProviderToolCall[];
+  providerType: GatewayProviderType;
+  /** Present for OpenAI / openai-compatible instances only. */
+  openAiApiSurface?: OpenAiApiSurface;
 }
 
 @Injectable()
-export class ProviderRegistryService implements OnApplicationBootstrap {
-  private providers = new Map<string, { provider: AIProvider; name: string }>();
+export class ProviderRegistryService {
+  private instances = new Map<ProviderInstanceId, RegisteredProviderInstance>();
   private readonly logger: LoggingService;
 
   constructor(
@@ -47,26 +71,28 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
     this.logger = loggingService.child({ module: 'ProviderRegistryService' });
   }
 
-  register(providerName: string, provider: AIProvider) {
-    this.providers.set(providerName, { provider, name: providerName });
-    this.logger.debug('Registered provider:', {
-      provider: providerName,
-      adapter: provider.constructor.name,
+  registerInstance(
+    instanceId: ProviderInstanceId,
+    type: GatewayProviderType,
+    provider: AIProvider,
+  ): void {
+    this.instances.set(instanceId, {
+      instanceId,
+      type: type,
+      provider,
     });
   }
 
   private getGatewayConfig(): GatewayConfig {
-    const config = this.configService.get<GatewayConfig>('gateway');
-
-    if (!config) {
+    try {
+      return getAppConfigOrThrow(this.configService, 'gateway');
+    } catch {
       this.logger.error(
         'Gateway config not found.',
         new Error('Gateway config not found'),
       );
       throw new InternalServerErrorException('Gateway config not found');
     }
-
-    return config;
   }
 
   private resolveModelAlias(
@@ -93,35 +119,45 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
   private resolveProviderEntry(
     gatewayConfig: GatewayConfig,
     modelConfig: GatewayModelConfig,
-  ) {
-    const providerInstanceConfig =
-      gatewayConfig.providers[modelConfig.providerInstance];
+  ): RegisteredProviderInstance {
+    const instanceId = modelConfig.providerInstance;
+    const providerInstanceConfig = gatewayConfig.providers[instanceId];
 
     if (!providerInstanceConfig) {
       this.logger.warn('Provider instance not found in config:', {
-        providerInstance: modelConfig.providerInstance,
+        providerInstance: instanceId,
       });
       throw new HttpException(
         {
           code: ApiErrorCode.VALIDATION_FAILED,
-          message: `Provider instance ${modelConfig.providerInstance} not found`,
+          message: `Provider instance ${instanceId} not found`,
           details: [],
         },
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    const providerType = providerInstanceConfig.type;
-
-    const entry = this.providers.get(providerType);
+    const entry = this.instances.get(instanceId);
 
     if (!entry) {
-      this.logger.warn('Provider not registered:', { provider: providerType });
+      this.logger.warn('Provider instance not registered:', {
+        instanceId,
+        type: providerInstanceConfig.type,
+      });
       throw new UnsupportedProviderException(
-        `Provider ${providerType} not registered.`,
+        `Provider instance ${instanceId} not registered (type: ${providerInstanceConfig.type})`,
       );
     }
 
+    if (entry.type !== providerInstanceConfig.type) {
+      this.logger.error('Provider instance type mismatch:', {
+        message: `Provider instance ${instanceId} type mismatch: config=${providerInstanceConfig.type} vs registry=${entry.type}`,
+        name: 'ProviderInstanceTypeMismatch',
+      });
+      throw new InternalServerErrorException(
+        `Provider instance "${instanceId}" type mismatch: config=${providerInstanceConfig.type}, registry=${entry.type}`,
+      );
+    }
     return entry;
   }
 
@@ -132,7 +168,7 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
 
     const providerEntry = this.resolveProviderEntry(gatewayConfig, modelConfig);
 
-    let fallbackAlias: string | undefined = undefined;
+    let fallbackAlias: ModelAlias | undefined = undefined;
     if (modelConfig.fallback) {
       if (!gatewayConfig.models[modelConfig.fallback]) {
         this.logger.warn('Fallback alias not found in config:', {
@@ -140,7 +176,7 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
           fallback: modelConfig.fallback,
         });
       } else {
-        fallbackAlias = modelConfig.fallback;
+        fallbackAlias = asModelAlias(modelConfig.fallback);
       }
     }
 
@@ -163,23 +199,22 @@ export class ProviderRegistryService implements OnApplicationBootstrap {
 
     return {
       provider: providerEntry.provider,
-      providerName: providerEntry.name,
-      modelId: modelConfig.modelId,
-      modelAlias,
+      providerName: providerEntry.instanceId,
+      providerType: providerEntry.type,
+      modelId: asModelId(modelConfig.modelId),
+      modelAlias: asModelAlias(modelAlias),
       fallbackAlias,
       capabilities: modelConfig.capabilities ?? {},
       policy,
       params: modelConfig.policy?.params ?? undefined,
+      ...(isOpenAiProviderType(providerEntry.type) && {
+        openAiApiSurface:
+          providerEntry.type === 'openai' ? 'responses' : 'chat-completions',
+      }),
     };
   }
 
   list(): string[] {
-    return Array.from(this.providers.keys());
-  }
-
-  onApplicationBootstrap() {
-    this.logger.info(
-      `Registered providers: ${this.list().join(', ') || '(none)'}`,
-    );
+    return Array.from(this.instances.keys());
   }
 }

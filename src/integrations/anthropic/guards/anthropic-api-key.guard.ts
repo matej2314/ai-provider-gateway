@@ -7,10 +7,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
-import { readBearerToken } from 'src/integrations/openai/guards/openai-bearer-auth.guard';
+import { getAppConfig } from '../../../config/typed-config';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import { readBearerToken } from '../../../integrations/openai/guards/openai-bearer-auth.guard';
+import { asGatewayKey } from '../../../common/types';
+import { enrichRequestWithClientId } from '../../../guards/helpers/resolve-and-enrich-request.helper';
 import type { Request } from 'express';
-import type { GatewayKeyRuntimeConfig } from 'src/config/configuration.types';
 
 export function readAnthropicApiKey(req: Request): string | undefined {
   const xApiKey = req.header('x-api-key');
@@ -28,9 +30,7 @@ export class AnthropicApiKeyGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const key = readAnthropicApiKey(req);
 
-    const gatewayKey = this.config.get<GatewayKeyRuntimeConfig | undefined>(
-      'gatewayKey',
-    );
+    const gatewayKey = getAppConfig(this.config, 'gatewayKey');
     const allowList = gatewayKey?.allowList ?? [];
 
     if (allowList.length === 0) {
@@ -53,7 +53,9 @@ export class AnthropicApiKeyGuard implements CanActivate {
       });
     }
 
-    if (!allowList.includes(key)) {
+    const brandedKey = asGatewayKey(key);
+
+    if (!allowList.includes(brandedKey)) {
       throw new ForbiddenException({
         statusCode: 403,
         code: ApiErrorCode.GATEWAY_KEY_INVALID,
@@ -62,7 +64,7 @@ export class AnthropicApiKeyGuard implements CanActivate {
         details: [],
       });
     }
-    req.gatewayKey = key;
+    enrichRequestWithClientId(req, brandedKey, this.config);
     return true;
   }
 }

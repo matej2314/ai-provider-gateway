@@ -1,6 +1,10 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { CacheBackend } from '../../interfaces/cache-backend-interface';
 import { CacheRegistryService } from '../../cache-registry.service';
+import type {
+  CacheKey,
+  CacheTtlSeconds,
+} from '../../../common/types/branded.types';
 
 @Injectable()
 export class NoOpCacheBackend implements CacheBackend, OnModuleInit {
@@ -14,19 +18,19 @@ export class NoOpCacheBackend implements CacheBackend, OnModuleInit {
     return false;
   }
 
-  async get(_key: string): Promise<string | null> {
-    return null;
+  get(_key: CacheKey): Promise<string | null> {
+    return Promise.resolve(null);
   }
 
-  async set(
-    _key: string,
+  set(
+    _key: CacheKey,
     _value: string,
-    _ttlSeconds?: number,
+    _ttlSeconds?: CacheTtlSeconds,
   ): Promise<boolean> {
-    return false;
+    return Promise.resolve(false);
   }
 
-  async delete(_key: string): Promise<boolean> {
-    return false;
+  delete(_key: CacheKey): Promise<boolean> {
+    return Promise.resolve(false);
   }
 }

@@ -1,32 +1,43 @@
+import type { GatewayKey, EnvRef } from '../common/types';
+import type {
+  MaxConcurrentStreams,
+  ProviderInstanceId,
+  RateLimitBurst,
+  RateLimitRps,
+} from '../common/types/branded.types';
+
 export type ResolvedSystemPrompts = {
   master: string;
   main?: string;
   perModelByAlias: Record<string, string>;
 };
 
-export type GatewayClientType =
-  | 'webapp'
-  | 'ide'
-  | 'cli'
-  | 'service'
-  | 'backend'
-  | 'automation';
+export const GATEWAY_CLIENT_TYPES = [
+  'webapp',
+  'ide',
+  'cli',
+  'service',
+  'backend',
+  'automation',
+] as const;
+
+export type GatewayClientType = (typeof GATEWAY_CLIENT_TYPES)[number];
 
 export type ResolvedGatewayClient = {
-  instanceId: string;
+  instanceId: ProviderInstanceId;
   name: string;
   type: GatewayClientType;
-  gatewayKeyRef: string;
-  gatewayKey: string;
+  gatewayKeyRef: EnvRef;
+  gatewayKey: GatewayKey;
   rateLimit?: {
-    rps: number;
-    burst: number;
-    maxConcurrentStreams: number;
+    rps: RateLimitRps;
+    burst: RateLimitBurst;
+    maxConcurrentStreams: MaxConcurrentStreams;
   };
 };
 
 export type GatewayKeyRuntimeConfig = {
-  allowList: string[];
-  masterKey: string;
+  allowList: GatewayKey[];
+  masterKey: GatewayKey;
   clients: ResolvedGatewayClient[];
 };

@@ -4,6 +4,7 @@ import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { LoggingService } from './logging/logging.service';
+import helmet from 'helmet';
 import { setupSwagger } from './swagger/swagger.setup';
 import { setupApp, PORT } from './setup.app';
 
@@ -11,6 +12,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = app.get(LoggingService);
 
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
   setupApp(app);
   setupSwagger(app, { logger, port: PORT });
 
@@ -34,29 +41,34 @@ async function bootstrap() {
       await app.close();
       logger.info('Graceful shutdown completed.');
       process.exit(0);
-    } catch (error) {
-      logger.error(`Error during graceful shutdown: ${error}`);
+    } catch (error: unknown) {
+      logger.error(
+        `Error during graceful shutdown: ${error instanceof Error ? error.message : String(error)}`,
+      );
       process.exit(1);
     }
   };
 
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => {
+    void shutdown('SIGTERM');
+  });
+  process.on('SIGINT', () => {
+    void shutdown('SIGINT');
+  });
 
   process.on('uncaughtException', (error: Error) => {
     logger.error('Uncaught exception:', error);
-    shutdown('uncaughtException');
+    void shutdown('uncaughtException');
   });
 
-  process.on(
-    'unhandledRejection',
-    (reason: unknown, promise: Promise<unknown>) => {
-      logger.error(`Unhandled rejection: ${reason}`);
-      shutdown('unhandledRejection');
-    },
-  );
+  process.on('unhandledRejection', (reason: unknown) => {
+    logger.error(`Unhandled rejection: ${String(reason)}`);
+    void shutdown('unhandledRejection');
+  });
 }
-bootstrap().catch((error) => {
-  console.error(`Fatal error during startup: ${error}`);
+void bootstrap().catch((error: unknown) => {
+  console.error(
+    `Fatal error during startup: ${error instanceof Error ? error.message : String(error)}`,
+  );
   process.exit(1);
 });

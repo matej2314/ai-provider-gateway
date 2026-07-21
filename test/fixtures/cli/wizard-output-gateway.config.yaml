@@ -1,0 +1,53 @@
+schemaVersion: 1
+masterKeyRef: MASTER_KEY
+
+clients:
+  webapp-primary:
+    name: My Web App
+    type: webapp
+    gatewayKeyRef: GATEWAY_KEY_WEBAPP
+    rateLimit:
+      rps: 10
+      burst: 20
+      maxConcurrentStreams: 3
+
+providers:
+  anthropic-primary:
+    type: anthropic
+    apiKeyRef: ANTHROPIC_PRIMARY_API_KEY
+    enabled: true
+
+models:
+  chat-default:
+    providerInstance: anthropic-primary
+    modelId: claude-sonnet-4-5-20250929
+    capabilities:
+      streaming: true
+      tools: true
+    policy:
+      timeoutMs: 30000
+      retry:
+        maxAttempts: 3
+        onStatus: [429, 500, 502, 503, 504]
+      params:
+        defaults:
+          temperature: 0.7
+          maxOutputTokens: 1024
+        allowOverrides:
+          - temperature
+          - maxOutputTokens
+          - topP
+          - topK
+          - stop
+          - frequencyPenalty
+          - presencePenalty
+          - seed
+          - responseFormat
+          - thinkingEnabled
+          - thinkingBudget
+        bounds:
+          temperature: { min: 0, max: 2 }
+          maxOutputTokens: { min: 1, max: 8192 }
+          topP: { min: 0, max: 1 }
+          frequencyPenalty: { min: -2, max: 2 }
+          presencePenalty: { min: -2, max: 2 }

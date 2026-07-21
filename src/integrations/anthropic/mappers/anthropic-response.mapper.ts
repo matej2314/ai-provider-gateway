@@ -1,26 +1,68 @@
-import type { ChatResponseDto } from 'src/chat/dto/chat-response.dto';
-import type { AnthropicMessagesResponse } from '../dtos/anthropic-messages-response.dto';
+import { mapGatewayFinishReasonToAnthropicStopReason } from './anthropic-stop-reason.mapper';
+import { parseJsonObject } from '../../../providers/helpers/parse-json-object';
+import { mapGatewayUsageToAnthropic } from './anthropic-usage.mapper';
+import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
+import type {
+  AnthropicMessagesResponseDto,
+  AnthropicContentBlock,
+} from '../dtos/anthropic-messages-response.dto';
+import type { GatewayToolCall } from '../../../providers/types/tooling-types';
+import { fromGatewayToolCallDto } from '../../../common/dtos/gateway-tool-call.dto';
 
-export function mapGatewayResultToAnthropic(
+function mapGatewayToolCallsToAnthropic(
+  toolCalls: GatewayToolCall[],
+): AnthropicContentBlock[] {
+  return toolCalls.map((toolCall) => {
+    let input: Record<string, unknown>;
+    try {
+      input = parseJsonObject(toolCall.arguments || '{}');
+    } catch {
+      input = {};
+    }
+    return {
+      type: 'tool_use',
+      id: toolCall.id,
+      name: toolCall.name,
+      input,
+    };
+  });
+}
+
+export function mapGatewayResponseToAnthropicFormat(
   result: ChatResponseDto,
   requestedModel: string,
-): AnthropicMessagesResponse {
+): AnthropicMessagesResponseDto {
+  const content: AnthropicContentBlock[] = [];
+
+  if (result.thinkingContent) {
+    content.push({
+      type: 'thinking',
+      thinking: result.thinkingContent,
+    });
+  }
+
+  if (result.output.text !== undefined && result.output.text !== '') {
+    content.push({ type: 'text', text: result.output.text });
+  }
+
+  if (result.toolCalls?.length) {
+    content.push(
+      ...mapGatewayToolCallsToAnthropic(
+        result.toolCalls.map(fromGatewayToolCallDto),
+      ),
+    );
+  }
+
   return {
     id: `msg_${result.id.replace(/^gw_/, '')}`,
     type: 'message',
     role: 'assistant',
-    content: [
-      {
-        type: 'text',
-        text: result.output.text,
-      },
-    ],
+    content,
     model: requestedModel,
-    stop_reason: 'end_turn',
+    stop_reason: mapGatewayFinishReasonToAnthropicStopReason(
+      result.finishReason,
+    ),
     stop_sequence: null,
-    usage: {
-      input_tokens: result.usage?.inputTokens ?? 0,
-      output_tokens: result.usage?.outputTokens ?? 0,
-    },
+    usage: mapGatewayUsageToAnthropic(result.usage, result.usageDetails),
   };
 }

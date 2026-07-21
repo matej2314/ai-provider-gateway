@@ -1,0 +1,57 @@
+import { Injectable } from '@nestjs/common';
+import { join } from 'path';
+import { config as dotenvConfig } from 'dotenv';
+import {
+  GatewayConfig,
+  GatewayConfigSchema,
+} from 'src/config/gateway-config.schema';
+import { buildEffectiveGatewayConfig } from 'src/config/configuration';
+import { FileManagerService } from './file-manager.service';
+import { ValidationFormatter } from '../utils/validation-formatter.util';
+
+function normalizeGatewayConfigForWrite(config: GatewayConfig): GatewayConfig {
+  return {
+    ...config,
+    providers: Object.fromEntries(
+      Object.entries(config.providers).map(([id, row]) => [
+        id,
+        { ...row, enabled: row.enabled !== false },
+      ]),
+    ),
+  };
+}
+
+@Injectable()
+export class ConfigPersistenceService {
+  constructor(private readonly fileManager: FileManagerService) {}
+
+  async persistConfig(
+    config: GatewayConfig,
+    cwd: string,
+    options: { skipEffectiveCheck?: boolean } = {},
+  ): Promise<GatewayConfig> {
+    const parsed = GatewayConfigSchema.safeParse(config);
+    if (!parsed.success) {
+      throw new Error(ValidationFormatter.formatZodError(parsed.error));
+    }
+
+    if (!options.skipEffectiveCheck) {
+      dotenvConfig({ path: join(cwd, '.env') });
+      try {
+        buildEffectiveGatewayConfig(parsed.data, process.env);
+      } catch (err) {
+        throw new Error(
+          ValidationFormatter.formatRuntimeError(
+            err instanceof Error ? err : new Error(String(err)),
+          ),
+        );
+      }
+    }
+
+    const configPath = join(cwd, 'gateway.config.yaml');
+    const normalized = normalizeGatewayConfigForWrite(parsed.data);
+    await this.fileManager.backupFile(configPath);
+    await this.fileManager.writeYaml(configPath, normalized);
+    return normalized;
+  }
+}

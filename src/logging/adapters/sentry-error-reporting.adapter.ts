@@ -5,7 +5,6 @@ import type {
   LogContext,
 } from '../interfaces/logger.interface';
 
-
 @Injectable()
 export class SentryErrorReportingAdapter implements ErrorReportingBackend {
   isEnabled(): boolean {
@@ -36,6 +35,10 @@ export class SentryErrorReportingAdapter implements ErrorReportingBackend {
 
       scope.setExtras({
         ...rest,
+        ...(requestId !== undefined ? { requestId } : {}),
+        ...(module !== undefined ? { module: String(module) } : {}),
+        ...(provider !== undefined ? { provider: String(provider) } : {}),
+        ...(modelAlias !== undefined ? { modelAlias: String(modelAlias) } : {}),
         ...(typeof message === 'string' ? { logMessage: message } : {}),
         ...(typeof level === 'string' ? { logLevel: level } : {}),
       });

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getAppConfig } from '../config/typed-config';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
-import { LoggingService } from 'src/logging/logging.service';
+import { LoggingService } from '../logging/logging.service';
 
 @Injectable()
 export class CacheRegistryService {
@@ -22,7 +23,7 @@ export class CacheRegistryService {
   }
 
   resolve(): CacheBackend {
-    const cacheConfig = this.config.get<{ backend?: string }>('cache');
+    const cacheConfig = getAppConfig(this.config, 'cache');
     const backendId = (cacheConfig?.backend ?? 'noop').toLowerCase();
     const backend = this.backends.get(backendId);
 

@@ -1,8 +1,9 @@
 import type { Request } from 'express';
+import { asGatewayKey, type GatewayKey } from './types';
 
-export function readGatewayKeyHeader(req: Request) {
+export function readGatewayKeyHeader(req: Request): GatewayKey | undefined {
   const raw = req.header('x-gateway-key') ?? req.headers['x-gateway-key'];
-  const gatewayKey = Array.isArray(raw) ? raw[0]?.trim() : raw?.trim();
+  const trimmed = Array.isArray(raw) ? raw[0]?.trim() : raw?.trim();
 
-  return gatewayKey as string;
+  return trimmed ? asGatewayKey(trimmed) : undefined;
 }

@@ -7,13 +7,30 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiErrorCode } from 'src/common/errors/api-error.code';
+import { getAppConfig } from '../../../config/typed-config';
+import { ApiErrorCode } from '../../../common/errors/api-error.code';
+import { asGatewayKey } from '../../../common/types';
+import { enrichRequestWithClientId } from '../../../guards/helpers/resolve-and-enrich-request.helper';
 import type { Request } from 'express';
-import type { GatewayKeyRuntimeConfig } from 'src/config/configuration.types';
+
+function readAuthorizationHeader(req: Request): string | undefined {
+  const fromHeader = req.header('authorization');
+  if (typeof fromHeader === 'string' && fromHeader) return fromHeader.trim();
+
+  const fromHeaders = req.headers['authorization'];
+  if (Array.isArray(fromHeaders)) {
+    for (const entry of fromHeaders) {
+      if (typeof entry === 'string' && entry) return entry.trim();
+    }
+    return undefined;
+  }
+  if (typeof fromHeaders === 'string') return fromHeaders.trim();
+
+  return undefined;
+}
 
 export function readBearerToken(req: Request): string | undefined {
-  const raw = req.header('authorization') ?? req.headers['authorization'];
-  const value = Array.isArray(raw) ? raw[0]?.trim() : raw?.trim();
+  const value = readAuthorizationHeader(req);
 
   if (!value) return undefined;
 
@@ -29,9 +46,7 @@ export class OpenAiBearerAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const token = readBearerToken(req);
 
-    const gatewayKey = this.config.get<GatewayKeyRuntimeConfig | undefined>(
-      'gatewayKey',
-    );
+    const gatewayKey = getAppConfig(this.config, 'gatewayKey');
 
     const allowList = gatewayKey?.allowList ?? [];
 
@@ -53,7 +68,9 @@ export class OpenAiBearerAuthGuard implements CanActivate {
       });
     }
 
-    if (!allowList.includes(token)) {
+    const brandedKey = asGatewayKey(token);
+
+    if (!allowList.includes(brandedKey)) {
       throw new ForbiddenException({
         statusCode: 403,
         code: ApiErrorCode.GATEWAY_KEY_INVALID,
@@ -62,7 +79,7 @@ export class OpenAiBearerAuthGuard implements CanActivate {
         details: [],
       });
     }
-    req.gatewayKey = token;
+    enrichRequestWithClientId(req, brandedKey, this.config);
     return true;
   }
 }

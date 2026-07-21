@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RedisConnectionService } from 'src/cache/adapters/redis-cache/redis-connection.service';
-import {
-  GatewayKeyRuntimeConfig,
-  ResolvedGatewayClient,
-} from 'src/config/configuration.types';
-import { LoggingService } from 'src/logging/logging.service';
+import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
+import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
+import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
+import { ResolvedGatewayClient } from '../config/configuration.types';
+import { LoggingService } from '../logging/logging.service';
+import { resolveClientIdFromKey } from '../common/resolveClientIdFromKey';
+import type { GatewayKey, ClientId } from '../common/types/branded.types';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -17,28 +18,28 @@ export interface RateLimitResult {
 @Injectable()
 export class SmartRateLimiterService {
   private readonly logger: LoggingService;
-  private readonly clientsMap: Map<string, ResolvedGatewayClient>;
+  private readonly clientsMap: Map<GatewayKey, ResolvedGatewayClient>;
 
   constructor(
     private readonly config: ConfigService,
     private readonly redisConnection: RedisConnectionService,
     private readonly loggingService: LoggingService,
+    private readonly appMetrics: AppMetricsService,
   ) {
     const logger = this.loggingService.child({
       module: 'SmartRateLimiterService',
     });
     this.logger = logger;
 
-    const gatewayKeyConfig =
-      this.config.get<GatewayKeyRuntimeConfig>('gatewayKey');
+    const gatewayKeyConfig = getAppConfigOrThrow(this.config, 'gatewayKey');
     this.clientsMap = new Map(
-      gatewayKeyConfig?.clients
+      gatewayKeyConfig.clients
         .filter((client) => client.gatewayKey)
-        .map((client) => [client.gatewayKey, client]) ?? [],
+        .map((client) => [client.gatewayKey, client]),
     );
   }
 
-  private getLimitsForClient(gatewayKey: string) {
+  private getLimitsForClient(gatewayKey: GatewayKey) {
     const client = this.clientsMap.get(gatewayKey);
 
     if (client?.rateLimit) {
@@ -49,17 +50,15 @@ export class SmartRateLimiterService {
       };
     }
 
+    const rateLimit = getAppConfig(this.config, 'rateLimit');
     return {
-      rps: this.config.get<number>('RATE_LIMIT_RPS_PER_KEY', 10),
-      burst: this.config.get<number>('RATE_LIMIT_BURST_PER_KEY', 20),
-      maxConcurrentStreams: this.config.get<number>(
-        'RATE_LIMIT_STREAMS_CONCURRENT',
-        3,
-      ),
+      rps: rateLimit?.rps ?? 10,
+      burst: rateLimit?.burst ?? 20,
+      maxConcurrentStreams: rateLimit?.maxConcurrentStreams ?? 3,
     };
   }
 
-  async checkRateLimit(gatewayKey: string): Promise<RateLimitResult> {
+  async checkRateLimit(gatewayKey: GatewayKey): Promise<RateLimitResult> {
     if (!this.redisConnection.isReady()) {
       return {
         allowed: true,
@@ -77,6 +76,10 @@ export class SmartRateLimiterService {
 
     try {
       const client = this.redisConnection.getClient();
+
+      if (!client) {
+        return { allowed: true, remaining: 999, resetAt: new Date() };
+      }
 
       const script = `
         local key = KEYS[1]
@@ -115,7 +118,7 @@ export class SmartRateLimiterService {
         end
       `;
 
-      const result = await client!.eval(
+      const result = await client.eval(
         script,
         1,
         key,
@@ -130,6 +133,16 @@ export class SmartRateLimiterService {
         number,
         number,
       ];
+
+      const clients = Array.from(this.clientsMap.values());
+      const clientId = resolveClientIdFromKey(gatewayKey, clients);
+
+      if (!allowed) {
+        this.appMetrics.recordRateLimit(clientId, 'rate');
+        this.logger.warn(
+          `Rate limit exceeded for client: ${clientId}, key: ${gatewayKey}`,
+        );
+      }
 
       if (allowed === 1) {
         return {
@@ -156,7 +169,10 @@ export class SmartRateLimiterService {
     };
   }
 
-  async checkConcurrentStreams(gatewayKey: string): Promise<RateLimitResult> {
+  async checkConcurrentStreams(
+    gatewayKey: GatewayKey,
+    clientId: ClientId,
+  ): Promise<RateLimitResult> {
     if (!this.redisConnection.isReady()) {
       return { allowed: true, remaining: 999, resetAt: new Date() };
     }
@@ -168,8 +184,12 @@ export class SmartRateLimiterService {
 
     try {
       const client = this.redisConnection.getClient();
-      const current = await client!.incr(key);
-      await client!.expire(key, 300);
+      if (!client) {
+        return { allowed: true, remaining: 999, resetAt: new Date() };
+      }
+
+      const current = await client.incr(key);
+      await client.expire(key, 300);
       if (current <= maxConcurrent) {
         return {
           allowed: true,
@@ -177,7 +197,8 @@ export class SmartRateLimiterService {
           resetAt: new Date(Date.now() + 300000),
         };
       } else {
-        await client?.decr(key);
+        await client.decr(key);
+        this.appMetrics.recordRateLimit(clientId, 'concurrency');
         return {
           allowed: false,
           remaining: 0,
@@ -195,14 +216,16 @@ export class SmartRateLimiterService {
     }
   }
 
-  async releaseStream(gatewayKey: string): Promise<void> {
+  async releaseStream(gatewayKey: GatewayKey): Promise<void> {
     if (!this.redisConnection.isReady()) return;
 
     const key = `rateLimit:streams:${gatewayKey}`;
 
     try {
       const client = this.redisConnection.getClient();
-      await client!.decr(key);
+      if (!client) return;
+
+      await client.decr(key);
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       this.logger.error(
@@ -213,7 +236,7 @@ export class SmartRateLimiterService {
   }
 
   async checkCooldown(
-    gatewayKey: string,
+    gatewayKey: GatewayKey,
     provider: string,
   ): Promise<RateLimitResult> {
     if (!this.redisConnection.isReady()) {
@@ -223,7 +246,12 @@ export class SmartRateLimiterService {
     const key = `rateLimit:cooldown:${gatewayKey}:${provider}`;
 
     try {
-      const ttl = await this.redisConnection.getClient()!.ttl(key);
+      const client = this.redisConnection.getClient();
+      if (!client) {
+        return { allowed: true, remaining: 999, resetAt: new Date() };
+      }
+
+      const ttl = await client.ttl(key);
 
       if (ttl > 0) {
         return {
@@ -245,13 +273,11 @@ export class SmartRateLimiterService {
     }
   }
 
-  async setCooldown(gatewayKey: string, provider: string): Promise<void> {
+  async setCooldown(gatewayKey: GatewayKey, provider: string): Promise<void> {
     if (!this.redisConnection.isReady()) return;
 
-    const cooldownSeconds = this.config.get<number>(
-      'RATE_LIMIT_COOLDOWN_AFTER_429',
-      60,
-    );
+    const cooldownSeconds =
+      getAppConfig(this.config, 'rateLimit')?.cooldownAfter429 ?? 60;
 
     const key = `rateLimit:cooldown:${gatewayKey}:${provider}`;
 

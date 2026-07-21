@@ -14,6 +14,7 @@ export const ApiErrorCode = {
   GATEWAY_KEY_INVALID: 'GATEWAY_KEY_INVALID',
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
   TOOLS_NOT_SUPPORTED: 'TOOLS_NOT_SUPPORTED',
+  THINKING_NOT_SUPPORTED: 'THINKING_NOT_SUPPORTED',
 } as const;
 
 export type ApiErrorCode = (typeof ApiErrorCode)[keyof typeof ApiErrorCode];

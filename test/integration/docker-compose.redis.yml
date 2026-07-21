@@ -1,0 +1,25 @@
+# Redis wyłącznie na potrzeby test/integration/*
+# Uruchomienie: npm run test:integration:redis:up
+# Zatrzymanie:  npm run test:integration:redis:down
+
+services:
+  redis-integration:
+    image: redis:7-alpine
+    container_name: integration-redis-test
+    ports:
+      # Celowo 6380 na hoście — unikamy konfliktu z Redis dev/prod na 6379
+      - "6380:6379"
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 2s
+    tmpfs:
+      - /data
