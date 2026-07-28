@@ -53,7 +53,9 @@ export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
 
 export interface HealthMetricsSnapshot {
   ready: boolean;
-  components: Record<HealthComponent, HealthStatus>;
+  /** Redis omitted when Redis is not required for this deployment. */
+  components: Partial<Record<HealthComponent, HealthStatus>> &
+    Pick<Record<HealthComponent, HealthStatus>, 'config' | 'cache'>;
 }
 
 export interface AppMetricsBackend {

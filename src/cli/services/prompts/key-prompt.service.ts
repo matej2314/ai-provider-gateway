@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as inquirer from 'inquirer';
 import chalk from 'chalk';
+import { assertInteractiveAllowed } from '../../agent/inquirer-guard';
 import { CliLogger } from '../../utils/cli-logger.util';
 import { KeyGeneratorService } from '../key-generator.service';
 import {
@@ -13,6 +14,7 @@ export class KeyPromptService {
   async promptMasterKey(
     keyGenerator: KeyGeneratorService,
   ): Promise<GatewayKey> {
+    assertInteractiveAllowed('KeyPromptService.promptMasterKey');
     CliLogger.section('Step 1/5: Master Key');
     console.log(
       chalk.dim(

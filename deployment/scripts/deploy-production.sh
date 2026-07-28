@@ -30,7 +30,6 @@ VAULT_SKIP_VERIFY="${VAULT_SKIP_VERIFY:-true}"
 VAULT_ENV="${VAULT_ENV:-prod}"
 
 OVERLAY_BINDS="${OVERLAY_BINDS:-/tmp/deploy-host-binds.yml}"
-OVERLAY_NETWORKS="${OVERLAY_NETWORKS:-/tmp/deploy-extra-networks.yml}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -65,17 +64,6 @@ write_overlays() {
     "      - ${DEPLOY_DIR}/deployment/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro" \
     "      - ${DEPLOY_DIR}/deployment/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro" \
     > "${OVERLAY_BINDS}"
-
-  printf '%s\n' \
-    'services:' \
-    '  gateway:' \
-    '    networks:' \
-    '      - main_network' \
-    'networks:' \
-    '  main_network:' \
-    '    external: true' \
-    '    name: main_network' \
-    > "${OVERLAY_NETWORKS}"
 }
 
 compose_files() {
@@ -88,7 +76,6 @@ compose_files() {
   files+=(
     -f deployment/docker/docker-compose.monitoring.yml
     -f "${OVERLAY_BINDS}"
-    -f "${OVERLAY_NETWORKS}"
   )
   printf '%s\n' "${files[@]}"
 }

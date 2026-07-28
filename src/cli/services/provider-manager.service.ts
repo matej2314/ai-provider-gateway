@@ -9,6 +9,7 @@ import {
   isOpenAiProviderType,
   type OpenAiProviderType,
 } from 'src/config/provider-types';
+import { isApiKeyRequiredForProviderType } from 'src/config/provider-api-key.validation';
 import { EnvPatchService } from './env-patch.service';
 import { ConfigPersistenceService } from './config-persistence.service';
 import { ModelManagerService } from './model-manager.service';
@@ -24,13 +25,23 @@ import {
   normalizeCliProviderBaseUrl,
   validateCliProviderBaseUrl,
 } from '../utils/provider-base-url.cli.util';
-import { syncLegacyProviderApiKeysInEnv } from '../utils/legacy-provider-env.util';
 import {
   asProviderInstanceId,
   asProviderApiKey,
+  asModelAlias,
+  asModelId,
   type BaseUrl,
   type EnvRef,
 } from 'src/common/types';
+import { assertInteractiveAllowed } from '../agent/inquirer-guard';
+import type { PendingSecretsItem } from '../agent/agent-report';
+import type {
+  AddProviderInput,
+  ApplyMutationResult,
+  EditProviderInput,
+  RemoveProviderInput,
+} from '../types/cli-apply.types';
+import { DEFAULT_MODELS } from '../constants/default-models';
 
 @Injectable()
 export class ProviderManagerService {
@@ -50,8 +61,14 @@ export class ProviderManagerService {
     );
   }
 
-  async addProvider(config: GatewayConfig, cwd: string): Promise<void> {
+  async promptAddProvider(
+    config: GatewayConfig,
+    options?: { deferSecrets?: boolean },
+  ): Promise<AddProviderInput> {
+    assertInteractiveAllowed('ProviderManagerService.promptAddProvider');
     CliLogger.section('Add provider instance');
+
+    const deferSecrets = options?.deferSecrets === true;
 
     const { instanceId } = await inquirer.prompt<{ instanceId: string }>([
       {
@@ -69,7 +86,7 @@ export class ProviderManagerService {
       },
     ]);
 
-    const id = instanceId.trim();
+    const id = asProviderInstanceId(instanceId.trim());
 
     const { type } = await inquirer.prompt<{ type: GatewayProviderType }>([
       {
@@ -85,35 +102,46 @@ export class ProviderManagerService {
       ? deriveBaseUrlRef(id)
       : undefined;
 
-    const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
-      {
-        type: 'password',
-        name: 'apiKey',
-        message: isOpenAiProviderType(type)
-          ? `API key (optional, env: ${apiKeyRef}):`
-          : `API key (env: ${apiKeyRef}):`,
-        mask: '*',
-        validate: (value: string) => {
-          const result = validateProviderApiKey(type, value);
-          return result === true ? true : result;
-        },
-      },
-    ]);
-
+    let apiKey = asProviderApiKey('');
     let baseUrl: BaseUrl | undefined;
-    if (baseUrlRef) {
-      const { url } = await inquirer.prompt<{ url: string }>([
+
+    if (deferSecrets) {
+      CliLogger.info(
+        `Deferring operator secrets — empty placeholders for ${apiKeyRef}` +
+          (baseUrlRef ? ` and ${baseUrlRef}` : '') +
+          '. Paste values into .env later.',
+      );
+    } else {
+      const { apiKey: rawKey } = await inquirer.prompt<{ apiKey: string }>([
         {
-          type: 'input',
-          name: 'url',
-          message: `Base URL (env: ${baseUrlRef}):`,
-          default: defaultBaseUrlForOpenAiProviderType(
-            type as OpenAiProviderType,
-          ),
-          validate: (input: string) => validateCliProviderBaseUrl(input),
+          type: 'password',
+          name: 'apiKey',
+          message: isOpenAiProviderType(type)
+            ? `API key (optional, env: ${apiKeyRef}):`
+            : `API key (env: ${apiKeyRef}):`,
+          mask: '*',
+          validate: (value: string) => {
+            const result = validateProviderApiKey(type, value);
+            return result === true ? true : result;
+          },
         },
       ]);
-      baseUrl = normalizeCliProviderBaseUrl(url);
+      apiKey = asProviderApiKey(rawKey.trim());
+
+      if (baseUrlRef) {
+        const { url } = await inquirer.prompt<{ url: string }>([
+          {
+            type: 'input',
+            name: 'url',
+            message: `Base URL (env: ${baseUrlRef}):`,
+            default: defaultBaseUrlForOpenAiProviderType(
+              type as OpenAiProviderType,
+            ),
+            validate: (input: string) => validateCliProviderBaseUrl(input),
+          },
+        ]);
+        baseUrl = normalizeCliProviderBaseUrl(url);
+      }
     }
 
     const { enabled } = await inquirer.prompt<{ enabled: boolean }>([
@@ -125,46 +153,168 @@ export class ProviderManagerService {
       },
     ]);
 
-    config.providers[id] = {
-      type,
-      apiKeyRef,
-      enabled,
-      baseUrlRef,
-    };
-
+    const models: AddProviderInput['models'] = [];
     if (!this.hasModelsForInstance(config, id)) {
       CliLogger.info(
         `No models linked to ${id}. Add at least one model in this session.`,
       );
 
-      await this.modelManager.addModelForProvider(config, id, cwd);
+      let addMore = true;
+      while (addMore) {
+        const { alias, modelId } = await inquirer.prompt<{
+          alias: string;
+          modelId: string;
+        }>([
+          {
+            type: 'input',
+            name: 'alias',
+            message: `Model alias for ${id}:`,
+            validate: (input: string) => {
+              const modelAlias = String(input).trim();
+              if (!modelAlias) return 'Alias is required.';
+              if (
+                config.models[modelAlias] ||
+                models.some((m) => m.alias === modelAlias)
+              ) {
+                return 'Alias already exists.';
+              }
+              return true;
+            },
+          },
+          {
+            type: 'input',
+            name: 'modelId',
+            message: 'Model ID:',
+            default: DEFAULT_MODELS[type] ?? '',
+            validate: (value: string) =>
+              value?.trim() ? true : 'Model ID is required.',
+          },
+        ]);
+
+        models.push({
+          alias: asModelAlias(alias.trim()),
+          modelId: asModelId(modelId.trim()),
+        });
+
+        const { another } = await inquirer.prompt<{ another: boolean }>([
+          {
+            type: 'confirm',
+            name: 'another',
+            message: `Add another model for ${id}?`,
+            default: false,
+          },
+        ]);
+        addMore = another;
+      }
     }
 
-    await this.envPatch.setVar(cwd, apiKeyRef, asProviderApiKey(apiKey.trim()));
-    if (baseUrlRef && baseUrl) {
-      await this.envPatch.setVar(cwd, baseUrlRef, baseUrl);
+    return {
+      id,
+      type,
+      enabled,
+      apiKeyRef,
+      apiKey,
+      baseUrlRef,
+      baseUrl,
+      models,
+    };
+  }
+
+  async applyAddProvider(
+    config: GatewayConfig,
+    cwd: string,
+    input: AddProviderInput,
+  ): Promise<ApplyMutationResult> {
+    const id = input.id;
+
+    if (config.providers[id]) {
+      throw new Error(
+        `Instance ${id} already exists - use provider:edit command.`,
+      );
     }
-    await syncLegacyProviderApiKeysInEnv(this.envPatch, cwd, config);
+
+    if (
+      !this.hasModelsForInstance(config, id) &&
+      input.models.length === 0
+    ) {
+      throw new Error(
+        `[PROVIDER_MANAGER] Provider ${id} requires at least one model.`,
+      );
+    }
+
+    config.providers[id] = {
+      type: input.type,
+      apiKeyRef: input.apiKeyRef,
+      enabled: input.enabled,
+      baseUrlRef: input.baseUrlRef,
+    };
+
+    const addedAliases: string[] = [];
+    for (const model of input.models) {
+      await this.modelManager.applyAddModel(
+        config,
+        cwd,
+        {
+          alias: model.alias,
+          providerInstance: id,
+          modelId: model.modelId,
+        },
+        { persist: false },
+      );
+      addedAliases.push(model.alias);
+    }
+
+    await this.envPatch.setVar(cwd, input.apiKeyRef, input.apiKey);
+    if (input.baseUrlRef) {
+      await this.envPatch.setVar(
+        cwd,
+        input.baseUrlRef,
+        input.baseUrl ?? '',
+      );
+    }
+
+    const pendingSecrets = this.collectAddProviderPendingSecrets(input);
 
     try {
-      await this.persistence.persistConfig(config, cwd);
+      // AGENT-MODE: deferred operator values → soft effective check (plan §6.8 / §6.9)
+      await this.persistence.persistConfig(config, cwd, {
+        allowMissingProviderSecrets: pendingSecrets.length > 0,
+      });
     } catch (error) {
       delete config.providers[id];
-      await this.envPatch.removeVar(cwd, apiKeyRef);
-      if (baseUrlRef) {
-        await this.envPatch.removeVar(cwd, baseUrlRef);
+      for (const alias of addedAliases) {
+        delete config.models[alias];
+      }
+      await this.envPatch.removeVar(cwd, input.apiKeyRef);
+      if (input.baseUrlRef) {
+        await this.envPatch.removeVar(cwd, input.baseUrlRef);
       }
       throw error;
     }
 
     CliLogger.success(`Provider instance ${id} added to configuration.`);
+
+    return {
+      pendingSecrets: pendingSecrets.length ? pendingSecrets : undefined,
+      filesTouched: ['gateway.config.yaml', '.env'],
+    };
   }
 
-  async removeProvider(
+  async addProvider(
+    config: GatewayConfig,
+    cwd: string,
+    options?: { deferSecrets?: boolean },
+  ): Promise<void> {
+    const input = await this.promptAddProvider(config, options);
+    await this.applyAddProvider(config, cwd, input);
+  }
+
+  async promptRemoveProvider(
     config: GatewayConfig,
     instanceId: string,
-    cwd: string,
-  ): Promise<void> {
+  ): Promise<RemoveProviderInput | null> {
+    assertInteractiveAllowed('ProviderManagerService.promptRemoveProvider');
+
     const row = config.providers[instanceId];
     if (!row) throw new Error(`Provider instance ${instanceId} not found.`);
 
@@ -200,7 +350,7 @@ export class ProviderManagerService {
       ]);
       if (!confirm) {
         CliLogger.info('Cancelled.');
-        return;
+        return null;
       }
     } else {
       const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
@@ -211,8 +361,30 @@ export class ProviderManagerService {
           default: false,
         },
       ]);
-      if (!confirm) return;
+      if (!confirm) return null;
     }
+
+    return { id: asProviderInstanceId(instanceId), confirm: true };
+  }
+
+  async applyRemoveProvider(
+    config: GatewayConfig,
+    cwd: string,
+    input: RemoveProviderInput,
+  ): Promise<ApplyMutationResult> {
+    const instanceId = input.id;
+    const row = config.providers[instanceId];
+    if (!row) throw new Error(`Provider instance ${instanceId} not found.`);
+
+    const linkedAliases = Object.entries(config.models)
+      .filter(([, model]) => model.providerInstance === instanceId)
+      .map(([alias]) => alias);
+
+    const activeInstances = Object.entries(config.providers).filter(
+      ([, provider]) => provider.enabled !== false,
+    );
+    const isOnlyActive =
+      activeInstances.length === 1 && activeInstances[0][0] === instanceId;
 
     delete config.providers[instanceId];
     for (const alias of linkedAliases) {
@@ -238,7 +410,6 @@ export class ProviderManagerService {
     if (row.baseUrlRef) {
       await this.envPatch.removeVar(cwd, row.baseUrlRef);
     }
-    await syncLegacyProviderApiKeysInEnv(this.envPatch, cwd, config);
 
     CliLogger.success(
       `Removed provider instance ${instanceId} and ${linkedAliases.length} model(s).`,
@@ -248,13 +419,26 @@ export class ProviderManagerService {
         `Prompt files not deleted: ${linkedAliases.map((a) => `models/${a}.md`).join(', ')}`,
       );
     }
+
+    return { filesTouched: ['gateway.config.yaml', '.env'] };
   }
 
-  async editProvider(
+  async removeProvider(
     config: GatewayConfig,
     instanceId: string,
     cwd: string,
   ): Promise<void> {
+    const input = await this.promptRemoveProvider(config, instanceId);
+    if (!input) return;
+    await this.applyRemoveProvider(config, cwd, input);
+  }
+
+  async promptEditProvider(
+    config: GatewayConfig,
+    instanceId: string,
+  ): Promise<EditProviderInput | null> {
+    assertInteractiveAllowed('ProviderManagerService.promptEditProvider');
+
     const row = config.providers[instanceId];
     if (!row) throw new Error(`Provider instance ${instanceId} not found.`);
 
@@ -280,7 +464,7 @@ export class ProviderManagerService {
 
     switch (action) {
       case 'cancel':
-        return;
+        return null;
       case 'enabled': {
         const { enabled } = await inquirer.prompt<{ enabled: boolean }>([
           {
@@ -297,7 +481,7 @@ export class ProviderManagerService {
           );
         }
 
-        let skipEffectiveCheck = false;
+        let confirmNonBootable: boolean | undefined;
 
         if (!enabled) {
           const activeAfter = countActiveModelsAfterProviderChange(
@@ -326,18 +510,18 @@ export class ProviderManagerService {
             ]);
             if (!confirm) {
               CliLogger.info('Cancelled.');
-              return;
+              return null;
             }
-            skipEffectiveCheck = true;
+            confirmNonBootable = true;
           }
         }
 
-        row.enabled = enabled;
-        await this.persistence.persistConfig(config, cwd, {
-          skipEffectiveCheck,
-        });
-        CliLogger.success(`Provider ${instanceId} enabled=${enabled}`);
-        return;
+        return {
+          id: asProviderInstanceId(instanceId),
+          action: 'enabled',
+          enabled,
+          confirmNonBootable,
+        };
       }
       case 'apiKey': {
         const { apiKey } = await inquirer.prompt<{ apiKey: string }>([
@@ -352,15 +536,126 @@ export class ProviderManagerService {
             },
           },
         ]);
+        return {
+          id: asProviderInstanceId(instanceId),
+          action: 'apiKey',
+          apiKey: asProviderApiKey(apiKey.trim()),
+        };
+      }
+    }
+  }
+
+  async applyEditProvider(
+    config: GatewayConfig,
+    cwd: string,
+    input: EditProviderInput,
+  ): Promise<ApplyMutationResult> {
+    const instanceId = input.id;
+    const row = config.providers[instanceId];
+    if (!row) throw new Error(`Provider instance ${instanceId} not found.`);
+
+    switch (input.action) {
+      case 'enabled': {
+        const enabled = input.enabled === true;
+
+        if (enabled && !this.hasModelsForInstance(config, instanceId)) {
+          throw new Error(
+            `[PROVIDER_MANAGER] Cannot enable ${instanceId} without at least one model. Use gateway model:add command first.`,
+          );
+        }
+
+        let skipEffectiveCheck = false;
+
+        if (!enabled) {
+          const activeAfter = countActiveModelsAfterProviderChange(
+            config,
+            new Set([asProviderInstanceId(instanceId)]),
+          );
+          if (activeAfter === 0) {
+            if (!input.confirmNonBootable) {
+              throw new Error(
+                `[PROVIDER_MANAGER] Disabling ${instanceId} would leave no active models. Pass confirmNonBootable: true to proceed.`,
+              );
+            }
+            skipEffectiveCheck = true;
+          }
+        }
+
+        row.enabled = enabled;
+        await this.persistence.persistConfig(config, cwd, {
+          skipEffectiveCheck,
+        });
+        CliLogger.success(`Provider ${instanceId} enabled=${enabled}`);
+        return { filesTouched: ['gateway.config.yaml'] };
+      }
+      case 'apiKey': {
+        if (input.apiKey === undefined) {
+          throw new Error(
+            `[PROVIDER_MANAGER] apiKey is required for action "apiKey".`,
+          );
+        }
+        await this.envPatch.setVar(cwd, row.apiKeyRef, input.apiKey);
+        CliLogger.success(`API key updated for ${instanceId}.`);
+        return { filesTouched: ['.env'] };
+      }
+      case 'clearApiKey': {
         await this.envPatch.setVar(
           cwd,
           row.apiKeyRef,
-          asProviderApiKey(apiKey.trim()),
+          asProviderApiKey(''),
         );
-        await syncLegacyProviderApiKeysInEnv(this.envPatch, cwd, config);
-        CliLogger.success(`API key updated for ${instanceId}.`);
-        return;
+        CliLogger.success(`API key cleared for ${instanceId}.`);
+        return {
+          pendingSecrets: [
+            {
+              envRef: row.apiKeyRef,
+              file: '.env',
+              reason: 'provider_api_key',
+              providerInstance: instanceId,
+            },
+          ],
+          filesTouched: ['.env'],
+        };
       }
     }
+  }
+
+  async editProvider(
+    config: GatewayConfig,
+    instanceId: string,
+    cwd: string,
+  ): Promise<void> {
+    const input = await this.promptEditProvider(config, instanceId);
+    if (!input) return;
+    await this.applyEditProvider(config, cwd, input);
+  }
+
+  private collectAddProviderPendingSecrets(
+    input: AddProviderInput,
+  ): PendingSecretsItem[] {
+    const pending: PendingSecretsItem[] = [];
+
+    if (
+      isApiKeyRequiredForProviderType(input.type) &&
+      !String(input.apiKey).trim()
+    ) {
+      pending.push({
+        envRef: input.apiKeyRef,
+        file: '.env',
+        reason: 'provider_api_key',
+        providerInstance: input.id,
+      });
+    }
+
+    if (input.baseUrlRef && !input.baseUrl?.trim()) {
+      pending.push({
+        envRef: input.baseUrlRef,
+        file: '.env',
+        reason: 'provider_base_url',
+        providerInstance: input.id,
+      });
+    }
+
+    return pending;
   }
 }

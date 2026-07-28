@@ -1,23 +1,23 @@
-# Integration facades (IDE) — AI Provider Gateway
+# Official contract facades — AI Provider Gateway
 
-The **`src/integrations/`** module adds **parallel HTTP contracts** for tools that expect a vendor API shape (OpenAI or Anthropic), without changing the gateway core (`POST /api/v1/chat`, provider layer in `src/providers/`).
+The **`src/integrations/`** module adds **parallel HTTP contracts** for clients that expect an official vendor API shape (OpenAI or Anthropic), without changing the gateway core (`POST /api/v1/chat`, provider layer in `src/providers/`).
 
 ## Facade ≠ provider runtime
 
 | | **Facade** (`src/integrations/`) | **Provider runtime** (`src/providers/`) |
 |---|----------------------------------|----------------------------------------|
-| **Purpose** | **HTTP contract** compatibility with tools (Cursor, Claude Code) | Calling the vendor LLM via SDK |
+| **Purpose** | **HTTP contract** compatibility with IDEs and other apps that expect those shapes (e.g. Cursor, Claude Code) | Calling the vendor LLM via SDK |
 | **OpenAI** | `/api/v1/openai/*` — OpenAI API shape | `type: openai` / `openai-compatible` in YAML — SDK adapter (`src/providers/`) |
 | **Anthropic** | `/api/v1/anthropic/*` — Anthropic Messages API shape | `type: anthropic` in YAML — SDK adapter |
 | **Backend guarantee** | **None** — the facade is not bound to a vendor | Yes — `providerInstance` + `modelId` in configuration |
 
-Facades exist because the OpenAI Chat Completions API and Anthropic Messages API have become **de facto standards** for IDE clients. The gateway implements these HTTP shapes on top of a single `ChatService`; **routing requests to a provider** happens solely via **`modelAlias`** (`model` in the facade) and `gateway.config.yaml`, not by choosing the `/openai` vs `/anthropic` route.
+Facades exist because the OpenAI Chat Completions API and Anthropic Messages API have become **de facto standards** for IDEs and other clients that expect those official shapes. The gateway implements these HTTP shapes on top of a single `ChatService`; **routing requests to a provider** happens solely via **`modelAlias`** (`model` in the facade) and `gateway.config.yaml`, not by choosing the `/openai` vs `/anthropic` route.
 
 Full term definitions: [`dictionary.md`](dictionary.md) (section “Facade vs provider runtime”).
 
 ```mermaid
 flowchart LR
-  subgraph client [IDE client]
+  subgraph client [Client]
     Cursor[Cursor]
   end
   subgraph facade [Facade — src/integrations/openai]
@@ -122,7 +122,7 @@ Path constants in `src/integrations/integrations.constants.ts`:
 
 ## Model mapping
 
-The **`model`** field in a facade request (OpenAI / Anthropic) = **`modelAlias`** from `gateway.config.yaml` (e.g. `chat-default`, `claude-sonnet`). The vendor `modelId` stays in configuration; the IDE client does not supply it directly.
+The **`model`** field in a facade request (OpenAI / Anthropic) = **`modelAlias`** from `gateway.config.yaml` (e.g. `chat-default`, `claude-sonnet`). The vendor `modelId` stays in configuration; the client does not supply it directly.
 
 `GET .../models` (facade or native `/models`) returns aliases from `gateway.config.yaml`, in the format of the corresponding surface (gateway DTO vs OpenAI list vs Anthropic list).
 
@@ -142,7 +142,7 @@ Internal error codes (`GATEWAY_KEY_MISSING`, `GATEWAY_KEY_INVALID`) are mapped t
 
 ### Provider keys (gateway → LLM)
 
-Adapters in `src/providers/` use keys from env referenced by **`apiKeyRef`** in YAML (e.g. `ANTHROPIC_PRIMARY_API_KEY`, `GOOGLE_API_KEY`) — **never** the client key from the IDE. The CLI optionally syncs legacy names `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`.
+Adapters in `src/providers/` use keys from env referenced by **`apiKeyRef`** in YAML (e.g. `ANTHROPIC_PRIMARY_API_KEY`, `GOOGLE_API_KEY`) — **never** the client key from the IDE.
 
 ## Smart rate limit
 
@@ -172,7 +172,7 @@ Facades must share **`SmartRateLimiterService`** with the native API.
 
 ## Ingress validation limits (`validateChatIngress`)
 
-The gateway applies **different validation profiles** for the native API and IDE facades:
+The gateway applies **different validation profiles** for the native API and official contract facades:
 
 | Profile | Endpoint | Max messages | Max content (user/assistant) | Max content (tool) |
 |--------|----------|--------------|------------------------------|---------------------|
@@ -198,7 +198,7 @@ Internally, facades use `ChatProviderCallService.streamOnce` and map gateway eve
 - **Native API:** `GlobalExceptionFilter` → `ErrorEnvelope`.
 - **Facades:** local filters on controllers (`@OpenAiAuth()`, `@AnthropicAuth()`) — JSON shape like the vendor, while preserving the **`x-request-id`** header.
 
-## MVP facade limitations
+## Facade limitations
 
 | Topic | Decision |
 |-------|---------|

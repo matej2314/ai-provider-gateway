@@ -7,6 +7,7 @@ import { WizardOrchestratorService } from './services/wizard-orchestrator.servic
 import { KeyGeneratorService } from './services/key-generator.service';
 import { ConfigGeneratorService } from './services/config-generator.service';
 import { ConfigInitCommand } from './commands/config/config-init.command';
+import { ConfigSecretsStatusCommand } from './commands/config/config-secrets-status.command';
 
 import { KeyPromptService } from './services/prompts/key-prompt.service';
 import { ProviderPromptService } from './services/prompts/provider-prompt.service';
@@ -60,6 +61,7 @@ import { KeyGenerateCommand } from './commands/key/key-generate.command';
     ConfigInitCommand,
     ConfigValidateCommand,
     ConfigShowCommand,
+    ConfigSecretsStatusCommand,
     ProviderListCommand,
     ProviderTestCommand,
     ProviderTestService,

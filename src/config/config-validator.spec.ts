@@ -78,7 +78,7 @@ describe('validateGatewayConfig', () => {
     );
   });
 
-  it('fails when key is only under legacy ANTHROPIC_API_KEY name', () => {
+  it('fails when key is only under a different env name than apiKeyRef', () => {
     const configPath = writeTempConfig(tempDir, minimalValidConfig());
     const env = {
       MASTER_KEY: 'gw_mk_test',
@@ -90,6 +90,36 @@ describe('validateGatewayConfig', () => {
     expect(result.success).toBe(false);
     expect(result.errors.join('\n')).toContain('ANTHROPIC_PRIMARY_API_KEY');
     expect(result.errors.join('\n')).not.toContain('strictProviderKeys');
+  });
+
+  it('succeeds with allowMissingProviderSecrets when provider API key is absent', () => {
+    const configPath = writeTempConfig(tempDir, minimalValidConfig());
+    const env = {
+      MASTER_KEY: 'gw_mk_test',
+    };
+
+    const result = validateGatewayConfig({
+      configPath,
+      env,
+      allowMissingProviderSecrets: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.effectiveConfig).toBeDefined();
+  });
+
+  it('still requires master key when allowMissingProviderSecrets is true', () => {
+    const configPath = writeTempConfig(tempDir, minimalValidConfig());
+    const env = {};
+
+    const result = validateGatewayConfig({
+      configPath,
+      env,
+      allowMissingProviderSecrets: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errors.join('\n')).toMatch(/master key/i);
   });
 
   it('succeeds with standard ANTHROPIC_API_KEY when YAML references it', () => {

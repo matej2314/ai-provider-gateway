@@ -19,7 +19,7 @@ Details: [`conceptual-documentation.md`](conceptual-documentation.md) (“Reposi
 3. **Architecture** — [`architecture.md`](architecture.md) (modules and boundaries), [`api-architecture.md`](api-architecture.md) (HTTP conventions), [`project.structure.md`](project.structure.md) (repo tree).
 4. **API** — contract: [`openapi.json`](../openapi.json) (generated: `npm run openapi:export`); Swagger UI: `/api/v1/api-docs`; human-readable description: [`endpoints.md`](endpoints.md), [`api-documentation.md`](api-documentation.md).
 5. **Configuration and flows** — [`configuration.md`](configuration.md), [`data-flow.md`](data-flow.md), [`conversation-tracking.md`](conversation-tracking.md).
-6. **IDE integrations** — facade ≠ runtime adapter ([`dictionary.md`](dictionary.md)); [`integrations.md`](integrations.md), [`openai-contract-integration.md`](openai-contract-integration.md), [`anthropic-messages-integration.md`](anthropic-messages-integration.md), [`provider-openai-runtime.md`](provider-openai-runtime.md).
+6. **Official contract facades** — facade ≠ runtime adapter ([`dictionary.md`](dictionary.md)); [`integrations.md`](integrations.md), [`openai-contract-integration.md`](openai-contract-integration.md), [`anthropic-messages-integration.md`](anthropic-messages-integration.md), [`provider-openai-runtime.md`](provider-openai-runtime.md).
 7. **Operations** — [`command_line_interface.md`](command_line_interface.md), [`deployment.md`](deployment.md), [`testing.md`](testing.md), [`anti-patterns.md`](anti-patterns.md).
 
 ## File index
@@ -40,8 +40,8 @@ Details: [`conceptual-documentation.md`](conceptual-documentation.md) (“Reposi
 | [`brand-types.md`](brand-types.md) | TypeScript brand types |
 | [`anti-patterns.md`](anti-patterns.md) | Pitfalls and practices to avoid |
 | [`integrations.md`](integrations.md) | OpenAI / Anthropic facade architecture |
-| [`openai-contract-integration.md`](openai-contract-integration.md) | OpenAI facade (Cursor) |
-| [`anthropic-messages-integration.md`](anthropic-messages-integration.md) | Anthropic facade (Claude Code) |
+| [`openai-contract-integration.md`](openai-contract-integration.md) | OpenAI official contract facade |
+| [`anthropic-messages-integration.md`](anthropic-messages-integration.md) | Anthropic official contract facade |
 | [`provider-openai-runtime.md`](provider-openai-runtime.md) | OpenAI / openai-compatible runtime adapter |
 | [`command_line_interface.md`](command_line_interface.md) | Gateway CLI (`gateway <namespace>:<action>`) |
 | [`deployment.md`](deployment.md) | Docker Compose and VPS deploy (GitHub Actions) |

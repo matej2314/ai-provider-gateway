@@ -1,13 +1,13 @@
-# OpenAI contract facade (Cursor IDE)
+# OpenAI contract facade (official OpenAI API contract)
 
 > **Important — facade ≠ OpenAI provider:**  
-> This document describes the **integration facade** — the HTTP layer in `src/integrations/openai/` that implements the **shape** of the OpenAI Chat Completions API. It provides compatibility with Cursor and similar clients; the OpenAI API has become one of the industry standards for IDE tools.  
+> This document describes the **official contract facade** — the HTTP layer in `src/integrations/openai/` that implements the **shape** of the OpenAI Chat Completions API. It provides compatibility with Cursor and other clients that expect this contract; the OpenAI API has become one of the industry standards for IDEs and other apps.  
 > **This is not** a guarantee that the LLM backend is api.openai.com — routing depends solely on **`model`** (= `modelAlias` in YAML) and the `models[]` → `providerInstance` entry (may be Anthropic, Google, OpenAI, or compatible).  
 > **Auth:** `Authorization: Bearer` is a **gateway client key** from the allowlist, not an OpenAI.com key.  
 > The OpenAI runtime adapter (`create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts` in `src/providers/`) — a separate layer — [`provider-openai-runtime.md`](provider-openai-runtime.md).  
 > The same principle for the Anthropic facade: [`anthropic-messages-integration.md`](anthropic-messages-integration.md), [`dictionary.md`](dictionary.md).
 
-The **`/api/v1/openai`** facade lets you connect **Cursor** (and other clients with a rigid OpenAI client) to the gateway, using your own key allowlist instead of an OpenAI.com key.
+The **`/api/v1/openai`** facade lets you connect **Cursor** and other clients that require the OpenAI API contract to the gateway, using your own key allowlist instead of an OpenAI.com key.
 
 > Module `src/integrations/openai/` — `GET /models`, `POST /chat/completions` (JSON + stream SSE in OpenAI format). Shared architecture: [`integrations.md`](integrations.md).
 
@@ -140,6 +140,6 @@ OpenAI routes are in **`openapi.json`** (tag **OpenAI API**, security `BearerAut
 ## Related
 
 - [`integrations.md`](integrations.md) — facade architecture, rate limit
-- [`anthropic-messages-integration.md`](anthropic-messages-integration.md) — Anthropic facade (Claude Code)
+- [`anthropic-messages-integration.md`](anthropic-messages-integration.md) — Anthropic official contract facade
 - [`configuration.md`](configuration.md) — `gateway.config.yaml`, env keys
 - [`endpoints.md`](endpoints.md)

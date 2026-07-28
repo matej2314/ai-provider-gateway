@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getAppConfig } from '../config/typed-config';
 import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
@@ -12,6 +12,7 @@ import {
 } from '../cache/should-include-redis-stack';
 import { LoggingService } from 'src/logging/logging.service';
 import { HealthReadinessResponseDto } from './dto/health-readiness-response.dto';
+import type { HealthMetricsSnapshot } from '../observability/app-metrics/interfaces/app-metrics-backend.interface';
 
 export interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -35,7 +36,9 @@ export class HealthService implements OnModuleInit {
   constructor(
     private readonly config: ConfigService,
     private readonly cacheRegistry: CacheRegistryService,
-    private readonly redisConnection: RedisConnectionService,
+    @Optional()
+    @Inject(RedisConnectionService)
+    private readonly redisConnection: RedisConnectionService | undefined,
     private readonly appMetrics: AppMetricsService,
     private readonly preMetricsScrapeRegistry: PreMetricsScrapeRegistry,
     loggingService: LoggingService,
@@ -59,13 +62,14 @@ export class HealthService implements OnModuleInit {
 
   async evaluateReadiness(): Promise<HealthReadinessResponseDto> {
     const configCheck = this.checkConfig();
-    const redisCheck = await this.checkRedis();
+    const redisRequired = isRedisRequiredFromConfig(this.config);
+    const redisCheck = redisRequired ? await this.checkRedis() : undefined;
     const cacheCheck = this.checkCache(redisCheck);
 
-    const checks = {
+    const checks: HealthReadinessResponseDto['checks'] = {
       config: configCheck,
-      redis: redisCheck,
       cache: cacheCheck,
+      ...(redisCheck ? { redis: redisCheck } : {}),
     };
 
     const allHealthy = Object.values(checks).every(
@@ -106,13 +110,17 @@ export class HealthService implements OnModuleInit {
   }
 
   publishMetrics(result: HealthReadinessResponseDto): void {
+    const components: HealthMetricsSnapshot['components'] = {
+      config: result.checks.config.status,
+      cache: result.checks.cache.status,
+    };
+    if (result.checks.redis) {
+      components.redis = result.checks.redis.status;
+    }
+
     this.appMetrics.syncHealthMetrics({
       ready: result.status === 'ready',
-      components: {
-        config: result.checks.config.status,
-        redis: result.checks.redis.status,
-        cache: result.checks.cache.status,
-      },
+      components,
     });
     this.appMetrics.setProcessUpTime(result.uptime);
 
@@ -158,7 +166,7 @@ export class HealthService implements OnModuleInit {
     };
   }
 
-  private checkCache(redisCheck: HealthRedisCheckResult): HealthCheckResult {
+  private checkCache(redisCheck?: HealthRedisCheckResult): HealthCheckResult {
     const cacheConfig = getAppConfig(this.config, 'cache');
 
     const backendId = (cacheConfig?.backend ?? 'noop').toLowerCase();
@@ -171,7 +179,7 @@ export class HealthService implements OnModuleInit {
     }
 
     if (backendId === 'redis') {
-      if (redisCheck.status === 'healthy') {
+      if (redisCheck?.status === 'healthy') {
         return {
           status: 'healthy',
           message: 'Cache enabled (redis backend).',
@@ -200,17 +208,17 @@ export class HealthService implements OnModuleInit {
   }
 
   private async checkRedis(): Promise<HealthRedisCheckResult> {
-    const required = isRedisRequiredFromConfig(this.config);
+    const consumers = getRedisConsumersFromConfig(this.config);
 
-    if (!required) {
+    if (!this.redisConnection) {
       return {
-        status: 'healthy',
-        message: 'Redis not required.',
-        required: false,
+        status: 'degraded',
+        message: 'Redis required but unavailable',
+        required: true,
+        consumers,
       };
     }
 
-    const consumers = getRedisConsumersFromConfig(this.config);
     const pingOk = await this.redisConnection.ping();
 
     if (pingOk) {

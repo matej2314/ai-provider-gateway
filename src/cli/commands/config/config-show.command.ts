@@ -1,7 +1,58 @@
-import { Command, CommandRunner } from 'nest-commander';
+import { Command, CommandRunner, Option } from 'nest-commander';
 import { CliConfigLoaderService } from '../../services/cli-config-loader.service';
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
+import { resolveCliMode } from 'src/cli/agent/resolve-cli-mode';
+import { exitWithAgentReport } from 'src/cli/agent/agent-report';
 import chalk from 'chalk';
+import type { GatewayConfig } from 'src/config/gateway-config.schema';
+
+interface ConfigShowOptions {
+  json?: boolean;
+}
+
+/** Structural snapshot: refs only — never env values. */
+function toSafeConfigSnapshot(config: GatewayConfig) {
+  return {
+    schemaVersion: config.schemaVersion,
+    masterKeyRef: config.masterKeyRef,
+    providers: Object.fromEntries(
+      Object.entries(config.providers).map(([id, provider]) => [
+        id,
+        {
+          type: provider.type,
+          enabled: provider.enabled !== false,
+          apiKeyRef: provider.apiKeyRef,
+          ...(provider.baseUrlRef ? { baseUrlRef: provider.baseUrlRef } : {}),
+          ...(provider.apiSurface ? { apiSurface: provider.apiSurface } : {}),
+        },
+      ]),
+    ),
+    models: Object.fromEntries(
+      Object.entries(config.models).map(([alias, model]) => [
+        alias,
+        {
+          providerInstance: model.providerInstance,
+          modelId: model.modelId,
+          ...(model.fallback ? { fallback: model.fallback } : {}),
+          ...(model.capabilities
+            ? { capabilities: model.capabilities }
+            : {}),
+        },
+      ]),
+    ),
+    clients: Object.fromEntries(
+      Object.entries(config.clients).map(([id, client]) => [
+        id,
+        {
+          name: client.name,
+          type: client.type,
+          gatewayKeyRef: client.gatewayKeyRef,
+          ...(client.rateLimit ? { rateLimit: client.rateLimit } : {}),
+        },
+      ]),
+    ),
+  };
+}
 
 @Command({
   name: 'config:show',
@@ -12,10 +63,21 @@ export class ConfigShowCommand extends CommandRunner {
     super();
   }
 
-  run(): Promise<void> {
+  run(_params: string[], options?: ConfigShowOptions): Promise<void> {
+    const mode = resolveCliMode({ json: options?.json });
+    CliLogger.setJsonSafe(mode.json);
+
     try {
-      CliLogger.section('Gateway configuration.');
       const config = this.cliLoader.loadRawConfig();
+
+      if (mode.json) {
+        process.stdout.write(
+          JSON.stringify(toSafeConfigSnapshot(config), null, 2) + '\n',
+        );
+        return Promise.resolve();
+      }
+
+      CliLogger.section('Gateway configuration.');
 
       console.log(chalk.bold('\nProviders:'));
       Object.entries(config.providers).forEach(([id, provider]) => {
@@ -65,10 +127,29 @@ export class ConfigShowCommand extends CommandRunner {
       CliLogger.blank();
       return Promise.resolve();
     } catch (error) {
+      if (mode.json) {
+        exitWithAgentReport(
+          {
+            ok: false,
+            status: 'error',
+            command: 'config:show',
+            errors: [
+              error instanceof Error ? error.message : 'Unknown error occurred.',
+            ],
+          },
+          true,
+        );
+        return Promise.resolve();
+      }
       CliLogger.error(
         error instanceof Error ? error.message : 'Unknown error occurred.',
       );
       process.exit(1);
     }
+  }
+
+  @Option({ flags: '--json', description: 'Machine-readable JSON on stdout' })
+  parseJson(): boolean {
+    return true;
   }
 }

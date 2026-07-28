@@ -19,11 +19,6 @@ describe('HealthController', () => {
         uptime: 100,
         checks: {
           config: { status: 'healthy', message: 'Config loaded' },
-          redis: {
-            status: 'healthy',
-            message: 'Redis not required.',
-            required: false,
-          },
           cache: { status: 'healthy', message: 'Cache noop' },
         },
       }),
@@ -74,7 +69,6 @@ describe('HealthController', () => {
       const result = await controller.getReadiness();
 
       expect(result.checks.config).toBeDefined();
-      expect(result.checks.redis).toBeDefined();
       expect(result.checks.cache).toBeDefined();
     });
   });

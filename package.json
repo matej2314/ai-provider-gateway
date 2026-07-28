@@ -15,7 +15,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "config:validate": "ts-node scripts/validate-config.ts",
+    "config:validate": "ts-node -r tsconfig-paths/register scripts/validate-config.ts",
     "cli": "node bin/gateway-cli-wrapper.js",
     "build:cli": "npm run build",
     "openapi:export": "npm run build && node dist/src/swagger/export-openapi.js",

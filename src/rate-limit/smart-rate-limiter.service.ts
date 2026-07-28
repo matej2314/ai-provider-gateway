@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
@@ -22,7 +22,9 @@ export class SmartRateLimiterService {
 
   constructor(
     private readonly config: ConfigService,
-    private readonly redisConnection: RedisConnectionService,
+    @Optional()
+    @Inject(RedisConnectionService)
+    private readonly redisConnection: RedisConnectionService | undefined,
     private readonly loggingService: LoggingService,
     private readonly appMetrics: AppMetricsService,
   ) {
@@ -59,7 +61,7 @@ export class SmartRateLimiterService {
   }
 
   async checkRateLimit(gatewayKey: GatewayKey): Promise<RateLimitResult> {
-    if (!this.redisConnection.isReady()) {
+    if (!this.redisConnection?.isReady()) {
       return {
         allowed: true,
         remaining: 9999999,
@@ -173,7 +175,7 @@ export class SmartRateLimiterService {
     gatewayKey: GatewayKey,
     clientId: ClientId,
   ): Promise<RateLimitResult> {
-    if (!this.redisConnection.isReady()) {
+    if (!this.redisConnection?.isReady()) {
       return { allowed: true, remaining: 999, resetAt: new Date() };
     }
 
@@ -217,7 +219,7 @@ export class SmartRateLimiterService {
   }
 
   async releaseStream(gatewayKey: GatewayKey): Promise<void> {
-    if (!this.redisConnection.isReady()) return;
+    if (!this.redisConnection?.isReady()) return;
 
     const key = `rateLimit:streams:${gatewayKey}`;
 
@@ -239,7 +241,7 @@ export class SmartRateLimiterService {
     gatewayKey: GatewayKey,
     provider: string,
   ): Promise<RateLimitResult> {
-    if (!this.redisConnection.isReady()) {
+    if (!this.redisConnection?.isReady()) {
       return { allowed: true, remaining: 999, resetAt: new Date() };
     }
 
@@ -274,7 +276,7 @@ export class SmartRateLimiterService {
   }
 
   async setCooldown(gatewayKey: GatewayKey, provider: string): Promise<void> {
-    if (!this.redisConnection.isReady()) return;
+    if (!this.redisConnection?.isReady()) return;
 
     const cooldownSeconds =
       getAppConfig(this.config, 'rateLimit')?.cooldownAfter429 ?? 60;
