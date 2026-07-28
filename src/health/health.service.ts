@@ -72,7 +72,11 @@ export class HealthService implements OnModuleInit {
       ...(redisCheck ? { redis: redisCheck } : {}),
     };
 
-    const allHealthy = Object.values(checks).every(
+    const allHealthy = [
+      configCheck,
+      cacheCheck,
+      ...(redisCheck ? [redisCheck] : []),
+    ].every(
       (check) => check.status === 'healthy' || check.status === 'degraded',
     );
 

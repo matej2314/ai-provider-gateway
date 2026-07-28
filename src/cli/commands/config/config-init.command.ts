@@ -198,7 +198,7 @@ export class ConfigInitCommand extends CommandRunner {
     }
 
     const { configInput, envInput, wizardState } =
-      await this.orchestrator.runFromAnswers(answers);
+      this.orchestrator.runFromAnswers(answers);
 
     await this.configGenerator.generateFullConfig(
       configInput,
