@@ -134,11 +134,7 @@ export const ProviderAddAnswersSchema = z
   })
   .strict()
   .superRefine((row, ctx) =>
-    rejectSecretFields(row as Record<string, unknown>, ctx, [
-      'apiKey',
-      'baseUrl',
-      'baseUrlRef',
-    ]),
+    rejectSecretFields(row, ctx, ['apiKey', 'baseUrl', 'baseUrlRef']),
   );
 
 export type ProviderAddAnswers = z.infer<typeof ProviderAddAnswersSchema>;
@@ -153,9 +149,7 @@ export const ProviderEditAnswersSchema = z
     confirmNonBootable: z.boolean().optional(),
   })
   .strict()
-  .superRefine((row, ctx) =>
-    rejectSecretFields(row as Record<string, unknown>, ctx, ['apiKey']),
-  );
+  .superRefine((row, ctx) => rejectSecretFields(row, ctx, ['apiKey']));
 
 export const ProviderRemoveAnswersSchema = z
   .object({
@@ -240,9 +234,7 @@ export const ClientAddAnswersSchema = z
       .optional(),
   })
   .strict()
-  .superRefine((row, ctx) =>
-    rejectSecretFields(row as Record<string, unknown>, ctx, ['gatewayKey']),
-  );
+  .superRefine((row, ctx) => rejectSecretFields(row, ctx, ['gatewayKey']));
 
 export type ClientAddAnswers = z.infer<typeof ClientAddAnswersSchema>;
 
@@ -269,7 +261,7 @@ export const ClientEditAnswersSchema = z
   })
   .strict()
   .superRefine((row, ctx) => {
-    rejectSecretFields(row as Record<string, unknown>, ctx, ['gatewayKey']);
+    rejectSecretFields(row, ctx, ['gatewayKey']);
     if (row.action === 'name' && !row.name?.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

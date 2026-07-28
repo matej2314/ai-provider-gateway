@@ -46,7 +46,9 @@ export class ClientAddCommand extends CommandRunner {
               ok: false,
               status: 'error',
               command: 'client:add',
-              errors: ['Configuration not found. Run gateway config:init first.'],
+              errors: [
+                'Configuration not found. Run gateway config:init first.',
+              ],
               next: ['gateway config:init'],
             },
             mode.json,
@@ -87,10 +89,7 @@ export class ClientAddCommand extends CommandRunner {
 
       if (mode.isAgent) {
         assertAgentHasAnswers(mode, 'client:add');
-        const answers = loadAnswers(
-          ClientAddAnswersSchema,
-          mode.answersPath!,
-        );
+        const answers = loadAnswers(ClientAddAnswersSchema, mode.answersPath!);
         const id = asClientId(answers.id);
         const gatewayKeyRef = this.clientManager.deriveGatewayKeyRef(id);
         const gatewayKey = this.keyGenerator.generateGatewayClientKey(id);

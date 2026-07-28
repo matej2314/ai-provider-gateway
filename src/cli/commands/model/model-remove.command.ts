@@ -72,7 +72,9 @@ export class ModelRemoveCommand extends CommandRunner {
               ok: false,
               status: 'error',
               command: 'model:remove',
-              errors: ['Configuration not found. Run gateway config:init first.'],
+              errors: [
+                'Configuration not found. Run gateway config:init first.',
+              ],
               next: ['gateway config:init'],
             },
             mode.json,
@@ -123,7 +125,7 @@ export class ModelRemoveCommand extends CommandRunner {
         return;
       }
 
-      const alias = asModelAlias(rawAlias!);
+      const alias = asModelAlias(rawAlias);
       await this.modelManager.removeModel(config, alias, cwd);
     } catch (error) {
       if (mode.isAgent) {

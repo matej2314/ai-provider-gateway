@@ -93,7 +93,9 @@ export class ModelListCommand extends CommandRunner {
             status: 'error',
             command: 'model:list',
             errors: [
-              error instanceof Error ? error.message : 'Unknown error occurred.',
+              error instanceof Error
+                ? error.message
+                : 'Unknown error occurred.',
             ],
           },
           true,

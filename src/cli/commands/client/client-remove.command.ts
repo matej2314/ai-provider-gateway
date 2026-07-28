@@ -51,7 +51,9 @@ export class ClientRemoveCommand extends CommandRunner {
               ok: false,
               status: 'error',
               command: 'client:remove',
-              errors: ['Configuration not found. Run gateway config:init first.'],
+              errors: [
+                'Configuration not found. Run gateway config:init first.',
+              ],
               next: ['gateway config:init'],
             },
             mode.json,
@@ -125,7 +127,7 @@ export class ClientRemoveCommand extends CommandRunner {
         return;
       }
 
-      const clientId = asClientId(rawClientId!);
+      const clientId = asClientId(rawClientId);
       await this.clientManager.removeClient(config, clientId, cwd);
     } catch (error) {
       if (mode.isAgent) {

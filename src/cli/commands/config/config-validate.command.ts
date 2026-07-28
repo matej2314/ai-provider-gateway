@@ -137,7 +137,9 @@ export class ConfigValidateCommand extends CommandRunner {
             status: 'error',
             command: 'config:validate',
             errors: [
-              error instanceof Error ? error.message : 'Unknown error occurred.',
+              error instanceof Error
+                ? error.message
+                : 'Unknown error occurred.',
             ],
           },
           true,

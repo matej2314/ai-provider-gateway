@@ -42,7 +42,9 @@ export class ClientListCommand extends CommandRunner {
               ok: false,
               status: 'error',
               command: 'client:list',
-              errors: ['Configuration not found. Run gateway config:init first.'],
+              errors: [
+                'Configuration not found. Run gateway config:init first.',
+              ],
               next: ['gateway config:init'],
             },
             true,
@@ -119,7 +121,9 @@ export class ClientListCommand extends CommandRunner {
             status: 'error',
             command: 'client:list',
             errors: [
-              error instanceof Error ? error.message : 'Unknown error occurred.',
+              error instanceof Error
+                ? error.message
+                : 'Unknown error occurred.',
             ],
           },
           true,

@@ -233,10 +233,7 @@ export class ProviderManagerService {
       );
     }
 
-    if (
-      !this.hasModelsForInstance(config, id) &&
-      input.models.length === 0
-    ) {
+    if (!this.hasModelsForInstance(config, id) && input.models.length === 0) {
       throw new Error(
         `[PROVIDER_MANAGER] Provider ${id} requires at least one model.`,
       );
@@ -266,11 +263,7 @@ export class ProviderManagerService {
 
     await this.envPatch.setVar(cwd, input.apiKeyRef, input.apiKey);
     if (input.baseUrlRef) {
-      await this.envPatch.setVar(
-        cwd,
-        input.baseUrlRef,
-        input.baseUrl ?? '',
-      );
+      await this.envPatch.setVar(cwd, input.baseUrlRef, input.baseUrl ?? '');
     }
 
     const pendingSecrets = this.collectAddProviderPendingSecrets(input);
@@ -599,11 +592,7 @@ export class ProviderManagerService {
         return { filesTouched: ['.env'] };
       }
       case 'clearApiKey': {
-        await this.envPatch.setVar(
-          cwd,
-          row.apiKeyRef,
-          asProviderApiKey(''),
-        );
+        await this.envPatch.setVar(cwd, row.apiKeyRef, asProviderApiKey(''));
         CliLogger.success(`API key cleared for ${instanceId}.`);
         return {
           pendingSecrets: [

@@ -50,7 +50,9 @@ export class ModelEditCommand extends CommandRunner {
               ok: false,
               status: 'error',
               command: 'model:edit',
-              errors: ['Configuration not found. Run gateway config:init first.'],
+              errors: [
+                'Configuration not found. Run gateway config:init first.',
+              ],
               next: ['gateway config:init'],
             },
             mode.json,
@@ -95,9 +97,7 @@ export class ModelEditCommand extends CommandRunner {
 
         const input: EditModelInput = {
           alias: asModelAlias(answers.alias),
-          modelId: answers.modelId
-            ? asModelId(answers.modelId)
-            : undefined,
+          modelId: answers.modelId ? asModelId(answers.modelId) : undefined,
           providerInstance: answers.providerInstance
             ? asProviderInstanceId(answers.providerInstance)
             : undefined,
@@ -126,7 +126,7 @@ export class ModelEditCommand extends CommandRunner {
         return;
       }
 
-      const alias = asModelAlias(rawAlias!);
+      const alias = asModelAlias(rawAlias);
       await this.modelManager.editModel(config, alias, cwd);
     } catch (error) {
       if (mode.isAgent) {

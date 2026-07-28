@@ -24,7 +24,9 @@ export class GatewayCommand extends CommandRunner {
         '     - Display parsed configuration\n' +
         chalk.yellow('  gateway config:secrets-status') +
         ' - Missing env secrets (agent gate)\n' +
-        chalk.dim('  Agent mode: append --agent --answers <file> [--json]\n\n') +
+        chalk.dim(
+          '  Agent mode: append --agent --answers <file> [--json]\n\n',
+        ) +
         chalk.bold('Model Management:') +
         '\n' +
         chalk.yellow('  gateway model:add') +

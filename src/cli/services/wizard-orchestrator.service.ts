@@ -13,14 +13,10 @@ import {
   asRateLimitBurst,
   asRateLimitRps,
 } from 'src/common/types/branded.types';
-import type { GatewayProviderType } from 'src/config/provider-types';
 import { isOpenAiProviderType } from 'src/config/provider-types';
 import type { InitAnswers } from '../schemas/agent-answers.schema';
 import { CliLogger } from '../utils/cli-logger.util';
-import {
-  deriveApiKeyRef,
-  deriveBaseUrlRef,
-} from '../utils/provider-id.util';
+import { deriveApiKeyRef, deriveBaseUrlRef } from '../utils/provider-id.util';
 import { ConfigTemplateInput } from '../templates/gateway-config.template';
 import { EnvTemplateInput } from '../templates/env.template';
 import {
@@ -137,7 +133,7 @@ export class WizardOrchestratorService {
         : undefined;
       return {
         id,
-        type: p.type as GatewayProviderType,
+        type: p.type,
         apiKeyRef,
         apiKey: asProviderApiKey(''),
         enabled: p.enabled !== false,

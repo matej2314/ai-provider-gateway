@@ -137,7 +137,9 @@ export class KeyGenerateCommand extends CommandRunner {
             status: 'error',
             command: 'key:generate',
             errors: [
-              error instanceof Error ? error.message : 'Unknown error occurred.',
+              error instanceof Error
+                ? error.message
+                : 'Unknown error occurred.',
             ],
           },
           true,

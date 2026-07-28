@@ -43,9 +43,7 @@ export class ClientManagerService {
     );
   }
 
-  async promptAddClient(
-    config: GatewayConfig,
-  ): Promise<PromptAddClientResult> {
+  async promptAddClient(config: GatewayConfig): Promise<PromptAddClientResult> {
     assertInteractiveAllowed('ClientManagerService.promptAddClient');
     CliLogger.section('Add client');
 

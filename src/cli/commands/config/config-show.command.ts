@@ -34,9 +34,7 @@ function toSafeConfigSnapshot(config: GatewayConfig) {
           providerInstance: model.providerInstance,
           modelId: model.modelId,
           ...(model.fallback ? { fallback: model.fallback } : {}),
-          ...(model.capabilities
-            ? { capabilities: model.capabilities }
-            : {}),
+          ...(model.capabilities ? { capabilities: model.capabilities } : {}),
         },
       ]),
     ),
@@ -134,7 +132,9 @@ export class ConfigShowCommand extends CommandRunner {
             status: 'error',
             command: 'config:show',
             errors: [
-              error instanceof Error ? error.message : 'Unknown error occurred.',
+              error instanceof Error
+                ? error.message
+                : 'Unknown error occurred.',
             ],
           },
           true,

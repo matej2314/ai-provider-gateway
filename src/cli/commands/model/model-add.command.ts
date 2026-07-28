@@ -44,7 +44,9 @@ export class ModelAddCommand extends CommandRunner {
               ok: false,
               status: 'error',
               command: 'model:add',
-              errors: ['Configuration not found. Run gateway config:init first.'],
+              errors: [
+                'Configuration not found. Run gateway config:init first.',
+              ],
               next: ['gateway config:init'],
             },
             mode.json,

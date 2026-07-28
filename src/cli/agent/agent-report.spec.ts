@@ -12,9 +12,7 @@ function report(
 
 describe('exitCodeForReport', () => {
   it('returns 0 for success', () => {
-    expect(
-      exitCodeForReport(report({ ok: true, status: 'success' })),
-    ).toBe(0);
+    expect(exitCodeForReport(report({ ok: true, status: 'success' }))).toBe(0);
   });
 
   it('returns 2 for awaiting_secrets even when ok is false', () => {
@@ -37,21 +35,15 @@ describe('exitCodeForReport', () => {
 
   it('returns 2 for awaiting_secrets when ok is true (init / secrets-status gate)', () => {
     expect(
-      exitCodeForReport(
-        report({ ok: true, status: 'awaiting_secrets' }),
-      ),
+      exitCodeForReport(report({ ok: true, status: 'awaiting_secrets' })),
     ).toBe(2);
   });
 
   it('returns 1 for error', () => {
-    expect(
-      exitCodeForReport(report({ ok: false, status: 'error' })),
-    ).toBe(1);
+    expect(exitCodeForReport(report({ ok: false, status: 'error' }))).toBe(1);
   });
 
   it('returns 1 when status is success but ok is false', () => {
-    expect(
-      exitCodeForReport(report({ ok: false, status: 'success' })),
-    ).toBe(1);
+    expect(exitCodeForReport(report({ ok: false, status: 'success' }))).toBe(1);
   });
 });

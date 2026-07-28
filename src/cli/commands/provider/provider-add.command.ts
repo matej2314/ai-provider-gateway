@@ -47,7 +47,9 @@ export class ProviderAddCommand extends CommandRunner {
               ok: false,
               status: 'error',
               command: 'provider:add',
-              errors: ['Configuration not found. Run gateway config:init first.'],
+              errors: [
+                'Configuration not found. Run gateway config:init first.',
+              ],
               next: ['gateway config:init'],
             },
             mode.json,

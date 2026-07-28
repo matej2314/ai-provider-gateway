@@ -59,9 +59,7 @@ export class ConfigInitCommand extends CommandRunner {
             ok: false,
             status: 'error',
             command: 'config:init',
-            errors: [
-              error instanceof Error ? error.message : String(error),
-            ],
+            errors: [error instanceof Error ? error.message : String(error)],
           },
           mode.json,
         );
@@ -112,9 +110,7 @@ export class ConfigInitCommand extends CommandRunner {
 
       spinner.succeed('Backup created successfully.');
     } else if (isBoilerplate) {
-      CliLogger.info(
-        'Detected boilerplate configuration. Starting wizard...',
-      );
+      CliLogger.info('Detected boilerplate configuration. Starting wizard...');
     }
 
     CliLogger.blank();

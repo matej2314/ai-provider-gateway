@@ -57,7 +57,9 @@ export class ClientEditCommand extends CommandRunner {
               ok: false,
               status: 'error',
               command: 'client:edit',
-              errors: ['Configuration not found. Run gateway config:init first.'],
+              errors: [
+                'Configuration not found. Run gateway config:init first.',
+              ],
               next: ['gateway config:init'],
             },
             mode.json,
@@ -98,10 +100,7 @@ export class ClientEditCommand extends CommandRunner {
 
       if (mode.isAgent) {
         assertAgentHasAnswers(mode, 'client:edit');
-        const answers = loadAnswers(
-          ClientEditAnswersSchema,
-          mode.answersPath!,
-        );
+        const answers = loadAnswers(ClientEditAnswersSchema, mode.answersPath!);
         const id = asClientId(answers.id);
 
         const input: EditClientInput = {
@@ -116,8 +115,7 @@ export class ClientEditCommand extends CommandRunner {
                 ? {
                     rps: asRateLimitRps(answers.rateLimit.rps),
                     burst: asRateLimitBurst(answers.rateLimit.burst),
-                    maxConcurrentStreams: answers.rateLimit
-                      .maxConcurrentStreams
+                    maxConcurrentStreams: answers.rateLimit.maxConcurrentStreams
                       ? asMaxConcurrentStreams(
                           answers.rateLimit.maxConcurrentStreams,
                         )
@@ -150,7 +148,7 @@ export class ClientEditCommand extends CommandRunner {
         return;
       }
 
-      const clientId = asClientId(rawClientId!);
+      const clientId = asClientId(rawClientId);
       await this.clientManager.editClient(config, clientId, cwd);
     } catch (error) {
       if (mode.isAgent) {

@@ -51,7 +51,9 @@ export class ProviderEditCommand extends CommandRunner {
               ok: false,
               status: 'error',
               command: 'provider:edit',
-              errors: ['Configuration not found. Run gateway config:init first.'],
+              errors: [
+                'Configuration not found. Run gateway config:init first.',
+              ],
               next: ['gateway config:init'],
             },
             mode.json,
@@ -165,7 +167,7 @@ export class ProviderEditCommand extends CommandRunner {
         return;
       }
 
-      const instanceId = asProviderInstanceId(rawInstanceId!);
+      const instanceId = asProviderInstanceId(rawInstanceId);
       await this.providerManager.editProvider(config, instanceId, cwd);
     } catch (error) {
       if (mode.isAgent) {
