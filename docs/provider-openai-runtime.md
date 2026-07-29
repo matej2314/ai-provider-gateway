@@ -1,7 +1,7 @@
 # OpenAI adapter (provider runtime)
 
 > **Facade ≠ adapter:** this document covers **only** the `src/providers/` layer (`type: openai` and `type: openai-compatible` in YAML).  
-> The HTTP contract for Cursor (`/api/v1/openai/*`, `src/integrations/openai/`) is described in [`openai-contract-integration.md`](openai-contract-integration.md).  
+> The official OpenAI HTTP contract (Cursor and other clients) (`/api/v1/openai/*`, `src/integrations/openai/`) is described in [`openai-contract-integration.md`](openai-contract-integration.md).  
 > Term definitions: [`dictionary.md`](dictionary.md) (section “Facade vs provider runtime”).
 
 ## Adapter role
@@ -15,7 +15,7 @@
 | **Vendor auth** | — | `apiKeyRef` + `baseUrlRef` in YAML |
 | **Requires the other layer?** | No | No |
 
-The adapter implements the **`AIProvider`** port — the same contract as `create-anthropic-provider.ts` and `create-google-provider.ts`. It does not register HTTP routes and does not handle IDE client authorization.
+The adapter implements the **`AIProvider`** port — the same contract as `create-anthropic-provider.ts` and `create-google-provider.ts`. It does not register HTTP routes and does not handle facade client authorization.
 
 Routing between Chat Completions and Responses API happens in `create-openai-provider.core.ts` according to the YAML entry **`type`** (not in the HTTP facade): `openai` → Responses API, `openai-compatible` → Chat Completions.
 
@@ -121,7 +121,7 @@ The `baseUrl` field does **not** appear in YAML — only `baseUrlRef` pointing t
 ## Related documents
 
 - [`openai-contract-integration.md`](openai-contract-integration.md) — HTTP facade (Cursor)
-- [`integrations.md`](integrations.md) — IDE facade architecture
+- [`integrations.md`](integrations.md) — official contract facade architecture
 - [`dictionary.md`](dictionary.md) — glossary, parameter matrix
 - [`configuration.md`](configuration.md) — YAML, env, `policy.params` rules
 - [`pl/spec/SPEC-PROVIDERS.md`](pl/spec/SPEC-PROVIDERS.md) — adapter acceptance criteria

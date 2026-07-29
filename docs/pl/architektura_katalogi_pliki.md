@@ -4,7 +4,7 @@ Ten dokument opisuje **strukturę katalogów i plików** projektu _AI Provider G
 
 Zasady:
 
-- Struktura jest **modułowa** (NestJS); warstwa providerów LLM (fabryki + rejestr) — `src/providers/`; fasady HTTP dla IDE — `src/integrations/`.
+- Struktura jest **modułowa** (NestJS); warstwa providerów LLM (fabryki + rejestr) — `src/providers/`; fasady HTTP oficjalnych kontraktów — `src/integrations/`.
 - Elementy oznaczone _(plan)_ nie istnieją w kodzie lub są poza rdzeniem MVP.
 - **Pominięte w drzewie:** `node_modules/`, `dist/`, `.git/`, lokalne `.env` (nie commitować).
 - Pliki **`*.spec.ts`** — testy jednostkowe obok modułów; wypisane zbiorczo tam, gdzie występują.
@@ -394,7 +394,6 @@ ai-provider-gateway/
 │   │       ├── client-rate-limit.util.ts
 │   │       ├── default-model-policy.util.ts
 │   │       ├── effective-config-preview.util.ts
-│   │       ├── legacy-provider-env.util.ts
 │   │       ├── provider-id.util.ts
 │   │       └── validation-formatter.util.ts
 │   │
@@ -540,10 +539,10 @@ ai-provider-gateway/
     │   ├── dictionary.md
     │   ├── brand_types.md                  # brand types TS — przewodnik developerów
     │   ├── anty_patterny.md
-    │   ├── integracje.md                   # fasady OpenAI / Anthropic (IDE)
+    │   ├── integracje.md                   # fasady oficjalnych kontraktów OpenAI / Anthropic
     │   ├── integracja_openai_kontrakt.md   # fasada OpenAI (Cursor)
     │   ├── provider_openai_runtime.md      # adapter runtime OpenAI
-    │   ├── integracja_anthropic_messages.md # fasada Anthropic (Claude Code)
+    │   ├── integracja_anthropic_messages.md # fasada oficjalnego kontraktu Anthropic
     │   ├── CLI.md                          # Gateway CLI (wizard, uruchomienie)
     │   ├── deployment.md
     │   ├── testy.md                        # testy jednostkowe i E2E
@@ -557,10 +556,6 @@ ai-provider-gateway/
     │       └── SPEC-HEALTH.md
     └── (docelowo EN w docs/ bezpośrednio — poza pl/)
 ```
-
-### Notatki robocze (katalog główny, opcjonalnie)
-
-Poza dokumentacją produktową w `docs/pl/` mogą występować lokalne plany/notatki w katalogu głównym repo, np. `PLAN_IMPLEMENTACJI.md`, `*_refactor.md` — nie są częścią kontraktu API ani wdrożenia gatewaya.
 
 ---
 
@@ -584,7 +579,7 @@ Poza dokumentacją produktową w `docs/pl/` mogą występować lokalne plany/not
 | **`src/cli/`**                           | Warstwa CLI: **nie importuje** `ConfigModule`. NestJS tylko dla DI. Wizard (`config:init`), walidacja/wyświetlanie configu, CRUD providerów (multi-instance), modeli, klientów, testy SDK, generowanie kluczy. Szczegóły: `CLI.md`, `architektura.md`.                                                                                                                                                                                                                                                                                                                                                                  |
 | **`scripts/`**                           | Walidacja konfiguracji offline (`npm run config:validate` → `validateGatewayConfig()`); generowanie kluczy — **`gateway key:generate`**.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **`test/`**                              | Testy: E2E HTTP (`test/e2e/`, mocki), **security** (`test/security/`), jednostkowe CLI (`test/jest-cli.json`), integracyjne live (`test/integration/`). Skrypty: `npm run test:e2e`, `npm run test:security`, `npm run test:cli`, `npm run test:integration`, `npm run test:all` (runtime + E2E), `npm run deploy:production`. Szczegóły: **`testy.md`**.                                                                                                                                                                                                                                                                                                                                                      |
-| **`docs/`**                              | Dokumentacja PL w `docs/pl/` (ten katalog) oraz SDD w `docs/pl/spec/` (do usunięcia / migracji). Docelowo EN w `docs/` bezpośrednio — poza `pl/`.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **`docs/`**                              | Dokumentacja anglojęzyczna bezpośrednio w `docs/` oraz dokumentacja PL w `docs/pl/` (ten katalog).                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ---
 
@@ -597,7 +592,7 @@ CLI to **osobna warstwa** z własnym entry pointem, niezależna od bootstrapu HT
 | **Bez `ConfigModule`**  | `CliModule` nie importuje `ConfigModule.forRoot()` — unika deadlocku (CLI tworzy config, którego runtime wymaga przy starcie).                                                                                                           |
 | **Bez wymogu build**    | Wrapper w `bin/` uruchamia TypeScript przez `ts-node`, gdy brak `dist/` — CLI dostępne po `npm install`.                                                                                                                                 |
 | **Kierunek zależności** | Dozwolone: `src/config/*` → `src/cli/*` (typy, schematy Zod, walidatory). Zabronione odwrotnie — CLI nie modyfikuje logiki runtime.                                                                                                      |
-| **Ładowanie configu**   | `CliConfigLoaderService.loadRawConfig()` — parsowanie YAML + `GatewayConfigSchema`; **bez** rozwiązywania env. Pełna walidacja runtime — w `config:init` na końcu wizarda; w **`gateway config:validate`** (YAML + `validateEnvironment()` z fasady); **`npm run config:validate`** — YAML + reguły runtime bez formatu legacy env. |
+| **Ładowanie configu**   | `CliConfigLoaderService.loadRawConfig()` — parsowanie YAML + `GatewayConfigSchema`; **bez** rozwiązywania env. Pełna walidacja runtime — w `config:init` na końcu wizarda; w **`gateway config:validate`** (YAML + `validateEnvironment()` z fasady); **`npm run config:validate`** — YAML + reguły runtime bez pełnego `validateEnvironment()`. |
 | **Konwencja komend**    | `gateway <namespace>:<action>`; root command wyświetla welcome i pełną listę komend.                                                                                                                                                     |
 | **Stan wizarda**        | `.gateway-wizard-state.json` — resume / rollback po przerwaniu (`WizardStateManager`).                                                                                                                                                   |
 | **Backup mutacji**      | `FileManagerService.backupFile()` → `backup/<nazwa-pliku>.backup-<timestamp>` (katalog w `.gitignore`).                                                                                                                                  |
@@ -632,8 +627,8 @@ Pełna dokumentacja komend: **`CLI.md`**.
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
 - System prompt z plików, cache (`noop`/`redis`, walidacja odczytu `CachedChatResponseSchema`), typed config (`AppConfiguration`, `typed-config.ts`), logging + observability (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges na `/metrics`), readiness (`checks.config`, `checks.redis`, `checks.cache`), alerty Prometheus (`deployment/monitoring/alerts.yml`), graceful shutdown.
 - `GatewayFinishReason` (`stop` | `tool_calls` | `length` | `content_filter`) w natywnym API; reverse map na fasadzie Anthropic (`anthropic-stop-reason.mapper.ts`).
-- OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad IDE; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → [`openapi.json`](../../openapi.json).
-- **Fasady IDE:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule` i `ModelsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` oraz natywny `/api/v1/models` (`integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — adapter OpenAI: `provider_openai_runtime.md`.
+- OpenAPI/Swagger: dekoratory `@nestjs/swagger` na kontrolerach natywnych i fasad oficjalnych kontraktów; schematy błędów vendora (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, eksport `npm run openapi:export` → [`openapi.json`](../../openapi.json).
+- **Fasady oficjalnych kontraktów:** `src/integrations/` — kontrakty HTTP OpenAI i Anthropic (`IntegrationsModule` w `AppModule`), `Request.gatewayKey`, eksporty z `ChatModule` i `ModelsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` oraz natywny `/api/v1/models` (`integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`). **Nie mylić** z adapterami SDK w `src/providers/` — adapter OpenAI: `provider_openai_runtime.md`.
 - **Brand types:** `src/common/types/` — nominalne typy TS w runtime (klucze, identyfikatory, metryki, policy, `WarningCode`); DTO HTTP pozostają prymitywne — `brand_types.md`.
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — wizard **`config:init`**, komendy `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interaktywny tryb). Dokumentacja: **`CLI.md`**, sekcja 2a powyżej, `architektura.md`.
 

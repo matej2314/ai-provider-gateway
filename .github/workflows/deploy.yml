@@ -236,7 +236,6 @@ jobs:
           echo "Removing job workspace .env (if present): ${GITHUB_WORKSPACE}/.env"
           rm -f "${GITHUB_WORKSPACE}/.env"
           rm -f /tmp/deploy-host-binds.yml
-          rm -f /tmp/deploy-extra-networks.yml
           if [ -f "${GITHUB_WORKSPACE}/.env" ]; then
             echo "WARNING: ${GITHUB_WORKSPACE}/.env still exists after rm"
             exit 1

@@ -1,6 +1,5 @@
 import { isRedisRequired } from '../../cache/should-include-redis-stack';
 import type { GatewayProviderType } from 'src/config/provider-types';
-import { applyLegacyProviderApiKeyEnv } from '../utils/legacy-provider-env.util';
 import {
   EnvRef,
   ProviderApiKey,
@@ -75,8 +74,6 @@ export function generateEnvTemplate(
     }
   });
 
-  applyLegacyProviderApiKeyEnv(env, input.providers);
-
   input.clients.forEach((client) => {
     env[client.gatewayKeyRef] = client.gatewayKey;
   });
@@ -92,13 +89,9 @@ export function generateEnvTemplate(
     env.REDIS_HOST = input.redisHost ?? 'localhost';
     env.REDIS_PORT = String(input.redisPort ?? 6379);
     env.REDIS_PASSWORD = input.redisPassword ?? '';
-  } else {
-    env.REDIS_HOST = '';
-    env.REDIS_PORT = '';
-    env.REDIS_PASSWORD = '';
+    env.REDIS_DB = '0';
+    env.REDIS_KEY_PREFIX = 'aigw:';
   }
-  env.REDIS_DB = '0';
-  env.REDIS_KEY_PREFIX = 'aigw:';
 
   env.RATE_LIMIT_SMART_ENABLED = String(input.rateLimitSmartEnabled ?? false);
 

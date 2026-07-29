@@ -28,7 +28,15 @@ export class ConfigPersistenceService {
   async persistConfig(
     config: GatewayConfig,
     cwd: string,
-    options: { skipEffectiveCheck?: boolean } = {},
+    options: {
+      skipEffectiveCheck?: boolean;
+      /**
+       * Soft-skip provider API key / base URL presence (agent defer / structural write).
+       * Same semantics as CliGatewayValidatorService.allowMissingProviderSecrets.
+       * Still enforces active models / enabled-provider invariants via buildEffective.
+       */
+      allowMissingProviderSecrets?: boolean;
+    } = {},
   ): Promise<GatewayConfig> {
     const parsed = GatewayConfigSchema.safeParse(config);
     if (!parsed.success) {
@@ -38,7 +46,10 @@ export class ConfigPersistenceService {
     if (!options.skipEffectiveCheck) {
       dotenvConfig({ path: join(cwd, '.env') });
       try {
-        buildEffectiveGatewayConfig(parsed.data, process.env);
+        buildEffectiveGatewayConfig(parsed.data, process.env, {
+          allowMissingProviderApiKeys:
+            options.allowMissingProviderSecrets === true,
+        });
       } catch (err) {
         throw new Error(
           ValidationFormatter.formatRuntimeError(

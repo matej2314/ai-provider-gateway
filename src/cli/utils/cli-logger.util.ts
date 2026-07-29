@@ -6,27 +6,47 @@ import ora from 'ora';
  */
 
 export class CliLogger {
+  /** When true, spinner/section go to stderr or are no-op (agent/--json). */
+  private static jsonSafe = false;
+
+  static setJsonSafe(enabled: boolean): void {
+    CliLogger.jsonSafe = enabled;
+  }
+
+  private static out(): (...args: unknown[]) => void {
+    return CliLogger.jsonSafe
+      ? console.error.bind(console)
+      : console.log.bind(console);
+  }
+
   static info(message: string): void {
-    console.log(chalk.blue('i'), message);
+    CliLogger.out()(chalk.blue('i'), message);
   }
 
   static success(message: string): void {
-    console.log(chalk.green('✓'), message);
+    CliLogger.out()(chalk.green('✓'), message);
   }
 
   static warning(message: string): void {
-    console.log(chalk.yellow('⚠'), message);
+    CliLogger.out()(chalk.yellow('⚠'), message);
   }
 
   static error(message: string): void {
-    console.log(chalk.red('✗'), message);
+    CliLogger.out()(chalk.red('✗'), message);
   }
 
   static dim(message: string): void {
-    console.log(chalk.dim(message));
+    CliLogger.out()(chalk.dim(message));
   }
 
   static spinner(text: string) {
+    if (CliLogger.jsonSafe) {
+      return {
+        succeed: (m?: string) => m && console.error(chalk.green('✓'), m),
+        fail: (m?: string) => m && console.error(chalk.red('✗'), m),
+        stop: () => undefined,
+      };
+    }
     return ora({
       text,
       color: 'cyan',
@@ -34,10 +54,10 @@ export class CliLogger {
   }
 
   static section(title: string): void {
-    console.log('\n', chalk.bold.underline(title) + '\n');
+    CliLogger.out()('\n', chalk.bold.underline(title) + '\n');
   }
 
   static blank(): void {
-    console.log('');
+    CliLogger.out()('');
   }
 }

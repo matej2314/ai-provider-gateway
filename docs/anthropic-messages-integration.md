@@ -1,7 +1,7 @@
 # Anthropic Messages API integration (Claude Code)
 
 > **Important — facade ≠ Anthropic provider:**  
-> This document describes the **integration facade** — the HTTP layer in `src/integrations/anthropic/` that implements the **shape** of the Anthropic Messages API. It provides compatibility with Claude Code and similar clients; the Anthropic Messages API is the de facto standard for this tool ecosystem.  
+> This document describes the **official contract facade** — the HTTP layer in `src/integrations/anthropic/` that implements the **shape** of the Anthropic Messages API. It provides compatibility with Claude Code and other clients that expect this contract; the Anthropic Messages API is a de facto standard for that ecosystem.  
 > **This is not** a guarantee that an enabled `type: anthropic` provider exists in the project, nor that the LLM call will hit the Anthropic API. Routing depends solely on **`model`** (= `modelAlias` in YAML) and `providerInstance` — an alias may point to e.g. Google Gemini.  
 > **Auth:** `x-api-key` / Bearer is a **gateway client key** from the allowlist, not a key from the Anthropic console.  
 > Counterpart for the OpenAI facade: [`openai-contract-integration.md`](openai-contract-integration.md), [`dictionary.md`](dictionary.md).
@@ -244,6 +244,6 @@ Anthropic routes are in **`openapi.json`** (tag **Anthropic API**, security `Api
 ## Related
 
 - [`integrations.md`](integrations.md) — facade architecture, rate limit
-- [`openai-contract-integration.md`](openai-contract-integration.md) — OpenAI facade (Cursor)
+- [`openai-contract-integration.md`](openai-contract-integration.md) — OpenAI official contract facade
 - [`configuration.md`](configuration.md) — `gateway.config.yaml`, env keys
 - [`endpoints.md`](endpoints.md)

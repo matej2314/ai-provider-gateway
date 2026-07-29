@@ -12,6 +12,8 @@ export interface CliValidateOptions {
   configPath?: string;
   envPath?: string;
   validateEnvFormat?: boolean;
+  /** Soft-skip provider API key / base URL presence (agent structural validate). Master key still required. */
+  allowMissingProviderSecrets?: boolean;
 }
 
 @Injectable()
@@ -26,6 +28,7 @@ export class CliGatewayValidatorService {
     const result = validateGatewayConfig({
       configPath,
       env: process.env,
+      allowMissingProviderSecrets: options.allowMissingProviderSecrets,
     });
 
     if (options.validateEnvFormat !== false && result.success) {

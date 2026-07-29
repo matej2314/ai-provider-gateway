@@ -4,45 +4,52 @@ Narzędzie wiersza poleceń do inicjalizacji konfiguracji gatewaya, zarządzania
 
 **Konwencja komend:** `gateway <namespace>:<action>` (np. `gateway config:init`).
 
-Komendy mutujące konfigurację działają w trybie **interaktywnym** (prompty w terminalu). Tryb non-interactive nie wchodzi w bieżący zakres CLI.
+CLI wspiera **dwa tryby** pracy:
+
+| Tryb | Dla kogo | Jak |
+|------|----------|-----|
+| **Interaktywny** | Operator w terminalu | Domyślnie — prompty inquirer (np. `gateway config:init`) |
+| **Agentowy** | Agenty / automatyzacja (Agent skills, skrypty) | `--agent --answers <plik.json>` + zwykle `--json` |
+
+Sekrety (API keys, base URL, DSN, hasła) w trybie agentowym **nie** trafiają do pliku answers — uzupełnia je człowiek lokalnie w `.env` (**human in the tool**). Szczegóły: [Tryby pracy](#tryby-pracy-interaktywny-i-agentowy).
 
 ## Pełna lista komend
 
 | Namespace | Komenda | Opis |
 |-----------|---------|------|
 | *(root)* | `gateway` | Welcome + lista komend (`npm run cli`) |
-| config | `config:init` | Wizard inicjalizacji |
-| config | `config:validate` | Walidacja YAML + env |
-| config | `config:show` | Podgląd sparsowanego YAML |
-| provider | `provider:list` | Lista instancji providerów |
-| provider | `provider:test [instanceId]` | Test połączenia SDK |
-| provider | `provider:add` | Dodaj instancję (interaktywnie) |
+| config | `config:init` | Wizard inicjalizacji (interaktywny **lub** `--agent`) |
+| config | `config:validate` | Walidacja YAML + env (`--json` opcjonalnie) |
+| config | `config:show` | Podgląd sparsowanego YAML (`--json` opcjonalnie) |
+| config | `config:secrets-status` | Gate braków w `.env` (agent / CI; `--json`) |
+| provider | `provider:list` | Lista instancji providerów (`--json`) |
+| provider | `provider:test [instanceId]` | Test połączenia SDK (`--json`) |
+| provider | `provider:add` | Dodaj instancję (interaktywnie **lub** `--agent`) |
 | provider | `provider:remove <instanceId>` | Usuń instancję + modele + klucz z `.env` |
 | provider | `provider:edit <instanceId>` | Włącz/wyłącz lub rotacja klucza API |
-| model | `model:list` | Lista aliasów modeli |
-| model | `model:add` | Dodaj alias (interaktywnie) |
+| model | `model:list` | Lista aliasów modeli (`--json`) |
+| model | `model:add` | Dodaj alias (interaktywnie **lub** `--agent`) |
 | model | `model:remove <alias>` | Usuń alias z YAML |
-| model | `model:edit <alias>` | Edycja pól modelu (checkbox) |
-| client | `client:list` | Lista klientów gateway |
-| client | `client:add` | Dodaj klienta (interaktywnie) |
+| model | `model:edit <alias>` | Edycja pól modelu |
+| client | `client:list` | Lista klientów gateway (`--json`) |
+| client | `client:add` | Dodaj klienta (interaktywnie **lub** `--agent`) |
 | client | `client:edit <clientId>` | Edycja klienta / rotacja klucza |
 | client | `client:remove <clientId>` | Usuń klienta + klucz z `.env` |
-| key | `key:generate` | Wygeneruj klucz master lub klienta (bez zapisu do `.env`) |
+| key | `key:generate` | Generuj klucz (interaktywnie: print; agent: `--write-env`) |
 
 ## Zakres CLI
 
 | Obszar | Opis |
 |--------|------|
 | Infrastruktura (`bin/`, `CliModule`, loader, utilities) | Entry point i DI Nest dla CLI |
+| Warstwa agentowa (`src/cli/agent/`, `schemas/agent-answers.schema.ts`) | `--agent` / `--answers` / `AgentReport`, guard inquirer, pending secrets |
 | System szablonów (`templates/`, generatory plików) | Generowanie YAML, `.env`, system promptów |
-| Wizard `config:init` (5 kroków + walidacja końcowa) | Interaktywna konfiguracja od zera |
-| Resume / rollback stanu wizarda | `.gateway-wizard-state.json` |
-| `config:validate`, `config:show` | Walidacja i podgląd konfiguracji |
-| `provider:add`, `provider:remove`, `provider:edit`, `provider:list`, `provider:test` | CRUD i test SDK providerów |
-| `model:add`, `model:list`, `model:remove`, `model:edit` | CRUD aliasów modeli |
-| `client:add`, `client:list`, `client:edit`, `client:remove` | CRUD klientów gateway |
-| `key:generate` | Generowanie kluczy (bez zapisu do `.env`) |
-| Testy jednostkowe CLI (`npm run test:cli`) | 12 zestawów / 62 przypadki |
+| Wizard `config:init` (5 kroków + walidacja końcowa) | Interaktywna konfiguracja od zera **lub** answers → `runFromAnswers` |
+| Resume / rollback stanu wizarda | `.gateway-wizard-state.json` (głównie tryb interaktywny) |
+| `config:validate`, `config:show`, `config:secrets-status` | Walidacja, podgląd, gate sekretów |
+| `provider:*`, `model:*`, `client:*` | CRUD (oba tryby) i test SDK providerów |
+| `key:generate` | Generowanie kluczy (print lub zapis do `.env` w agent mode) |
+| Testy jednostkowe CLI (`npm run test:cli`) | Liczniki: `testy.md` |
 
 ## Uruchomienie
 
@@ -96,9 +103,10 @@ Wyświetla welcome (boxen) z listą wszystkich komend. Pomoc per komenda: `gatew
    ```bash
    npm install
    gateway config:init
+   # albo agentowo: npm run cli -- config:init --agent --answers <plik.json> --json
    ```
 
-   Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env` i pliki prompt (szablony w `src/cli/templates/`).
+   Wizard (lub agent init) generuje lub nadpisuje `gateway.config.yaml`, `.env` i pliki prompt (szablony w `src/cli/templates/`).
 
 2. Zweryfikuj konfigurację:
 
@@ -119,15 +127,70 @@ Wyświetla welcome (boxen) z listą wszystkich komend. Pomoc per komenda: `gatew
    npm run start:dev
    ```
 
+## Tryby pracy: interaktywny i agentowy
+
+`resolveCliMode()` (`src/cli/agent/resolve-cli-mode.ts`) ustawia tryb na podstawie flag. Agent mode ustawia też `GATEWAY_CLI_AGENT=1` (`markAgentRuntime`) — `assertInteractiveAllowed()` odmawia wtedy promptów inquirer.
+
+### Flagi wspólne (mutacje)
+
+| Flaga | Znaczenie |
+|-------|-----------|
+| `--agent` | Tryb agentowy (bez inquirer); wymaga `--answers` na komendach mutujących |
+| `--answers <path>` | Plik JSON z odpowiedziami (schemat Zod per komenda w `agent-answers.schema.ts`) |
+| `--json` | Raport maszynowy (`AgentReport` lub wynik list/validate) na **stdout** |
+| `--force` / `-y` / `--yes` | Pomiń confirm / nadpisz (m.in. istniejący config przy `config:init`) |
+| `--defer-secrets` | W agent mode **domyślnie włączone** — sekrety nie są w answers; człowiek uzupełnia `.env` |
+
+Komendy tylko-do-odczytu (`*:list`, `config:show`, `config:validate`, `config:secrets-status`, `provider:test`) zwykle wystarczają z `--json` (bez `--agent`).
+
+### Kontrakt answers
+
+- SSoT pól: `src/cli/schemas/agent-answers.schema.ts` (`InitAnswersSchema`, `ProviderAddAnswersSchema`, …).
+- `schemaVersion: 1` na każdym pliku.
+- **Zakazane** w answers: wartości sekretów (`apiKey`, `baseUrl`, `gatewayKey`, `redisPassword`, `sentryDsn`, surowy `masterKey`, …) — `rejectSecretFields` w Zod.
+- Plików answers **nie** commitować (np. `.gateway-init-answers.json`, `.gateway-crud-answers.json`).
+
+### `AgentReport` (stdout przy `--json`)
+
+```ts
+// src/cli/agent/agent-report.ts
+{ ok, status, command, files?, pendingSecrets?, generatedKeyRefs?, warnings?, errors?, next? }
+```
+
+| Exit | `status` | Znaczenie |
+|------|----------|-----------|
+| `0` | `success` | OK |
+| `2` | `awaiting_secrets` | Struktura zapisana; brakuje wartości w `.env` — handoff do użytkownika |
+| `1` | `error` | Błąd — czytaj `errors[]` |
+
+Po `awaiting_secrets`: użytkownik edytuje `.env` lokalnie → `gateway config:secrets-status --json` (exit `0`) → `gateway config:validate --json`.
+
+### Przykłady agentowe
+
+```bash
+# Init od zera
+npm run cli -- config:init --agent --answers .gateway-init-answers.json --json
+# ewentualnie: --force przy nadpisaniu / niedokończonej sesji wizarda
+
+# CRUD (jedna mutacja)
+npm run cli -- provider:add --agent --answers .gateway-crud-answers.json --json
+
+# Gate sekretów + walidacja
+npm run cli -- config:secrets-status --json
+npm run cli -- config:validate --json
+```
+
+Orkiestracja przez agenty IDE: skille `.agents/skills/gateway-setup` (`config:init`) oraz `.agents/skills/gateway-config` (CRUD) — protokół: `references/agent-protocol.md`.
+
 ## Komendy — konfiguracja
 
 ### `gateway config:init`
 
-Interaktywny wizard inicjalizacji projektu (styl `npm init`).
+Inicjalizacja projektu: **wizard interaktywny** (styl `npm init`) **lub** tryb agentowy (`--agent --answers`).
 
 **Plik:** `src/cli/commands/config/config-init.command.ts`
 
-**Flow:**
+**Flow interaktywny:**
 
 1. **Wykrycie istniejącej konfiguracji**
    - Brak pliku `gateway.config.yaml` → wizard od początku.
@@ -164,7 +227,7 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
    | `REDIS_*` | Ustawiane tylko gdy Redis wymagany (`isEnvInputRedisRequired` → `isRedisRequired`); w przeciwnym razie puste stringi. Zawsze: `REDIS_DB`, `REDIS_KEY_PREFIX`. |
    | `RATE_LIMIT_SMART_ENABLED` | Zawsze z wyboru użytkownika w kroku rate limit (nie wiązane z `CACHE_BACKEND`). |
    | `RATE_LIMIT_*` (RPS, burst, streamy, cooldown) | Stałe domyślne w szablonie. |
-   | Sekrety providerów / klientów | Pełne wartości w `.env` pod `apiKeyRef`; legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` — `applyLegacyProviderApiKeyEnv()`; puste w `.env.example`. |
+   | Sekrety providerów / klientów | Pełne wartości w `.env` pod `apiKeyRef` / `gatewayKeyRef`; puste w `.env.example`. |
 
    Przykładowe kombinacje (zgodne z runtime):
 
@@ -187,23 +250,39 @@ Interaktywny wizard inicjalizacji projektu (styl `npm init`).
 
 **Wymagania:** CLI **nie wymaga** istniejącego `.env` na starcie wizarda — pełna walidacja runtime dopiero na końcu flow.
 
+#### Tryb agentowy (`config:init --agent`)
+
+```bash
+npm run cli -- config:init --agent --answers <plik.json> --json
+# nadpisanie / porzucenie niedokończonej sesji: dodaj --force
+```
+
+1. Answers → `InitAnswersSchema` (`schemaVersion: 1`, `masterKey: { generate: true }`, `providers[]`, `models[]`, `clients[]` z `generateKey: true`, `server`).
+2. `WizardOrchestratorService.runFromAnswers()` → `ConfigGeneratorService.generateFullConfig()` (bez pętli inquirer).
+3. Walidacja struktury z `allowMissingProviderSecrets: true` — brak sekretów **nie** jest błędem na tym etapie.
+4. `collectPendingSecrets()` → `AgentReport`: `success` albo `awaiting_secrets` (exit `2`) z `pendingSecrets[]` i `next[]` (instrukcja handoffu `.env`).
+5. **Nie** uruchamia interaktywnej pętli `validateAndFixConfig()`.
+
+Po uzupełnieniu `.env` przez użytkownika: `config:secrets-status --json` → `config:validate --json`.
+
 ### `gateway config:validate`
 
 Walidacja `gateway.config.yaml` (struktura Zod + reguły runtime przez `validateGatewayConfig()`) oraz — po sukcesie YAML — formatu env (`validateEnvironment()` z `configuration-validation.service.ts` przez **`CliGatewayValidatorService`**).
 
 ```bash
 gateway config:validate
+gateway config:validate --json   # AgentReport / wynik maszynowy na stdout
 ```
 
 - Brak pliku `gateway.config.yaml` → exit `1` z podpowiedzią `gateway config:init`.
 - Wykryty boilerplate (`isBoilerplateConfig()`) → exit `1` z podpowiedzią `gateway config:init`.
 - Błąd schematu YAML lub brak klucza pod `apiKeyRef` włączonego providera → exit `1`.
-- Błędny format legacy klucza (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` gdy ustawione) → exit `1`.
-- Sukces → podsumowanie (schema version, liczba providerów/modeli/klientów); ostrzeżenia (np. pusty klucz klienta) nie blokują.
+- Błąd `validateEnvironment()` (kształt ogólnych zmiennych env: cache, Redis, rate limit itd.) → exit `1`.
+- Sukces → podsumowanie (schema version, liczba providerów/modeli/klientów); ostrzeżenia (np. pusty klucz klienta) nie blokują. Przy `--json` — raport na stdout.
 
 **Uwaga:** Komenda sprawdza plik `gateway.config.yaml` w katalogu roboczym.
 
-**Alternatywa offline (walidacja YAML + reguły runtime):** `npm run config:validate` — skrypt `scripts/validate-config.ts` (szczegóły: `konfiguracja.md`). **Nie** uruchamia `validateEnvironment()` — do pełnej walidacji env (format legacy kluczy) użyj `gateway config:validate`.
+**Alternatywa offline (walidacja YAML + reguły runtime):** `npm run config:validate` — skrypt `scripts/validate-config.ts` (szczegóły: `konfiguracja.md`). **Nie** uruchamia `validateEnvironment()` — do pełnej walidacji env użyj `gateway config:validate`.
 
 ### `gateway config:show`
 
@@ -211,11 +290,29 @@ Wyświetla sparsowaną konfigurację z YAML (bez rozwiązywania wartości sekret
 
 ```bash
 gateway config:show
+gateway config:show --json
 ```
 
 Sekcje: providery (typ, `enabled`, `apiKeyRef`), modele (alias → `providerInstance`/`modelId`, fallback), klienci (typ, nazwa, `gatewayKeyRef`, rate limit), master key ref.
 
 Przy boilerplate wyświetla konfigurację, a na końcu **ostrzeżenie** (bez exit `1`).
+
+### `gateway config:secrets-status`
+
+Gate braków sekretów w `.env` względem `gateway.config.yaml` — używany po mutacjach agentowych (`awaiting_secrets`) oraz w skillach setup/CRUD.
+
+**Plik:** `src/cli/commands/config/config-secrets-status.command.ts`  
+**Logika:** `collectPendingSecrets()` (`src/cli/agent/pending-secrets.ts`) — m.in. `master_key`, `provider_api_key`, `provider_base_url`, opcjonalnie klucze klientów / Sentry / Redis.
+
+```bash
+npm run cli -- config:secrets-status --json
+```
+
+| Exit | Znaczenie |
+|------|-----------|
+| `0` | Brak pending — można walidować / startować |
+| `2` | `awaiting_secrets` — lista `pendingSecrets[]` (tylko `envRef` + `reason`, **bez** wartości) |
+| `1` | Błąd (brak configu / boilerplate / inny) |
 
 ## Konfiguracja boilerplate a komendy
 
@@ -223,8 +320,8 @@ Większość komend CRUD wymaga pełnej konfiguracji (nie boilerplate). Zachowan
 
 | Komenda | Zachowanie |
 |---------|------------|
-| `config:init` | Start wizarda (bez pytania o nadpisanie) |
-| `config:validate`, `provider:*` | Ostrzeżenie + exit `1` |
+| `config:init` | Start wizarda / agent init (bez pytania o nadpisanie przy boilerplate) |
+| `config:validate`, `config:secrets-status`, `provider:*` | Ostrzeżenie + exit `1` |
 | `config:show` | Wyświetla YAML + ostrzeżenie na końcu |
 | `model:list`, `model:remove`, `client:list` | Ostrzeżenie + **return** (exit `0`) |
 | `model:add`, `model:edit`, `client:add`, `client:edit`, `client:remove` | Ostrzeżenie + exit `1` |
@@ -240,6 +337,7 @@ Lista skonfigurowanych instancji providerów (ID, typ, `apiKeyRef`, `enabled`).
 
 ```bash
 gateway provider:list
+gateway provider:list --json
 ```
 
 Wymaga pełnej konfiguracji (nie boilerplate). Przy braku providerów — komunikat ostrzegawczy.
@@ -272,16 +370,20 @@ Interaktywne dodanie nowej instancji providera:
 - ID instancji (unikalne, np. `google-office`)
 - Typ adaptera (`PROVIDER_TYPES`: `anthropic`, `google`, `openai`, `openai-compatible`)
 - Dla typów OpenAI: opcjonalny klucz API, **wymagany** `baseUrlRef` + URL bazowy (domyślnie `https://api.openai.com/v1` lub `http://localhost:11434/v1`)
-- Dla pozostałych typów: klucz API (zapis do `.env` pod `deriveApiKeyRef(instanceId)`; synchronizacja legacy env)
+- Dla pozostałych typów: klucz API (zapis do `.env` pod `deriveApiKeyRef(instanceId)`)
 - Flaga `enabled`
 
 Jeśli brak modeli powiązanych z nową instancją → **obowiązkowy** pod-flow dodania co najmniej jednego modelu (`ModelManagerService.addModelForProvider`) w tej samej sesji.
 
 ```bash
 gateway provider:add
+# agent:
+npm run cli -- provider:add --agent --answers <plik.json> --json
 ```
 
-Zapis: backup YAML + `ConfigPersistenceService.persistConfig()` + `EnvPatchService.setVar()`.
+**Agent answers** (`ProviderAddAnswersSchema`): `id`, `type`, `deferSecret: true`, `ensureModel: { alias, modelId }` — bez `apiKey` / `baseUrl` (te trafiają do `pendingSecrets` / `.env`).
+
+Zapis: backup YAML + `ConfigPersistenceService.persistConfig()` + `EnvPatchService.setVar()` (w agent mode sekrety providera zwykle odroczone).
 
 ### `gateway provider:remove <instanceId>`
 
@@ -289,9 +391,11 @@ Usuwa instancję, **wszystkie** modele z `providerInstance === id` oraz wpis `ap
 
 ```bash
 gateway provider:remove google-office
+# agent: answers z id + confirm: true; --force pomija confirm interaktywny
+npm run cli -- provider:remove --agent --answers <plik.json> --json
 ```
 
-Przed usunięciem — confirm z listą powiązanych aliasów modeli. Przy usuwaniu **jedynej aktywnej** instancji (`enabled !== false`) — dodatkowe ostrzeżenie (boxen) i confirm (domyślnie: nie). Pliki promptów modeli (`models/<alias>.md`) **nie są** usuwane automatycznie — CLI wypisuje ich ścieżki po sukcesie.
+Przed usunięciem — confirm z listą powiązanych aliasów modeli (interaktywnie) lub `confirm: true` w answers. Przy usuwaniu **jedynej aktywnej** instancji (`enabled !== false`) — dodatkowe ostrzeżenie (boxen) i confirm (domyślnie: nie). Pliki promptów modeli (`models/<alias>.md`) **nie są** usuwane automatycznie — CLI wypisuje ich ścieżki po sukcesie.
 
 ### `gateway provider:edit <instanceId>`
 
@@ -302,7 +406,10 @@ Edycja istniejącej instancji:
 
 ```bash
 gateway provider:edit anthropic
+npm run cli -- provider:edit --agent --answers <plik.json> --json
 ```
+
+**Agent answers** (`ProviderEditAnswersSchema`): `id`, opcjonalnie `enabled`, `rotateSecret` (czyści wartość pod `apiKeyRef` w `.env` → handoff), `confirmNonBootable` gdy operacja grozi niespójnym bootem.
 
 ## Komendy — modele
 
@@ -312,15 +419,19 @@ Lista aliasów modeli z `providerInstance`, `modelId`, streaming, fallback.
 
 ```bash
 gateway model:list
+gateway model:list --json
 ```
 
 ### `gateway model:add`
 
-Interaktywne dodanie modelu — wybór `providerInstance`, alias, `modelId` (domyślnie z `DEFAULT_MODELS`), opcjonalnie kolejne modele dla tej samej instancji. Tworzy plik promptu `src/config/system-prompt/models/<alias>.md` gdy brak.
+Dodanie modelu — wybór `providerInstance`, alias, `modelId` (domyślnie z `DEFAULT_MODELS`), opcjonalnie kolejne modele dla tej samej instancji (interaktywnie). Tworzy plik promptu `src/config/system-prompt/models/<alias>.md` gdy brak.
 
 ```bash
 gateway model:add
+npm run cli -- model:add --agent --answers <plik.json> --json
 ```
+
+**Agent answers** (`ModelAddAnswersSchema`): `alias`, `providerInstance`, `modelId`.
 
 ### `gateway model:remove <alias>`
 
@@ -332,16 +443,20 @@ Jeśli plik promptu nie istnieje lub nie może zostać usunięty, operacja zako�
 
 ```bash
 gateway model:remove chat-default
+npm run cli -- model:remove --agent --answers <plik.json> --json
+# answers: alias + confirm: true
 ```
 
 ### `gateway model:edit <alias>`
 
-Edycja pól modelu (checkbox w terminalu): `modelId`, `providerInstance`, `fallback`, streaming, `policy` (timeout, retry, params).
+Edycja pól modelu: interaktywnie checkbox (`modelId`, `providerInstance`, `fallback`, streaming, `policy`); agentowo — pola w answers.
 
 ```bash
 gateway model:edit chat-default
+npm run cli -- model:edit --agent --answers <plik.json> --json
 ```
 
+**Agent answers** (`ModelEditAnswersSchema`): `alias` + co najmniej jedno z: `modelId`, `providerInstance`, `fallback` (`null` czyści), `streaming`, `policy`; opcjonalnie `confirmNonBootable`.
 ## Komendy — klienci
 
 ### `gateway client:list`
@@ -350,18 +465,20 @@ Lista klientów z typem, nazwą, `gatewayKeyRef`, opcjonalnym rate limitem.
 
 ```bash
 gateway client:list
+gateway client:list --json
 ```
 
 ### `gateway client:add`
 
-Interaktywne dodanie klienta:
+Dodanie klienta:
 
 - ID, nazwa wyświetlana, typ (`GATEWAY_CLIENT_TYPES`)
 - opcjonalny rate limit (`rps`, `burst`, `maxConcurrentStreams`)
-- automatyczne wygenerowanie klucza `gw_<slug>_<base64url>` i zapis do `.env` pod `GATEWAY_KEY_<ID>`
+- automatyczne wygenerowanie klucza `gw_<slug>_<base64url>` i zapis do `.env` pod `GATEWAY_KEY_<ID>` (`generateKey: true` w agent answers)
 
 ```bash
 gateway client:add
+npm run cli -- client:add --agent --answers <plik.json> --json
 ```
 
 ### `gateway client:edit <clientId>`
@@ -375,14 +492,18 @@ Edycja klienta:
 
 ```bash
 gateway client:edit webapp
+npm run cli -- client:edit --agent --answers <plik.json> --json
 ```
+
+**Agent answers** (`ClientEditAnswersSchema`): `id` + `action`: `name` | `type` | `rateLimit` | `rotateKey` (plus pola wymagane dla danej akcji; `rateLimit: null` czyści limit).
 
 ### `gateway client:remove <clientId>`
 
-Usuwa klienta z YAML i wpis `gatewayKeyRef` z `.env` (po confirm).
+Usuwa klienta z YAML i wpis `gatewayKeyRef` z `.env` (po confirm / `confirm: true` w answers).
 
 ```bash
 gateway client:remove webapp
+npm run cli -- client:remove --agent --answers <plik.json> --json
 ```
 
 ## Komendy — klucze
@@ -392,21 +513,25 @@ gateway client:remove webapp
 Generuje kryptograficznie losowy klucz (Node.js `crypto.randomBytes`).
 
 ```bash
-# Master key → gw_mk_<base64url>
+# Interaktywnie — klucz na ekranie (bez zapisu do .env)
 gateway key:generate --type master
 gateway key:generate master
-
-# Klucz klienta → gw_<slug>_<base64url>
 gateway key:generate --type client --client-id webapp
 gateway key:generate client webapp
+
+# Agent — zapis do .env bez printu wartości (wymaga --write-env)
+npm run cli -- key:generate --agent --write-env --type master --json
+npm run cli -- key:generate --agent --write-env --type client --client-id webapp --json
 ```
 
 Opcje:
 
 - `-t, --type <master|client>` — typ klucza (wymagane)
 - `-c, --client-id <id>` — ID klienta (wymagane dla typu `client`)
+- `--agent` / `--json` — tryb agentowy + raport
+- `--write-env` — w agent mode **wymagane**: zapis pod `MASTER_KEY` / `GATEWAY_KEY_<ID>` bez wypisywania sekretu na stdout
 
-Komenda **nie zapisuje** klucza do `.env` — wyświetla wartość w terminalu z podpowiedzią zmiennej env i ostrzeżeniem o widoczności na ekranie.
+W trybie interaktywnym komenda **nie zapisuje** klucza do `.env` — wyświetla wartość w terminalu z podpowiedzią zmiennej env i ostrzeżeniem o widoczności na ekranie.
 
 Formaty (zgodne z wizardem):
 
@@ -417,14 +542,16 @@ Formaty (zgodne z wizardem):
 
 ## Wzorzec mutacji konfiguracji
 
-Komendy add/edit/remove (poza samym wizardem) stosują wspólny wzorzec:
+Komendy add/edit/remove (poza samym wizardem) stosują wspólny wzorzec — w obu trybach ta sama ścieżka persistencji; różni się tylko źródło danych (inquirer vs answers):
 
-1. `CliConfigLoaderService.loadRawConfig()` — odczyt YAML
-2. Mutacja w pamięci
-3. `GatewayConfigSchema.safeParse()` — walidacja struktury
-4. Backup `gateway.config.yaml` — `FileManagerService.backupFile()` → katalog `backup/` (np. `backup/gateway.config.yaml.backup-<timestamp>`; katalog w `.gitignore`)
-5. Zapis YAML — `ConfigPersistenceService.persistConfig()`
-6. Sekrety — `EnvPatchService` (`setVar` / `removeVar` w `.env`)
+1. `resolveCliMode` + (agent) `loadAnswers` + schemat Zod z `agent-answers.schema.ts`
+2. `CliConfigLoaderService.loadRawConfig()` — odczyt YAML
+3. Mutacja w pamięci (managerzy: Provider / Model / Client)
+4. `GatewayConfigSchema.safeParse()` — walidacja struktury
+5. Backup `gateway.config.yaml` — `FileManagerService.backupFile()` → katalog `backup/` (np. `backup/gateway.config.yaml.backup-<timestamp>`; katalog w `.gitignore`)
+6. Zapis YAML — `ConfigPersistenceService.persistConfig()`
+7. Sekrety — `EnvPatchService` (`setVar` / `removeVar` w `.env`) albo odroczenie → `pendingSecrets` / `awaiting_secrets`
+8. (agent) `exitWithAgentReport(...)` na stdout przy `--json`
 
 Kierunek zależności: **config → cli**, **cache/should-include-redis-stack → cli** (predykat Redis); CLI **nie** importuje `ConfigModule` ani `buildEffectiveGatewayConfig()`.
 
@@ -433,22 +560,27 @@ Kierunek zależności: **config → cli**, **cache/should-include-redis-stack �
 | Komponent | Rola |
 |-----------|------|
 | `CliModule` | Root NestJS module — **bez** `ConfigModule` |
+| `agent/resolve-cli-mode.ts` | Flagi → `CliMode`; `markAgentRuntime`, `assertAgentHasAnswers` |
+| `agent/agent-report.ts` | `AgentReport`, exit `0`/`1`/`2`, emit JSON |
+| `agent/load-answers.ts` | Odczyt + parse pliku `--answers` |
+| `agent/pending-secrets.ts` | `collectPendingSecrets` względem YAML + `.env` |
+| `agent/inquirer-guard.ts` | `assertInteractiveAllowed` — blokada promptów w agent mode |
+| `schemas/agent-answers.schema.ts` | Zod answers per komenda (`rejectSecretFields`) |
 | `CliConfigLoaderService` | YAML + `GatewayConfigSchema`; `loadWithEnvCheck()` raportuje braki env |
 | `FileManagerService` | read/write YAML, `.env`, backup do `backup/`, delete files |
-| `ConfigGeneratorService` | Generowanie plików z szablonów (wizard) |
+| `ConfigGeneratorService` | Generowanie plików z szablonów (wizard / agent init) |
 | `ConfigPersistenceService` | Walidacja Zod + backup + zapis YAML po mutacjach |
 | `EnvPatchService` | Aktualizacja pojedynczych zmiennych w `.env` |
-| `WizardOrchestratorService` | Orkiestracja kroków wizarda |
+| `WizardOrchestratorService` | Orkiestracja kroków wizarda **oraz** `runFromAnswers` |
 | `WizardStateManager` | Persistencja `.gateway-wizard-state.json`, rollback |
 | `ProviderManagerService` | add / remove / edit instancji providera |
 | `ModelManagerService` | add / remove / edit aliasów modeli |
 | `ClientManagerService` | add / remove / edit klientów |
 | `ProviderTestService` | Lekkie testy SDK Anthropic / Google / OpenAI |
 | `KeyGeneratorService` | Klucze master `gw_mk_*`, klient `gw_<slug>_*` |
-| `CliGatewayValidatorService` | `validateGatewayConfig()` + opcjonalnie `validateEnvironment()` (fasada — format legacy kluczy) |
-| `ProviderPromptService` | Krok 2/5 — ID instancji, `apiKeyRef`, walidacja formatu klucza |
+| `CliGatewayValidatorService` | `validateGatewayConfig()` + opcjonalnie `validateEnvironment()` (fasada — kształt ogólnych zmiennych env) |
+| `ProviderPromptService` | Krok 2/5 — ID instancji, `apiKeyRef`, walidacja formatu klucza (interaktywnie) |
 | `utils/provider-id.util.ts` | `deriveApiKeyRef`, `defaultProviderInstanceId` |
-| `utils/legacy-provider-env.util.ts` | `applyLegacyProviderApiKeyEnv`, `syncLegacyProviderApiKeysInEnv` |
 | `utils/api-key-validation.util.ts` | Walidacja prefiksów kluczy w wizardzie / CLI |
 | `constants/model-allow-overrides.ts` | Domyślna lista `allowOverrides` dla nowych modeli |
 | `utils/default-model-policy.util.ts` | Domyślne `capabilities` / `policy` per typ providera |
@@ -461,7 +593,9 @@ Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `validat
 ## Wskazówki
 
 - `gateway --help` — lista komend nest-commander
-- `gateway <command> --help` — opcje per komenda
+- `gateway <command> --help` — opcje per komenda (w tym `--agent`, `--answers`, `--json`)
+- Mutacje agentowe: zawsze `--agent --answers <path> --json`; sekrety tylko w lokalnym `.env`
+- Po `awaiting_secrets` (exit `2`) nie traktuj jako porażki — to oczekiwany handoff
 - Komendy mutujące tworzą backup `gateway.config.yaml` w `backup/` przed zapisem (wizard przy nadpisaniu istniejącej konfiguracji robi to samo dla YAML i `.env`)
 - Po zmianach env uruchom `gateway config:validate` przed startem serwera
 - `model:remove` automatycznie usuwa plik promptu modelu; `provider:remove` wyświetla listę promptów powiązanych modeli do ręcznego przeglądu (może być wiele modeli per provider)
@@ -472,3 +606,5 @@ Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `validat
 - `architektura.md` — diagram izolacji CLI / HTTP
 - `architektura_katalogi_pliki.md` — drzewo `src/cli/`
 - `dictionary.md` — terminy *Gateway CLI*, *CliConfigLoader*, *placeholder config*, *providerInstance*
+- `.agents/skills/gateway-setup/` — bootstrap przez `config:init --agent`
+- `.agents/skills/gateway-config/` — CRUD agentowy (jedna mutacja) + `references/agent-protocol.md`

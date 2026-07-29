@@ -65,7 +65,7 @@ describe('provider-api-key.validation', () => {
       expect(collectMissingEnabledProviderApiKeyErrors(config, {})).toEqual([]);
     });
 
-    it('does not require legacy ANTHROPIC_API_KEY when custom ref is set', () => {
+    it('does not accept a key under a different env name than apiKeyRef', () => {
       const config = createTestGatewayConfig({
         providers: {
           'anthropic-primary': {
@@ -76,7 +76,7 @@ describe('provider-api-key.validation', () => {
         },
       });
 
-      const env = { ANTHROPIC_API_KEY: 'sk-ant-legacy-only' };
+      const env = { ANTHROPIC_API_KEY: 'sk-ant-other-name-only' };
 
       expect(collectMissingEnabledProviderApiKeyErrors(config, env)).toEqual([
         {

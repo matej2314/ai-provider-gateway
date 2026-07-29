@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as inquirer from 'inquirer';
 import chalk from 'chalk';
+import { assertInteractiveAllowed } from '../../agent/inquirer-guard';
 import { CliLogger } from '../../utils/cli-logger.util';
 import {
   GATEWAY_CLIENT_TYPES,
@@ -37,6 +38,7 @@ export class ClientPromptService {
   async promptClients(
     keyGenerator: KeyGeneratorService,
   ): Promise<ClientPromptResult[]> {
+    assertInteractiveAllowed('ClientPromptService.promptClients');
     CliLogger.section('Step 4/5: Clients');
     console.log(
       chalk.dim(

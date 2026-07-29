@@ -20,6 +20,14 @@ import {
   asMaxConcurrentStreams,
   type EnvRef,
 } from '../../common/types/branded.types';
+import { assertInteractiveAllowed } from '../agent/inquirer-guard';
+import type {
+  AddClientInput,
+  ApplyMutationResult,
+  EditClientInput,
+  PromptAddClientResult,
+  RemoveClientInput,
+} from '../types/cli-apply.types';
 
 @Injectable()
 export class ClientManagerService {
@@ -35,7 +43,8 @@ export class ClientManagerService {
     );
   }
 
-  async addClient(config: GatewayConfig, cwd: string): Promise<void> {
+  async promptAddClient(config: GatewayConfig): Promise<PromptAddClientResult> {
+    assertInteractiveAllowed('ClientManagerService.promptAddClient');
     CliLogger.section('Add client');
 
     const clientAnswers = await inquirer.prompt<{
@@ -145,39 +154,71 @@ export class ClientManagerService {
       };
     }
 
-    const gatewayKeyRef = this.deriveGatewayKeyRef(clientAnswers.id.trim());
-    const gatewayKey = this.keyGenerator.generateGatewayClientKey(
-      clientAnswers.id.trim(),
-    );
-    console.log(chalk.green('\n✓ Generated gateway key\n'));
-
-    config.clients[clientId] = {
+    return {
+      id: clientId,
       name: clientAnswers.name.trim(),
       type: clientAnswers.type,
-      gatewayKeyRef,
-      ...(rateLimit && {
-        rateLimit: buildClientRateLimitConfig(rateLimit),
+      rateLimit,
+    };
+  }
+
+  async applyAddClient(
+    config: GatewayConfig,
+    cwd: string,
+    input: AddClientInput,
+  ): Promise<ApplyMutationResult> {
+    const clientId = input.id;
+
+    if (config.clients[clientId]) {
+      throw new Error(
+        `Client ${clientId} already exists - use gateway client:edit command.`,
+      );
+    }
+
+    config.clients[clientId] = {
+      name: input.name,
+      type: input.type,
+      gatewayKeyRef: input.gatewayKeyRef,
+      ...(input.rateLimit && {
+        rateLimit: buildClientRateLimitConfig(input.rateLimit),
       }),
     };
 
-    await this.envPatch.setVar(cwd, gatewayKeyRef, gatewayKey);
+    await this.envPatch.setVar(cwd, input.gatewayKeyRef, input.gatewayKey);
 
     try {
       await this.persistence.persistConfig(config, cwd);
     } catch (error) {
       delete config.clients[clientId];
-      await this.envPatch.removeVar(cwd, gatewayKeyRef);
+      await this.envPatch.removeVar(cwd, input.gatewayKeyRef);
       throw error;
     }
 
     CliLogger.success(`Client ${clientId} added to configuration.`);
+    return {
+      generatedKeyRefs: [input.gatewayKeyRef],
+      filesTouched: ['gateway.config.yaml', '.env'],
+    };
   }
 
-  async editClient(
+  async addClient(config: GatewayConfig, cwd: string): Promise<void> {
+    const prompted = await this.promptAddClient(config);
+    const gatewayKeyRef = this.deriveGatewayKeyRef(prompted.id);
+    const gatewayKey = this.keyGenerator.generateGatewayClientKey(prompted.id);
+    console.log(chalk.green('\n✓ Generated gateway key\n'));
+    await this.applyAddClient(config, cwd, {
+      ...prompted,
+      gatewayKeyRef,
+      gatewayKey,
+    });
+  }
+
+  async promptEditClient(
     config: GatewayConfig,
     clientId: string,
-    cwd: string,
-  ): Promise<void> {
+  ): Promise<EditClientInput | null> {
+    assertInteractiveAllowed('ClientManagerService.promptEditClient');
+
     const row = config.clients[clientId];
     if (!row) throw new Error(`Client ${clientId} not found.`);
 
@@ -208,7 +249,7 @@ export class ClientManagerService {
 
     switch (action) {
       case 'cancel':
-        return;
+        return null;
       case 'name': {
         const { name } = await inquirer.prompt<{ name: string }>([
           {
@@ -221,10 +262,11 @@ export class ClientManagerService {
             },
           },
         ]);
-        row.name = name.trim();
-        await this.persistence.persistConfig(config, cwd);
-        CliLogger.success(`Client ${clientId} name updated.`);
-        return;
+        return {
+          id: asClientId(clientId),
+          action: 'name',
+          name: name.trim(),
+        };
       }
       case 'type': {
         const { type } = await inquirer.prompt<{ type: GatewayClientType }>([
@@ -239,10 +281,11 @@ export class ClientManagerService {
             default: row.type,
           },
         ]);
-        row.type = type;
-        await this.persistence.persistConfig(config, cwd);
-        CliLogger.success(`Client ${clientId} type updated to ${type}.`);
-        return;
+        return {
+          id: asClientId(clientId),
+          action: 'type',
+          type,
+        };
       }
       case 'rateLimit': {
         const choices = [
@@ -265,12 +308,13 @@ export class ClientManagerService {
             choices,
           },
         ]);
-        if (rateLimitAction === 'cancel') return;
+        if (rateLimitAction === 'cancel') return null;
         if (rateLimitAction === 'remove') {
-          delete row.rateLimit;
-          await this.persistence.persistConfig(config, cwd);
-          CliLogger.success(`Rate limit removed for client ${clientId}`);
-          return;
+          return {
+            id: asClientId(clientId),
+            action: 'rateLimit',
+            rateLimit: null,
+          };
         }
         const rateLimitAnswers = await inquirer.prompt<{
           rps: number;
@@ -311,18 +355,18 @@ export class ClientManagerService {
             },
           },
         ]);
-        row.rateLimit = buildClientRateLimitConfig({
-          rps: asRateLimitRps(rateLimitAnswers.rps),
-          burst: asRateLimitBurst(rateLimitAnswers.burst),
-          maxConcurrentStreams: asMaxConcurrentStreams(
-            rateLimitAnswers.maxConcurrentStreams,
-          ),
-        });
-        await this.persistence.persistConfig(config, cwd);
-        CliLogger.success(`Rate limit updated for client ${clientId}.`);
-        return;
+        return {
+          id: asClientId(clientId),
+          action: 'rateLimit',
+          rateLimit: {
+            rps: asRateLimitRps(rateLimitAnswers.rps),
+            burst: asRateLimitBurst(rateLimitAnswers.burst),
+            maxConcurrentStreams: asMaxConcurrentStreams(
+              rateLimitAnswers.maxConcurrentStreams,
+            ),
+          },
+        };
       }
-
       case 'rotateKey': {
         const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
           {
@@ -333,19 +377,97 @@ export class ClientManagerService {
             default: false,
           },
         ]);
-        if (!confirm) return;
-        const newKey = this.keyGenerator.generateGatewayClientKey(clientId);
-        await this.envPatch.setVar(cwd, row.gatewayKeyRef, newKey);
-        CliLogger.success(`New key written to ${row.gatewayKeyRef}`);
+        if (!confirm) return null;
+        return {
+          id: asClientId(clientId),
+          action: 'rotateKey',
+        };
       }
     }
   }
 
-  async removeClient(
+  async applyEditClient(
+    config: GatewayConfig,
+    cwd: string,
+    input: EditClientInput,
+  ): Promise<ApplyMutationResult> {
+    const clientId = input.id;
+    const row = config.clients[clientId];
+    if (!row) throw new Error(`Client ${clientId} not found.`);
+
+    switch (input.action) {
+      case 'name': {
+        if (!input.name?.trim()) {
+          throw new Error('Client name is required.');
+        }
+        row.name = input.name.trim();
+        await this.persistence.persistConfig(config, cwd);
+        CliLogger.success(`Client ${clientId} name updated.`);
+        return { filesTouched: ['gateway.config.yaml'] };
+      }
+      case 'type': {
+        if (!input.type) {
+          throw new Error('Client type is required.');
+        }
+        row.type = input.type;
+        await this.persistence.persistConfig(config, cwd);
+        CliLogger.success(`Client ${clientId} type updated to ${input.type}.`);
+        return { filesTouched: ['gateway.config.yaml'] };
+      }
+      case 'rateLimit': {
+        if (input.rateLimit === null) {
+          delete row.rateLimit;
+          await this.persistence.persistConfig(config, cwd);
+          CliLogger.success(`Rate limit removed for client ${clientId}`);
+          return { filesTouched: ['gateway.config.yaml'] };
+        }
+        if (!input.rateLimit) {
+          throw new Error('Rate limit values are required.');
+        }
+        row.rateLimit = buildClientRateLimitConfig(input.rateLimit);
+        await this.persistence.persistConfig(config, cwd);
+        CliLogger.success(`Rate limit updated for client ${clientId}.`);
+        return { filesTouched: ['gateway.config.yaml'] };
+      }
+      case 'rotateKey': {
+        if (!input.gatewayKey) {
+          throw new Error(
+            'gatewayKey is required for rotateKey (generate before apply).',
+          );
+        }
+        await this.envPatch.setVar(cwd, row.gatewayKeyRef, input.gatewayKey);
+        CliLogger.success(`New key written to ${row.gatewayKeyRef}`);
+        return {
+          generatedKeyRefs: [row.gatewayKeyRef],
+          filesTouched: ['.env'],
+        };
+      }
+    }
+  }
+
+  async editClient(
     config: GatewayConfig,
     clientId: string,
     cwd: string,
   ): Promise<void> {
+    const input = await this.promptEditClient(config, clientId);
+    if (!input) return;
+
+    if (input.action === 'rotateKey') {
+      const gatewayKey = this.keyGenerator.generateGatewayClientKey(clientId);
+      await this.applyEditClient(config, cwd, { ...input, gatewayKey });
+      return;
+    }
+
+    await this.applyEditClient(config, cwd, input);
+  }
+
+  async promptRemoveClient(
+    config: GatewayConfig,
+    clientId: string,
+  ): Promise<RemoveClientInput | null> {
+    assertInteractiveAllowed('ClientManagerService.promptRemoveClient');
+
     const row = config.clients[clientId];
     if (!row) throw new Error(`Client ${clientId} not found.`);
 
@@ -359,12 +481,36 @@ export class ClientManagerService {
     ]);
     if (!confirm) {
       CliLogger.info('Cancelled.');
-      return;
+      return null;
     }
 
+    return { id: asClientId(clientId), confirm: true };
+  }
+
+  async applyRemoveClient(
+    config: GatewayConfig,
+    cwd: string,
+    input: RemoveClientInput,
+  ): Promise<ApplyMutationResult> {
+    const clientId = input.id;
+    const row = config.clients[clientId];
+    if (!row) throw new Error(`Client ${clientId} not found.`);
+
+    const gatewayKeyRef = row.gatewayKeyRef;
     delete config.clients[clientId];
     await this.persistence.persistConfig(config, cwd);
-    await this.envPatch.removeVar(cwd, row.gatewayKeyRef);
+    await this.envPatch.removeVar(cwd, gatewayKeyRef);
     CliLogger.success(`Client ${clientId} removed.`);
+    return { filesTouched: ['gateway.config.yaml', '.env'] };
+  }
+
+  async removeClient(
+    config: GatewayConfig,
+    clientId: string,
+    cwd: string,
+  ): Promise<void> {
+    const input = await this.promptRemoveClient(config, clientId);
+    if (!input) return;
+    await this.applyRemoveClient(config, cwd, input);
   }
 }

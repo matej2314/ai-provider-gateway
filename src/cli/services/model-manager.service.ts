@@ -31,6 +31,13 @@ import {
   isLastModelForEnabledProvider,
 } from '../utils/effective-config-preview.util';
 import type { GatewayProviderType } from 'src/config/provider-types';
+import { assertInteractiveAllowed } from '../agent/inquirer-guard';
+import type {
+  AddModelInput,
+  ApplyMutationResult,
+  EditModelInput,
+  RemoveModelInput,
+} from '../types/cli-apply.types';
 
 type ModelEditField =
   | 'modelId'
@@ -57,17 +64,41 @@ export class ModelManagerService {
     private readonly fileManager: FileManagerService,
   ) {}
 
-  async addModelForProvider(
+  async promptAddModel(
     config: GatewayConfig,
-    providerInstance: string,
-    cwd: string,
-  ): Promise<void> {
-    if (!config.providers[providerInstance]) {
-      throw new Error(`Unknown provider instance: ${providerInstance}`);
+    providerInstance?: string,
+  ): Promise<AddModelInput[]> {
+    assertInteractiveAllowed('ModelManagerService.promptAddModel');
+
+    let resolvedInstance = providerInstance?.trim();
+
+    if (!resolvedInstance) {
+      const providers = Object.keys(config.providers);
+      if (providers.length === 0) {
+        throw new Error('No providers configured. Add provider first.');
+      }
+
+      const { providerInstance: selected } = await inquirer.prompt<{
+        providerInstance: string;
+      }>([
+        {
+          type: 'list',
+          name: 'providerInstance',
+          message: 'Provider instance:',
+          choices: providers,
+        },
+      ]);
+      resolvedInstance = selected;
     }
 
-    const type = config.providers[providerInstance].type;
+    if (!config.providers[resolvedInstance]) {
+      throw new Error(`Unknown provider instance: ${resolvedInstance}`);
+    }
+
+    const type = config.providers[resolvedInstance].type;
+    const inputs: AddModelInput[] = [];
     let addMore = true;
+
     while (addMore) {
       const { alias, modelId } = await inquirer.prompt<{
         alias: string;
@@ -76,11 +107,16 @@ export class ModelManagerService {
         {
           type: 'input',
           name: 'alias',
-          message: `Model alias for ${providerInstance}:`,
+          message: `Model alias for ${resolvedInstance}:`,
           validate: (input: string) => {
-            const alias = String(input).trim();
-            if (!alias) return 'Alias is required.';
-            if (config.models[alias]) return 'Alias already exists.';
+            const modelAlias = String(input).trim();
+            if (!modelAlias) return 'Alias is required.';
+            if (
+              config.models[modelAlias] ||
+              inputs.some((m) => m.alias === modelAlias)
+            ) {
+              return 'Alias already exists.';
+            }
             return true;
           },
         },
@@ -93,56 +129,99 @@ export class ModelManagerService {
             value?.trim() ? true : 'Model ID is required.',
         },
       ]);
-      const modelAlias = alias.trim();
-      const trimmedModelId = modelId.trim();
 
-      const supportsThinking = isThinkingCapableModel(trimmedModelId, type);
-      if (supportsThinking) {
-        CliLogger.info(
-          `Model ${trimmedModelId} supports thinking mode (extended reasoning).`,
-        );
-        CliLogger.info(
-          'Configuration includes thinking parameters (thinkingEnabled: false by default).',
-        );
-      }
+      inputs.push({
+        alias: asModelAlias(alias.trim()),
+        providerInstance: asProviderInstanceId(resolvedInstance),
+        modelId: asModelId(modelId.trim()),
+      });
 
-      if (providerModelRejectsSamplingParams(trimmedModelId, type)) {
-        CliLogger.info(
-          `Model ${trimmedModelId} does not support temperature, topP, or topK.`,
-        );
-        CliLogger.info(
-          'Sampling parameters are omitted from policy. Use system prompt or thinkingBudget (effort) instead.',
-        );
-      }
-
-      config.models[modelAlias] = {
-        providerInstance: asProviderInstanceId(providerInstance),
-        modelId: asModelId(trimmedModelId),
-        capabilities: {
-          streaming: true,
-          tools: true,
-          ...(supportsThinking && { thinking: true }),
-        },
-        policy: defaultModelPolicy(trimmedModelId, type),
-      };
-      await this.configGenerator.generateModelPrompt(modelAlias, cwd);
       const { another } = await inquirer.prompt<{ another: boolean }>([
         {
           type: 'confirm',
           name: 'another',
-          message: `Add another model for ${providerInstance}?`,
+          message: `Add another model for ${resolvedInstance}?`,
           default: false,
         },
       ]);
       addMore = another;
     }
+
+    return inputs;
   }
 
-  async editModel(
+  async applyAddModel(
     config: GatewayConfig,
-    alias: string,
+    cwd: string,
+    input: AddModelInput,
+    options?: { persist?: boolean },
+  ): Promise<void> {
+    const providerInstance = input.providerInstance;
+    if (!config.providers[providerInstance]) {
+      throw new Error(`Unknown provider instance: ${providerInstance}`);
+    }
+
+    const modelAlias = input.alias;
+    if (config.models[modelAlias]) {
+      throw new Error(`Alias ${modelAlias} already exists.`);
+    }
+
+    const type = config.providers[providerInstance].type;
+    const trimmedModelId = input.modelId;
+
+    const supportsThinking = isThinkingCapableModel(trimmedModelId, type);
+    if (supportsThinking) {
+      CliLogger.info(
+        `Model ${trimmedModelId} supports thinking mode (extended reasoning).`,
+      );
+      CliLogger.info(
+        'Configuration includes thinking parameters (thinkingEnabled: false by default).',
+      );
+    }
+
+    if (providerModelRejectsSamplingParams(trimmedModelId, type)) {
+      CliLogger.info(
+        `Model ${trimmedModelId} does not support temperature, topP, or topK.`,
+      );
+      CliLogger.info(
+        'Sampling parameters are omitted from policy. Use system prompt or thinkingBudget (effort) instead.',
+      );
+    }
+
+    config.models[modelAlias] = {
+      providerInstance: asProviderInstanceId(providerInstance),
+      modelId: asModelId(trimmedModelId),
+      capabilities: {
+        streaming: true,
+        tools: true,
+        ...(supportsThinking && { thinking: true }),
+      },
+      policy: defaultModelPolicy(trimmedModelId, type),
+    };
+    await this.configGenerator.generateModelPrompt(modelAlias, cwd);
+
+    if (options?.persist === true) {
+      await this.persistence.persistConfig(config, cwd);
+    }
+  }
+
+  async addModelForProvider(
+    config: GatewayConfig,
+    providerInstance: string,
     cwd: string,
   ): Promise<void> {
+    const inputs = await this.promptAddModel(config, providerInstance);
+    for (const input of inputs) {
+      await this.applyAddModel(config, cwd, input, { persist: false });
+    }
+  }
+
+  async promptEditModel(
+    config: GatewayConfig,
+    alias: string,
+  ): Promise<EditModelInput | null> {
+    assertInteractiveAllowed('ModelManagerService.promptEditModel');
+
     const current = config.models[alias];
     if (!current) throw new Error(`Model ${alias} not found.`);
 
@@ -176,10 +255,10 @@ export class ModelManagerService {
     ]);
     if (!fields?.length) {
       CliLogger.info('Nothing selected.');
-      return;
+      return null;
     }
 
-    let configPersisted = false;
+    const input: EditModelInput = { alias: asModelAlias(alias) };
 
     for (const field of fields) {
       switch (field) {
@@ -194,37 +273,7 @@ export class ModelManagerService {
                 value?.trim() ? true : 'Model ID is required.',
             },
           ]);
-          current.modelId = asModelId(modelId.trim());
-
-          const providerType = config.providers[current.providerInstance]?.type;
-          if (providerType) {
-            const supportsThinking = isThinkingCapableModel(
-              current.modelId,
-              providerType,
-            );
-            const hadThinking = current.capabilities?.thinking === true;
-
-            if (supportsThinking && !hadThinking) {
-              current.capabilities = {
-                ...current.capabilities,
-                thinking: true,
-              };
-            } else if (!supportsThinking && hadThinking) {
-              delete current.capabilities?.thinking;
-              CliLogger.info(
-                'Capabilities updated: thinking mode removed for new model.',
-              );
-            }
-
-            current.policy = syncPolicySamplingForModel(
-              current.policy,
-              current.modelId,
-              providerType,
-            );
-            CliLogger.info(
-              'Policy sampling parameters updated for new model ID.',
-            );
-          }
+          input.modelId = asModelId(modelId.trim());
           break;
         }
         case 'providerInstance': {
@@ -242,7 +291,6 @@ export class ModelManagerService {
           ]);
 
           const sourceInstanceId = current.providerInstance;
-          const targetRow = config.providers[providerInstance];
 
           if (
             providerInstance !== sourceInstanceId &&
@@ -272,22 +320,12 @@ export class ModelManagerService {
             ]);
             if (!confirm) {
               CliLogger.info('Cancelled.');
-              break;
+              return null;
             }
-            current.providerInstance = asProviderInstanceId(providerInstance);
-            await this.persistence.persistConfig(config, cwd, {
-              skipEffectiveCheck: true,
-            });
-            configPersisted = true;
-            break;
+            input.confirmNonBootable = true;
           }
 
-          if (targetRow?.enabled === false) {
-            CliLogger.warning(
-              `[MODEL_MANAGER] Target instance ${providerInstance} is disabled - model inactive at runtime.`,
-            );
-          }
-          current.providerInstance = asProviderInstanceId(providerInstance);
+          input.providerInstance = asProviderInstanceId(providerInstance);
           break;
         }
         case 'fallback': {
@@ -298,15 +336,15 @@ export class ModelManagerService {
               message: 'Fallback model alias (empty to clear):',
               default: current.fallback ?? '',
               validate: (value: string) => {
-                const fallback = value?.trim();
-                if (!fallback) return true;
-                if (fallback === alias) {
+                const fallbackAlias = value?.trim();
+                if (!fallbackAlias) return true;
+                if (fallbackAlias === alias) {
                   return 'Fallback cannot be the same alias.';
                 }
-                if (!config.models[fallback]) {
-                  return `Unknown model alias: ${fallback}`;
+                if (!config.models[fallbackAlias]) {
+                  return `Unknown model alias: ${fallbackAlias}`;
                 }
-                if (config.models[fallback]?.fallback === alias) {
+                if (config.models[fallbackAlias]?.fallback === alias) {
                   return 'Circular fallback detected.';
                 }
                 return true;
@@ -314,8 +352,7 @@ export class ModelManagerService {
             },
           ]);
           const newFallback = fallback.trim();
-          if (newFallback) current.fallback = newFallback;
-          else delete current.fallback;
+          input.fallback = newFallback ? newFallback : null;
           break;
         }
         case 'streaming': {
@@ -327,7 +364,7 @@ export class ModelManagerService {
               default: current.capabilities?.streaming !== false,
             },
           ]);
-          current.capabilities = { ...current.capabilities, streaming };
+          input.streaming = streaming;
           break;
         }
         case 'policy': {
@@ -418,42 +455,11 @@ export class ModelManagerService {
               },
             ]);
 
-          const policyDefaults = defaultModelPolicy(
-            current.modelId,
-            providerType,
-          );
-          const existingDefaults = base.params?.defaults ?? {};
-          const {
-            temperature: _removedTemperature,
-            ...defaultsWithoutTemperature
-          } = existingDefaults;
-
-          current.policy = {
-            ...base,
-            timeoutMs: asTimeoutMs(timeoutMs),
-            retry: {
-              ...base.retry,
-              maxAttempts: asMaxAttempts(maxAttempts),
-              onStatus: base.retry?.onStatus ?? policyDefaults.retry?.onStatus,
-            },
-            params: {
-              ...base.params,
-              defaults: rejectsSampling
-                ? {
-                    ...defaultsWithoutTemperature,
-                    maxOutputTokens,
-                  }
-                : {
-                    ...existingDefaults,
-                    temperature:
-                      temperature ?? existingDefaults.temperature ?? 0.7,
-                    maxOutputTokens,
-                  },
-              allowOverrides:
-                policyDefaults.params?.allowOverrides ??
-                base.params?.allowOverrides,
-              bounds: policyDefaults.params?.bounds ?? base.params?.bounds,
-            },
+          input.policy = {
+            timeoutMs,
+            maxAttempts,
+            maxOutputTokens,
+            ...(rejectsSampling ? {} : { temperature }),
           };
           break;
         }
@@ -462,17 +468,168 @@ export class ModelManagerService {
       }
     }
 
-    if (!configPersisted) {
-      await this.persistence.persistConfig(config, cwd);
-    }
-    CliLogger.success(`Model ${alias} updated correctly.`);
+    return input;
   }
 
-  async removeModel(
+  async applyEditModel(
+    config: GatewayConfig,
+    cwd: string,
+    input: EditModelInput,
+  ): Promise<ApplyMutationResult> {
+    const alias = input.alias;
+    const current = config.models[alias];
+    if (!current) throw new Error(`Model ${alias} not found.`);
+
+    let skipEffectiveCheck = false;
+
+    if (input.modelId !== undefined) {
+      current.modelId = asModelId(input.modelId);
+
+      const providerType = config.providers[current.providerInstance]?.type;
+      if (providerType) {
+        const supportsThinking = isThinkingCapableModel(
+          current.modelId,
+          providerType,
+        );
+        const hadThinking = current.capabilities?.thinking === true;
+
+        if (supportsThinking && !hadThinking) {
+          current.capabilities = {
+            ...current.capabilities,
+            thinking: true,
+          };
+        } else if (!supportsThinking && hadThinking) {
+          delete current.capabilities?.thinking;
+          CliLogger.info(
+            'Capabilities updated: thinking mode removed for new model.',
+          );
+        }
+
+        current.policy = syncPolicySamplingForModel(
+          current.policy,
+          current.modelId,
+          providerType,
+        );
+        CliLogger.info('Policy sampling parameters updated for new model ID.');
+      }
+    }
+
+    if (input.providerInstance !== undefined) {
+      const providerInstance = input.providerInstance;
+      const sourceInstanceId = current.providerInstance;
+      const targetRow = config.providers[providerInstance];
+
+      if (
+        providerInstance !== sourceInstanceId &&
+        isLastModelForEnabledProvider(config, asModelAlias(alias))
+      ) {
+        if (input.confirmNonBootable !== true) {
+          throw new Error(
+            `[MODEL_MANAGER] Moving the last model away from provider "${sourceInstanceId}" would leave it without models. Pass confirmNonBootable: true to proceed.`,
+          );
+        }
+        skipEffectiveCheck = true;
+      }
+
+      if (targetRow?.enabled === false) {
+        CliLogger.warning(
+          `[MODEL_MANAGER] Target instance ${providerInstance} is disabled - model inactive at runtime.`,
+        );
+      }
+      current.providerInstance = asProviderInstanceId(providerInstance);
+    }
+
+    if (input.fallback !== undefined) {
+      if (input.fallback === null || input.fallback === '') {
+        delete current.fallback;
+      } else {
+        const fallback = input.fallback.trim();
+        if (fallback === alias) {
+          throw new Error('Fallback cannot be the same alias.');
+        }
+        if (!config.models[fallback]) {
+          throw new Error(`Unknown model alias: ${fallback}`);
+        }
+        if (config.models[fallback]?.fallback === alias) {
+          throw new Error('Circular fallback detected.');
+        }
+        current.fallback = fallback;
+      }
+    }
+
+    if (input.streaming !== undefined) {
+      current.capabilities = {
+        ...current.capabilities,
+        streaming: input.streaming,
+      };
+    }
+
+    if (input.policy !== undefined) {
+      const providerType = config.providers[current.providerInstance]?.type;
+      const base =
+        current.policy ?? defaultModelPolicy(current.modelId, providerType);
+      const rejectsSampling = providerType
+        ? providerModelRejectsSamplingParams(current.modelId, providerType)
+        : false;
+      const policyDefaults = defaultModelPolicy(current.modelId, providerType);
+      const existingDefaults = base.params?.defaults ?? {};
+      const {
+        temperature: _removedTemperature,
+        ...defaultsWithoutTemperature
+      } = existingDefaults;
+
+      current.policy = {
+        ...base,
+        timeoutMs: asTimeoutMs(input.policy.timeoutMs),
+        retry: {
+          ...base.retry,
+          maxAttempts: asMaxAttempts(input.policy.maxAttempts),
+          onStatus: base.retry?.onStatus ?? policyDefaults.retry?.onStatus,
+        },
+        params: {
+          ...base.params,
+          defaults: rejectsSampling
+            ? {
+                ...defaultsWithoutTemperature,
+                maxOutputTokens: input.policy.maxOutputTokens,
+              }
+            : {
+                ...existingDefaults,
+                temperature:
+                  input.policy.temperature ??
+                  existingDefaults.temperature ??
+                  0.7,
+                maxOutputTokens: input.policy.maxOutputTokens,
+              },
+          allowOverrides:
+            policyDefaults.params?.allowOverrides ??
+            base.params?.allowOverrides,
+          bounds: policyDefaults.params?.bounds ?? base.params?.bounds,
+        },
+      };
+    }
+
+    await this.persistence.persistConfig(config, cwd, { skipEffectiveCheck });
+    CliLogger.success(`Model ${alias} updated correctly.`);
+    return { filesTouched: ['gateway.config.yaml'] };
+  }
+
+  async editModel(
     config: GatewayConfig,
     alias: string,
     cwd: string,
   ): Promise<void> {
+    const input = await this.promptEditModel(config, alias);
+    if (!input) return;
+    await this.applyEditModel(config, cwd, input);
+  }
+
+  async promptRemoveModel(
+    config: GatewayConfig,
+    alias: string,
+  ): Promise<RemoveModelInput | null> {
+    assertInteractiveAllowed('ModelManagerService.promptRemoveModel');
+
     if (!config.models[alias]) {
       throw new Error(`Model ${alias} not found in configuration.`);
     }
@@ -513,20 +670,53 @@ export class ModelManagerService {
       ]);
       if (!confirm) {
         CliLogger.info('Cancelled.');
-        return;
+        return null;
       }
-      delete config.models[alias];
+    }
+
+    return { alias: asModelAlias(alias), confirm: true };
+  }
+
+  async applyRemoveModel(
+    config: GatewayConfig,
+    cwd: string,
+    input: RemoveModelInput,
+  ): Promise<ApplyMutationResult> {
+    const alias = input.alias;
+    if (!config.models[alias]) {
+      throw new Error(`Model ${alias} not found in configuration.`);
+    }
+
+    const lastInConfig = isLastModelInConfig(config, asModelAlias(alias));
+    const lastForProvider = isLastModelForEnabledProvider(
+      config,
+      asModelAlias(alias),
+    );
+
+    delete config.models[alias];
+
+    if (lastInConfig || lastForProvider) {
       await this.persistence.persistConfig(config, cwd, {
         skipEffectiveCheck: true,
       });
     } else {
-      delete config.models[alias];
       await this.persistence.persistConfig(config, cwd);
     }
 
     await this.deleteModelPrompt(alias, cwd);
 
     CliLogger.success(`Model ${alias} removed from configuration.`);
+    return { filesTouched: ['gateway.config.yaml'] };
+  }
+
+  async removeModel(
+    config: GatewayConfig,
+    alias: string,
+    cwd: string,
+  ): Promise<void> {
+    const input = await this.promptRemoveModel(config, alias);
+    if (!input) return;
+    await this.applyRemoveModel(config, cwd, input);
   }
 
   private async deleteModelPrompt(

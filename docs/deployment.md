@@ -13,7 +13,7 @@ Gateway CLI (wizard, provider/model/client CRUD): [`command_line_interface.md`](
 - **Docker Compose** 2.0+
 - Provider API keys (e.g. Anthropic, Google) — depending on configured adapters
 - (Optional) **Node.js 20+** and `npm install` — for configuration validation and CLI before deploy
-- **VPS deploy (Actions):** self-hosted runner on the server (`[self-hosted, linux]`), Docker daemon available to the runner (often DooD / `docker.sock`), HashiCorp Vault (AppRole) with application secrets, GitHub Environment `production` (`VAULT_ROLE_ID`, `VAULT_SECRET_ID`)
+- **VPS deploy (Actions):** self-hosted runner on the server (`[self-hosted, linux]`), Docker daemon available to the runner (often DooD / `docker.sock`), application secrets as a copied `.env` on the host **or** via your own secrets manager (requires adapting [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) and scripts under `deployment/scripts/`), GitHub Environment `production`
 
 ---
 
@@ -46,7 +46,9 @@ Active files (`gateway.config.yaml`, `.env`) are **copied to the repository root
 
 ---
 
-## Quick start
+## Quick start (local — Docker Compose)
+
+The steps below cover **running on a developer machine** (Compose / Makefile / npm). Production deploy via GitHub Actions is described in [Deploy to VPS (GitHub Actions)](#deploy-to-vps-github-actions) — among other things, the Docker network is created there by the pipeline, not by the operator.
 
 ### 1. Clone the repository
 
@@ -115,15 +117,39 @@ npm run config:validate
 
 With boilerplate configuration the validator will fail and point to `gateway config:init` — this is expected behavior **before** filling in the files.
 
-### 4. Docker network
+### 4. Docker network (`ai-gateway-network`)
 
-All Compose files use the external network `ai-gateway-network`. Create it **once** before the first start:
+All Compose files declare the `ai-gateway-network` network as **`external: true`** — `docker compose up` alone will **not** create the network. Behavior depends on the deployment path:
+
+| Path | Who creates the network? | What to do |
+|---------|------------------|-----------|
+| **Locally** (`make docker-up*`, `npm run docker:up*`, manual Compose) | You | Create the network **once** before the first start (below) |
+| **Production on VPS** ([`deploy.yml`](../.github/workflows/deploy.yml) → `deploy-production.sh up`) | Pipeline | Nothing — `cmd_up` calls `docker network create ai-gateway-network` (idempotently, `\|\| true`) before `compose up` |
+| **CI** ([`ci.yml`](../.github/workflows/ci.yml), image tests) | Workflow | Nothing — the CI job creates the network before tests |
+
+#### Local deployment
+
+Before the first `docker compose` / `make docker-up*` / `npm run docker:up*`:
 
 ```bash
 docker network create ai-gateway-network
 ```
 
-### 5. Deploy
+Re-running when the network already exists ends with a Docker error — that is normal; the network is already there. Check: `docker network ls | grep ai-gateway-network`.
+
+Without this network, local Compose will fail with a message about a missing external network.
+
+#### Production (GitHub Actions)
+
+On the VPS do **not** create the network manually as a deploy preparation step. Orchestration:
+
+1. Actions → **Deploy to VPS** → `deploy.yml`
+2. `deployment/scripts/deploy-production.sh` → `up` command (`cmd_up`)
+3. The script creates `ai-gateway-network` (if missing), then builds and starts the stack
+
+Flow details: [Deploy to VPS (GitHub Actions)](#deploy-to-vps-github-actions).
+
+### 5. Deploy (local Compose)
 
 Choose a stack variant:
 
@@ -348,9 +374,10 @@ Production pipeline: [`.github/workflows/deploy.yml`](../.github/workflows/deplo
 | Runner | Self-hosted, labels `[self-hosted, linux]` (VPS) |
 | Environment | GitHub `production` (approval + Vault AppRole secrets) |
 | Host directory | `/opt/ai-provider-gateway` (`DEPLOY_DIR`) |
+| Docker network | `ai-gateway-network` — created in `deploy-production.sh` (`cmd_up`); does **not** require a manual `docker network create` before Actions |
 | Last known-good | File `/opt/ai-provider-gateway/.deployed-sha` |
 | CI gate | At least one **successful** `ci.yml` workflow run for the deployed SHA |
-| Application secrets | Vault KV `secret/data/ai-provider-gateway/prod` → `.env` (workspace + host) |
+| Application secrets | **Primarily HashiCorp Vault** (AppRole + KV `secret/data/ai-provider-gateway/prod` → `.env` on workspace and host). A custom secrets manager / copied `.env` requires changes in: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) (*Fetch secrets from Vault* step), [`deployment/scripts/deploy-production.sh`](../deployment/scripts/deploy-production.sh) (`cmd_secrets`), and usually [`deployment/scripts/rollback.sh`](../deployment/scripts/rollback.sh) (`SKIP_VAULT_FETCH`) |
 | Readiness | `GET http://ai-gateway:3000/api/v1/health/ready` → `body.status == "ready"` |
 | Health retries | Default **6** attempts every **5 s** (`HEALTH_ATTEMPTS` in `deploy-production.sh`) |
 
@@ -361,7 +388,7 @@ The workflow definition comes from the branch selected in the Actions UI (“Use
 1. Ensure there is a green [`ci.yml`](../.github/workflows/ci.yml) run for the target SHA (on push to a feature branch usually a fast mode: lint + unit).
 2. Actions → **Deploy to VPS** → Run workflow.
 3. Inputs:
-   - **`branch`** — branch tip (default in the workflow: feature used for learning the flow),
+   - **`branch`** — branch tip (default in the workflow: **`main`**),
    - **`sha`** (optional) — specific commit or tag; when set, **overrides** the branch tip.
 
 Manual rollback without waiting for auto-rollback: the same workflow with `sha` = previous good commit (re-deploy of a known ref).
@@ -374,7 +401,7 @@ Manual rollback without waiting for auto-rollback: the same workflow with `sha` 
 4. **Mutation point** — from here a failure may leave the host in a half-state; auto-rollback is authorized.
 5. `deploy-production.sh sync` — stop old gateway/prometheus/grafana containers, clear `DEPLOY_DIR` (keeps `.env` and `.deployed-sha`), upload checkout via tar (DooD-safe path).
 6. `secrets` — AppRole login to Vault, write `.env`.
-7. `up` — network `ai-gateway-network`, host bind overlays + `main_network`, `compose build gateway` + `up -d` (full stack: gateway + Redis + monitoring).
+7. `up` — **creates** the external `ai-gateway-network` network (if missing; `docker network create … || true`), host bind overlays (`DEPLOY_DIR` → config/logs/monitoring), `compose build gateway` + `up -d` (full stack: gateway + Redis + monitoring).
 8. `health` — readiness loop.
 9. Write new SHA to `.deployed-sha`.
 10. Cleanup workspace `.env` (does **not** delete host `.env`).
@@ -471,8 +498,8 @@ On Linux/macOS replace `%cd%` with `$(pwd)`.
 ```bash
 gateway config:show          # YAML preview
 gateway config:init          # wizard (when boilerplate)
-npm run config:validate      # YAML + runtime rules validation (without legacy env format)
-gateway config:validate      # full validation (+ legacy ANTHROPIC/GOOGLE format when set)
+npm run config:validate      # YAML + runtime rules validation
+gateway config:validate      # full validation (+ validateEnvironment)
 ```
 
 Ensure `.env` contains values for all `*KeyRef` from YAML.
@@ -490,7 +517,7 @@ gateway provider:test
 docker logs ai-gateway
 ```
 
-Typical causes: missing `gateway.config.yaml` in the root directory, missing `ai-gateway-network` network, empty `MASTER_KEY`, port 3000 in use, YAML syntax error.
+Typical causes: missing `gateway.config.yaml` in the root directory, missing `ai-gateway-network` (**local Compose only** — create manually; on VPS `deploy-production.sh` creates it), empty `MASTER_KEY`, port 3000 in use, YAML syntax error.
 
 ### Redis unavailable
 
@@ -530,8 +557,8 @@ Check whether the fail was **after** the mutation step, whether `/opt/ai-provide
 Before deploying to production:
 
 - [ ] `MASTER_KEY` — strong random value (`gateway key:generate --type master` or `openssl rand -hex 32`)
-- [ ] Provider and client keys — rotation; on VPS the source is **Vault** (do not commit `.env`)
-- [ ] GitHub Environment `production`: `VAULT_ROLE_ID`, `VAULT_SECRET_ID`; self-hosted runner online
+- [ ] Provider and client keys — rotation; **do not** commit `.env`. Production source (per assumptions): **primarily HashiCorp Vault**, or a copied `.env` on the host / custom secrets manager (requires changes in `deploy.yml`, `deploy-production.sh`, usually `rollback.sh` — see *Application secrets* row above)
+- [ ] GitHub Environment `production` + self-hosted runner online; with baseline Vault: secrets `VAULT_ROLE_ID`, `VAULT_SECRET_ID`
 - [ ] Host directory `/opt/ai-provider-gateway` exists and is mountable by the Docker daemon
 - [ ] HTTPS — reverse proxy (nginx, Traefik, load balancer)
 - [ ] Rate limit limits — matched to provider API tiers and traffic

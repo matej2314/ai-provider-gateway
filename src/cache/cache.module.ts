@@ -3,7 +3,6 @@ import { CacheRegistryService } from './cache-registry.service';
 import { AppMetricsModule } from '../observability/app-metrics/app-metrics.module';
 import { NoopCacheModule } from './adapters/noop-cache/noop-cache.module';
 import { RedisCacheModule } from './adapters/redis-cache/redis-cache.module';
-import { RedisConnectionService } from './adapters/redis-cache/redis-connection.service';
 import { CACHE_BACKEND } from './cache.tokens';
 import { ResponseCacheService } from './response-cache.service';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
@@ -26,14 +25,11 @@ export class CacheModule {
       | typeof CACHE_BACKEND
       | typeof CacheRegistryService
       | typeof RedisCacheModule
-      | typeof RedisConnectionService
       | typeof ResponseCacheService
     > = [CACHE_BACKEND, CacheRegistryService, ResponseCacheService];
 
     if (options.includeRedisStack) {
       exports.push(RedisCacheModule);
-    } else {
-      exports.push(RedisConnectionService);
     }
 
     return {
@@ -43,7 +39,6 @@ export class CacheModule {
       providers: [
         CacheRegistryService,
         ResponseCacheService,
-        ...(options.includeRedisStack ? [] : [RedisConnectionService]),
         {
           provide: CACHE_BACKEND,
           useFactory: (reg: CacheRegistryService): CacheBackend => ({

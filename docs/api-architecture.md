@@ -51,7 +51,7 @@ Assumption: `modelAlias` is a customary/readable model name (e.g. `claude-sonnet
 
 The gateway responds with JSON in a consistent shape, independent of the provider.
 
-**HTTP codes:** successful **`POST /api/v1/chat`** (JSON) and successful non-stream IDE facade **`POST`** → **201 Created** (NestJS default; `@ApiResponse({ status: 201 })` in controllers). SSE streaming → **200** (`POST /chat/stream`, `stream: true` on facades). Details: `api-documentation.md`, `endpoints.md`.
+**HTTP codes:** successful **`POST /api/v1/chat`** (JSON) and successful non-stream official contract facade **`POST`** → **201 Created** (NestJS default; `@ApiResponse({ status: 201 })` in controllers). SSE streaming → **200** (`POST /chat/stream`, `stream: true` on facades). Details: `api-documentation.md`, `endpoints.md`.
 
 Minimal fields (contract direction; details in `api-documentation.md`):
 
@@ -89,7 +89,7 @@ Optional **`params`** in `ChatRequestDto` (`ChatParamsDto`, `ResponseFormatDto`)
 
 ## Extensions
 
-- **`npm run config:validate`** — offline YAML validation + runtime rules (`validateGatewayConfig()` → among others secrets facade); **without** legacy env format. Full validation: **`gateway config:validate`** (`validateEnvironment()`) — `configuration.md`.
+- **`npm run config:validate`** — offline YAML validation + runtime rules (`validateGatewayConfig()` → among others secrets facade). Full validation: **`gateway config:validate`** (`validateEnvironment()`) — `configuration.md`.
 
 Error codes (summary): `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TOOLS_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — explicit codes in exception payloads, preserved by `GlobalExceptionFilter`.
 
@@ -115,7 +115,7 @@ Error codes (summary): `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TOOL
 
 **Native chat and models** require **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()` on `ChatController`, `ChatStreamController`, `ModelsController`).
 
-**IDE facades** use the same client-key allowlist, but different headers — Bearer (OpenAI) or `x-api-key` / Bearer (Anthropic); the facade guard sets `req.gatewayKey`, then `SmartRateLimitGuard` (`readClientGatewayKey`). Provider keys in `.env` (per `apiKeyRef` / `providerInstance`) remain exclusively in the `src/providers/` layer.
+**Official contract facades** use the same client-key allowlist, but different headers — Bearer (OpenAI) or `x-api-key` / Bearer (Anthropic); the facade guard sets `req.gatewayKey`, then `SmartRateLimitGuard` (`readClientGatewayKey`). Provider keys in `.env` (per `apiKeyRef` / `providerInstance`) remain exclusively in the `src/providers/` layer.
 
 Optional smart rate limit per client key (`RATE_LIMIT_SMART_ENABLED`, Redis via shared `RedisConnectionService` — loaded when `isRedisRequiredFromEnv()`). Health: **`GET /api/v1/health`**, **`GET /api/v1/health/ready`** — public (no chat guards). Readiness: HTTP **200** always; assessment via `body.status` (`ready` / `not_ready`); fields `checks.config`, `checks.redis`, `checks.cache` — `api-documentation.md`.
 
@@ -128,7 +128,7 @@ On a public network additional layers are still recommended; **`X-Gateway-Key` a
 
 ## Related documents
 
-- IDE facades: `integrations.md`, `openai-contract-integration.md`, `anthropic-messages-integration.md`
+- Official contract facades: `integrations.md`, `openai-contract-integration.md`, `anthropic-messages-integration.md`
 - Endpoint contract: `api-documentation.md`
 - Conversation tracking (metrics): `conversation-tracking.md`
 - Path list: `endpoints.md`

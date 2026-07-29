@@ -50,6 +50,8 @@ import {
   asCacheTtlSeconds,
   asPort,
 } from 'src/common/types/branded.types';
+import { isRedisRequired } from '../cache/should-include-redis-stack';
+import type { RedisRuntimeConfig } from './app-configuration.types';
 
 export { EXPECTED_SCHEMA_VERSION } from './gateway-config.schema';
 export { assertMasterKeyPresent } from './configuration-validation.service';
@@ -104,9 +106,18 @@ function buildGatewayKeyRuntime(
   };
 }
 
+export interface BuildEffectiveGatewayConfigOptions {
+  /**
+   * When true, skip assertEnabledProviderSecretsPresent (API keys + base URLs).
+   * Used by CLI agent-mode structural validation; master key is still asserted by callers.
+   */
+  allowMissingProviderApiKeys?: boolean;
+}
+
 export function buildEffectiveGatewayConfig(
   raw: z.infer<typeof GatewayConfigSchema>,
   env: NodeJS.ProcessEnv = process.env,
+  options: BuildEffectiveGatewayConfigOptions = {},
 ): GatewayConfig {
   const effectiveProviderEntries = Object.entries(raw.providers).filter(
     ([, row]) => row.enabled !== false,
@@ -145,7 +156,9 @@ export function buildEffectiveGatewayConfig(
     }
   }
 
-  assertEnabledProviderSecretsPresent(raw, env);
+  if (!options.allowMissingProviderApiKeys) {
+    assertEnabledProviderSecretsPresent(raw, env);
+  }
 
   return {
     ...raw,
@@ -252,15 +265,26 @@ export function buildAppConfiguration(
     keyPrefix: env.CACHE_KEY_PREFIX ?? 'aigw:',
   };
 
-  const redisConfig = {
-    host: env.REDIS_HOST ?? 'localhost',
-    port: asPort(env.REDIS_PORT ?? 6379),
-    password: env.REDIS_PASSWORD ?? '',
-    db: env.REDIS_DB ?? 0,
-    keyPrefix: env.REDIS_KEY_PREFIX ?? 'aigw:',
-  };
-
   const rateLimitSmartEnabled = env.RATE_LIMIT_SMART_ENABLED ?? false;
+
+  const redisConfig: RedisRuntimeConfig = isRedisRequired({
+    cache: cacheConfig,
+    rateLimitSmartEnabled,
+  })
+    ? {
+        host: env.REDIS_HOST ?? 'localhost',
+        port: asPort(env.REDIS_PORT ?? 6379),
+        password: env.REDIS_PASSWORD ?? '',
+        db: env.REDIS_DB ?? 0,
+        keyPrefix: env.REDIS_KEY_PREFIX ?? 'aigw:',
+      }
+    : {
+        host: 'localhost',
+        port: asPort(6379),
+        password: '',
+        db: 0,
+        keyPrefix: 'aigw:',
+      };
 
   return {
     gateway: gatewayConfig,

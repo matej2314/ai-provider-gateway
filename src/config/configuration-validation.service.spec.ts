@@ -18,14 +18,6 @@ describe('ConfigurationValidationService', () => {
       expect(result.CACHE_ENABLED).toBe(false);
       expect(result.CACHE_BACKEND).toBe('noop');
     });
-
-    it('rejects invalid legacy ANTHROPIC_API_KEY format', () => {
-      expect(() =>
-        service.validateEnvironment({
-          ANTHROPIC_API_KEY: 'not-a-valid-prefix',
-        }),
-      ).toThrow(/Config validation error/);
-    });
   });
 
   describe('assertMasterKeyPresent', () => {

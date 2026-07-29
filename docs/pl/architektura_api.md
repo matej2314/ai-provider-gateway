@@ -51,7 +51,7 @@ Założenie: `modelAlias` jest zwyczajową/czytelną nazwą modelu (np. `claude-
 
 Gateway odpowiada JSON w spójnym kształcie, niezależnym od providera.
 
-**Kody HTTP:** udany **`POST /api/v1/chat`** (JSON) oraz udany **`POST`** fasad IDE bez streamu → **201 Created** (domyślne NestJS; `@ApiResponse({ status: 201 })` w kontrolerach). Streaming SSE → **200** (`POST /chat/stream`, `stream: true` na fasadach). Szczegóły: `dokumentacja_api.md`, `lista_endpointów.md`.
+**Kody HTTP:** udany **`POST /api/v1/chat`** (JSON) oraz udany **`POST`** fasad oficjalnych kontraktów bez streamu → **201 Created** (domyślne NestJS; `@ApiResponse({ status: 201 })` w kontrolerach). Streaming SSE → **200** (`POST /chat/stream`, `stream: true` na fasadach). Szczegóły: `dokumentacja_api.md`, `lista_endpointów.md`.
 
 Minimalne pola (kierunek kontraktu; detale w `dokumentacja_api.md`):
 
@@ -89,7 +89,7 @@ Opcjonalne **`params`** w `ChatRequestDto` (`ChatParamsDto`, `ResponseFormatDto`
 
 ## Rozszerzenia
 
-- **`npm run config:validate`** — walidacja offline YAML + reguły runtime (`validateGatewayConfig()` → m.in. fasada sekretów); **bez** formatu legacy env. Pełna walidacja: **`gateway config:validate`** (`validateEnvironment()`) — `konfiguracja.md`.
+- **`npm run config:validate`** — walidacja offline YAML + reguły runtime (`validateGatewayConfig()` → m.in. fasada sekretów). Pełna walidacja: **`gateway config:validate`** (`validateEnvironment()`) — `konfiguracja.md`.
 
 Kody błędów (skrót): `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TOOLS_NOT_SUPPORTED`, `PROVIDER_UNSUPPORTED`, `RATE_LIMITED` / `PROVIDER_RATE_LIMITED` — jawne kody w payloadach wyjątków, zachowywane przez `GlobalExceptionFilter`.
 
@@ -97,7 +97,7 @@ Kody błędów (skrót): `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TO
 
 - Pole opcjonalne w body **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`**.
 - **Response:** zawsze `conversationId` (echo lub nowe `conv_<uuid>`) — JSON / SSE `meta`.
-- **Sentry Conversations:** `gen_ai.conversation.id` **tylko**, gdy klient **podaje** `conversationId` w request; bez niego — span pojedynczej wiadomości. Od tury 2 klient wysyła pełną historię w `messages[]` (w tym pierwszą odpowiedź assistenta).
+- **Sentry Conversations:** `gen_ai.conversation.id` **tylko**, gdy klient **podaje** `conversationId` w request; bez niego — span pojedynczej wiadomości. Od tury 2 klient wysyła pełną historię w `messages[]` (w tym pierwszą odpowiedź asystenta).
 - Szczegóły: `conversation_tracking.md`, schema `ChatRequest` w [`openapi.json`](../../openapi.json).
 
 ## Walidacja
@@ -115,7 +115,7 @@ Kody błędów (skrót): `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `TO
 
 **Natywny czat i models** wymagają **`X-Gateway-Key`** (`@GatewayKeyAndSmartRateLimit()` na `ChatController`, `ChatStreamController`, `ModelsController`).
 
-**Fasady IDE** używają tej samej allowlisty kluczy klienta, ale innych nagłówków — Bearer (OpenAI) lub `x-api-key` / Bearer (Anthropic); guard fasady ustawia `req.gatewayKey`, potem `SmartRateLimitGuard` (`readClientGatewayKey`). Klucze providerów w `.env` (per `apiKeyRef` / `providerInstance`) pozostają wyłącznie w warstwie `src/providers/`.
+**Fasady oficjalnych kontraktów** używają tej samej allowlisty kluczy klienta, ale innych nagłówków — Bearer (OpenAI) lub `x-api-key` / Bearer (Anthropic); guard fasady ustawia `req.gatewayKey`, potem `SmartRateLimitGuard` (`readClientGatewayKey`). Klucze providerów w `.env` (per `apiKeyRef` / `providerInstance`) pozostają wyłącznie w warstwie `src/providers/`.
 
 Opcjonalny smart rate limit per klucz klienta (`RATE_LIMIT_SMART_ENABLED`, Redis przez wspólny `RedisConnectionService` — ładowany gdy `isRedisRequiredFromEnv()`). Health: **`GET /api/v1/health`**, **`GET /api/v1/health/ready`** — publiczne (bez guardów czatu). Readiness: HTTP **200** zawsze; ocena po `body.status` (`ready` / `not_ready`); pola `checks.config`, `checks.redis`, `checks.cache` — `dokumentacja_api.md`.
 
@@ -128,7 +128,7 @@ W sieci publicznej nadal zaleca się dodatkowe warstwy; sam **`X-Gateway-Key`** 
 
 ## Powiązane dokumenty
 
-- Fasady IDE: `integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`
+- Fasady oficjalnych kontraktów: `integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`
 - Kontrakt endpointów: `dokumentacja_api.md`
 - Śledzenie rozmów (metryki): `conversation_tracking.md`
 - Lista ścieżek: `lista_endpointów.md`
