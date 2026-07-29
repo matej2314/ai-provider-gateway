@@ -276,8 +276,9 @@ describe('HealthService', () => {
 
       const result = await service.getReadiness();
 
-      expect(result.checks.redis.status).toBe('degraded');
-      expect(result.checks.redis.message).toBe(
+      expect(result.checks.redis).toBeDefined();
+      expect(result.checks.redis!.status).toBe('degraded');
+      expect(result.checks.redis!.message).toBe(
         'Redis required but unavailable',
       );
       expect(result.status).toBe('ready');
@@ -293,8 +294,9 @@ describe('HealthService', () => {
 
       const result = await service.getReadiness();
 
-      expect(result.checks.redis.status).toBe('degraded');
-      expect(result.checks.redis.message).toBe(
+      expect(result.checks.redis).toBeDefined();
+      expect(result.checks.redis!.status).toBe('degraded');
+      expect(result.checks.redis!.message).toBe(
         'Redis connected but ping failed',
       );
     });
