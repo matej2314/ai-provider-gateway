@@ -29,16 +29,6 @@
     "ast_hash": "6461cacd3bdabf04982e82e3fc266e07",
     "semantic_hash": ""
   },
-  "scripts/generate-key.ps1": {
-    "mtime": 1784640699.2796574,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
-    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
-  },
-  "scripts/generate-key.sh": {
-    "mtime": 1784640699.2796574,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
-    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
-  },
   "scripts/validate-config.ts": {
     "mtime": 1779967972.992968,
     "ast_hash": "c232428c56f0f1ffb6a0ff9592599f53",
@@ -455,73 +445,73 @@
     "semantic_hash": ""
   },
   "src/cli/commands/client/client-add.command.ts": {
-    "mtime": 1785159464.4688077,
-    "ast_hash": "4c83b944cee642c24b5f294e1fbbfc5c",
+    "mtime": 1785265964.5135305,
+    "ast_hash": "6d598cd982d7f0edcc6fc1bf371bef8a",
     "semantic_hash": ""
   },
   "src/cli/commands/client/client-edit.command.ts": {
-    "mtime": 1785159464.4708092,
-    "ast_hash": "7eb6cd5615cc6fc91ae14b5703650a2f",
+    "mtime": 1785265964.5135305,
+    "ast_hash": "02a25c7eaf54276ec338b5cc23b17c0f",
     "semantic_hash": ""
   },
   "src/cli/commands/client/client-list.command.ts": {
-    "mtime": 1785159326.7211447,
-    "ast_hash": "6373adee8633b0aea907fb8151d4fe5a",
+    "mtime": 1785265964.5135305,
+    "ast_hash": "859a4ede2a0c97da297c9f3eeda5d3a8",
     "semantic_hash": ""
   },
   "src/cli/commands/client/client-remove.command.ts": {
-    "mtime": 1785159464.4728096,
-    "ast_hash": "0a021dbd92041d5df8a2dbf0618f534d",
+    "mtime": 1785265964.5135305,
+    "ast_hash": "71d42d5f5c20bd93e7eb33cacf85ad95",
     "semantic_hash": ""
   },
   "src/cli/commands/config/config-init.command.ts": {
-    "mtime": 1785159460.7141721,
-    "ast_hash": "2b092b25fa6c9e84b3fe6ef7a053b9ca",
+    "mtime": 1785266495.1716874,
+    "ast_hash": "2613860a81166d20e101f85a17c274eb",
     "semantic_hash": ""
   },
   "src/cli/commands/config/config-show.command.ts": {
-    "mtime": 1785157287.5017717,
-    "ast_hash": "9d483a19bc5497db252aceadef12f73e",
+    "mtime": 1785265964.5145764,
+    "ast_hash": "0c1b5d3d16dab6ceeb8a1a0d74bddfb9",
     "semantic_hash": ""
   },
   "src/cli/commands/config/config-validate.command.ts": {
-    "mtime": 1785157278.5681334,
-    "ast_hash": "4fd7b95bbdc70d23bf25a7bf7da851a3",
+    "mtime": 1785265964.5145764,
+    "ast_hash": "a67586f3300395f0a93165e12f7a0fd2",
     "semantic_hash": ""
   },
   "src/cli/commands/key/key-generate.command.ts": {
-    "mtime": 1785159464.4753208,
-    "ast_hash": "7cbbf019ca7bbc8c067a3a052ab57055",
+    "mtime": 1785265964.5145764,
+    "ast_hash": "3dd7981234b3d274fd91656758a73a55",
     "semantic_hash": ""
   },
   "src/cli/commands/model/model-add.command.ts": {
-    "mtime": 1785159464.4621947,
-    "ast_hash": "43bdc0e85199cf7050853fa54ed9f83b",
+    "mtime": 1785265964.5145764,
+    "ast_hash": "855d1440e01ac714ee74269383ee3b32",
     "semantic_hash": ""
   },
   "src/cli/commands/model/model-edit.command.ts": {
-    "mtime": 1785159464.4641924,
-    "ast_hash": "2b5f41f2c4cf4af5e18a4a0d55e0c2e7",
+    "mtime": 1785265964.5145764,
+    "ast_hash": "f147cc75705ee7ef41079690ef514d5a",
     "semantic_hash": ""
   },
   "src/cli/commands/model/model-list.command.ts": {
-    "mtime": 1785159321.791005,
-    "ast_hash": "b281f15f321aa3d46bb6cafe3dc271ed",
+    "mtime": 1785265964.5145764,
+    "ast_hash": "18b29097ce821a9428d0bc86647c8e88",
     "semantic_hash": ""
   },
   "src/cli/commands/model/model-remove.command.ts": {
-    "mtime": 1785159464.4662983,
-    "ast_hash": "1db1792977a34854619393aaf62c5d20",
+    "mtime": 1785265964.5154743,
+    "ast_hash": "e0e5c67e9ba33e37e423f4efb0d94f76",
     "semantic_hash": ""
   },
   "src/cli/commands/provider/provider-add.command.ts": {
-    "mtime": 1785159407.8350458,
-    "ast_hash": "69431e4dd7452df6b6fab36af9d901a8",
+    "mtime": 1785265964.5145764,
+    "ast_hash": "ec289480ac34ea0bd02ec4e1c1c62d4b",
     "semantic_hash": ""
   },
   "src/cli/commands/provider/provider-edit.command.ts": {
-    "mtime": 1785159464.4561944,
-    "ast_hash": "6d1ded304a7ce42c297f3650273dd44d",
+    "mtime": 1785265964.5145764,
+    "ast_hash": "f8863b4ee31a0985ab26ca78ac68a151",
     "semantic_hash": ""
   },
   "src/cli/commands/provider/provider-list.command.ts": {
@@ -530,8 +520,8 @@
     "semantic_hash": ""
   },
   "src/cli/commands/provider/provider-remove.command.ts": {
-    "mtime": 1785159464.4611945,
-    "ast_hash": "4e337f0aec4d615e95d32d34e731f6aa",
+    "mtime": 1785265964.5154743,
+    "ast_hash": "1400be027ad25a3ca39d73549e9fa2e2",
     "semantic_hash": ""
   },
   "src/cli/commands/provider/provider-test.command.ts": {
@@ -560,8 +550,8 @@
     "semantic_hash": "d6dad926bb913463bfc0d90c7b182113"
   },
   "src/cli/gateway.command.ts": {
-    "mtime": 1785157787.2799203,
-    "ast_hash": "51b257e684bcc612d51fdea33ebfaf74",
+    "mtime": 1785265964.5154743,
+    "ast_hash": "fb0ec935b5e7aaad572a03a15090f027",
     "semantic_hash": ""
   },
   "src/cli/schemas/wizard-state.schema.spec.ts": {
@@ -595,8 +585,8 @@
     "semantic_hash": ""
   },
   "src/cli/services/client-manager.service.ts": {
-    "mtime": 1785155541.4913814,
-    "ast_hash": "2df625b6d181cf2698f0cd6f59d9f040",
+    "mtime": 1785265964.5154743,
+    "ast_hash": "ccde707146f6c5936c6321261441b3ec",
     "semantic_hash": ""
   },
   "src/cli/services/config-generator.service.ts": {
@@ -670,8 +660,8 @@
     "semantic_hash": ""
   },
   "src/cli/services/provider-manager.service.ts": {
-    "mtime": 1785239055.6279626,
-    "ast_hash": "14ea0f5972e2047008f967159df84307",
+    "mtime": 1785265964.516474,
+    "ast_hash": "bd1e0ca2e940ac00ea0e7190b4853dbd",
     "semantic_hash": ""
   },
   "src/cli/services/provider-test.service.ts": {
@@ -680,8 +670,8 @@
     "semantic_hash": "f6c877dc3dd68a39233c5cf23858cd4d"
   },
   "src/cli/services/wizard-orchestrator.service.ts": {
-    "mtime": 1785159525.969654,
-    "ast_hash": "070d36daaa44a417db2ebc89c5ae959e",
+    "mtime": 1785266264.2025695,
+    "ast_hash": "683be257f39b95b43d6d57ca17152fe3",
     "semantic_hash": ""
   },
   "src/cli/services/wizard-state-manager.service.ts": {
@@ -1145,8 +1135,8 @@
     "semantic_hash": ""
   },
   "src/health/health.service.ts": {
-    "mtime": 1785263162.4758613,
-    "ast_hash": "e778cd08b5d5b7962b5a6099da9be5e9",
+    "mtime": 1785266327.2269938,
+    "ast_hash": "1a805e0d6f31cc542d49cee424f16406",
     "semantic_hash": ""
   },
   "src/instrument.ts": {
@@ -2229,11 +2219,6 @@
     "ast_hash": "1ec19a9386e469583f89f9f03098a69a",
     "semantic_hash": ""
   },
-  "gateway.config.yaml": {
-    "mtime": 1785264162.041598,
-    "ast_hash": "e85e4961ee45fdaaf4f8e71f72930c6c",
-    "semantic_hash": ""
-  },
   "src/config/system-prompt/MAIN_SYSTEM_PROMPT.md": {
     "mtime": 1784640699.4351728,
     "ast_hash": "eb53cb477d9388bacf1c2acb79daf612",
@@ -2845,8 +2830,8 @@
     "semantic_hash": ""
   },
   "src/cli/schemas/agent-answers.schema.ts": {
-    "mtime": 1785156792.385685,
-    "ast_hash": "9791db881b825122870aec8f03d50cea",
+    "mtime": 1785265964.5154743,
+    "ast_hash": "1369a2d12ea62b758b9e4028b51d2765",
     "semantic_hash": ""
   },
   "src/cli/types/cli-apply.types.ts": {
@@ -2865,58 +2850,58 @@
     "semantic_hash": ""
   },
   "src/cli/agent/agent-report.spec.ts": {
-    "mtime": 1785160250.064137,
-    "ast_hash": "c5703e7867d3fff41d7c15abe67cb7b1",
+    "mtime": 1785265964.5135305,
+    "ast_hash": "8a52ad94cc9ae416055317c2c8867869",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/SKILL.md": {
-    "mtime": 1785227885.488633,
-    "ast_hash": "c6bcfe3d39090dd82bb83b92c672a94d",
+    "mtime": 1785265303.7971032,
+    "ast_hash": "38138d7ed745e3435d80a336c778fbeb",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/flows/client-add.md": {
-    "mtime": 1785227945.9472568,
-    "ast_hash": "bd548bdab1dc95fe2bc813c70d10e19d",
+    "mtime": 1785265302.0087402,
+    "ast_hash": "7f76f43b09f002236aee86a3b36ecad7",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/flows/client-edit.md": {
-    "mtime": 1785227948.2374232,
-    "ast_hash": "b9d7e87207094f84a5154f87c4b02ea3",
+    "mtime": 1785265302.537876,
+    "ast_hash": "8dbc3c38f1694a2ebdbd9b238ee38fb1",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/flows/client-remove.md": {
-    "mtime": 1785227948.5179565,
-    "ast_hash": "5c3b7824fe08637c5354376ded106dce",
+    "mtime": 1785265303.410239,
+    "ast_hash": "bbaee2cc3d5cf7cfc21a0b3b32fa4123",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/flows/model-add.md": {
-    "mtime": 1785227931.2644749,
-    "ast_hash": "0d8580b2d59cded0b86d4ae0cde0cd7d",
+    "mtime": 1785265300.0977373,
+    "ast_hash": "67ca101ec2a059bd7597fd403ed27364",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/flows/model-edit.md": {
-    "mtime": 1785227934.3429928,
-    "ast_hash": "9ba146f31824c0f761cda86e3d3a4065",
+    "mtime": 1785265300.622211,
+    "ast_hash": "8a4d577613cf26f0cdafde473f93d676",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/flows/model-remove.md": {
-    "mtime": 1785227939.236745,
-    "ast_hash": "ea4dd4b475351f34c3b3ae8f2d3c9d95",
+    "mtime": 1785265301.4695504,
+    "ast_hash": "0a0b7b1603c9260645a1bb3d28700d3b",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/flows/provider-add.md": {
-    "mtime": 1785227916.842111,
-    "ast_hash": "b3dcba6eac2ed5fe232a44947796622f",
+    "mtime": 1785265298.3581932,
+    "ast_hash": "50d998c2eece81c2daa191087881ff12",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/flows/provider-edit.md": {
-    "mtime": 1785227921.9328425,
-    "ast_hash": "72e66658870a8717f5710aa16acf4282",
+    "mtime": 1785265298.9146109,
+    "ast_hash": "7abf179ca0dbd57f9d2c8ca145d9a608",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/flows/provider-remove.md": {
-    "mtime": 1785227925.515831,
-    "ast_hash": "f6806b8e0f14f26e7c9ca63606de33c6",
+    "mtime": 1785265299.513401,
+    "ast_hash": "634cb5b4cab80f1fd343a2cd38ac646b",
     "semantic_hash": ""
   },
   ".agents/skills/gateway-config/references/agent-protocol.md": {
@@ -2932,6 +2917,11 @@
   "src/config/system-prompt/models/gemini-flash.md": {
     "mtime": 1785167359.2841935,
     "ast_hash": "809ffe25c11a76bdbb95f2a3ddf5d242",
+    "semantic_hash": ""
+  },
+  "src/config/system-prompt/models/google-gemini.md": {
+    "mtime": 1785265040.868551,
+    "ast_hash": "c90ad25eb13382e0f666c5869d26ddea",
     "semantic_hash": ""
   }
 }

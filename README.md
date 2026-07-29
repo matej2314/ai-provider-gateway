@@ -65,15 +65,58 @@ Deep dive: [`docs/integrations.md`](docs/integrations.md), [`docs/dictionary.md`
 
 **Requirements:** Node.js 20+, npm.
 
+You can run this gateway as your own production instance using either workflow below:
+
+**Option 1 — Prepare your repo, clone this repo locally, configure/test, then push**
+1. Prepare a repository under your GitHub account.
+2. Clone this repository locally.
+3. Configure and test locally.
+4. Push the configured result to your prepared repository (production deploy).
+
+Example:
 ```bash
-git clone <your-fork-or-clone-url>
+git clone <THIS_REPO_URL>
 cd ai-provider-gateway
 npm install
+# follow the “Configure” and “First request” sections
+#
+# then push to your own repo:
+git remote set-url origin https://github.com/YOUR_GITHUB_USERNAME/ai-provider-gateway.git
+git push -u origin main
+```
+
+**Option 2 — Fork this repo, pull the fork to your local PC, configure/test, then push**
+1. Prepare your repo under your GitHub account.
+2. Fork this repository to your GitHub account.
+3. Pull the fork onto your local PC.
+4. Configure and test locally.
+5. Push the configured result to your forked repo (production deploy).
+
+Example:
+```bash
+git clone <THIS_REPO_URL>
+cd ai-provider-gateway
+npm install
+# after you fork on GitHub:
+git remote add fork https://github.com/YOUR_GITHUB_USERNAME/ai-provider-gateway.git
+git pull fork main
+# follow the “Configure” and “First request” sections
+git push -u fork main
 ```
 
 ### Configure
 
-**Option A — CLI wizard (recommended locally):**
+**Option 1 — Manual (placeholders → real config):**
+Copy the config template(s) into the project root, then edit them for your production instance. Also create `.env` with your secrets:
+
+```bash
+cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
+cp deployment/templates/.env.example .env
+# edit `gateway.config.yaml` to match the setup you want
+# fill provider keys, MASTER_KEY, and GATEWAY_KEY_* so names match *KeyRef in YAML
+```
+
+**Option 2 — CLI wizard (recommended locally):**
 
 ```bash
 npm run cli config:init
@@ -81,13 +124,8 @@ npm run cli config:init
 
 Generates/updates `gateway.config.yaml`, `.env`, and system-prompt templates.
 
-**Option B — templates (Docker / manual):**
-
-```bash
-cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
-cp deployment/templates/.env.example .env
-# Fill provider keys, MASTER_KEY, and GATEWAY_KEY_* so names match *KeyRef in YAML
-```
+**Option 3 — AI-assisted setup (agent skill):**
+If you use Cursor or Claude Code, you can run the provided setup assistant workflow (see `.agents/skills/gateway-setup/SKILL.md`) to drive `config:init` interactively.
 
 Validate, then run:
 
@@ -119,7 +157,7 @@ More examples (stream, models, thinking, tooling): [`docs/api-documentation.md`]
 
 ```bash
 docker network create ai-gateway-network   # once
-npm run docker:build && npm run docker:up  # gateway only
+npm run docker:up  # gateway only
 # npm run docker:up:full                   # + Redis + Prometheus + Grafana
 ```
 
@@ -239,7 +277,7 @@ Counters and suite details: [`docs/testing.md`](docs/testing.md). Make targets: 
 
 Licensed under **MIT**. You may clone, fork, modify, and deploy your own instances.
 
-**Upstream does not accept third-party pull requests.** Changes to the author’s `main` are maintainer-only. Fork the repo to build on it. Cloning for recruitment review or portfolio is welcome.
+**Upstream does not accept third-party pull requests.** This repository is intended as a reference/template. To run the gateway in production, deploy from your own GitHub repository under your account (either clone+push or fork+pull+push as described in “Quick start”). Cloning for recruitment review or portfolio is welcome.
 
 `"private": true` in `package.json` means this package is **not** published to npm — run from source or your own images.
 
