@@ -4,7 +4,7 @@ This document describes the **directory and file structure** of the _AI Provider
 
 Rules:
 
-- The structure is **modular** (NestJS); LLM providers layer (factories + registry) — `src/providers/`; HTTP facades for IDEs — `src/integrations/`.
+- The structure is **modular** (NestJS); LLM providers layer (factories + registry) — `src/providers/`; official contract HTTP facades — `src/integrations/`.
 - Items marked _(plan)_ do not exist in the code or are outside the MVP core.
 - **Omitted from the tree:** `node_modules/`, `dist/`, `.git/`, local `.env` (do not commit).
 - **`*.spec.ts`** files — unit tests next to modules; listed collectively where they occur.
@@ -18,7 +18,8 @@ Rules:
 ```
 ai-provider-gateway/
 ├── openapi.json                    # OpenAPI 3.1 (HTTP contract; generated: npm run openapi:export)
-├── gateway.config.yaml             # working configuration (example in repo; generated/updated by gateway config:init)
+├── gateway.config.example.yaml     # PLACEHOLDER YAML for setup (copy → gateway.config.yaml)
+├── gateway.config.yaml             # working configuration (local; generated/updated by gateway config:init)
 ├── package.json
 ├── package-lock.json
 ├── README.md
@@ -27,21 +28,21 @@ ai-provider-gateway/
 ├── tsconfig.build.json
 ├── eslint.config.mjs
 ├── .prettierrc
-├── .env.example
+├── .env.example                    # env template paired with gateway.config.example.yaml
 ├── .env                            # local — do not commit
 ├── .gateway-wizard-state.json      # local — unfinished config:init state (resume)
 ├── backup/                         # local — YAML/.env backups from CLI (backup/* in .gitignore)
 ├── .gitignore
 ├── mcp.json                        # MCP config for IDE (Cursor) — not loaded by gateway at startup
 │
-├── deployment/                     # Docker, monitoring, templates, VPS scripts
+├── deployment/                     # Docker, monitoring, VPS scripts
 │   ├── docker/
 │   │   ├── Dockerfile              # Multi-stage build (production)
 │   │   ├── docker-compose.yml      # MVP: gateway only
 │   │   └── docker-compose.*.yml    # redis, monitoring, ollama, dev
 │   ├── monitoring/                 # Prometheus, Grafana, alerts
 │   ├── scripts/                    # deploy-production.sh, deploy-staging.sh, rollback.sh (Actions)
-│   └── templates/                  # gateway.config.example.yaml, .env.example
+│   └── templates/                  # optional CI/mirror PLACEHOLDER copies (prefer root examples)
 │
 ├── bin/                            # CLI entry point (separate from HTTP app)
 │   ├── gateway-cli-wrapper.js      # npm bin — compiled dist/ or fallback ts-node (no build)
@@ -394,7 +395,6 @@ ai-provider-gateway/
 │   │       ├── client-rate-limit.util.ts
 │   │       ├── default-model-policy.util.ts
 │   │       ├── effective-config-preview.util.ts
-│   │       ├── legacy-provider-env.util.ts
 │   │       ├── provider-id.util.ts
 │   │       └── validation-formatter.util.ts
 │   │
@@ -540,10 +540,10 @@ ai-provider-gateway/
     │   ├── dictionary.md
     │   ├── brand_types.md                  # TS brand types — developer guide
     │   ├── anty_patterny.md
-    │   ├── integracje.md                   # OpenAI / Anthropic facades (IDE)
-    │   ├── integracja_openai_kontrakt.md   # OpenAI facade (Cursor)
+    │   ├── integracje.md                   # OpenAI / Anthropic official contract facades
+    │   ├── integracja_openai_kontrakt.md   # OpenAI official contract facade
     │   ├── provider_openai_runtime.md      # OpenAI runtime adapter
-    │   ├── integracja_anthropic_messages.md # Anthropic facade (Claude Code)
+    │   ├── integracja_anthropic_messages.md # Anthropic official contract facade
     │   ├── CLI.md                          # Gateway CLI (wizard, run)
     │   ├── deployment.md
     │   ├── testy.md                        # unit and E2E tests
@@ -563,10 +563,6 @@ ai-provider-gateway/
     ├── project.structure.md                # this file
     └── …                                   # other EN docs (see docs/README.md)
 ```
-
-### Working notes (repo root, optional)
-
-Outside product documentation in `docs/` / `docs/pl/`, local plans/notes may appear in the repo root, e.g. `PLAN_IMPLEMENTACJI.md`, `*_refactor.md` — they are not part of the API contract or gateway deployment.
 
 ---
 
@@ -603,7 +599,7 @@ The CLI is a **separate layer** with its own entry point, independent of the HTT
 | **No `ConfigModule`**  | `CliModule` does not import `ConfigModule.forRoot()` — avoids deadlock (CLI creates config that the runtime requires at startup).                                                                                                           |
 | **No build required**    | Wrapper in `bin/` runs TypeScript via `ts-node` when `dist/` is missing — CLI available after `npm install`.                                                                                                                                 |
 | **Dependency direction** | Allowed: `src/config/*` → `src/cli/*` (types, Zod schemas, validators). Forbidden the other way — CLI does not modify runtime logic.                                                                                                      |
-| **Config loading**   | `CliConfigLoaderService.loadRawConfig()` — YAML parsing + `GatewayConfigSchema`; **without** resolving env. Full runtime validation — at end of `config:init` wizard; in **`gateway config:validate`** (YAML + `validateEnvironment()` from facade); **`npm run config:validate`** — YAML + runtime rules without legacy env format. |
+| **Config loading**   | `CliConfigLoaderService.loadRawConfig()` — YAML parsing + `GatewayConfigSchema`; **without** resolving env. Full runtime validation — at end of `config:init` wizard; in **`gateway config:validate`** (YAML + `validateEnvironment()` from facade); **`npm run config:validate`** — YAML + runtime rules without full `validateEnvironment()`. |
 | **Command convention**    | `gateway <namespace>:<action>`; root command shows welcome and full command list.                                                                                                                                                     |
 | **Wizard state**        | `.gateway-wizard-state.json` — resume / rollback after interruption (`WizardStateManager`).                                                                                                                                                   |
 | **Mutation backup**      | `FileManagerService.backupFile()` → `backup/<file-name>.backup-<timestamp>` (directory in `.gitignore`).                                                                                                                                  |
@@ -631,15 +627,15 @@ Full command documentation: **`command_line_interface.md`**.
 
 **Features in the product** (compare with [`openapi.json`](../openapi.json) and `src/`):
 
-- **Configuration:** sample `gateway.config.yaml` in repo (instances `anthropic`, `google`, `openai`, `ollama-local`; aliases including `gpt-cheap`, `ollama-local-chat`); full operational configuration via **`gateway config:init`** wizard. Provider runtime: factories per type + bootstrap per **`providerInstance`** (Anthropic, Google, OpenAI, openai-compatible) + tool/thinking mappers.
+- **Configuration:** root **`gateway.config.example.yaml`** is PLACEHOLDER boilerplate (`placeholder-provider` / `PLACEHOLDER` refs; CLI `isBoilerplateConfig()`); copy to `gateway.config.yaml` and pair with root **`.env.example`**, or run **`gateway config:init`** for a full operational configuration. Provider runtime: factories per type + bootstrap per **`providerInstance`** (Anthropic, Google, OpenAI, openai-compatible) + tool/thinking mappers.
 - Standard chat + SSE, `params`, retry/timeout (`AbortSignal`)/fallback/`effectiveModelAlias` (`ResilientExecutor`).
 - Error envelope (`GlobalExceptionFilter`), codes **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + response header **`x-request-id`**.
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
 - System prompt from files, cache (`noop`/`redis`, read validation `CachedChatResponseSchema`), typed config (`AppConfiguration`, `typed-config.ts`), logging + observability (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges on `/metrics`), readiness (`checks.config`, `checks.redis`, `checks.cache`), Prometheus alerts (`deployment/monitoring/alerts.yml`), graceful shutdown.
 - `GatewayFinishReason` (`stop` | `tool_calls` | `length` | `content_filter`) in native API; reverse map on Anthropic facade (`anthropic-stop-reason.mapper.ts`).
-- OpenAPI/Swagger: `@nestjs/swagger` decorators on native and IDE facade controllers; vendor error schemas (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, export `npm run openapi:export` → [`openapi.json`](../openapi.json).
-- **IDE facades:** `src/integrations/` — OpenAI and Anthropic HTTP contracts (`IntegrationsModule` in `AppModule`), `Request.gatewayKey`, exports from `ChatModule` and `ModelsModule`; routes `/api/v1/openai/…`, `/api/v1/anthropic/…` and native `/api/v1/models` (`integrations.md`, `openai-contract-integration.md`, `anthropic-messages-integration.md`). **Do not confuse** with SDK adapters in `src/providers/` — OpenAI adapter: `provider-openai-runtime.md`.
+- OpenAPI/Swagger: `@nestjs/swagger` decorators on native and official contract facade controllers; vendor error schemas (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, export `npm run openapi:export` → [`openapi.json`](../openapi.json).
+- **Official contract facades:** `src/integrations/` — OpenAI and Anthropic HTTP contracts (`IntegrationsModule` in `AppModule`), `Request.gatewayKey`, exports from `ChatModule` and `ModelsModule`; routes `/api/v1/openai/…`, `/api/v1/anthropic/…` and native `/api/v1/models` (`integrations.md`, `openai-contract-integration.md`, `anthropic-messages-integration.md`). **Do not confuse** with SDK adapters in `src/providers/` — OpenAI adapter: `provider-openai-runtime.md`.
 - **Brand types:** `src/common/types/` — nominal TS types at runtime (keys, identifiers, metrics, policy, `WarningCode`); HTTP DTOs remain primitive — `brand-types.md`.
 - **CLI:** `bin/gateway-cli-wrapper.js`, `src/cli/` — **`config:init`** wizard, commands `config:*`, `provider:*`, `model:*`, `client:*`, `key:generate` (interactive mode). Documentation: **`command_line_interface.md`**, section 2a above, `architecture.md`.
 

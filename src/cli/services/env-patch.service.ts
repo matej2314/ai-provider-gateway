@@ -59,4 +59,20 @@ export class EnvPatchService {
     const next = lines.filter((line) => !line.startsWith(prefix));
     await fs.writeFile(this.envPath(cwd), next.join('\n') + '\n', 'utf-8');
   }
+
+  async isVarNonEmpty(cwd: string, key: EnvRef): Promise<boolean> {
+    const v = await this.getVar(cwd, key);
+    return Boolean(v?.trim());
+  }
+
+  async ensureVarExists(
+    cwd: string,
+    key: EnvRef,
+    value: EnvPatchValue = '',
+  ): Promise<void> {
+    const existing = await this.getVar(cwd, key);
+    if (existing === undefined) {
+      await this.setVar(cwd, key, value);
+    }
+  }
 }

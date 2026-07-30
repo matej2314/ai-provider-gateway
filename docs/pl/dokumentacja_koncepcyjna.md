@@ -16,7 +16,7 @@ Projekt jest **działającym mikroserwisem** NestJS — ćwiczeniem architektury
 
 | Segment | Potrzeba |
 |---------|----------|
-| **Użytkownik (developer / zespół)** | Szybko uruchomić gateway lokalnie lub w swojej infrastrukturze; używać własnych kluczy do **Anthropic, Google i OpenAI** (providery runtime); korzystać z fasady **OpenAI** dla IDE (Cursor); mieć przewidywalne API. |
+| **Użytkownik (developer / zespół)** | Szybko uruchomić gateway lokalnie lub w swojej infrastrukturze; używać własnych kluczy do **Anthropic, Google i OpenAI** (providery runtime); korzystać z fasad **oficjalnych kontraktów** OpenAI / Anthropic (Cursor, Claude Code i inne klienty tych kształtów HTTP); mieć przewidywalne API. |
 | **Integrator / platform team** | Ustandaryzować integrację z LLM w organizacji, spiąć limity, logi, requestId, polityki retry i timeouts. |
 | **Operacje / DevOps** | Statyczne, proste wdrożenie; konfiguracja przez env + pliki; healthchecki; logi na stdout. |
 | **Rekruter / reviewer** | Klonowanie repozytorium i przegląd kodu (portfolio) — bez konieczności forkowania ani wysyłania PR. |
@@ -37,7 +37,7 @@ Poniższy opis definiuje zakres produktu w rozumieniu tego repozytorium. Kontrak
 
 **Pierwsze uruchomienie:** uzupełnij `.env` i `gateway.config.yaml` albo uruchom `gateway config:init` przed startem serwera (szczegóły: `konfiguracja.md`, `CLI.md`).
 
-- **Produkt:** Rdzeń obejmuje routing, chat i streaming. Warstwa operacyjna dodaje konfigurację z plików, observability, polish, deploy oraz fasady integracji IDE (OpenAI + Anthropic Messages API). Dalsze dopasowanie kontraktów vendora — opcjonalne rozszerzenia.
+- **Produkt:** Rdzeń obejmuje routing, chat i streaming. Warstwa operacyjna dodaje konfigurację z plików, observability, polish, deploy oraz fasady oficjalnych kontraktów (OpenAI + Anthropic Messages API). Dalsze dopasowanie kontraktów vendora — opcjonalne rozszerzenia.
 - **Providery:** Anthropic API, Google Gemini API, OpenAI API oraz `openai-compatible` (np. Ollama).
 - **Czat:** synchroniczny `POST /api/v1/chat` oraz streaming SSE `POST /api/v1/chat/stream`.
 
@@ -46,8 +46,8 @@ Poniższy opis definiuje zakres produktu w rozumieniu tego repozytorium. Kontrak
 | Funkcjonalność | Zakres |
 |----------------|--------|
 | Natywne API (`/chat`, `/chat/stream`) | Routing, JSON i SSE |
-| Fasada OpenAI (Cursor IDE) | `/api/v1/openai/*` |
-| Fasada Anthropic (Claude Code) | `/api/v1/anthropic/*` |
+| Fasada OpenAI (oficjalny kontrakt OpenAI API) | `/api/v1/openai/*` — IDE i inne klienty |
+| Fasada Anthropic (oficjalny kontrakt Anthropic Messages) | `/api/v1/anthropic/*` — IDE i inne klienty |
 | Tool calling | Definicje i wywołania narzędzi w czacie |
 | Extended thinking (reasoning models) | Parametry thinking / reasoning |
 | Response caching (Redis) | Cache odpowiedzi `POST /chat` |
@@ -58,11 +58,11 @@ Poniższy opis definiuje zakres produktu w rozumieniu tego repozytorium. Kontrak
 ### Zakres funkcjonalny (skrót)
 
 - **Endpoint czatu standardowego** `POST /api/v1/chat` — opcjonalnie **cache odpowiedzi** (`src/cache/`, walidacja odczytu `CachedChatResponseSchema`, env — `konfiguracja.md`).
-- **Streaming** (`POST /api/v1/chat/stream`, SSE) — envelope `ErrorEnvelope`. **Gateway key** + opcjonalny **smart rate limit** (`@GatewayKeyAndSmartRateLimit()`; kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** — `dictionary.md`). **Readiness**, **logging/metrics** (Pino, Sentry), **graceful shutdown**. **`params` w body**, **policy `timeoutMs` / `retry` + fallback**, **nagłówek odpowiedzi `x-request-id`**. **OpenAPI / Swagger** — dekoratory `@nestjs/swagger` na czacie, health i fasadach IDE; jeden [`openapi.json`](../../openapi.json) (tagi Health, Chat, OpenAI API, Anthropic API); eksport `npm run openapi:export`, UI `/api/v1/api-docs`. **Fasady IDE** (`src/integrations/`) — `IntegrationsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` (`integracje.md`). **Walidacja offline konfiguracji:** `npm run config:validate` oraz **`gateway config:validate`** (`konfiguracja.md`). **CLI** — wizard `config:init` + komendy zarządzania configiem, providerami, modelami, klientami, testy SDK, `key:generate` (`CLI.md`).
-- **Fasady integracji** — moduł `src/integrations/` (OpenAI API dla Cursor, Anthropic Messages dla Claude Code); wspólny silnik `ChatService` — patrz `integracje.md`.
+- **Streaming** (`POST /api/v1/chat/stream`, SSE) — envelope `ErrorEnvelope`. **Gateway key** + opcjonalny **smart rate limit** (`@GatewayKeyAndSmartRateLimit()`; kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** — `dictionary.md`). **Readiness**, **logging/metrics** (Pino, Sentry), **graceful shutdown**. **`params` w body**, **policy `timeoutMs` / `retry` + fallback**, **nagłówek odpowiedzi `x-request-id`**. **OpenAPI / Swagger** — dekoratory `@nestjs/swagger` na czacie, health i fasadach oficjalnych kontraktów; jeden [`openapi.json`](../../openapi.json) (tagi Health, Chat, OpenAI API, Anthropic API); eksport `npm run openapi:export`, UI `/api/v1/api-docs`. **Fasady oficjalnych kontraktów** (`src/integrations/`) — `IntegrationsModule`; trasy `/api/v1/openai/…`, `/api/v1/anthropic/…` (`integracje.md`). **Walidacja offline konfiguracji:** `npm run config:validate` oraz **`gateway config:validate`** (`konfiguracja.md`). **CLI** — wizard `config:init` + komendy zarządzania configiem, providerami, modelami, klientami, testy SDK, `key:generate` (`CLI.md`).
+- **Fasady oficjalnych kontraktów** — moduł `src/integrations/` (kontrakt OpenAI API i Anthropic Messages — dla IDE i innych klientów oczekujących tych kształtów); wspólny silnik `ChatService` — patrz `integracje.md`.
 - **Providery** Anthropic, Google Gemini oraz OpenAI (`openai`, `openai-compatible`) — fabryki SDK, bootstrap per `providerInstance` i rejestr.
 - **Konfiguracja z plików** (`gateway.config.yaml`) — wczytywanie i walidacja przy starcie. Rozszerzona walidacja grafu `providers` ↔ `models` (fail-fast) — `konfiguracja.md`, `spec/SPEC-KONFIGURACJA.md` (F-3b, F-3c).
-- Klucze API w `.env` pod **`apiKeyRef`** z YAML (per włączona instancja providera); CLI synchronizuje opcjonalnie legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` — `konfiguracja.md`.
+- Klucze API w `.env` pod **`apiKeyRef`** z YAML (per włączona instancja providera) — `konfiguracja.md`.
 - Policy z YAML: **`params`** w `resolveProviderCallOptions`; **`timeoutMs` / `retry` / `fallback`** w `ResilientExecutor` z anulowaniem in-flight przez **`AbortSignal`** (`dokumentacja_api.md`, `konfiguracja.md`); fail‑fast przy braku/błędzie pliku konfiguracyjnego.
 - Spójny format błędów (**envelope `ErrorEnvelope`**) — `GlobalExceptionFilter`. **`requestId`**: propagacja w body, logach i **nagłówku odpowiedzi** `x-request-id` (`RequestIdMiddleware`). Mapowanie błędów SDK (`provider-error.mapper.ts`) dla Anthropic/Google/OpenAI (`PROVIDER_*`); limity gateway — **`RATE_LIMITED`** (`SmartRateLimitGuard`: RPS/streamy; cooldown: `prepareRequestForExecution` + `ChatErrorHandlerService`).
 - Testy jednostkowe przy modułach (`src/**/*.spec.ts`, `npm test`).
@@ -118,31 +118,16 @@ Wszystkie trzy delegują do **`ChatService`** (jeden silnik: cache, retry, fallb
 
 ### Powierzchnia HTTP vs silnik LLM
 
-Gateway rozdziela **fasadę integracji** (kształt kontraktu HTTP dla narzędzi) od **providera runtime** (adapter SDK w `src/providers/`). Fasada OpenAI lub Anthropic **nie gwarantuje**, że wywołanie LLM trafi do tego samego vendora — routing jest wyłącznie konfiguracyjny (`modelAlias` → `providerInstance` w YAML).
+Gateway rozdziela **fasadę oficjalnego kontraktu** (kształt kontraktu HTTP dla klientów oczekujących API OpenAI / Anthropic) od **providera runtime** (adapter SDK w `src/providers/`). Fasada OpenAI lub Anthropic **nie gwarantuje**, że wywołanie LLM trafi do tego samego vendora — routing jest wyłącznie konfiguracyjny (`modelAlias` → `providerInstance` w YAML).
 
 | Powierzchnia | Format kontraktu HTTP | Backend LLM (wywołanie SDK) |
 |--------------|----------------------|----------------------------|
 | Natywny `/api/v1/chat` | Kontrakt gateway (`modelAlias`, `messages`, `params`) | Adapter wskazany przez alias w YAML (dowolny włączony `providerInstance`) |
-| Fasada OpenAI `/api/v1/openai/*` | Kształt OpenAI Chat Completions API (standard dla IDE, np. Cursor) | **Nie** api.openai.com z definicji fasady — ten sam silnik `ChatService`; backend z YAML |
-| Fasada Anthropic `/api/v1/anthropic/*` | Kształt Anthropic Messages API (standard dla IDE, np. Claude Code) | **Nie** API Anthropic z definicji fasady — backend z YAML (np. Anthropic, Google, …) |
+| Fasada OpenAI `/api/v1/openai/*` | Oficjalny kształt OpenAI Chat Completions API (IDE i inne klienty, np. Cursor) | **Nie** api.openai.com z definicji fasady — ten sam silnik `ChatService`; backend z YAML |
+| Fasada Anthropic `/api/v1/anthropic/*` | Oficjalny kształt Anthropic Messages API (IDE i inne klienty, np. Claude Code) | **Nie** API Anthropic z definicji fasady — backend z YAML (np. Anthropic, Google, …) |
 
 Pole `model` w fasadach = `modelAlias` z `gateway.config.yaml` (nie vendorowy `modelId`). Auth na fasadach: klucz **klienta gateway** (Bearer / `x-api-key`), nie klucz vendora.
 
 Szczegóły: `integracje.md`, `dictionary.md` (sekcja „Fasada vs provider runtime”), `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`.
 
-## Dalszy rozwój (opcjonalnie)
-
-Elementy świadomie **poza bieżącym zakresem** lub jako możliwe rozszerzenia:
-
-- dalsze dopasowanie kontraktów vendora na fasadach (pełny `usage`, edge-case’y tools),
-- metryki per provider; circuit breaker,
-- tryb non-interactive CLI,
-- “policy packs” (profile per środowisko / alias),
-- opcjonalne SDK klienta i przykłady integracji.
-
-Funkcje już obecne w produkcie (fasady IDE, system prompt, cache/Redis, rate limit, adapter OpenAI, CLI, observability) opisują dokumenty: `architektura.md`, `konfiguracja.md`, `CLI.md`, `provider_openai_runtime.md`.
-
----
-
-*Dokument wersjonowany razem z kodem. Zmiany kontraktów API wymagają aktualizacji `dokumentacja_api.md`, `lista_endpointów.md` oraz — dopóki istnieje — katalogu `spec/`.*
 

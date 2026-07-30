@@ -1,23 +1,23 @@
-# Fasady integracji (IDE) — AI Provider Gateway
+# Fasady oficjalnych kontraktów — AI Provider Gateway
 
-Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla narzędzi, które oczekują kształtu API vendora (OpenAI lub Anthropic), bez zmiany rdzenia gatewaya (`POST /api/v1/chat`, warstwa providerów w `src/providers/`).
+Moduł **`src/integrations/`** dodaje **równoległe kontrakty HTTP** dla klientów, którzy oczekują oficjalnego kształtu API vendora (OpenAI lub Anthropic), bez zmiany rdzenia gatewaya (`POST /api/v1/chat`, warstwa providerów w `src/providers/`).
 
 ## Fasada ≠ provider runtime
 
 | | **Fasada** (`src/integrations/`) | **Provider runtime** (`src/providers/`) |
 |---|----------------------------------|----------------------------------------|
-| **Cel** | Kompatybilność **kontraktu HTTP** z narzędziami (Cursor, Claude Code) | Wywołanie LLM u vendora przez SDK |
+| **Cel** | Kompatybilność **kontraktu HTTP** z IDE i innymi aplikacjami oczekującymi tych kształtów (np. Cursor, Claude Code) | Wywołanie LLM u vendora przez SDK |
 | **OpenAI** | `/api/v1/openai/*` — kształt OpenAI API | `type: openai` / `openai-compatible` w YAML — adapter SDK (`src/providers/`) |
 | **Anthropic** | `/api/v1/anthropic/*` — kształt Anthropic Messages API | `type: anthropic` w YAML — adapter SDK |
 | **Gwarancja backendu** | **Brak** — fasada nie wiąże się z vendorem | Tak — `providerInstance` + `modelId` w konfiguracji |
 
-Fasady istnieją, ponieważ OpenAI Chat Completions API i Anthropic Messages API stały się **de facto standardami** dla klientów IDE. Gateway implementuje te kształty HTTP nad jednym `ChatService`; **kierowanie zapytań do providera** odbywa się wyłącznie przez **`modelAlias`** (`model` w fasadzie) i `gateway.config.yaml`, nie przez wybór trasy `/openai` vs `/anthropic`.
+Fasady istnieją, ponieważ OpenAI Chat Completions API i Anthropic Messages API stały się **standardami** dla IDE oraz innych klientów oczekujących tych oficjalnych kształtów. Gateway implementuje te kształty HTTP nad jednym `ChatService`; **kierowanie zapytań do providera** odbywa się wyłącznie przez **`modelAlias`** (`model` w fasadzie) i `gateway.config.yaml`, nie przez wybór trasy `/openai` vs `/anthropic`.
 
 Pełna definicja terminów: [`dictionary.md`](dictionary.md) (sekcja „Fasada vs provider runtime”).
 
 ```mermaid
 flowchart LR
-  subgraph client [Klient IDE]
+  subgraph client [Klient]
     Cursor[Cursor]
   end
   subgraph facade [Fasada — src/integrations/openai]
@@ -142,7 +142,7 @@ Kody błędów wewnętrzne (`GATEWAY_KEY_MISSING`, `GATEWAY_KEY_INVALID`) są ma
 
 ### Klucze providerów (gateway → LLM)
 
-Adaptery w `src/providers/` używają kluczy z env wskazanych przez **`apiKeyRef`** w YAML (np. `ANTHROPIC_PRIMARY_API_KEY`, `GOOGLE_API_KEY`) — **nigdy** klucza klienta z IDE. CLI synchronizuje opcjonalnie legacy nazwy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`.
+Adaptery w `src/providers/` używają kluczy z env wskazanych przez **`apiKeyRef`** w YAML (np. `ANTHROPIC_PRIMARY_API_KEY`, `GOOGLE_API_KEY`) — **nigdy** klucza klienta z IDE.
 
 ## Smart rate limit
 
@@ -172,7 +172,7 @@ Fasady muszą współdzielić **`SmartRateLimiterService`** z natywnym API.
 
 ## Limity walidacji ingress (`validateChatIngress`)
 
-Gateway stosuje **różne profile walidacji** dla natywnego API i fasad IDE:
+Gateway stosuje **różne profile walidacji** dla natywnego API i fasad oficjalnych kontraktów:
 
 | Profil | Endpoint | Max messages | Max content (user/assistant) | Max content (tool) |
 |--------|----------|--------------|------------------------------|---------------------|
@@ -198,13 +198,13 @@ Wewnętrznie fasady korzystają z `ChatProviderCallService.streamOnce` i mapują
 - **Natywne API:** `GlobalExceptionFilter` → `ErrorEnvelope`.
 - **Fasady:** lokalne filtry na kontrolerach (`@OpenAiAuth()`, `@AnthropicAuth()`) — kształt JSON jak u vendora, z zachowaniem nagłówka **`x-request-id`**.
 
-## Ograniczenia MVP fasad
+## Ograniczenia fasad
 
 | Temat | Decyzja |
 |-------|---------|
 | `system` w messages klienta | **Ignorowane** — prompt z `src/config/system-prompt/` (źródło: serwer, nie body klienta) |
 | Tools / function calling | Mapowane na wewnętrzne `tooling` (`openai-tools.mapper.ts`, `anthropic-tools.mapper.ts`); wymaga `capabilities.tools: true` na aliasie |
-| Multimodal (obrazy) | Nieobsługiwane — 400 przy blokach `image` (Anthropic) |
+| Multimodal (obrazy) | Nieobsługiwane. Anthropic: **400** przy blokach `image`. OpenAI: bloki inne niż `text` są **cicho odrzucane** (`normalizeOpenAiContent`) — bez 400 |
 | Cache odpowiedzi | Działa przez `ChatService` dla wywołań non-stream; pola `cached` ukryte w odpowiedzi fasady |
 | `system_fingerprint` / `systemFingerprint` | Fasada OpenAI: pass-through gdy upstream zwraca (praktycznie OpenAI). Fasada Anthropic: brak pola. Anthropic/Gemini nie mają odpowiednika upstream — patrz `dictionary.md` |
 | OpenAPI / Swagger | Tagi **OpenAI API** i **Anthropic API** w `openapi.json` i Swagger UI; osobne schematy błędów (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`) |
@@ -237,7 +237,7 @@ Katalog aliasów: **`src/models/`** (`ModelsModule`, `GatewayModelsCatalogServic
 
 ## Powiązane dokumenty
 
-- `integracja_openai_kontrakt.md` — fasada OpenAI, konfiguracja Cursor IDE
+- `integracja_openai_kontrakt.md` — fasada oficjalnego kontraktu OpenAI (Cursor i inne klienty)
 - `provider_openai_runtime.md` — adapter runtime OpenAI (`src/providers/`)
 - `integracja_anthropic_messages.md` — fasada Anthropic, konfiguracja Claude Code
 - `lista_endpointów.md` — pełna lista tras (w tym fasady)

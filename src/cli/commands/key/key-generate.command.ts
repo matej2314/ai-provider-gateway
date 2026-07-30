@@ -1,5 +1,6 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
 import { KeyGeneratorService } from 'src/cli/services/key-generator.service';
+import { EnvPatchService } from 'src/cli/services/env-patch.service';
 import chalk from 'chalk';
 import boxen from 'boxen';
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
@@ -10,12 +11,19 @@ import {
   type EnvRef,
   type GatewayKey,
 } from 'src/common/types/branded.types';
+import {
+  markAgentRuntime,
+  resolveCliMode,
+  type CliModeFlags,
+} from 'src/cli/agent/resolve-cli-mode';
+import { exitWithAgentReport } from 'src/cli/agent/agent-report';
 
 type KeyType = 'master' | 'client';
 
-interface KeyGenerateOptions {
+interface KeyGenerateOptions extends CliModeFlags {
   type?: KeyType;
   clientId?: ClientId;
+  writeEnv?: boolean;
 }
 
 @Command({
@@ -28,16 +36,40 @@ interface KeyGenerateOptions {
   },
 })
 export class KeyGenerateCommand extends CommandRunner {
-  constructor(private readonly keyGenerator: KeyGeneratorService) {
+  constructor(
+    private readonly keyGenerator: KeyGeneratorService,
+    private readonly envPatch: EnvPatchService,
+  ) {
     super();
   }
 
-  run(passedParams: string[], options?: KeyGenerateOptions): Promise<void> {
+  async run(
+    passedParams: string[],
+    options?: KeyGenerateOptions,
+  ): Promise<void> {
+    const mode = resolveCliMode(options ?? {});
+    markAgentRuntime(mode);
+    CliLogger.setJsonSafe(mode.json || mode.isAgent);
+
     try {
       const type = options?.type ?? (passedParams[0] as KeyType | undefined);
       const rawClientId = options?.clientId ?? passedParams[1]?.trim();
 
       if (!type || (type !== 'master' && type !== 'client')) {
+        if (mode.isAgent) {
+          exitWithAgentReport(
+            {
+              ok: false,
+              status: 'error',
+              command: 'key:generate',
+              errors: [
+                'Key type is required (master|client). Usage: gateway key:generate --agent --write-env --type <master|client> [--client-id <id>]',
+              ],
+            },
+            true,
+          );
+          return;
+        }
         CliLogger.error('Key type is required.');
         CliLogger.info(
           'Usage: gateway key:generate --type <master|client> [--client-id <id>]',
@@ -46,6 +78,11 @@ export class KeyGenerateCommand extends CommandRunner {
           `   or: gateway key:generate <master|client> <clientId>`,
         );
         process.exit(1);
+      }
+
+      if (mode.isAgent) {
+        await this.runAgentGenerate(type, rawClientId, options);
+        return;
       }
 
       CliLogger.section(
@@ -92,13 +129,90 @@ export class KeyGenerateCommand extends CommandRunner {
         'Key is visible in the terminal - avoid shared screens or logs.',
       );
       CliLogger.blank();
-      return Promise.resolve();
     } catch (error) {
+      if (mode.isAgent) {
+        exitWithAgentReport(
+          {
+            ok: false,
+            status: 'error',
+            command: 'key:generate',
+            errors: [
+              error instanceof Error
+                ? error.message
+                : 'Unknown error occurred.',
+            ],
+          },
+          true,
+        );
+        return;
+      }
       CliLogger.error(
         error instanceof Error ? error.message : 'Unknown error occurred.',
       );
       process.exit(1);
     }
+  }
+
+  private async runAgentGenerate(
+    type: KeyType,
+    rawClientId: string | undefined,
+    options: KeyGenerateOptions | undefined,
+  ): Promise<void> {
+    if (!options?.writeEnv) {
+      exitWithAgentReport(
+        {
+          ok: false,
+          status: 'error',
+          command: 'key:generate',
+          errors: [
+            'In agent mode use --write-env to save the key without printing it. Or use config:init / client:add generateKey.',
+          ],
+        },
+        true,
+      );
+      return;
+    }
+
+    const cwd = process.cwd();
+    let key: GatewayKey;
+    let envRef: EnvRef;
+
+    if (type === 'master') {
+      key = this.keyGenerator.generateMasterKey();
+      envRef = asEnvRef('MASTER_KEY');
+    } else {
+      if (!rawClientId) {
+        exitWithAgentReport(
+          {
+            ok: false,
+            status: 'error',
+            command: 'key:generate',
+            errors: [
+              'Client ID is required when type is client. Usage: gateway key:generate --agent --write-env --type client --client-id <id>',
+            ],
+          },
+          true,
+        );
+        return;
+      }
+      const clientId = asClientId(rawClientId);
+      key = this.keyGenerator.generateGatewayClientKey(clientId);
+      envRef = this.deriveGatewayKeyRef(clientId);
+    }
+
+    await this.envPatch.setVar(cwd, envRef, key);
+
+    exitWithAgentReport(
+      {
+        ok: true,
+        status: 'success',
+        command: 'key:generate',
+        files: ['.env'],
+        generatedKeyRefs: [envRef],
+        next: ['gateway config:secrets-status --json'],
+      },
+      true,
+    );
   }
 
   private deriveGatewayKeyRef(clientId: ClientId): EnvRef {
@@ -125,5 +239,23 @@ export class KeyGenerateCommand extends CommandRunner {
   })
   parseClientId(val: string): ClientId {
     return asClientId(val.trim());
+  }
+
+  @Option({ flags: '--agent', description: 'Non-interactive agent mode' })
+  parseAgent(): boolean {
+    return true;
+  }
+
+  @Option({ flags: '--json', description: 'JSON report on stdout' })
+  parseJson(): boolean {
+    return true;
+  }
+
+  @Option({
+    flags: '--write-env',
+    description: 'Write generated key to .env under derived ref',
+  })
+  parseWriteEnv(): boolean {
+    return true;
   }
 }

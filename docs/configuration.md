@@ -4,14 +4,17 @@ Goal: “plug&play” — the user fills in env + configuration files and runs t
 
 ## 0) First run (configuration wizard)
 
-The repository may include a sample **`gateway.config.yaml`**. Before the first `npm run start:dev`, fill in **`.env`** (provider keys, `MASTER_KEY`, optionally `GATEWAY_KEY_*`) or run the wizard:
+The repository includes a PLACEHOLDER sample **`gateway.config.example.yaml`**. Before the first `npm run start:dev`, copy it to **`gateway.config.yaml`**, fill in **`.env`** from **`.env.example`** (provider keys, master key, optionally client keys — names must match `*KeyRef` in YAML), or run the wizard:
 
 ```bash
+cp gateway.config.example.yaml gateway.config.yaml
+cp .env.example .env
+# then either edit manually, or:
 npm run cli config:init
 # or: npx gateway config:init
 ```
 
-The wizard generates or overwrites `gateway.config.yaml`, `.env`, `.env.example`, and optionally system prompt files (templates: `src/cli/templates/`). It detects boilerplate configuration via **`CliConfigLoaderService.isBoilerplateConfig()`** — when `masterKeyRef` or entry IDs in `providers:` / `clients:` contain `placeholder` / `PLACEHOLDER`.
+The wizard generates or overwrites `gateway.config.yaml`, `.env`, `.env.example`, and optionally system prompt files (templates: `src/cli/templates/`). It detects boilerplate configuration via **`CliConfigLoaderService.isBoilerplateConfig()`** — when `masterKeyRef` or entry IDs in `providers:` / `clients:` contain `placeholder` / `PLACEHOLDER` (as in the root `gateway.config.example.yaml`).
 
 **Important:** Runtime loads only **`gateway.config.yaml`** from the working directory. Flow details: **`command_line_interface.md`**.
 
@@ -33,18 +36,9 @@ Example names:
 
 The wizard (`deriveApiKeyRef()` in `src/cli/utils/provider-id.util.ts`) builds `apiKeyRef` as `{INSTANCE_ID}_API_KEY` (slug in uppercase). Default instance IDs: `{type}-primary` (e.g. `anthropic-primary`).
 
-**Legacy env (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`):** When generating `.env`, the CLI **copies** keys under legacy names (`applyLegacyProviderApiKeyEnv` in `src/cli/utils/legacy-provider-env.util.ts`) — the first non-empty value per provider `type`. Commands that mutate providers sync legacy via `syncLegacyProviderApiKeysInEnv()`. Runtime **reads only `apiKeyRef` from YAML** — a legacy key alone **is not enough** when YAML points to a different name (e.g. only `ANTHROPIC_API_KEY` in env, while YAML has `ANTHROPIC_PRIMARY_API_KEY` → start fails).
+Runtime **reads only `apiKeyRef` from YAML** — the env variable name in `.env` must match the YAML (e.g. only `ANTHROPIC_API_KEY` in env, while YAML has `ANTHROPIC_PRIMARY_API_KEY` → start fails). Anthropic/Google key format is validated by the CLI on input (`validateProviderApiKey` in `src/cli/utils/api-key-validation.util.ts`), not by `validateEnvironment()`.
 
-**Format validation (when the variable is set)** — rules in `src/config/env.validation.ts` (`EnvironmentVariables`); runtime/CLI entry point: **`validateEnvironment()`** from `configuration-validation.service.ts` (Nest `ConfigModule.forRoot({ validate })`, `CliGatewayValidatorService`):
-
-| Variable (optional) | Format rule |
-|---------------------|-------------|
-| `ANTHROPIC_API_KEY` | prefix `sk-ant-` |
-| `GOOGLE_API_KEY` | prefix `AIza` or `AQ.` |
-
-Absence of these variables does **not** block startup. **`gateway config:validate`** after a successful YAML check additionally runs `validateEnvironment()` (`CliGatewayValidatorService`) — an invalid legacy key format ends validation with exit `1`. The **`npm run config:validate`** script calls only `validateGatewayConfig()` (YAML + runtime rules + provider secrets via the facade) — **without** legacy env format validation.
-
-The repo may have two `.env.example` templates: in the **root directory** (typically after the CLI wizard) and **`deployment/templates/.env.example`** (boilerplate paired with `gateway.config.example.yaml`). `apiKeyRef` / `gatewayKeyRef` names must match the YAML.
+The primary env template for users is **`.env.example` in the repository root**, paired with root **`gateway.config.example.yaml`** (PLACEHOLDER `*KeyRef` names). An optional copy may also exist under `deployment/templates/` (CI / mirror). `apiKeyRef` / `gatewayKeyRef` names must match the YAML.
 
 **Note on `.env.example` vs default values in code:** the repository template may enable optional features (e.g. `CACHE_ENABLED=true`, `RATE_LIMIT_SMART_ENABLED=true`) for local development convenience. **Validator defaults** (`EnvironmentVariables` in `src/config/env.validation.ts`) when a variable is missing are: `CACHE_ENABLED=false`, `CACHE_BACKEND=noop`, `RATE_LIMIT_SMART_ENABLED=false`. Effective configuration depends on what you actually set in `.env`.
 
@@ -143,7 +137,7 @@ With `CACHE_ENABLED=false` and `RATE_LIMIT_SMART_ENABLED=true`, readiness **chec
 
 **Status:** the file is **loaded at application startup** (`ConfigModule` → `load: [configuration]` in `src/app.module.ts`). Structure validation: **Zod** in `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); assembling effective configuration and resolving env — `src/config/configuration.ts` → **`AppConfiguration`** object (`app-configuration.types.ts`). Runtime services read keys via **`getAppConfig` / `getAppConfigOrThrow`** (`typed-config.ts`) instead of raw `config.get('...')` strings. Missing file or schema mismatch causes **startup to stop** (`ENOENT` or `Invalid configuration file`).
 
-A **sample** `gateway.config.yaml` in the repo may include `anthropic`, `google`, `openai`, `ollama-local` instances (the wizard by default creates `{type}-primary`, e.g. `anthropic-primary`). The **`config:init`** wizard generates a full operational configuration. The example below illustrates a typical wizard result.
+A **PLACEHOLDER sample** lives in **`gateway.config.example.yaml`** (copy to `gateway.config.yaml`): `placeholder-provider`, `placeholder-client`, `placeholder-model`, with `*KeyRef` names containing `PLACEHOLDER`. The **`config:init`** wizard replaces boilerplate with a full operational configuration. The example below illustrates a typical wizard result.
 
 ### Schema (aligned with the Zod validator)
 
@@ -286,7 +280,7 @@ models:
 
 ### Generation parameters vs provider type
 
-An alias in `models` points to **`providerInstance`** → **`type`** in `providers:` (`anthropic`, `google`, …). **`params`** fields in the HTTP body and IDE facades are **shared** across the whole gateway; the **effect at the vendor** depends on the adapter bound to the alias. Full matrix: **`dictionary.md`** (section “Parameter mapping to providers”).
+An alias in `models` points to **`providerInstance`** → **`type`** in `providers:` (`anthropic`, `google`, …). **`params`** fields in the HTTP body and official contract facades are **shared** across the whole gateway; the **effect at the vendor** depends on the adapter bound to the alias. Full matrix: **`dictionary.md`** (section “Parameter mapping to providers”).
 
 | Provider type (`providers.*.type`) | Runtime adapter                                                  | Example aliases in the repo       |
 | ---------------------------------- | ---------------------------------------------------------------- | ------------------------------- |
@@ -295,7 +289,7 @@ An alias in `models` points to **`providerInstance`** → **`type`** in `provide
 | **`openai`**                       | `create-openai-provider.ts` — **always** Responses API (`create-openai-provider.core.ts`) | `gpt-cheap` (with `openai` in the sample YAML in the repo) |
 | **`openai-compatible`**            | `create-openai-compatible-provider-instance.ts` — **always** Chat Completions | `ollama-local-chat` (with `ollama-local`)          |
 
-**OpenAI in the project:** there are **two orthogonal layers** — the HTTP facade `/api/v1/openai` (contract shape for Cursor) and the **runtime adapter** `type: openai` / `openai-compatible` (SDK call via `baseUrlRef` + `apiKeyRef`). The facade maps `temperature`, `top_p`, `stop`, penalties, `seed` to `params.*`; the runtime adapter passes them to the SDK when the alias points to an OpenAI instance. Adapter details: [`provider-openai-runtime.md`](provider-openai-runtime.md), [`pl/spec/SPEC-PROVIDERS.md`](pl/spec/SPEC-PROVIDERS.md).
+**OpenAI in the project:** there are **two orthogonal layers** — the HTTP facade `/api/v1/openai` (official OpenAI API contract shape — Cursor and other clients) and the **runtime adapter** `type: openai` / `openai-compatible` (SDK call via `baseUrlRef` + `apiKeyRef`). The facade maps `temperature`, `top_p`, `stop`, penalties, `seed` to `params.*`; the runtime adapter passes them to the SDK when the alias points to an OpenAI instance. Adapter details: [`provider-openai-runtime.md`](provider-openai-runtime.md), [`pl/spec/SPEC-PROVIDERS.md`](pl/spec/SPEC-PROVIDERS.md).
 
 #### OpenAI-specific fields in YAML (`providers`)
 
@@ -450,7 +444,7 @@ HTTP runtime and CLI do **not** use the same config loading path:
 | Requires `.env` at CLI start             | yes (at HTTP server start)                                | **no** — CLI starts without `.env`                                                                         |
 | YAML parsing                             | `yaml.load` + `GatewayConfigSchema`                            | the same (`loadRawConfig`)                                                                                 |
 | Env resolution                           | `buildEffectiveGatewayConfig()`, master/provider/client keys | **skipped** in `loadRawConfig`; optional missing-env report in `loadWithEnvCheck()`                          |
-| Full validation like server startup      | on every HTTP boot                                          | **`gateway config:init`** — at the end of the wizard; **`gateway config:validate`** (YAML + `validateEnvironment()` for legacy keys); **`npm run config:validate`** — YAML + runtime rules (without legacy env format) |
+| Full validation like server startup      | on every HTTP boot                                          | **`gateway config:init`** — at the end of the wizard; **`gateway config:validate`** (YAML + `validateEnvironment()`); **`npm run config:validate`** — YAML + runtime rules (without full `validateEnvironment()`) |
 
 #### Configuration initialization (wizard)
 
@@ -468,7 +462,7 @@ Flow details, resume, and full command list: **`command_line_interface.md`**. Ar
 
 ## 4) Overriding parameters per request
 
-**DTO and `openapi.json`** accept `modelAlias`, `messages` (last: **1–150** elements, `content` up to **3000** characters per message), optional **`conversationId`** in **`conv_<uuid>`** format (regex in `ChatRequestDto`; in **response** always echo or a new `conv_<uuid>`; in **request** enables `gen_ai.conversation.id` in Sentry — `conversation-tracking.md`), optional nested **`params`** (including **`responseFormat`**: `{ type, jsonSchema? }`), optional **`metadata`** (`Record<string, string | number | boolean>` — propagated to the adapter; Anthropic: `userId` → `metadata.user_id`). IDE facades allow up to **15 000** messages — see `integrations.md`. Message content in spans: `SENTRY_INCLUDE_PROMPTS=true`.
+**DTO and `openapi.json`** accept `modelAlias`, `messages` (last: **1–150** elements, `content` up to **3000** characters per message), optional **`conversationId`** in **`conv_<uuid>`** format (regex in `ChatRequestDto`; in **response** always echo or a new `conv_<uuid>`; in **request** enables `gen_ai.conversation.id` in Sentry — `conversation-tracking.md`), optional nested **`params`** (including **`responseFormat`**: `{ type, jsonSchema? }`), optional **`metadata`** (`Record<string, string | number | boolean>` — propagated to the adapter; Anthropic: `userId` → `metadata.user_id`). official contract facades allow up to **15 000** messages — see `integrations.md`. Message content in spans: `SENTRY_INCLUDE_PROMPTS=true`.
 
 **Parameter merge:** `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`) takes `policy.params.defaults` from YAML for the alias (fields: `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`), applies body `params` only for fields in **`allowOverrides`**, then **clamps** to **`bounds`**. Fields **`topK`**, **`stop`**, **`responseFormat`** come **exclusively from the body** (no read from YAML `defaults`). Disallowed field → HTTP **400** + `MODEL_NOT_ALLOWED`. Effective values go to adapters (`ProviderCallOptions`) and to the cache key (`ResponseCacheService`).
 

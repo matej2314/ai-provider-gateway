@@ -20,6 +20,8 @@ export interface ValidationResult {
 export interface ValidationOptions {
   configPath?: string;
   env?: NodeJS.ProcessEnv;
+  /** Soft-skip provider API key / base URL presence (agent structural validate). Master key still required. */
+  allowMissingProviderSecrets?: boolean;
 }
 
 function formatZodIssues(error: z.ZodError): string[] {
@@ -98,7 +100,13 @@ export function validateGatewayConfig(
   let effectiveConfig: GatewayConfig;
 
   try {
-    effectiveConfig = buildEffectiveGatewayConfig(parsed, env);
+    if (options.allowMissingProviderSecrets) {
+      effectiveConfig = buildEffectiveGatewayConfig(parsed, env, {
+        allowMissingProviderApiKeys: true,
+      });
+    } else {
+      effectiveConfig = buildEffectiveGatewayConfig(parsed, env);
+    }
   } catch (err) {
     // Provider API keys: validated in buildEffectiveGatewayConfig via apiKeyRef from YAML.
     errors.push(`ERROR: ${err instanceof Error ? err.message : String(err)}`);

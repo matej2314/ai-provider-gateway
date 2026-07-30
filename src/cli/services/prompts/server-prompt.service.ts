@@ -3,6 +3,7 @@ import * as inquirer from 'inquirer';
 import chalk from 'chalk';
 import { isRedisRequired } from '../../../cache/should-include-redis-stack';
 import { asPort, type Port } from '../../../common/types/branded.types';
+import { assertInteractiveAllowed } from '../../agent/inquirer-guard';
 import { CliLogger } from '../../utils/cli-logger.util';
 
 export interface ServerConfigPromptResult {
@@ -46,6 +47,7 @@ type SentryAnswers = Pick<ServerConfigPromptResult, 'sentryDsn'>;
 @Injectable()
 export class ServerPromptService {
   async promptServerConfig(): Promise<ServerConfigPromptResult> {
+    assertInteractiveAllowed('ServerPromptService.promptServerConfig');
     CliLogger.section('Step 5/5: Server configuration.');
     console.log(
       chalk.dim(

@@ -94,8 +94,7 @@ describe('HealthService', () => {
 
       expect(result.status).toBe('ready');
       expect(result.checks.config.status).toBe('healthy');
-      expect(result.checks.redis.status).toBe('healthy');
-      expect(result.checks.redis.required).toBe(false);
+      expect(result.checks.redis).toBeUndefined();
       expect(result.checks.cache.status).toBe('healthy');
     });
 
@@ -145,7 +144,6 @@ describe('HealthService', () => {
         ready: true,
         components: {
           config: 'healthy',
-          redis: 'healthy',
           cache: 'healthy',
         },
       });
@@ -240,16 +238,12 @@ describe('HealthService', () => {
   });
 
   describe('checkRedis', () => {
-    it('should not probe redis when not required', async () => {
+    it('should omit redis check when not required', async () => {
       await initService(healthyReadinessConfig);
 
       const result = await service.getReadiness();
 
-      expect(result.checks.redis).toEqual({
-        status: 'healthy',
-        message: 'Redis not required.',
-        required: false,
-      });
+      expect(result.checks.redis).toBeUndefined();
       expect(mockRedisConnection.ping).not.toHaveBeenCalled();
     });
 
@@ -282,8 +276,9 @@ describe('HealthService', () => {
 
       const result = await service.getReadiness();
 
-      expect(result.checks.redis.status).toBe('degraded');
-      expect(result.checks.redis.message).toBe(
+      expect(result.checks.redis).toBeDefined();
+      expect(result.checks.redis!.status).toBe('degraded');
+      expect(result.checks.redis!.message).toBe(
         'Redis required but unavailable',
       );
       expect(result.status).toBe('ready');
@@ -299,8 +294,9 @@ describe('HealthService', () => {
 
       const result = await service.getReadiness();
 
-      expect(result.checks.redis.status).toBe('degraded');
-      expect(result.checks.redis.message).toBe(
+      expect(result.checks.redis).toBeDefined();
+      expect(result.checks.redis!.status).toBe('degraded');
+      expect(result.checks.redis!.message).toBe(
         'Redis connected but ping failed',
       );
     });
@@ -377,7 +373,6 @@ describe('HealthService', () => {
         ready: true,
         components: {
           config: 'healthy',
-          redis: 'healthy',
           cache: 'healthy',
         },
       });

@@ -7,7 +7,7 @@ Wersja dokumentu: **1.6**. Dokument jest wersjonowany razem z kodem. **[`openapi
 1. **Kod NestJS** (`src/**/*.controller.ts`, serwisy, DTO) — dekoratory `@nestjs/swagger` na kontrolerach i klasach odpowiedzi (`@ApiProperty`, `@ApiOperation`, `@ApiGatewayChatErrorResponses`, `@ApiGatewayModelsErrorResponses`, `@ApiOpenAiErrorResponses`, `@ApiAnthropicErrorResponses`, `@ApiRequestIdHeader`, …). Konfiguracja dokumentu: `src/swagger/swagger.setup.ts` (`extraModels`, trzy `securitySchemes`).
 2. **[`openapi.json`](../../openapi.json)** — kontrakt HTTP (OpenAPI 3.1) **generowany z kodu** (`npm run openapi:export` → `src/swagger/export-openapi.ts`). W runtime ten sam dokument serwowany jako `/api/v1/swagger.json` (gdy Swagger włączony).
 3. **Swagger UI** — interaktywna dokumentacja pod `/api/v1/api-docs` (`setupSwagger` w `src/main.ts`; wyłączanie: `SWAGGER_ENABLED` — `konfiguracja.md`).
-4. **`dokumentacja_koncepcyjna.md`** — zakres MVP/v1. W `src/` m.in.: `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging + **observability** (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` (YAML + runtime) lub **`gateway config:validate`** (+ format legacy env) — `konfiguracja.md`.
+4. **`dokumentacja_koncepcyjna.md`** — zakres MVP/v1. W `src/` m.in.: `GlobalExceptionFilter`, **`RequestIdMiddleware`** (body + nagłówek odpowiedzi `x-request-id`), **`@GatewayKeyAndSmartRateLimit()`** (`GatewayKeyGuard` + `SmartRateLimitGuard`), mapowanie błędów SDK (`provider-error.mapper.ts`, kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`**), **`params` w body**, logging + **observability** (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges), readiness, graceful shutdown (`main.ts`). **Walidacja offline:** `npm run config:validate` (YAML + runtime) lub **`gateway config:validate`** (+ `validateEnvironment()`) — `konfiguracja.md`.
 5. **Cache odpowiedzi** dla `POST /api/v1/chat` (`src/cache/`, backend `noop` / `redis`, odczyt walidowany `CachedChatResponseSchema` — `konfiguracja.md`). Dalszy rozwój warstwy Redis (limity, metryki, observability): `dokumentacja_koncepcyjna.md`.
 6. **System prompt po stronie serwera** — wczytanie plików w `configuration.ts`, składanie w `composeSystemPrompt` / `buildProviderInputForAlias` (`src/chat/helpers/`).
 7. **`spec/`** — SDD (wymagania; porównuj z `src/` i [`openapi.json`](../../openapi.json)).
@@ -103,7 +103,7 @@ Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `too
 
 ---
 
-## Różnice natywny API vs fasady IDE
+## Różnice natywny API vs fasady oficjalnych kontraktów
 
 | Aspekt                                     | Natywny (`/api/v1/chat`)                                                         | Fasady OpenAI/Anthropic                                                        |
 | ------------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
@@ -114,7 +114,7 @@ Fasady OpenAI / Anthropic mapują `tools`, `tool_calls`, bloki `tool_use` / `too
 | `systemFingerprint` / `system_fingerprint` | Opcjonalnie w JSON i SSE `done` — tylko gdy upstream zwraca (praktycznie OpenAI) | OpenAI fasada: `system_fingerprint` gdy ustawione; Anthropic fasada: brak pola |
 | System prompt                              | Serwer                                                                           | Serwer (ignorowane z body)                                                     |
 
-**Uzasadnienie:** Fasady IDE są zaprojektowane dla długich konwersacji i dużych kontekstów (Cursor, Claude Code), podczas gdy natywne API ma konserwatywne limity dla własnych aplikacji. Szczegóły profili walidacji: `integracje.md`; implementacja: `validateChatIngress()` w `src/chat/validation/chat-ingress.validator.ts` (profile przekazywane z kontrolerów do `ChatService`).
+**Uzasadnienie:** Fasady oficjalnych kontraktów są zaprojektowane dla długich konwersacji i dużych kontekstów (IDE takie jak Cursor lub Claude Code oraz inne klienty tych kontraktów vendora), podczas gdy natywne API ma konserwatywne limity dla własnych aplikacji. Szczegóły profili walidacji: `integracje.md`; implementacja: `validateChatIngress()` w `src/chat/validation/chat-ingress.validator.ts` (profile przekazywane z kontrolerów do `ChatService`).
 
 ---
 
@@ -252,9 +252,9 @@ Fasady OpenAI (`GET /openai/models`) i Anthropic (`GET /anthropic/models`) zwrac
 
 ---
 
-## Fasady integracji (IDE)
+## Fasady oficjalnych kontraktów
 
-Osobne kontrakty HTTP dla narzędzi IDE — **uwzględnione w `openapi.json`** (tagi **OpenAI API**, **Anthropic API**) oraz w Swagger UI (`/api/v1/api-docs`).
+Osobne kontrakty HTTP dla oficjalnych kształtów OpenAI / Anthropic (IDE i inne klienty) — **uwzględnione w `openapi.json`** (tagi **OpenAI API**, **Anthropic API**) oraz w Swagger UI (`/api/v1/api-docs`).
 
 | Powierzchnia | Ścieżki (prefiks `/api/v1`)                                             | Auth w OpenAPI             | Błędy w spec                                               |
 | ------------ | ----------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------- |

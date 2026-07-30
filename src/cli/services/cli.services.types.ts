@@ -33,6 +33,7 @@ export interface CliAiProvider {
   type: GatewayProviderType;
   apiKeyRef: EnvRef;
   apiKey: ProviderApiKey;
+  enabled?: boolean;
   baseUrlRef?: EnvRef;
   baseUrl?: BaseUrl;
   apiSurface?: 'chat-completions';

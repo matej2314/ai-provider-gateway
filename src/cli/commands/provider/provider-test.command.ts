@@ -1,7 +1,11 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
 import { CliConfigLoaderService } from 'src/cli/services/cli-config-loader.service';
 import { ProviderTestService } from 'src/cli/services/provider-test.service';
+import { EnvPatchService } from 'src/cli/services/env-patch.service';
 import { CliLogger } from 'src/cli/utils/cli-logger.util';
+import { resolveCliMode } from 'src/cli/agent/resolve-cli-mode';
+import { exitWithAgentReport } from 'src/cli/agent/agent-report';
+import { collectPendingSecrets } from 'src/cli/agent/pending-secrets';
 import chalk from 'chalk';
 import { GatewayConfig } from 'src/config/gateway-config.schema';
 import { isApiKeyRequiredForProviderType } from 'src/config/provider-api-key.validation';
@@ -15,6 +19,7 @@ import type { ProviderInstanceId } from 'src/common/types';
 
 interface ProviderTestOptions {
   provider?: ProviderInstanceId;
+  json?: boolean;
 }
 
 @Command({
@@ -29,6 +34,7 @@ export class ProviderTestCommand extends CommandRunner {
   constructor(
     private readonly cliLoader: CliConfigLoaderService,
     private readonly tester: ProviderTestService,
+    private readonly envPatch: EnvPatchService,
   ) {
     super();
   }
@@ -37,10 +43,25 @@ export class ProviderTestCommand extends CommandRunner {
     passedParams: string[],
     options?: ProviderTestOptions,
   ): Promise<void> {
+    const mode = resolveCliMode({ json: options?.json });
+    CliLogger.setJsonSafe(mode.json);
+
     try {
       const { config, missingEnvVars } = this.cliLoader.loadWithEnvCheck();
 
       if (this.cliLoader.isBoilerplateConfig()) {
+        if (mode.json) {
+          exitWithAgentReport(
+            {
+              ok: false,
+              status: 'error',
+              command: 'provider:test',
+              errors: ['Boilerplate configuration detected.'],
+              next: ['gateway config:init'],
+            },
+            true,
+          );
+        }
         CliLogger.warning(
           'Boilerplate configuration detected. Run gateway config:init to create a full configuration.',
         );
@@ -48,6 +69,37 @@ export class ProviderTestCommand extends CommandRunner {
       }
 
       if (missingEnvVars.length > 0) {
+        if (mode.json) {
+          const pending = await collectPendingSecrets(
+            config,
+            process.cwd(),
+            this.envPatch,
+            {
+              includeMasterKey: true,
+              includeClientKeys: true,
+              includeOperatorEnv: true,
+            },
+          );
+          exitWithAgentReport(
+            {
+              ok: true,
+              status: 'awaiting_secrets',
+              command: 'provider:test',
+              pendingSecrets: pending.length
+                ? pending
+                : missingEnvVars.map((envRef) => ({
+                    envRef,
+                    file: '.env' as const,
+                    reason: 'provider_api_key' as const,
+                  })),
+              next: [
+                'HUMAN HANDOFF: paste operator values into .env for each pendingSecrets[].envRef. Do NOT paste values into chat.',
+                'After the user confirms locally: gateway config:secrets-status --json',
+              ],
+            },
+            true,
+          );
+        }
         CliLogger.error('Missing environment variables:');
         missingEnvVars.forEach((v) => {
           console.log(chalk.red(`  • ${v}`));
@@ -60,11 +112,25 @@ export class ProviderTestCommand extends CommandRunner {
       const instanceId = this.resolveInstanceId(options, passedParams);
 
       if (instanceId) {
-        await this.testSingleProvider(instanceId, config);
+        await this.testSingleProvider(instanceId, config, mode.json);
       } else {
-        await this.testAllProviders(config);
+        await this.testAllProviders(config, mode.json);
       }
     } catch (err) {
+      if (mode.json) {
+        exitWithAgentReport(
+          {
+            ok: false,
+            status: 'error',
+            command: 'provider:test',
+            errors: [
+              err instanceof Error ? err.message : 'Unknown error occurred.',
+            ],
+          },
+          true,
+        );
+        return;
+      }
       CliLogger.error(
         err instanceof Error ? err.message : 'Unknown error occurred.',
       );
@@ -80,6 +146,11 @@ export class ProviderTestCommand extends CommandRunner {
     return asProviderInstanceId(val.trim());
   }
 
+  @Option({ flags: '--json', description: 'Machine-readable JSON on stdout' })
+  parseJson(): boolean {
+    return true;
+  }
+
   private resolveInstanceId(
     options?: ProviderTestOptions,
     passedParams?: string[],
@@ -91,20 +162,53 @@ export class ProviderTestCommand extends CommandRunner {
   private async testSingleProvider(
     instanceId: ProviderInstanceId,
     config: GatewayConfig,
+    json: boolean,
   ): Promise<void> {
     const provider = config.providers[instanceId];
     if (!provider) {
+      if (json) {
+        exitWithAgentReport(
+          {
+            ok: false,
+            status: 'error',
+            command: 'provider:test',
+            errors: [`Provider "${instanceId}" not found in configuration.`],
+          },
+          true,
+        );
+        return;
+      }
       CliLogger.error(`Provider "${instanceId}" not found in configuration.`);
       process.exit(1);
     }
 
-    CliLogger.section(`Testing provider: ${instanceId}`);
+    if (!json) {
+      CliLogger.section(`Testing provider: ${instanceId}`);
+    }
     const spinner = CliLogger.spinner(`Connecting to ${instanceId}...`);
 
     const apiKey = process.env[provider.apiKeyRef] ?? '';
 
     if (isApiKeyRequiredForProviderType(provider.type) && !apiKey.trim()) {
       spinner.fail('API key not found.');
+      if (json) {
+        exitWithAgentReport(
+          {
+            ok: false,
+            status: 'error',
+            command: 'provider:test',
+            errors: [
+              `API key not found for ${instanceId} (envRef: ${provider.apiKeyRef}).`,
+            ],
+            next: [
+              `Ensure ${provider.apiKeyRef} is set in .env`,
+              'gateway config:secrets-status --json',
+            ],
+          },
+          true,
+        );
+        return;
+      }
       CliLogger.error(
         `Please ensure ${provider.apiKeyRef} is set in your .env file.`,
       );
@@ -119,17 +223,46 @@ export class ProviderTestCommand extends CommandRunner {
       config,
     );
     if (!success) {
+      if (json) {
+        exitWithAgentReport(
+          {
+            ok: false,
+            status: 'error',
+            command: 'provider:test',
+            errors: [`${instanceId}: connection failed`],
+          },
+          true,
+        );
+        return;
+      }
       process.exit(1);
     }
 
     spinner.succeed(`${instanceId} connection successful!`);
+    if (json) {
+      exitWithAgentReport(
+        {
+          ok: true,
+          status: 'success',
+          command: 'provider:test',
+        },
+        true,
+      );
+      return;
+    }
     CliLogger.blank();
   }
 
-  private async testAllProviders(config: GatewayConfig): Promise<void> {
-    CliLogger.section('Testing All Providers.');
+  private async testAllProviders(
+    config: GatewayConfig,
+    json: boolean,
+  ): Promise<void> {
+    if (!json) {
+      CliLogger.section('Testing All Providers.');
+    }
 
-    const results: Array<{ name: string; success: boolean }> = [];
+    const results: Array<{ name: string; success: boolean; error?: string }> =
+      [];
 
     for (const [name, provider] of Object.entries(config.providers)) {
       const instanceId = asProviderInstanceId(name);
@@ -138,7 +271,11 @@ export class ProviderTestCommand extends CommandRunner {
 
       if (isApiKeyRequiredForProviderType(provider.type) && !apiKey.trim()) {
         spinner.fail(`${name} API key not found.`);
-        results.push({ name, success: false });
+        results.push({
+          name,
+          success: false,
+          error: `API key not found (envRef: ${provider.apiKeyRef})`,
+        });
         continue;
       }
 
@@ -148,7 +285,11 @@ export class ProviderTestCommand extends CommandRunner {
         !process.env[provider.baseUrlRef]?.trim()
       ) {
         spinner.fail(`${name} base URL not found.`);
-        results.push({ name, success: false });
+        results.push({
+          name,
+          success: false,
+          error: `Base URL not found (envRef: ${provider.baseUrlRef})`,
+        });
         continue;
       }
 
@@ -161,15 +302,33 @@ export class ProviderTestCommand extends CommandRunner {
       );
       if (success) {
         spinner.succeed(`${name} - OK`);
+        results.push({ name, success: true });
       } else {
         spinner.fail(`${name} - Failed`);
+        results.push({ name, success: false, error: 'connection failed' });
       }
-      results.push({ name, success });
+    }
+
+    const allSuccess = results.every((r) => r.success);
+
+    if (json) {
+      exitWithAgentReport(
+        {
+          ok: allSuccess,
+          status: allSuccess ? 'success' : 'error',
+          command: 'provider:test',
+          errors: allSuccess
+            ? undefined
+            : results
+                .filter((r) => !r.success)
+                .map((r) => `${r.name}: ${r.error ?? 'failed'}`),
+        },
+        true,
+      );
+      return;
     }
 
     CliLogger.blank();
-    const allSuccess = results.every((r) => r.success);
-
     if (allSuccess) {
       CliLogger.success('All providers tested successfully!');
       CliLogger.blank();

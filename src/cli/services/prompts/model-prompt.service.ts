@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as inquirer from 'inquirer';
 import chalk from 'chalk';
+import { assertInteractiveAllowed } from '../../agent/inquirer-guard';
 import { CliLogger } from '../../utils/cli-logger.util';
 import { DEFAULT_MODELS } from 'src/cli/constants/default-models';
 import type { CliAiModel } from '../cli.services.types';
@@ -18,6 +19,7 @@ export class ModelPromptService {
   async promptModels(
     providers: Array<{ id: string; type: GatewayProviderType }>,
   ): Promise<ModelPromptResult[]> {
+    assertInteractiveAllowed('ModelPromptService.promptModels');
     CliLogger.section('Step 3/5: Models');
     console.log(
       chalk.dim(

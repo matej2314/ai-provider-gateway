@@ -1,17 +1,18 @@
 # Konfiguracja — AI Provider Gateway
 
-Cel: “plug&play” — użytkownik wypełnia env + pliki konfiguracyjne i uruchamia gateway bez zmian w kodzie.
-
 ## 0) Pierwsze uruchomienie (wizard konfiguracji)
 
-Repozytorium może zawierać przykładowy **`gateway.config.yaml`**. Przed pierwszym `npm run start:dev` uzupełnij **`.env`** (klucze providerów, `MASTER_KEY`, opcjonalnie `GATEWAY_KEY_*`) albo uruchom wizard:
+Repozytorium zawiera przykładowy PLACEHOLDER **`gateway.config.example.yaml`**. Przed pierwszym `npm run start:dev` skopiuj go do **`gateway.config.yaml`**, uzupełnij **`.env`** na bazie **`.env.example`** (klucze providerów, master key, opcjonalnie klucze klientów — nazwy muszą zgadzać się z `*KeyRef` w YAML) albo uruchom wizard:
 
 ```bash
+cp gateway.config.example.yaml gateway.config.yaml
+cp .env.example .env
+# potem edycja ręczna albo:
 npm run cli config:init
 # lub: npx gateway config:init
 ```
 
-Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt (szablony: `src/cli/templates/`). Wykrywa konfigurację boilerplate przez **`CliConfigLoaderService.isBoilerplateConfig()`** — gdy `masterKeyRef` lub ID wpisów w `providers:` / `clients:` zawierają `placeholder` / `PLACEHOLDER`.
+Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt (szablony: `src/cli/templates/`). Wykrywa konfigurację boilerplate przez **`CliConfigLoaderService.isBoilerplateConfig()`** — gdy `masterKeyRef` lub ID wpisów w `providers:` / `clients:` zawierają `placeholder` / `PLACEHOLDER` (jak w rootowym `gateway.config.example.yaml`).
 
 **Ważne:** Runtime wczytuje wyłącznie **`gateway.config.yaml`** z katalogu roboczego. Szczegóły flow: **`CLI.md`**.
 
@@ -21,7 +22,7 @@ Zasada: **sekrety tylko w env**. Pliki konfiguracyjne nie zawierają wartości k
 
 ### Klucze providerów (`apiKeyRef`)
 
-Runtime **nie** wymaga globalnie `ANTHROPIC_API_KEY` ani `GOOGLE_API_KEY`. Zamiast tego `buildEffectiveGatewayConfig()` (`src/config/configuration.ts`) woła fasadę **`assertEnabledProviderSecretsPresent()`** (`src/config/configuration-validation.service.ts`), która deleguje do `provider-api-key.validation.ts` / `provider-base-url.validation.ts`: dla każdej instancji z **`enabled !== false`** env pod **`apiKeyRef`** musi być niepusty po `trim()` (wyjątek: typy OpenAI — klucz może być pusty; wymagany poprawny URL pod **`baseUrlRef`**).
+`buildEffectiveGatewayConfig()` (`src/config/configuration.ts`) woła fasadę **`assertEnabledProviderSecretsPresent()`** (`src/config/configuration-validation.service.ts`), która deleguje do `provider-api-key.validation.ts` / `provider-base-url.validation.ts`: dla każdej instancji z **`enabled !== false`** env pod **`apiKeyRef`** musi być niepusty po `trim()` (wyjątek: typy OpenAI — klucz może być pusty; wymagany poprawny URL pod **`baseUrlRef`**).
 
 Przykłady nazw:
 
@@ -29,22 +30,12 @@ Przykłady nazw:
 |--------|--------------------|--------------------|
 | Wizard (domyślnie) | `anthropic-primary` | `ANTHROPIC_PRIMARY_API_KEY` |
 | Wizard (domyślnie) | `google-primary` | `GOOGLE_PRIMARY_API_KEY` |
-| Ręcznie / starszy przykład | `anthropic` | `ANTHROPIC_API_KEY` |
 
 Wizard (`deriveApiKeyRef()` w `src/cli/utils/provider-id.util.ts`) buduje `apiKeyRef` jako `{INSTANCE_ID}_API_KEY` (slug wielkimi literami). Domyślne ID instancji: `{type}-primary` (np. `anthropic-primary`).
 
-**Legacy env (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`):** CLI przy generowaniu `.env` **kopiuje** klucze pod legacy nazwy (`applyLegacyProviderApiKeyEnv` w `src/cli/utils/legacy-provider-env.util.ts`) — pierwsza niepusta wartość per `type` providera. Komendy mutujące providerów synchronizują legacy przez `syncLegacyProviderApiKeysInEnv()`. Runtime **czyta wyłącznie `apiKeyRef` z YAML** — sam legacy klucz **nie wystarczy**, gdy YAML wskazuje inną nazwę (np. tylko `ANTHROPIC_API_KEY` w env, a YAML ma `ANTHROPIC_PRIMARY_API_KEY` → start fail).
+Runtime **czyta wyłącznie `apiKeyRef` z YAML** — nazwa zmiennej w `.env` musi być zgodna z YAML (np. tylko `ANTHROPIC_API_KEY` w env, a YAML ma `ANTHROPIC_PRIMARY_API_KEY` → start fail). Format klucza Anthropic/Google waliduje CLI przy wprowadzaniu (`validateProviderApiKey` w `src/cli/utils/api-key-validation.util.ts`), nie `validateEnvironment()`.
 
-**Walidacja formatu (gdy zmienna jest ustawiona)** — reguły w `src/config/env.validation.ts` (`EnvironmentVariables`); punkt wejścia runtime/CLI: **`validateEnvironment()`** z `configuration-validation.service.ts` (Nest `ConfigModule.forRoot({ validate })`, `CliGatewayValidatorService`):
-
-| Zmienna (opcjonalna) | Reguła formatu |
-|----------------------|----------------|
-| `ANTHROPIC_API_KEY` | prefiks `sk-ant-` |
-| `GOOGLE_API_KEY` | prefiks `AIza` lub `AQ.` |
-
-Brak tych zmiennych **nie blokuje** startu. **`gateway config:validate`** po sukcesie YAML dodatkowo uruchamia `validateEnvironment()` (`CliGatewayValidatorService`) — błędny format legacy klucza kończy walidację exit `1`. Skrypt **`npm run config:validate`** wywołuje wyłącznie `validateGatewayConfig()` (YAML + reguły runtime + sekrety providerów przez fasadę) — **bez** walidacji formatu legacy env.
-
-W repo mogą istnieć dwa szablony `.env.example`: w **katalogu głównym** (typowo po wizardzie CLI) oraz **`deployment/templates/.env.example`** (boilerplate sparowany z `gateway.config.example.yaml`). Nazwy `apiKeyRef` / `gatewayKeyRef` muszą być zgodne z YAML.
+Główny szablon env dla użytkownika to **`.env.example` w katalogu głównym**, sparowany z rootowym **`gateway.config.example.yaml`** (nazwy `*KeyRef` z `PLACEHOLDER`). Opcjonalna kopia może też istnieć w `deployment/templates/` (CI / mirror). Nazwy `apiKeyRef` / `gatewayKeyRef` muszą być zgodne z YAML.
 
 **Uwaga o `.env.example` vs domyślne wartości w kodzie:** szablon w repozytorium może mieć włączone funkcje opcjonalne (np. `CACHE_ENABLED=true`, `RATE_LIMIT_SMART_ENABLED=true`) dla wygody lokalnego developmentu. **Domyślne wartości walidatora** (`EnvironmentVariables` w `src/config/env.validation.ts`) przy braku zmiennej to: `CACHE_ENABLED=false`, `CACHE_BACKEND=noop`, `RATE_LIMIT_SMART_ENABLED=false`. Efektywna konfiguracja zależy od tego, co faktycznie ustawisz w `.env`.
 
@@ -143,7 +134,7 @@ Przy `CACHE_ENABLED=false` i `RATE_LIMIT_SMART_ENABLED=true` readiness **sprawdz
 
 **Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji i rozwiązywanie env — `src/config/configuration.ts` → obiekt **`AppConfiguration`** (`app-configuration.types.ts`). Serwisy runtime odczytują klucze przez **`getAppConfig` / `getAppConfigOrThrow`** (`typed-config.ts`) zamiast surowych stringów `config.get('...')`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
 
-**Przykładowy plik** `gateway.config.yaml` w repo może zawierać instancje `anthropic`, `google`, `openai`, `ollama-local` (wizard domyślnie tworzy `{type}-primary`, np. `anthropic-primary`). Wizard **`config:init`** generuje pełną konfigurację operacyjną. Poniższy przykład ilustruje typowy wynik wizarda.
+**Przykład PLACEHOLDER** jest w **`gateway.config.example.yaml`** (kopiuj do `gateway.config.yaml`): `placeholder-provider`, `placeholder-client`, `placeholder-model`, z nazwami `*KeyRef` zawierającymi `PLACEHOLDER`. Wizard **`config:init`** zastępuje boilerplate pełną konfiguracją operacyjną. Poniższy przykład ilustruje typowy wynik wizarda.
 
 ### Schemat (zgodny z walidatorem Zod)
 
@@ -286,7 +277,7 @@ models:
 
 ### Parametry generacji a typ providera
 
-Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (`anthropic`, `google`, …). Pola **`params`** w body HTTP i fasad IDE są **wspólne** dla całego gatewaya; **efekt u vendora** zależy od adaptera powiązanego z aliasem. Pełna macierz: **`dictionary.md`** (sekcja „Mapowanie parametrów na providerów”).
+Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (`anthropic`, `google`, …). Pola **`params`** w body HTTP i fasad oficjalnych kontraktów są **wspólne** dla całego gatewaya; **efekt u vendora** zależy od adaptera powiązanego z aliasem. Pełna macierz: **`dictionary.md`** (sekcja „Mapowanie parametrów na providerów”).
 
 | Typ providera (`providers.*.type`) | Adapter runtime                                                  | Przykładowe aliasy w repo       |
 | ---------------------------------- | ---------------------------------------------------------------- | ------------------------------- |
@@ -295,7 +286,7 @@ Alias w `models` wskazuje **`providerInstance`** → **`type`** w `providers:` (
 | **`openai`**                       | `create-openai-provider.ts` — **zawsze** Responses API (`create-openai-provider.core.ts`) | `gpt-cheap` (przy `openai` w przykładowym YAML repo) |
 | **`openai-compatible`**            | `create-openai-compatible-provider-instance.ts` — **zawsze** Chat Completions | `ollama-local-chat` (przy `ollama-local`)          |
 
-**OpenAI w projekcie:** istnieją **dwie ortogonalne warstwy** — fasada HTTP `/api/v1/openai` (kształt kontraktu dla Cursor) oraz **adapter runtime** `type: openai` / `openai-compatible` (wywołanie SDK po `baseUrlRef` + `apiKeyRef`). Fasada mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`; adapter runtime przekazuje je do SDK gdy alias wskazuje instancję OpenAI. Szczegóły adaptera: [`provider_openai_runtime.md`](provider_openai_runtime.md), [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md).
+**OpenAI w projekcie:** istnieją **dwie ortogonalne warstwy** — fasada HTTP `/api/v1/openai` (oficjalny kształt kontraktu OpenAI API — Cursor i inne klienty) oraz **adapter runtime** `type: openai` / `openai-compatible` (wywołanie SDK po `baseUrlRef` + `apiKeyRef`). Fasada mapuje `temperature`, `top_p`, `stop`, penalties, `seed` na `params.*`; adapter runtime przekazuje je do SDK gdy alias wskazuje instancję OpenAI. Szczegóły adaptera: [`provider_openai_runtime.md`](provider_openai_runtime.md), [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md).
 
 #### Pola specyficzne dla OpenAI w YAML (`providers`)
 
@@ -450,7 +441,7 @@ Runtime HTTP i CLI **nie używają tej samej ścieżki** ładowania configu:
 | Wymaga `.env` przy starcie CLI           | tak (przy starcie serwera HTTP)                                | **nie** — CLI startuje bez `.env`                                                                         |
 | Parsowanie YAML                          | `yaml.load` + `GatewayConfigSchema`                            | to samo (`loadRawConfig`)                                                                                 |
 | Rozwiązywanie env                        | `buildEffectiveGatewayConfig()`, klucze master/provider/client | **pominięte** w `loadRawConfig`; opcjonalny raport braków w `loadWithEnvCheck()`                          |
-| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP                                          | **`gateway config:init`** — na końcu wizarda; **`gateway config:validate`** (YAML + `validateEnvironment()` dla legacy kluczy); **`npm run config:validate`** — YAML + reguły runtime (bez formatu legacy env) |
+| Pełna walidacja jak przy starcie serwera | przy każdym boot HTTP                                          | **`gateway config:init`** — na końcu wizarda; **`gateway config:validate`** (YAML + `validateEnvironment()`); **`npm run config:validate`** — YAML + reguły runtime (bez pełnego `validateEnvironment()`) |
 
 #### Inicjalizacja konfiguracji (wizard)
 
@@ -468,7 +459,7 @@ Szczegóły flow, resume i pełna lista komend: **`CLI.md`**. Architektura: `arc
 
 ## 4) Nadpisywanie parametrów per request
 
-**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** w formacie **`conv_<uuid>`** (regex w `ChatRequestDto`; w **response** zawsze echo lub nowe `conv_<uuid>`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation_tracking.md`), opcjonalne zagnieżdżone **`params`** (w tym **`responseFormat`**: `{ type, jsonSchema? }`), opcjonalne **`metadata`** (`Record<string, string | number | boolean>` — propagacja do adaptera; Anthropic: `userId` → `metadata.user_id`). Fasady IDE dopuszczają do **15 000** wiadomości — patrz `integracje.md`. Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
+**DTO i `openapi.json`** przyjmują `modelAlias`, `messages` (ostatnie: **1–150** elementów, `content` do **3000** znaków na wiadomość), opcjonalne **`conversationId`** w formacie **`conv_<uuid>`** (regex w `ChatRequestDto`; w **response** zawsze echo lub nowe `conv_<uuid>`; w **request** włącza `gen_ai.conversation.id` w Sentry — `conversation_tracking.md`), opcjonalne zagnieżdżone **`params`** (w tym **`responseFormat`**: `{ type, jsonSchema? }`), opcjonalne **`metadata`** (`Record<string, string | number | boolean>` — propagacja do adaptera; Anthropic: `userId` → `metadata.user_id`). Fasady oficjalnych kontraktów dopuszczają do **15 000** wiadomości — patrz `integracje.md`. Treść wiadomości w spanach: `SENTRY_INCLUDE_PROMPTS=true`.
 
 **Merge parametrów:** `resolveProviderCallOptions` (`src/chat/helpers/resolve-provider-call-options.ts`) bierze `policy.params.defaults` z YAML dla aliasu (pola: `temperature`, `maxOutputTokens`, `topP`, `frequencyPenalty`, `presencePenalty`, `seed`), nakłada body `params` tylko dla pól z **`allowOverrides`**, następnie **clamp** do **`bounds`**. Pola **`topK`**, **`stop`**, **`responseFormat`** pochodzą **wyłącznie z body** (brak odczytu z YAML `defaults`). Niedozwolone pole → HTTP **400** + `MODEL_NOT_ALLOWED`. Efektywne wartości trafiają do adapterów (`ProviderCallOptions`) i do klucza cache (`ResponseCacheService`).
 

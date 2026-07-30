@@ -75,6 +75,7 @@ gateway-to-contracts-last-step.md
 tools_implementation.md
 cli-implementation-plan.md
 backup/*
+docs/pl/spec/
 
 .env.test
 .env.example.old
@@ -82,3 +83,4 @@ gateway.config.placeholder.yaml
 
 production-readiness-plan.md
 prometheus-grafana-implementation-plan.md
+cli-agent-mode-plan.md
