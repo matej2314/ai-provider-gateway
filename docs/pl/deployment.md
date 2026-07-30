@@ -37,12 +37,12 @@ deployment/
 │   ├── deploy-production.sh               # sync | secrets | up | health | all (pełny stack)
 │   ├── deploy-staging.sh                  # jak production, bez Redis (DEPLOY_MODE=staging)
 │   └── rollback.sh                        # auto-rollback do last known-good SHA
-└── templates/
-    ├── .env.example                       # Szablon zmiennych środowiskowych
-    └── gateway.config.example.yaml        # Szablon YAML (boilerplate / placeholder)
+└── templates/                             # Opcjonalne kopie / CI PLACEHOLDER
+    ├── .env.example                       # Do setupu preferuj root `.env.example`
+    └── gateway.config.example.yaml        # Do setupu preferuj root `gateway.config.example.yaml`
 ```
 
-Pliki aktywne (`gateway.config.yaml`, `.env`) **kopiujesz do katalogu głównego repozytorium** — lokalny Docker montuje je stamtąd do kontenera. Na VPS pipeline synchronizuje checkout do katalogu hosta (domyślnie `/opt/ai-provider-gateway`) i bind-mountuje stamtąd.
+Pliki aktywne (`gateway.config.yaml`, `.env`) żyją w **katalogu głównym** repozytorium — skopiuj je z rootowych placeholderów (`gateway.config.example.yaml`, `.env.example`), potem uzupełnij albo uruchom `config:init`. Lokalny Docker montuje je z roota do kontenera. Na VPS pipeline synchronizuje checkout do katalogu hosta (domyślnie `/opt/ai-provider-gateway`) i bind-mountuje stamtąd.
 
 ---
 
@@ -61,19 +61,19 @@ cd ai-provider-gateway
 
 Projekt **nie ma wdrożenia zero-config**. Musisz dostarczyć `gateway.config.yaml` i `.env` w katalogu głównym. Dostępne są dwie ścieżki:
 
-#### Opcja A: Szablony produkcyjne (zalecane dla Docker / CI/CD)
+#### Opcja A: Placeholdery w katalogu głównym (zalecane dla Docker / CI/CD)
 
 ```bash
-cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
-cp deployment/templates/.env.example .env
+cp gateway.config.example.yaml gateway.config.yaml
+cp .env.example .env
 ```
 
 Następnie uzupełnij pliki:
 
-- **`.env`** — sekrety i ustawienia serwera (`MASTER_KEY`, klucze providerów, opcjonalnie Redis, Sentry, rate limit).
+- **`.env`** — sekrety i ustawienia serwera (wartości pod nazwami `*KeyRef` z YAML, opcjonalnie Redis, Sentry, rate limit).
 - **`gateway.config.yaml`** — struktura providerów, modeli i klientów.
 
-Szablon YAML w `deployment/templates/gateway.config.example.yaml` to **konfiguracja boilerplate** — minimalny, poprawny schemat Zod z jawnymi placeholderami do uzupełnienia:
+Szablon YAML w `gateway.config.example.yaml` (katalog główny) to **konfiguracja boilerplate** — minimalny, poprawny schemat Zod z jawnymi placeholderami do uzupełnienia:
 
 | Element | Przykład w szablonie |
 |---------|----------------------|
@@ -93,7 +93,7 @@ Po skopiowaniu szablonu do `gateway.config.yaml` możesz:
 - **Ręcznie** zastąpić placeholdery prawdziwymi nazwami env i wpisami (zgodnie ze schematem Zod — patrz [`konfiguracja.md`](konfiguracja.md) sekcja 2), **albo**
 - Uruchomić wizard (Opcja B), który wygeneruje pełną konfigurację operacyjną.
 
-> **Ważne:** Nazwy zmiennych w `.env` muszą odpowiadać polom `*KeyRef` w YAML (`masterKeyRef`, `apiKeyRef`, `gatewayKeyRef`). Runtime **nie** podstawia `${VAR}` — wczytuje wartości z env po nazwie refa.
+> **Ważne:** Nazwy zmiennych w `.env` muszą odpowiadać polom `*KeyRef` w YAML (`masterKeyRef`, `apiKeyRef`, `gatewayKeyRef`). Rootowy `.env.example` jest sparowany z `gateway.config.example.yaml`. Runtime **nie** podstawia `${VAR}` — wczytuje wartości z env po nazwie refa.
 
 #### Opcja B: Wizard CLI (zalecane przy pierwszym uruchomieniu lokalnym)
 
@@ -218,14 +218,14 @@ make docker-down
 
 | Plik | Lokalizacja | Cel | W Git |
 |------|-------------|-----|-------|
-| `gateway.config.example.yaml` | `deployment/templates/` | Szablon boilerplate (CLI-compatible) | ✅ |
+| `gateway.config.example.yaml` | katalog główny | PLACEHOLDER boilerplate (CLI-compatible) | ✅ |
 | `gateway.config.yaml` | katalog główny | Aktywna konfiguracja runtime | ❌ (lokalnie) |
-| `.env.example` | `deployment/templates/` | Szablon zmiennych | ✅ |
+| `.env.example` | katalog główny | Szablon zmiennych (sparowany z placeholderami YAML) | ✅ |
 | `.env` | katalog główny | Aktywne sekrety i env | ❌ `.gitignore` |
 
 **Nigdy nie commituj** `gateway.config.yaml` ani `.env` z prawdziwymi sekretami.
 
-Po skopiowaniu szablonu YAML do katalogu głównego i zmianie nazwy na `gateway.config.yaml` struktura pozostaje zgodna z walidatorem Zod (`src/config/gateway-config.schema.ts`) i z komendami CLI — nie trzeba konwertować formatu między „szablonem deploymentu” a „formatem projektu”.
+Po skopiowaniu `gateway.config.example.yaml` do `gateway.config.yaml` struktura pozostaje zgodna z walidatorem Zod (`src/config/gateway-config.schema.ts`) i z komendami CLI.
 
 ---
 
@@ -234,8 +234,8 @@ Po skopiowaniu szablonu YAML do katalogu głównego i zmianie nazwy na `gateway.
 | Scenariusz | Metoda | Powód |
 |------------|--------|-------|
 | Pierwsze uruchomienie lokalne | CLI `config:init` | Szybki, prowadzony setup z walidacją |
-| Docker Compose / VPS | Szablony z `deployment/templates/` | Brak TTY w kontenerze |
-| Kubernetes / CI/CD | Szablony + ConfigMap / Secrets Manager | Sekrety wstrzykiwane w runtime |
+| Docker Compose / VPS | Root `gateway.config.example.yaml` + `.env.example` | Brak TTY w kontenerze; PLACEHOLDER wykrywany przez CLI |
+| Kubernetes / CI/CD | Rootowe placeholdery + ConfigMap / Secrets Manager | Sekrety wstrzykiwane w runtime |
 | Dodanie providera lokalnie | CLI `provider:add` | Walidacja i sync `.env` |
 | Migracja dev → prod | Pliki wygenerowane przez CLI | Po review sekretów i limitów — te same pliki montujesz w Docker |
 
@@ -307,7 +307,7 @@ Więcej pól i reguł: [`konfiguracja.md`](konfiguracja.md).
 
 ## Zmienne środowiskowe
 
-Pełny szablon: `deployment/templates/.env.example`.
+Pełny szablon: `.env.example` (katalog główny; sparowany z `gateway.config.example.yaml`).
 
 **Wymagane do startu** (po uzupełnieniu boilerplate — nazwy zależą od YAML):
 

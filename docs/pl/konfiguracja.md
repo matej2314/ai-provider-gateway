@@ -2,14 +2,17 @@
 
 ## 0) Pierwsze uruchomienie (wizard konfiguracji)
 
-Repozytorium może zawierać przykładowy **`gateway.config.yaml`**. Przed pierwszym `npm run start:dev` uzupełnij **`.env`** (klucze providerów, `MASTER_KEY`, opcjonalnie `GATEWAY_KEY_*`) albo uruchom wizard:
+Repozytorium zawiera przykładowy PLACEHOLDER **`gateway.config.example.yaml`**. Przed pierwszym `npm run start:dev` skopiuj go do **`gateway.config.yaml`**, uzupełnij **`.env`** na bazie **`.env.example`** (klucze providerów, master key, opcjonalnie klucze klientów — nazwy muszą zgadzać się z `*KeyRef` w YAML) albo uruchom wizard:
 
 ```bash
+cp gateway.config.example.yaml gateway.config.yaml
+cp .env.example .env
+# potem edycja ręczna albo:
 npm run cli config:init
 # lub: npx gateway config:init
 ```
 
-Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt (szablony: `src/cli/templates/`). Wykrywa konfigurację boilerplate przez **`CliConfigLoaderService.isBoilerplateConfig()`** — gdy `masterKeyRef` lub ID wpisów w `providers:` / `clients:` zawierają `placeholder` / `PLACEHOLDER`.
+Wizard generuje lub nadpisuje `gateway.config.yaml`, `.env`, `.env.example` oraz opcjonalnie pliki system prompt (szablony: `src/cli/templates/`). Wykrywa konfigurację boilerplate przez **`CliConfigLoaderService.isBoilerplateConfig()`** — gdy `masterKeyRef` lub ID wpisów w `providers:` / `clients:` zawierają `placeholder` / `PLACEHOLDER` (jak w rootowym `gateway.config.example.yaml`).
 
 **Ważne:** Runtime wczytuje wyłącznie **`gateway.config.yaml`** z katalogu roboczego. Szczegóły flow: **`CLI.md`**.
 
@@ -32,7 +35,7 @@ Wizard (`deriveApiKeyRef()` w `src/cli/utils/provider-id.util.ts`) buduje `apiKe
 
 Runtime **czyta wyłącznie `apiKeyRef` z YAML** — nazwa zmiennej w `.env` musi być zgodna z YAML (np. tylko `ANTHROPIC_API_KEY` w env, a YAML ma `ANTHROPIC_PRIMARY_API_KEY` → start fail). Format klucza Anthropic/Google waliduje CLI przy wprowadzaniu (`validateProviderApiKey` w `src/cli/utils/api-key-validation.util.ts`), nie `validateEnvironment()`.
 
-W repo mogą istnieć dwa szablony `.env.example`: w **katalogu głównym** (typowo po wizardzie CLI) oraz **`deployment/templates/.env.example`** (boilerplate sparowany z `gateway.config.example.yaml`). Nazwy `apiKeyRef` / `gatewayKeyRef` muszą być zgodne z YAML.
+Główny szablon env dla użytkownika to **`.env.example` w katalogu głównym**, sparowany z rootowym **`gateway.config.example.yaml`** (nazwy `*KeyRef` z `PLACEHOLDER`). Opcjonalna kopia może też istnieć w `deployment/templates/` (CI / mirror). Nazwy `apiKeyRef` / `gatewayKeyRef` muszą być zgodne z YAML.
 
 **Uwaga o `.env.example` vs domyślne wartości w kodzie:** szablon w repozytorium może mieć włączone funkcje opcjonalne (np. `CACHE_ENABLED=true`, `RATE_LIMIT_SMART_ENABLED=true`) dla wygody lokalnego developmentu. **Domyślne wartości walidatora** (`EnvironmentVariables` w `src/config/env.validation.ts`) przy braku zmiennej to: `CACHE_ENABLED=false`, `CACHE_BACKEND=noop`, `RATE_LIMIT_SMART_ENABLED=false`. Efektywna konfiguracja zależy od tego, co faktycznie ustawisz w `.env`.
 
@@ -131,7 +134,7 @@ Przy `CACHE_ENABLED=false` i `RATE_LIMIT_SMART_ENABLED=true` readiness **sprawdz
 
 **Status:** plik jest **wczytywany przy starcie** aplikacji (`ConfigModule` → `load: [configuration]` w `src/app.module.ts`). Walidacja struktury: **Zod** w `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); składanie efektywnej konfiguracji i rozwiązywanie env — `src/config/configuration.ts` → obiekt **`AppConfiguration`** (`app-configuration.types.ts`). Serwisy runtime odczytują klucze przez **`getAppConfig` / `getAppConfigOrThrow`** (`typed-config.ts`) zamiast surowych stringów `config.get('...')`. Brak pliku lub niezgodność ze schematem powoduje **zatrzymanie startu** (`ENOENT` lub `Invalid configuration file`).
 
-**Przykładowy plik** `gateway.config.yaml` w repo może zawierać instancje `anthropic`, `google`, `openai`, `ollama-local` (wizard domyślnie tworzy `{type}-primary`, np. `anthropic-primary`). Wizard **`config:init`** generuje pełną konfigurację operacyjną. Poniższy przykład ilustruje typowy wynik wizarda.
+**Przykład PLACEHOLDER** jest w **`gateway.config.example.yaml`** (kopiuj do `gateway.config.yaml`): `placeholder-provider`, `placeholder-client`, `placeholder-model`, z nazwami `*KeyRef` zawierającymi `PLACEHOLDER`. Wizard **`config:init`** zastępuje boilerplate pełną konfiguracją operacyjną. Poniższy przykład ilustruje typowy wynik wizarda.
 
 ### Schemat (zgodny z walidatorem Zod)
 

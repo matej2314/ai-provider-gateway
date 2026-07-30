@@ -37,12 +37,12 @@ deployment/
 │   ├── deploy-production.sh               # sync | secrets | up | health | all (full stack)
 │   ├── deploy-staging.sh                  # like production, without Redis (DEPLOY_MODE=staging)
 │   └── rollback.sh                        # auto-rollback to last known-good SHA
-└── templates/
-    ├── .env.example                       # Environment variable template
-    └── gateway.config.example.yaml        # YAML template (boilerplate / placeholder)
+└── templates/                             # Optional mirror / CI PLACEHOLDER copies
+    ├── .env.example                       # Prefer root `.env.example` for setup
+    └── gateway.config.example.yaml        # Prefer root `gateway.config.example.yaml`
 ```
 
-Active files (`gateway.config.yaml`, `.env`) are **copied to the repository root** — local Docker mounts them from there into the container. On a VPS the pipeline syncs the checkout to the host directory (default `/opt/ai-provider-gateway`) and bind-mounts from there.
+Active files (`gateway.config.yaml`, `.env`) live in the **repository root** — copy them from the root placeholders (`gateway.config.example.yaml`, `.env.example`), then fill in or run `config:init`. Local Docker mounts them from the root into the container. On a VPS the pipeline syncs the checkout to the host directory (default `/opt/ai-provider-gateway`) and bind-mounts from there.
 
 ---
 
@@ -61,19 +61,19 @@ cd ai-provider-gateway
 
 The project has **no zero-config deployment**. You must provide `gateway.config.yaml` and `.env` in the root directory. Two paths are available:
 
-#### Option A: Production templates (recommended for Docker / CI/CD)
+#### Option A: Root placeholders (recommended for Docker / CI/CD)
 
 ```bash
-cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
-cp deployment/templates/.env.example .env
+cp gateway.config.example.yaml gateway.config.yaml
+cp .env.example .env
 ```
 
 Then fill in the files:
 
-- **`.env`** — secrets and server settings (`MASTER_KEY`, provider keys, optionally Redis, Sentry, rate limit).
+- **`.env`** — secrets and server settings (values under the `*KeyRef` names from YAML, optionally Redis, Sentry, rate limit).
 - **`gateway.config.yaml`** — provider, model, and client structure.
 
-The YAML template in `deployment/templates/gateway.config.example.yaml` is **boilerplate configuration** — a minimal, valid Zod schema with explicit placeholders to fill in:
+The YAML template in `gateway.config.example.yaml` (repo root) is **boilerplate configuration** — a minimal, valid Zod schema with explicit placeholders to fill in:
 
 | Element | Example in template |
 |---------|----------------------|
@@ -93,7 +93,7 @@ After copying the template to `gateway.config.yaml` you can:
 - **Manually** replace placeholders with real env names and entries (per the Zod schema — see [`configuration.md`](configuration.md) section 2), **or**
 - Run the wizard (Option B), which generates a full operational configuration.
 
-> **Important:** Variable names in `.env` must match `*KeyRef` fields in YAML (`masterKeyRef`, `apiKeyRef`, `gatewayKeyRef`). Runtime does **not** substitute `${VAR}` — it loads values from env by the ref name.
+> **Important:** Variable names in `.env` must match `*KeyRef` fields in YAML (`masterKeyRef`, `apiKeyRef`, `gatewayKeyRef`). Root `.env.example` is paired with `gateway.config.example.yaml`. Runtime does **not** substitute `${VAR}` — it loads values from env by the ref name.
 
 #### Option B: CLI wizard (recommended for first local run)
 
@@ -218,14 +218,14 @@ make docker-down
 
 | File | Location | Purpose | In Git |
 |------|-------------|-----|-------|
-| `gateway.config.example.yaml` | `deployment/templates/` | Boilerplate template (CLI-compatible) | ✅ |
+| `gateway.config.example.yaml` | root directory | PLACEHOLDER boilerplate (CLI-compatible) | ✅ |
 | `gateway.config.yaml` | root directory | Active runtime configuration | ❌ (local) |
-| `.env.example` | `deployment/templates/` | Variable template | ✅ |
+| `.env.example` | root directory | Variable template (paired with YAML placeholders) | ✅ |
 | `.env` | root directory | Active secrets and env | ❌ `.gitignore` |
 
 **Never commit** `gateway.config.yaml` or `.env` with real secrets.
 
-After copying the YAML template to the root and renaming it to `gateway.config.yaml`, the structure remains compatible with the Zod validator (`src/config/gateway-config.schema.ts`) and CLI commands — you do not need to convert formats between the “deployment template” and the “project format”.
+After copying `gateway.config.example.yaml` to `gateway.config.yaml`, the structure remains compatible with the Zod validator (`src/config/gateway-config.schema.ts`) and CLI commands.
 
 ---
 
@@ -234,8 +234,8 @@ After copying the YAML template to the root and renaming it to `gateway.config.y
 | Scenario | Method | Reason |
 |------------|--------|-------|
 | First local run | CLI `config:init` | Fast, guided setup with validation |
-| Docker Compose / VPS | Templates from `deployment/templates/` | No TTY in the container |
-| Kubernetes / CI/CD | Templates + ConfigMap / Secrets Manager | Secrets injected at runtime |
+| Docker Compose / VPS | Root `gateway.config.example.yaml` + `.env.example` | No TTY in the container; PLACEHOLDER detected by CLI |
+| Kubernetes / CI/CD | Root placeholders + ConfigMap / Secrets Manager | Secrets injected at runtime |
 | Adding a provider locally | CLI `provider:add` | Validation and `.env` sync |
 | Dev → prod migration | Files generated by CLI | After reviewing secrets and limits — mount the same files in Docker |
 
@@ -307,7 +307,7 @@ More fields and rules: [`configuration.md`](configuration.md).
 
 ## Environment variables
 
-Full template: `deployment/templates/.env.example`.
+Full template: `.env.example` (repo root; paired with `gateway.config.example.yaml`).
 
 **Required to start** (after filling in boilerplate — names depend on YAML):
 

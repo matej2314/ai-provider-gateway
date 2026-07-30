@@ -14,7 +14,7 @@ Szczegóły: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md) (sekcj
 
 ## Jak czytać tę dokumentację
 
-1. **Pierwsze uruchomienie** — uzupełnij `.env` i `gateway.config.yaml` albo uruchom `gateway config:init` ([`konfiguracja.md`](konfiguracja.md), [`CLI.md`](CLI.md)); Docker: [`deployment.md`](deployment.md).
+1. **Pierwsze uruchomienie** — skopiuj `gateway.config.example.yaml` → `gateway.config.yaml` oraz `.env.example` → `.env`, potem uzupełnij sekrety / zastąp placeholdery, albo uruchom `gateway config:init` ([`konfiguracja.md`](konfiguracja.md), [`CLI.md`](CLI.md)); Docker: [`deployment.md`](deployment.md).
 2. **Koncepcja** — [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md) (WHAT / WHY, zakres produktu).
 3. **Architektura** — [`architektura.md`](architektura.md) (moduły i granice), [`architektura_api.md`](architektura_api.md) (konwencje HTTP), [`architektura_katalogi_pliki.md`](architektura_katalogi_pliki.md) (drzewo repo).
 4. **API** — kontrakt: [`openapi.json`](../../openapi.json) (generowany: `npm run openapi:export`); Swagger UI: `/api/v1/api-docs`; opis ludzki: [`lista_endpointów.md`](lista_endpointów.md), [`dokumentacja_api.md`](dokumentacja_api.md).

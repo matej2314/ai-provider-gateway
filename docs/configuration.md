@@ -4,14 +4,17 @@ Goal: “plug&play” — the user fills in env + configuration files and runs t
 
 ## 0) First run (configuration wizard)
 
-The repository may include a sample **`gateway.config.yaml`**. Before the first `npm run start:dev`, fill in **`.env`** (provider keys, `MASTER_KEY`, optionally `GATEWAY_KEY_*`) or run the wizard:
+The repository includes a PLACEHOLDER sample **`gateway.config.example.yaml`**. Before the first `npm run start:dev`, copy it to **`gateway.config.yaml`**, fill in **`.env`** from **`.env.example`** (provider keys, master key, optionally client keys — names must match `*KeyRef` in YAML), or run the wizard:
 
 ```bash
+cp gateway.config.example.yaml gateway.config.yaml
+cp .env.example .env
+# then either edit manually, or:
 npm run cli config:init
 # or: npx gateway config:init
 ```
 
-The wizard generates or overwrites `gateway.config.yaml`, `.env`, `.env.example`, and optionally system prompt files (templates: `src/cli/templates/`). It detects boilerplate configuration via **`CliConfigLoaderService.isBoilerplateConfig()`** — when `masterKeyRef` or entry IDs in `providers:` / `clients:` contain `placeholder` / `PLACEHOLDER`.
+The wizard generates or overwrites `gateway.config.yaml`, `.env`, `.env.example`, and optionally system prompt files (templates: `src/cli/templates/`). It detects boilerplate configuration via **`CliConfigLoaderService.isBoilerplateConfig()`** — when `masterKeyRef` or entry IDs in `providers:` / `clients:` contain `placeholder` / `PLACEHOLDER` (as in the root `gateway.config.example.yaml`).
 
 **Important:** Runtime loads only **`gateway.config.yaml`** from the working directory. Flow details: **`command_line_interface.md`**.
 
@@ -35,7 +38,7 @@ The wizard (`deriveApiKeyRef()` in `src/cli/utils/provider-id.util.ts`) builds `
 
 Runtime **reads only `apiKeyRef` from YAML** — the env variable name in `.env` must match the YAML (e.g. only `ANTHROPIC_API_KEY` in env, while YAML has `ANTHROPIC_PRIMARY_API_KEY` → start fails). Anthropic/Google key format is validated by the CLI on input (`validateProviderApiKey` in `src/cli/utils/api-key-validation.util.ts`), not by `validateEnvironment()`.
 
-The repo may have two `.env.example` templates: in the **root directory** (typically after the CLI wizard) and **`deployment/templates/.env.example`** (boilerplate paired with `gateway.config.example.yaml`). `apiKeyRef` / `gatewayKeyRef` names must match the YAML.
+The primary env template for users is **`.env.example` in the repository root**, paired with root **`gateway.config.example.yaml`** (PLACEHOLDER `*KeyRef` names). An optional copy may also exist under `deployment/templates/` (CI / mirror). `apiKeyRef` / `gatewayKeyRef` names must match the YAML.
 
 **Note on `.env.example` vs default values in code:** the repository template may enable optional features (e.g. `CACHE_ENABLED=true`, `RATE_LIMIT_SMART_ENABLED=true`) for local development convenience. **Validator defaults** (`EnvironmentVariables` in `src/config/env.validation.ts`) when a variable is missing are: `CACHE_ENABLED=false`, `CACHE_BACKEND=noop`, `RATE_LIMIT_SMART_ENABLED=false`. Effective configuration depends on what you actually set in `.env`.
 
@@ -134,7 +137,7 @@ With `CACHE_ENABLED=false` and `RATE_LIMIT_SMART_ENABLED=true`, readiness **chec
 
 **Status:** the file is **loaded at application startup** (`ConfigModule` → `load: [configuration]` in `src/app.module.ts`). Structure validation: **Zod** in `src/config/gateway-config.schema.ts` (`GatewayConfigSchema`); assembling effective configuration and resolving env — `src/config/configuration.ts` → **`AppConfiguration`** object (`app-configuration.types.ts`). Runtime services read keys via **`getAppConfig` / `getAppConfigOrThrow`** (`typed-config.ts`) instead of raw `config.get('...')` strings. Missing file or schema mismatch causes **startup to stop** (`ENOENT` or `Invalid configuration file`).
 
-A **sample** `gateway.config.yaml` in the repo may include `anthropic`, `google`, `openai`, `ollama-local` instances (the wizard by default creates `{type}-primary`, e.g. `anthropic-primary`). The **`config:init`** wizard generates a full operational configuration. The example below illustrates a typical wizard result.
+A **PLACEHOLDER sample** lives in **`gateway.config.example.yaml`** (copy to `gateway.config.yaml`): `placeholder-provider`, `placeholder-client`, `placeholder-model`, with `*KeyRef` names containing `PLACEHOLDER`. The **`config:init`** wizard replaces boilerplate with a full operational configuration. The example below illustrates a typical wizard result.
 
 ### Schema (aligned with the Zod validator)
 

@@ -18,7 +18,8 @@ Zasady:
 ```
 ai-provider-gateway/
 ├── openapi.json                    # OpenAPI 3.1 (kontrakt HTTP; generowany: npm run openapi:export)
-├── gateway.config.yaml             # konfiguracja robocza (przykład w repo; generowana/aktualizowana przez gateway config:init)
+├── gateway.config.example.yaml     # PLACEHOLDER YAML do setupu (kopiuj → gateway.config.yaml)
+├── gateway.config.yaml             # konfiguracja robocza (lokalna; generowana/aktualizowana przez gateway config:init)
 ├── package.json
 ├── package-lock.json
 ├── README.md
@@ -27,21 +28,21 @@ ai-provider-gateway/
 ├── tsconfig.build.json
 ├── eslint.config.mjs
 ├── .prettierrc
-├── .env.example
+├── .env.example                    # szablon env sparowany z gateway.config.example.yaml
 ├── .env                            # lokalnie — nie commitować
 ├── .gateway-wizard-state.json      # lokalnie — stan niedokończonego config:init (resume)
 ├── backup/                         # lokalnie — backupi YAML/.env z CLI (backup/* w .gitignore)
 ├── .gitignore
 ├── mcp.json                        # konfiguracja MCP dla IDE (Cursor) — nie wczytywany przez gateway przy starcie
 │
-├── deployment/                     # Docker, monitoring, szablony, skrypty VPS
+├── deployment/                     # Docker, monitoring, skrypty VPS
 │   ├── docker/
 │   │   ├── Dockerfile              # Multi-stage build (production)
 │   │   ├── docker-compose.yml      # MVP: sam gateway
 │   │   └── docker-compose.*.yml    # redis, monitoring, ollama, dev
 │   ├── monitoring/                 # Prometheus, Grafana, alerty
 │   ├── scripts/                    # deploy-production.sh, deploy-staging.sh, rollback.sh (Actions)
-│   └── templates/                  # gateway.config.example.yaml, .env.example
+│   └── templates/                  # opcjonalne kopie CI/mirror PLACEHOLDER (preferuj przykłady w root)
 │
 ├── bin/                            # entry point CLI (osobny od HTTP app)
 │   ├── gateway-cli-wrapper.js      # npm bin — compiled dist/ lub fallback ts-node (bez build)
@@ -620,7 +621,7 @@ Pełna dokumentacja komend: **`CLI.md`**.
 
 **Funkcje w produkcie** (porównuj z [`openapi.json`](../../openapi.json) i `src/`):
 
-- **Konfiguracja:** przykładowy `gateway.config.yaml` w repo (instancje `anthropic`, `google`, `openai`, `ollama-local`; aliasy m.in. `gpt-cheap`, `ollama-local-chat`); pełna konfiguracja operacyjna przez wizard **`gateway config:init`**. Runtime providerów: fabryki per typ + bootstrap per **`providerInstance`** (Anthropic, Google, OpenAI, openai-compatible) + tool/thinking mappers.
+- **Konfiguracja:** rootowy **`gateway.config.example.yaml`** to PLACEHOLDER boilerplate (`placeholder-provider` / refy `PLACEHOLDER`; CLI `isBoilerplateConfig()`); kopiuj do `gateway.config.yaml` i sparuj z rootowym **`.env.example`**, albo uruchom **`gateway config:init`** dla pełnej konfiguracji operacyjnej. Runtime providerów: fabryki per typ + bootstrap per **`providerInstance`** (Anthropic, Google, OpenAI, openai-compatible) + tool/thinking mappers.
 - Czat standard + SSE, `params`, retry/timeout (`AbortSignal`)/fallback/`effectiveModelAlias` (`ResilientExecutor`).
 - Error envelope (`GlobalExceptionFilter`), kody **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + nagłówek odpowiedzi **`x-request-id`**.
