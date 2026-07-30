@@ -107,13 +107,13 @@ git push -u fork main
 ### Configure
 
 **Option 1 — Manual (placeholders → real config):**
-Copy the config template(s) into the project root, then edit them for your production instance. Also create `.env` with your secrets:
+Copy the root placeholders into working files, then replace them with your real setup (or run the wizard after copy — CLI detects PLACEHOLDER boilerplate):
 
 ```bash
-cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
-cp deployment/templates/.env.example .env
+cp gateway.config.example.yaml gateway.config.yaml
+cp .env.example .env
 # edit `gateway.config.yaml` to match the setup you want
-# fill provider keys, MASTER_KEY, and GATEWAY_KEY_* so names match *KeyRef in YAML
+# fill values under *KeyRef names from YAML (MASTER_KEY_PLACEHOLDER, provider/client refs, …)
 ```
 
 **Option 2 — CLI wizard (recommended locally):**
@@ -186,12 +186,14 @@ Top-level layout:
 ai-provider-gateway/
 ├── src/                  # NestJS application + Gateway CLI
 ├── test/                 # E2E, security, integration Jest suites
-├── deployment/           # Docker, monitoring, env/YAML templates, VPS scripts
+├── deployment/           # Docker, monitoring, VPS scripts
 ├── docs/                 # English documentation (Polish: docs/pl/)
 ├── bin/                  # `gateway` CLI entry (separate from HTTP server)
 ├── scripts/              # Offline helpers (e.g. config validate)
 ├── openapi.json          # OpenAPI 3.1 HTTP contract
-├── gateway.config.yaml   # Working config (aliases, providers, clients)
+├── gateway.config.example.yaml  # PLACEHOLDER YAML (copy → gateway.config.yaml)
+├── .env.example          # Env template (KeyRefs must match YAML)
+├── gateway.config.yaml   # Working config (local; not committed with secrets)
 └── package.json
 ```
 
@@ -219,7 +221,7 @@ ai-provider-gateway/
 | `test/security/` | Auth bypass, Helmet, disclosure, fuzzing |
 | `test/integration/` | Live SDK + Redis (Docker) |
 | `deployment/docker/` | Compose stacks (MVP, Redis, monitoring, Ollama, dev) |
-| `deployment/templates/` | Example `gateway.config.yaml` and `.env` |
+| `gateway.config.example.yaml`, `.env.example` | Root PLACEHOLDER YAML + env template for manual setup |
 | `.github/workflows/` | CI and VPS deploy |
 
 **Full tree and file-level notes:** [`docs/project.structure.md`](docs/project.structure.md).

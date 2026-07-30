@@ -18,7 +18,8 @@ Rules:
 ```
 ai-provider-gateway/
 ├── openapi.json                    # OpenAPI 3.1 (HTTP contract; generated: npm run openapi:export)
-├── gateway.config.yaml             # working configuration (example in repo; generated/updated by gateway config:init)
+├── gateway.config.example.yaml     # PLACEHOLDER YAML for setup (copy → gateway.config.yaml)
+├── gateway.config.yaml             # working configuration (local; generated/updated by gateway config:init)
 ├── package.json
 ├── package-lock.json
 ├── README.md
@@ -27,21 +28,21 @@ ai-provider-gateway/
 ├── tsconfig.build.json
 ├── eslint.config.mjs
 ├── .prettierrc
-├── .env.example
+├── .env.example                    # env template paired with gateway.config.example.yaml
 ├── .env                            # local — do not commit
 ├── .gateway-wizard-state.json      # local — unfinished config:init state (resume)
 ├── backup/                         # local — YAML/.env backups from CLI (backup/* in .gitignore)
 ├── .gitignore
 ├── mcp.json                        # MCP config for IDE (Cursor) — not loaded by gateway at startup
 │
-├── deployment/                     # Docker, monitoring, templates, VPS scripts
+├── deployment/                     # Docker, monitoring, VPS scripts
 │   ├── docker/
 │   │   ├── Dockerfile              # Multi-stage build (production)
 │   │   ├── docker-compose.yml      # MVP: gateway only
 │   │   └── docker-compose.*.yml    # redis, monitoring, ollama, dev
 │   ├── monitoring/                 # Prometheus, Grafana, alerts
 │   ├── scripts/                    # deploy-production.sh, deploy-staging.sh, rollback.sh (Actions)
-│   └── templates/                  # gateway.config.example.yaml, .env.example
+│   └── templates/                  # optional CI/mirror PLACEHOLDER copies (prefer root examples)
 │
 ├── bin/                            # CLI entry point (separate from HTTP app)
 │   ├── gateway-cli-wrapper.js      # npm bin — compiled dist/ or fallback ts-node (no build)
@@ -626,7 +627,7 @@ Full command documentation: **`command_line_interface.md`**.
 
 **Features in the product** (compare with [`openapi.json`](../openapi.json) and `src/`):
 
-- **Configuration:** sample `gateway.config.yaml` in repo (instances `anthropic`, `google`, `openai`, `ollama-local`; aliases including `gpt-cheap`, `ollama-local-chat`); full operational configuration via **`gateway config:init`** wizard. Provider runtime: factories per type + bootstrap per **`providerInstance`** (Anthropic, Google, OpenAI, openai-compatible) + tool/thinking mappers.
+- **Configuration:** root **`gateway.config.example.yaml`** is PLACEHOLDER boilerplate (`placeholder-provider` / `PLACEHOLDER` refs; CLI `isBoilerplateConfig()`); copy to `gateway.config.yaml` and pair with root **`.env.example`**, or run **`gateway config:init`** for a full operational configuration. Provider runtime: factories per type + bootstrap per **`providerInstance`** (Anthropic, Google, OpenAI, openai-compatible) + tool/thinking mappers.
 - Standard chat + SSE, `params`, retry/timeout (`AbortSignal`)/fallback/`effectiveModelAlias` (`ResilientExecutor`).
 - Error envelope (`GlobalExceptionFilter`), codes **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + response header **`x-request-id`**.

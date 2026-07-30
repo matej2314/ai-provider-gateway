@@ -14,7 +14,7 @@ Details: [`conceptual-documentation.md`](conceptual-documentation.md) (“Reposi
 
 ## How to read this documentation
 
-1. **First run** — fill in `.env` and `gateway.config.yaml`, or run `gateway config:init` ([`configuration.md`](configuration.md), [`command_line_interface.md`](command_line_interface.md)); Docker: [`deployment.md`](deployment.md).
+1. **First run** — copy `gateway.config.example.yaml` → `gateway.config.yaml` and `.env.example` → `.env`, then fill in secrets / replace placeholders, or run `gateway config:init` ([`configuration.md`](configuration.md), [`command_line_interface.md`](command_line_interface.md)); Docker: [`deployment.md`](deployment.md).
 2. **Concept** — [`conceptual-documentation.md`](conceptual-documentation.md) (WHAT / WHY, product scope).
 3. **Architecture** — [`architecture.md`](architecture.md) (modules and boundaries), [`api-architecture.md`](api-architecture.md) (HTTP conventions), [`project.structure.md`](project.structure.md) (repo tree).
 4. **API** — contract: [`openapi.json`](../openapi.json) (generated: `npm run openapi:export`); Swagger UI: `/api/v1/api-docs`; human-readable description: [`endpoints.md`](endpoints.md), [`api-documentation.md`](api-documentation.md).
