@@ -12,7 +12,7 @@ export class HealthRedisCheckItemDto extends HealthCheckItemDto {
 
   @ApiPropertyOptional({
     description: 'Features that require Redis. Omitted when required=false.',
-    enum: ['cache', 'rate-limit'],
+    enum: ['cache', 'rate-limit', 'semantic-cache'],
     isArray: true,
     example: ['rate-limit'],
   })

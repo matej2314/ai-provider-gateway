@@ -50,7 +50,8 @@ The description below defines product scope as understood in this repository. HT
 | Anthropic facade (official Anthropic Messages contract) | `/api/v1/anthropic/*` — IDEs and other clients |
 | Tool calling | Tool definitions and invocations in chat |
 | Extended thinking (reasoning models) | Thinking / reasoning parameters |
-| Response caching (Redis) | Response cache for `POST /chat` |
+| Response caching — exact (Redis KV) | Exact hash lookup for `POST /chat`; `cached: true` on hit |
+| Response caching — semantic (Redis Search + Ollama) | Embedding + KNN lookup for `POST /chat`; fail-open; `SEMANTIC_CACHE_ENABLED` |
 | Smart rate limiting | Limits per client key |
 
 **Summary:** The listed features are part of the product. Architecture and integrations: `architecture.md`, `integrations.md`, `testing.md`.

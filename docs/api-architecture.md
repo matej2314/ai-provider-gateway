@@ -77,6 +77,16 @@ Contract (OpenAPI + `api-documentation.md`): **Server-Sent Events** (`text/event
 - The gateway does not guarantee identical token-by-token behavior across providers.
 - The client should treat SSE as a fragment stream + metadata from `meta`.
 
+## Response cache and idempotency
+
+For `POST /api/v1/chat`, the gateway uses a two-stage cache lookup before calling the provider:
+
+1. **Exact hit** — deterministic hash of `(modelAlias, clientId, messages, system prompt, effective params)` matches a stored response → returned with `cached: true` and `cachedAt`. Semantically identical to a fresh provider call.
+2. **Semantic hit** — no exact match, but the last `role: user` message embeds close enough to a cached query (cosine similarity ≥ `SEMANTIC_CACHE_MIN_SIMILARITY`) → stored response returned. Also marked `cached: true`.
+3. **Miss** — provider is called; result stored for both lookup layers.
+
+**Idempotency note:** an exact hit and a semantic hit are both valid substitutes — the client receives the same response shape. The field `cached: true` distinguishes a cached response from a live provider response. Streaming (`POST /api/v1/chat/stream`) does **not** use either cache layer.
+
 ## HTTP errors
 
 **Contract ([`openapi.json`](../openapi.json)):** **`ErrorEnvelope`** envelope from `GlobalExceptionFilter` (`APP_FILTER` in `AppModule`). Explicit **`code`** from the exception payload (guards, `RATE_LIMITED`, codes from `provider-error.mapper.ts`); otherwise `DEFAULT_HTTP_STATUS_TO_CODE` (for HTTP **429** fallback is **`RATE_LIMITED`** — see `dictionary.md`). **`requestId`:** `RequestIdMiddleware` — request header `x-request-id` (echo) or `req_<uuid>`; the same ID in the JSON field (`requestId`) and in the **response header** `x-request-id` (`res.setHeader` in `src/common/middleware/request-id.middleware.ts`).

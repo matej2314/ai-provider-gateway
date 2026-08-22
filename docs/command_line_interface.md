@@ -210,6 +210,7 @@ Project initialization: **interactive wizard** (`npm init` style) **or** agent m
      - **Basic:** port, `NODE_ENV`, Swagger (`SWAGGER_ENABLED`).
      - **Response cache:** `CACHE_ENABLED`, `CACHE_BACKEND` (`redis` | `noop` — no `memory` option in the wizard).
      - **Smart rate limit:** `RATE_LIMIT_SMART_ENABLED` (independent of the cache backend).
+     - **Semantic cache env vars** (`SEMANTIC_CACHE_ENABLED`, `EMBEDDING_BASE_URL`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `EMBEDDING_TIMEOUT_MS`, `SEMANTIC_CACHE_MIN_SIMILARITY`, `SEMANTIC_CACHE_TTL`, `SEMANTIC_CACHE_K`) are **not** configured by the wizard — set them manually in `.env`. See `configuration.md` (semantic cache section) and `.env.example`.
      - **Redis (shared infrastructure):** host, port, password — **only when** `isRedisRequired()` from `src/cache/should-include-redis-stack.ts` returns `true`, i.e. when `CACHE_ENABLED=true` **and** `CACHE_BACKEND=redis`, **or** when `RATE_LIMIT_SMART_ENABLED=true`. The same rule as at HTTP startup (`isRedisRequiredFromEnv()` in `AppModule`).
      - **Monitoring:** Sentry LLM (`AI_METRICS_BACKEND`, `SENTRY_*`) or `noop`; App metrics Prometheus (`METRICS_BACKEND`).
 

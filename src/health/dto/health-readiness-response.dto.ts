@@ -21,6 +21,13 @@ class HealthReadinessChecksDto {
       'Response cache feature state. When backend is redis, availability follows checks.redis.',
   })
   cache: HealthCheckItemDto;
+
+  @ApiPropertyOptional({
+    type: HealthCheckItemDto,
+    description:
+      'Embedding service health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded state does not block ready status.',
+  })
+  embeddings?: HealthCheckItemDto;
 }
 
 export class HealthReadinessResponseDto {

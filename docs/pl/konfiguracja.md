@@ -75,6 +75,35 @@ Zmienne są walidowane przy starcie przez **`validateEnvironment()`** (fasada �
 
 Szablon zmiennych: `.env.example`.
 
+### Cache semantyczny (`src/cache/semantic/`)
+
+Cache semantyczny stoi **powyżej** cache'u exact w łańcuchu lookupów dla `POST /api/v1/chat`: exact (hash) → semantic (embedding + KNN) → provider. Jest niezależny od `CACHE_BACKEND` — ma własny przełącznik `SEMANTIC_CACHE_ENABLED`. Do indeksu wektorowego wymagany jest Redis Search (część Redis Stack).
+
+**Kolejność lookup:**
+
+1. **Trafienie exact** — hash `(modelAlias, clientId, messages, system prompt, efektywne parametry)` → zwracana jest zapisana odpowiedź.
+2. **Trafienie semantyczne** — embedding ostatniej wiadomości `role: user`, zapytanie KNN w Redis Search (partycja: `modelAlias` + `clientId`), podobieństwo cosinusowe ≥ próg → zwracana jest zapisana odpowiedź.
+3. **Miss** — wywołanie providera; zapis exact + upsert wektora.
+
+**Warunki pominięcia** (żądanie trafia bezpośrednio do providera bez lookupów): żądania tooling, brak `gatewayKey`, `clientId === 'unknown'`, brak ostatniej wiadomości użytkownika z niepustym `content`, wszystkie żądania streamingowe (`POST /api/v1/chat/stream`).
+
+**Fail-open:** gdy serwis embeddingów lub Redis Search jest niedostępny, żądanie trafia do providera — warstwa cache nie blokuje czatu. `GET /api/v1/health/ready` może raportować `checks.embeddings: degraded` bez zmiany `status` na `not_ready`.
+
+**Redis:** używa tego samego `RedisConnectionService` i instancji Redis Stack co cache exact i rate limit (port **6380**, obraz `redis/redis-stack-server`). Nazwa indeksu wektorowego zawiera model i wymiar (np. `mxbai-1024`). Zmiana `EMBEDDING_DIM` wymaga nowego indeksu.
+
+| Zmienna | Default w kodzie | Znaczenie |
+|---------|-----------------|-----------|
+| `SEMANTIC_CACHE_ENABLED` | `false` | Gdy `true`, włącza semantic lookup w `POST /api/v1/chat`. Wymaga Redis Stack + serwisu embeddingów. |
+| `EMBEDDING_BASE_URL` | `http://localhost:11435` | Bazowy URL serwisu embeddingów Ollama. W sieciach Docker: `http://ollama-embedding:11434`. |
+| `EMBEDDING_MODEL` | `mxbai-embed-large` | Model Ollama do embeddingów. Zmiana modelu wymaga nowego indeksu wektorowego. |
+| `EMBEDDING_DIM` | `1024` | Wymiar wektora embeddingu. Musi pasować do modelu (`mxbai-embed-large` → 1024). Zmiana wartości wymaga usunięcia i odtworzenia indeksu Redis Search. |
+| `EMBEDDING_TIMEOUT_MS` | `5000` | Timeout HTTP zapytań o embedding (ms). Po przekroczeniu → fail-open. |
+| `SEMANTIC_CACHE_MIN_SIMILARITY` | `0.90` | Minimalne podobieństwo cosinusowe dla trafienia (0–1). Redis Search przechowuje **dystans** cosinusowy ≈ `1 − podobieństwo`; cutoff ≈ 0.10. |
+| `SEMANTIC_CACHE_TTL` | jak `CACHE_TTL` / `3600` | TTL wpisów cache semantycznego (sekundy). |
+| `SEMANTIC_CACHE_K` | `3` | Liczba najbliższych sąsiadów w zapytaniu KNN; bierzemy najlepszy wynik powyżej progu. |
+
+Zmienne `CACHE_*` / `REDIS_*` zachowują swoje znaczenie dla exact cache KV. Cache semantyczny **nie** jest wartością `CACHE_BACKEND`.
+
 ### Smart rate limiting (`src/rate-limit/`)
 
 Implementacja: **`RateLimitModule`**, **`SmartRateLimiterService`**, **`SmartRateLimitGuard`** (dekorator `@GatewayKeyAndSmartRateLimit()` na kontrolerach czatu: najpierw `GatewayKeyGuard`, potem `SmartRateLimitGuard`). **`SmartRateLimitGuard`** ponownie weryfikuje nagłówek `X-Gateway-Key` (`requireGatewayKey`) — celowo, gdy guard jest użyty **bez** `GatewayKeyGuard` (defense in depth). **Nie** używa `@nestjs/throttler`.

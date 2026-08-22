@@ -77,6 +77,16 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 - Gateway nie gwarantuje identycznego zachowania token‑po‑token między providerami.
 - Klient powinien traktować SSE jako strumień fragmentów + metadane z `meta`.
 
+## Cache odpowiedzi i idempotencja
+
+Dla `POST /api/v1/chat` gateway stosuje dwustopniowy lookup cache przed wywołaniem providera:
+
+1. **Trafienie exact** — deterministyczny hash `(modelAlias, clientId, messages, system prompt, efektywne parametry)` pasuje do zapisanej odpowiedzi → zwracana z `cached: true` i `cachedAt`. Semantycznie równoważna ze świeżym wywołaniem providera.
+2. **Trafienie semantyczne** — brak exact match, ale ostatnia wiadomość `role: user` embeddinguje się wystarczająco blisko do zapisanego zapytania (podobieństwo cosinusowe ≥ `SEMANTIC_CACHE_MIN_SIMILARITY`) → zwracana zapisana odpowiedź. Również oznaczona `cached: true`.
+3. **Miss** — wywołanie providera; wynik zapisywany w obu warstwach.
+
+**Uwaga o idempotencji:** trafienie exact i semantyczne są równoważnymi substytutami — klient otrzymuje ten sam kształt odpowiedzi. Pole `cached: true` odróżnia odpowiedź z cache od odpowiedzi od providera. Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z żadnej warstwy cache.
+
 ## Błędy HTTP
 
 **Kontrakt ([`openapi.json`](../../openapi.json)):** envelope **`ErrorEnvelope`** z `GlobalExceptionFilter` (`APP_FILTER` w `AppModule`). Jawne **`code`** z payloadu wyjątku (guardy, `RATE_LIMITED`, kody z `provider-error.mapper.ts`); inaczej `DEFAULT_HTTP_STATUS_TO_CODE` (dla HTTP **429** fallback to **`RATE_LIMITED`** — patrz `dictionary.md`). **`requestId`:** `RequestIdMiddleware` — nagłówek żądania `x-request-id` (echo) lub `req_<uuid>`; to samo ID w polu JSON (`requestId`) oraz w **nagłówku odpowiedzi** `x-request-id` (`res.setHeader` w `src/common/middleware/request-id.middleware.ts`).

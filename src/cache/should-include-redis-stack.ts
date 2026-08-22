@@ -2,7 +2,7 @@ import type { ConfigService } from '@nestjs/config';
 import { getAppConfig } from '../config/typed-config';
 import { parseCacheBackend } from '../config/env.validation';
 
-export type RedisConsumer = 'cache' | 'rate-limit';
+export type RedisConsumer = 'cache' | 'rate-limit' | 'semantic-cache';
 
 import type { CACHE_BACKEND_TYPE } from './interfaces/cache-backend-interface';
 

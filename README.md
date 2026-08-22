@@ -2,7 +2,7 @@
 
 NestJS HTTP gateway for LLMs. One stable API in front of Anthropic, Google Gemini, OpenAI, and OpenAI-compatible backends (e.g. Ollama). Clients talk to the gateway; provider SDKs stay behind adapters.
 
-**Stack:** NestJS · TypeScript · YAML + env config · Redis (optional) · Docker · Prometheus / Grafana · Sentry
+**Stack:** NestJS · TypeScript · YAML + env config · Redis Stack (exact + semantic cache) · Ollama embedding · Docker · Prometheus / Grafana · Sentry
 
 ---
 
@@ -27,6 +27,7 @@ Built as a production-shaped NestJS service and a portfolio-ready architecture e
 | Official contracts facades | OpenAI API contract (`/api/v1/openai/*`) and Anthropic Messages contract (`/api/v1/anthropic/*`) — for IDEs (Cursor, Claude Code) and any other client that expects those HTTP shapes |
 | Runtime providers | Anthropic, Google Gemini, OpenAI (Responses API), OpenAI-compatible (Chat Completions) |
 | Resilience | Retry with backoff, per-model timeout (`AbortSignal`), optional alias fallback |
+| Response cache | Exact hash lookup (Redis KV) + **semantic lookup** (embedding + KNN, Redis Search) for `POST /api/v1/chat` |
 | Ops | Helmet, Pino, Sentry AI metrics, Prometheus `GET /metrics`, readiness probes, Docker Compose, VPS deploy via GitHub Actions |
 | Tooling | Interactive CLI (`gateway config:init`, provider/model/client CRUD, `provider:test`) |
 
@@ -153,13 +154,16 @@ curl -s -X POST "http://localhost:3000/api/v1/chat" \
 
 More examples (stream, models, thinking, tooling): [`docs/api-documentation.md`](docs/api-documentation.md), [`docs/endpoints.md`](docs/endpoints.md).
 
-### Docker (optional)
+### Docker
 
 ```bash
 docker network create ai-gateway-network   # once
-npm run docker:up  # gateway only
-# npm run docker:up:full                   # + Redis + Prometheus + Grafana
+npm run docker:up           # gateway only
+# npm run docker:up:full    # gateway + Redis Stack + Prometheus + Grafana
+# npm run infra:up          # Redis Stack + ollama-embedding (for start:dev with semantic cache)
 ```
+
+**Semantic cache** (local dev): also start the infra stack (`infra:up`) — Redis Stack on port **6380** and ollama-embedding on port **11435**. Set `SEMANTIC_CACHE_ENABLED=true` in `.env`. Minimum **16 GB RAM** when running the full stack with semantic cache.
 
 Full guide: [`docs/deployment.md`](docs/deployment.md).
 
@@ -207,7 +211,8 @@ ai-provider-gateway/
 | `src/providers/` | Runtime LLM adapters / SDK factories (Anthropic, Google, OpenAI, compatible) |
 | `src/integrations/` | HTTP facades for Cursor / Claude Code (not the same as runtime adapters) |
 | `src/config/` | YAML/env loading, schema validation, system prompts |
-| `src/cache/`, `src/rate-limit/` | Optional Redis response cache and smart rate limiting |
+| `src/cache/` | Response cache — exact (Redis KV) and semantic (`src/cache/semantic/`: `EmbeddingBackend` + `VectorStore` ports); partitioned by `modelAlias` + `clientId` |
+| `src/rate-limit/` | Smart rate limiting per client key (Redis) |
 | `src/observability/` | Sentry LLM metrics + Prometheus app metrics |
 | `src/common/` | Filters, middleware, brand types, shared errors |
 | `src/cli/` | Interactive CLI (`config:init`, provider/model/client commands) |
@@ -220,7 +225,7 @@ ai-provider-gateway/
 | `test/e2e/` | HTTP contract tests with mocked providers |
 | `test/security/` | Auth bypass, Helmet, disclosure, fuzzing |
 | `test/integration/` | Live SDK + Redis (Docker) |
-| `deployment/docker/` | Compose stacks (MVP, Redis, monitoring, Ollama, dev) |
+| `deployment/docker/` | Compose stacks (MVP, Redis Stack, monitoring, Ollama chat, Ollama embedding, dev) |
 | `gateway.config.example.yaml`, `.env.example` | Root PLACEHOLDER YAML + env template for manual setup |
 | `.github/workflows/` | CI and VPS deploy |
 

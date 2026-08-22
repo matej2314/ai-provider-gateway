@@ -1,4 +1,4 @@
-# Dokumentacja API — AI Provider Gateway
+﻿# Dokumentacja API — AI Provider Gateway
 
 Wersja dokumentu: **1.6**. Dokument jest wersjonowany razem z kodem. **[`openapi.json`](../../openapi.json)** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat + **models**, fasada OpenAI, fasada Anthropic) oraz health. **Metryki Prometheus** (`GET /metrics`) są poza OpenAPI — opis w tym dokumencie i w `deployment.md`. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
 
@@ -193,6 +193,8 @@ Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), 
 | **`checks.config`** | **`healthy`** gdy załadowane są **`gateway`** i **`resolvedSystemPrompts`** (typowy start po poprawnym YAML). **`unhealthy`** gdy brakuje któregoś z tych obiektów w config — wtedy body często ma `status: not_ready`. Implementacja: `HealthService.checkConfig`.                                                                                                                  |
 | **`checks.redis`**  | **`required: false`** → **`healthy`**, „Redis not required”, bez probe. **`required: true`** → `RedisConnectionService.ping()`; **`healthy`** gdy PONG OK, **`degraded`** gdy połączenie/ping niedostępne — **nie** blokuje `ready`. Pole **`consumers`**: `cache`, `rate-limit` (kto wymaga Redis w tym deploymencie). Implementacja: `isRedisRequiredFromConfig()` + `checkRedis`. |
 | **`checks.cache`**  | Stan **feature** cache: wyłączony → **`healthy`** („Cache disabled (noop)”). Backend **`redis`** → status zależy od **`checks.redis`** (bez osobnego probe przez `CacheRegistryService`). Inne backendy → probe przez registry jak dotychczas. **`degraded`** nie blokuje `ready`.                                                                                                   |
+
+| **`checks.embeddings`** | Obecne tylko gdy `SEMANTIC_CACHE_ENABLED=true`. Sprawdza dostepnosc serwisu embeddingów Ollama (`EMBEDDING_BASE_URL`). **`healthy`** przy sukcesie, **`degraded`** gdy niedostepny — **fail-open**: stan degraded **nie** blokuje `ready`. Pole nieobecne gdy cache semantyczny wylaczony. `consumers` w `checks.redis` zyskuje `semantic-cache` gdy wlaczony. |
 
 Orchestrator powinien traktować instancję jako gotową tylko przy `status === "ready"` w JSON.
 

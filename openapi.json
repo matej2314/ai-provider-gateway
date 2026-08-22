@@ -1331,7 +1331,7 @@
   },
   "info": {
     "title": "AI Provider Gateway API",
-    "description": "REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/dokumentacja_api.md`.",
+    "description": "REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/pl/dokumentacja_api.md`.",
     "version": "0.14.0",
     "contact": {}
   },
@@ -1874,7 +1874,7 @@
           "code": {
             "type": "string",
             "example": "VALIDATION_FAILED",
-            "description": "Machine-readable error code; dictionary: docs/dictionary.md"
+            "description": "Machine-readable error code; dictionary: docs/pl/dictionary.md"
           },
           "message": {
             "type": "string",
@@ -2041,7 +2041,8 @@
               "type": "string",
               "enum": [
                 "cache",
-                "rate-limit"
+                "rate-limit",
+                "semantic-cache"
               ]
             },
             "description": "Features that require Redis. Omitted when required=false.",
@@ -2063,7 +2064,7 @@
             "$ref": "#/components/schemas/HealthCheckItemDto"
           },
           "redis": {
-            "description": "Shared redis infrastructure. Probed only when required=true.",
+            "description": "Shared redis infrastructure. Present only when Redis is required (cache redis and/or smart rate limit). Probed when present.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/HealthRedisCheckItemDto"
@@ -2077,11 +2078,18 @@
                 "$ref": "#/components/schemas/HealthCheckItemDto"
               }
             ]
+          },
+          "embeddings": {
+            "description": "Embedding service health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded state does not block ready status.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCheckItemDto"
+              }
+            ]
           }
         },
         "required": [
           "config",
-          "redis",
           "cache"
         ]
       },

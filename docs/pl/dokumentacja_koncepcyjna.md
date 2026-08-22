@@ -50,7 +50,8 @@ Poniższy opis definiuje zakres produktu w rozumieniu tego repozytorium. Kontrak
 | Fasada Anthropic (oficjalny kontrakt Anthropic Messages) | `/api/v1/anthropic/*` — IDE i inne klienty |
 | Tool calling | Definicje i wywołania narzędzi w czacie |
 | Extended thinking (reasoning models) | Parametry thinking / reasoning |
-| Response caching (Redis) | Cache odpowiedzi `POST /chat` |
+| Cache odpowiedzi — exact (Redis KV) | Lookup hashowy dla `POST /chat`; `cached: true` przy trafieniu |
+| Cache odpowiedzi — semantyczny (Redis Search + Ollama) | Embedding + KNN dla `POST /chat`; fail-open; `SEMANTIC_CACHE_ENABLED` |
 | Smart rate limiting | Limity per klucz klienta |
 
 **Podsumowanie:** Wymienione funkcje są częścią produktu. Architektura i integracje: `architektura.md`, `integracje.md`, `testy.md`.

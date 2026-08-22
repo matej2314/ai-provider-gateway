@@ -56,6 +56,7 @@ Szczegóły: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md) (sekcj
 | Fasada vs provider runtime | [`dictionary.md`](dictionary.md), [`integracje.md`](integracje.md) |
 | System prompt (pliki serwerowe) | [`konfiguracja.md`](konfiguracja.md), [`architektura.md`](architektura.md) |
 | Tool calling / `finishReason` | [`dokumentacja_api.md`](dokumentacja_api.md), [`dictionary.md`](dictionary.md) |
+| Cache exact + semantic (env, kolejność lookup, fail-open) | [`konfiguracja.md`](konfiguracja.md), [`dictionary.md`](dictionary.md) |
 | Cache i smart rate limit | [`konfiguracja.md`](konfiguracja.md) |
 | Retry, timeout, fallback | [`konfiguracja.md`](konfiguracja.md), [`dokumentacja_api.md`](dokumentacja_api.md) |
 | Observability (Pino, Sentry, Prometheus) | [`architektura.md`](architektura.md), [`deployment.md`](deployment.md) |

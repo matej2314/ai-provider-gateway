@@ -16,7 +16,8 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na **`providerInstance`** → `AIProvider` + `modelId`. |
 | **Provider** | Instancja `AIProvider` (fabryka + klucz API per wpis w YAML). |
 | **LLM API** | Zewnętrzny serwis providera. |
-| **ResponseCache** | `ResponseCacheService` — opcjonalny odczyt/zapis odpowiedzi **`POST /api/v1/chat`** (klucz z hasha: `modelAlias`, `messages`, sygnatura system promptu, efektywne parametry wywołania); odczyt walidowany `CachedChatResponseSchema`; brak wpływu na streaming. |
+| **ResponseCache (ExactCache)** | `ResponseCacheService` — odczyt/zapis exact cache dla **`POST /api/v1/chat`** (klucz hash: `modelAlias`, `clientId`, `messages`, sygnatura system promptu, efektywne parametry); odczyt walidowany `CachedChatResponseSchema`; brak wpływu na streaming. |
+| **SemanticCache** | `SemanticCacheService` — embedding ostatniej wiadomości `role: user` → zapytanie KNN w Redis Search → sprawdzenie progu podobieństwa cosinusowego. Fail-open: błąd embedding/Search → wywołanie providera. Pominięty dla tooling, `clientId === 'unknown'` i streamingu. |
 | **Metrics** | **`AiMetricsService`** (Sentry LLM spans) + **`AppMetricsService`** (Prometheus RED); span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId` (`conversation_tracking.md`). Health gauges odświeżane przy `GET /metrics`. |
 | **Fasada integracji** | Kontroler `src/integrations/openai` lub `anthropic` + mappery — tłumaczenie kontraktu vendora na `ChatRequestDto`, potem ten sam `ChatService` co natywny czat (`integracje.md`). |
 
@@ -30,19 +31,26 @@ sequenceDiagram
   participant K as Klient
   participant H as HTTP (ChatController)
   participant S as ChatService
-  participant C as ResponseCache
+  participant E as ExactCache (ResponseCacheService)
+  participant SC as SemanticCache (SemanticCacheService)
 
   K->>+H: POST /api/v1/chat (JSON)
   H->>H: ValidationPipe (DTO)
   Note over H: RequestIdMiddleware (req.requestId + response header x-request-id); GatewayKeyGuard + SmartRateLimitGuard na czacie
   H->>+S: executeChat(request)
-  S->>C: get (opcjonalnie)
-  alt cache HIT
-    C-->>S: zapisana odpowiedź
-    S-->>-H: 201 JSON (cached)
-  else cache MISS / wyłączony
-    Note over S: resolve + provider (szczegóły: sekcja 1)
-    S-->>-H: wynik lub wyjątek HTTP
+  S->>E: lookup exact (klucz hash)
+  alt exact HIT
+    E-->>S: zapisana odpowiedź (cached: true)
+    S-->>-H: 201 JSON (cached, exact)
+  else exact MISS / wyłączony
+    S->>SC: lookup semantyczny (embedding + KNN) — pominięty dla tooling / unknown clientId / stream
+    alt semantic HIT (similarity >= próg)
+      SC-->>S: zapisana odpowiedź (cached: true)
+      S-->>-H: 201 JSON (cached, semantyczny)
+    else semantic MISS / wyłączony / fail-open
+      Note over S: resolve + provider (szczegóły: sekcja 1)
+      S-->>-H: wynik lub wyjątek HTTP
+    end
   end
   H-->>-K: 201 JSON lub błąd
 ```

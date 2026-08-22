@@ -22,12 +22,13 @@ Gateway CLI (wizard, provider/model/client CRUD): [`command_line_interface.md`](
 ```
 deployment/
 ├── docker/
-│   ├── Dockerfile                         # Multi-stage build (production)
-│   ├── docker-compose.yml                 # MVP: gateway only
-│   ├── docker-compose.redis.yml           # Extension: + Redis
-│   ├── docker-compose.monitoring.yml      # Extension: + Prometheus + Grafana
-│   ├── docker-compose.ollama.yml          # Extension: + Ollama (local LLM)
-│   ├── docker-compose.dev.yml             # Override: dev mode (hot reload)
+│   ├── Dockerfile                              # Multi-stage build (production)
+│   ├── docker-compose.yml                      # MVP: gateway only
+│   ├── docker-compose.redis.yml                # Extension: + Redis Stack (port 6380, redis/redis-stack-server)
+│   ├── docker-compose.monitoring.yml           # Extension: + Prometheus + Grafana
+│   ├── docker-compose.ollama.yml               # Extension: + Ollama chat LLM
+│   ├── docker-compose.ollama-embedding.yml     # Extension: + Ollama embedding (mxbai-embed-large, port 11435, CPU)
+│   ├── docker-compose.dev.yml                  # Override: dev mode (hot reload)
 │   └── docker-compose.override.yml.example
 ├── monitoring/                            # Prometheus, Grafana, alert rules
 │   ├── prometheus.yml                     # Scrape /metrics every 10s
@@ -156,11 +157,21 @@ Choose a stack variant:
 | Variant | Makefile | npm |
 |---------|----------|-----|
 | MVP (gateway only) | `make docker-up` | `npm run docker:up` |
-| Gateway + Redis | `make docker-up-redis` | `npm run docker:up:redis` |
+| Gateway + Redis Stack | `make docker-up-redis` | `npm run docker:up:redis` |
 | Gateway + monitoring | `make docker-up-monitoring` | `npm run docker:up:monitoring` |
-| Full stack (prod) | `make docker-up-full` | `npm run docker:up:full` |
+| Full stack (prod: gateway + Redis Stack + monitoring) | `make docker-up-full` | `npm run docker:up:full` |
+| Infra only (Redis Stack + embedding, for `start:dev`) | — | `npm run infra:up` |
+| Chat Ollama (local LLM) | `make docker-up-ollama` | `npm run docker:up:ollama` |
 | Dev (hot reload) | `make docker-up-dev` | `npm run docker:up:dev` |
 | Dev + full stack | `make docker-up-dev-full` | `npm run docker:up:dev:full` |
+
+**Base stack for semantic cache:** gateway + Redis Stack + ollama-embedding. For local `start:dev` without the Docker gateway, use `npm run infra:up` to start only Redis Stack and the embedding service.
+
+**RAM requirement:** running the base stack (gateway + Redis Stack + ollama-embedding with `mxbai-embed-large`) requires minimum **16 GB RAM**. Ollama chat LLM is a separate optional service.
+
+**Redis Stack:** image `redis/redis-stack-server` (pinned tag), port **6380**, `noeviction` policy (via `REDIS_ARGS` — do **not** override `command:` in the Compose file or the Redis Search module will be lost). Health check: `redis-cli -p 6380 ping`.
+
+**Ollama embedding (`docker-compose.ollama-embedding.yml`):** model `mxbai-embed-large` (DIM 1024), CPU-only, host port **11435** → container 11434, `OLLAMA_KEEP_ALIVE=-1`, separate volume from the chat Ollama service, network `ai-gateway-network`. Set `EMBEDDING_BASE_URL=http://ollama-embedding:11434` inside Docker networking.
 
 Image build (optionally separately):
 

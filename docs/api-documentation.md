@@ -194,6 +194,9 @@ Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), 
 | **`checks.redis`**  | **`required: false`** → **`healthy`**, “Redis not required”, no probe. **`required: true`** → `RedisConnectionService.ping()`; **`healthy`** when PONG OK, **`degraded`** when connection/ping unavailable — does **not** block `ready`. **`consumers`** field: `cache`, `rate-limit` (who requires Redis in this deployment). Implementation: `isRedisRequiredFromConfig()` + `checkRedis`. |
 | **`checks.cache`**  | Cache **feature** state: disabled → **`healthy`** (“Cache disabled (noop)”). Backend **`redis`** → status depends on **`checks.redis`** (no separate probe via `CacheRegistryService`). Other backends → probe via registry as before. **`degraded`** does not block `ready`.                                                                                                   |
 
+
+| **`checks.embeddings`** | Present only when `SEMANTIC_CACHE_ENABLED=true`. Probes the Ollama embedding service (`EMBEDDING_BASE_URL`). **`healthy`** on success, **`degraded`** when unavailable � **fail-open**: degraded does **not** block `ready`. Field absent when semantic cache is disabled. `consumers` in `checks.redis` gains `semantic-cache` when enabled. |
+
 The orchestrator should treat an instance as ready only when `status === "ready"` in the JSON.
 
 After each readiness evaluation (`getReadiness()` or the hook on `GET /metrics`) `HealthService.publishMetrics()` is called — updating Prometheus gauges `gateway_readiness` and `gateway_health_status` (log only when the aggregate `ready` ↔ `not_ready` changes).

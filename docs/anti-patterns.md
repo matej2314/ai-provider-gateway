@@ -1,4 +1,4 @@
-# Anti-patterns / what to watch for — AI Provider Gateway
+﻿# Anti-patterns / what to watch for — AI Provider Gateway
 
 This file collects common pitfalls in “LLM gateway” projects.
 
@@ -173,3 +173,20 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 **Don’t:** expect `npm run start:dev` to work right after cloning without a filled `.env` (provider keys + `MASTER_KEY`) and a valid `gateway.config.yaml`.
 
 **Do:** run `gateway config:init` or manually fill YAML + `.env` (`configuration.md`); verify with `gateway config:validate` (full) or `npm run config:validate` (YAML + runtime rules).
+## 16) Rozszerzanie CacheBackend o vector search
+
+**Nie:** dodawaj zapytan Redis Search / KNN do istniejacych adapterow `CacheBackend` / `noop` / `redis` w `src/cache/adapters/`. Interfejs KV `CacheBackend` jest zaprojektowany dla dokladnych lookupu klucz-wartosc i nie ma koncepcji wyszukiwania podobienstwa.
+
+**Zrob:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (exact -> semantic -> provider) jest orkiestrowana w `ChatCacheGuardService`, nie wewnatrz istniejacych adapterow.
+
+## 17) Nadpisywanie command: w Redis Stack Compose
+
+**Nie:** nadpisuj `command:` w `docker-compose.redis.yml` aby konfigurkowac polityke pamieci Redis lub inne opcje. Nadpisanie `command:` na obrazie `redis/redis-stack-server` usuwa domyslne argumenty entry point ktore laduja moduly Redis Search i JSON — modul `search` zniknie cicho.
+
+**Zrob:** przekazuj parametry Redis przez zmienna srodowiskowa **`REDIS_ARGS`** w serwisie Compose. Przyklad: `REDIS_ARGS: '--port 6380 --maxmemory 2gb --maxmemory-policy noeviction'`.
+
+## 18) Zly trafienie semantyczne — niski prog podobienstwa
+
+**Nie:** ustaw `SEMANTIC_CACHE_MIN_SIMILARITY` ponizej 0.85 w produkcji. Niski prog powoduje ze odpowiedzi na semantycznie rozne prompty sa serwowane z cache — trescio niepoprawne dla aktualnego zapytania.
+
+**Zrob:** zachowaj domyslne 0.90 (podobienstwo cosinusowe) lub zwieksz dla domen wymagajacych wysokiej precyzji. Uzywaj partycjonowania per alias (`modelAlias` + `clientId`) aby ograniczyc trafiienia cross-context. Monitoruj metryki `semantic_cache_hits` i probekuj trafienia cache podczas strojenia.
