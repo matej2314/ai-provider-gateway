@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as inquirer from 'inquirer';
 import chalk from 'chalk';
+import { assertInteractiveAllowed } from '../../agent/inquirer-guard';
 import { CliLogger } from '../../utils/cli-logger.util';
 import { PROVIDER_TYPES } from 'src/config/provider-types';
 import type { GatewayProviderType } from 'src/config/provider-types';
@@ -28,6 +29,7 @@ type ProviderPromptResult = CliAiProvider;
 @Injectable()
 export class ProviderPromptService {
   async promptProviders(): Promise<ProviderPromptResult[]> {
+    assertInteractiveAllowed('ProviderPromptService.promptProviders');
     CliLogger.section('Step 2/5: Providers');
     console.log(
       chalk.dim(

@@ -1,7 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import * as inquirer from 'inquirer';
 import chalk from 'chalk';
+import {
+  asClientId,
+  asEnvRef,
+  asMaxConcurrentStreams,
+  asModelAlias,
+  asModelId,
+  asPort,
+  asProviderApiKey,
+  asProviderInstanceId,
+  asRateLimitBurst,
+  asRateLimitRps,
+} from 'src/common/types/branded.types';
+import { isOpenAiProviderType } from 'src/config/provider-types';
+import type { InitAnswers } from '../schemas/agent-answers.schema';
 import { CliLogger } from '../utils/cli-logger.util';
+import { deriveApiKeyRef, deriveBaseUrlRef } from '../utils/provider-id.util';
 import { ConfigTemplateInput } from '../templates/gateway-config.template';
 import { EnvTemplateInput } from '../templates/env.template';
 import {
@@ -15,8 +30,12 @@ import { KeyPromptService } from './prompts/key-prompt.service';
 import { ProviderPromptService } from './prompts/provider-prompt.service';
 import { ModelPromptService } from './prompts/model-prompt.service';
 import { ClientPromptService } from './prompts/client-prompt.service';
-import { ServerPromptService } from './prompts/server-prompt.service';
+import {
+  ServerPromptService,
+  type ServerConfigPromptResult,
+} from './prompts/server-prompt.service';
 import { KeyGeneratorService } from './key-generator.service';
+
 export interface WizardRunResult {
   configInput: ConfigTemplateInput;
   envInput: EnvTemplateInput;
@@ -89,6 +108,97 @@ export class WizardOrchestratorService {
       CliLogger.blank();
       throw error;
     }
+  }
+
+  // AGENT-MODE: non-interactive path — no inquirer; operator secrets deferred to .env
+  runFromAnswers(answers: InitAnswers): WizardRunResult {
+    const state: WizardState = {
+      sessionId: crypto.randomUUID(),
+      startedAt: new Date().toISOString(),
+      currentStep: WizardStep.MasterKey,
+      completedSteps: [],
+      data: {},
+      files: { created: [], backedUp: [] },
+    };
+
+    state.data.masterKey = this.keyGenerator.generateMasterKey();
+    state.completedSteps.push(WizardStep.MasterKey);
+
+    // AGENT-MODE: człowiek uzupełnia apiKeyRef / baseUrlRef w .env (nigdy z answers)
+    state.data.providers = answers.providers.map((p) => {
+      const id = asProviderInstanceId(p.id);
+      const apiKeyRef = deriveApiKeyRef(id);
+      const baseUrlRef = isOpenAiProviderType(p.type)
+        ? deriveBaseUrlRef(id)
+        : undefined;
+      return {
+        id,
+        type: p.type,
+        apiKeyRef,
+        apiKey: asProviderApiKey(''),
+        enabled: p.enabled !== false,
+        baseUrlRef,
+        baseUrl: undefined,
+      };
+    });
+    state.completedSteps.push(WizardStep.Providers);
+
+    state.data.models = answers.models.map((m) => ({
+      alias: asModelAlias(m.alias),
+      providerInstance: asProviderInstanceId(m.providerInstance),
+      modelId: asModelId(m.modelId),
+    }));
+    state.completedSteps.push(WizardStep.Models);
+
+    state.data.clients = answers.clients.map((c) => {
+      const id = asClientId(c.id);
+      const gatewayKeyRef = asEnvRef(
+        `GATEWAY_KEY_${c.id.trim().toUpperCase().replace(/-/g, '_')}`,
+      );
+      return {
+        id,
+        name: c.name,
+        type: c.type,
+        gatewayKeyRef,
+        gatewayKey: this.keyGenerator.generateGatewayClientKey(c.id),
+        rateLimit: c.rateLimit
+          ? {
+              rps: asRateLimitRps(c.rateLimit.rps),
+              burst: asRateLimitBurst(c.rateLimit.burst),
+              maxConcurrentStreams: c.rateLimit.maxConcurrentStreams
+                ? asMaxConcurrentStreams(c.rateLimit.maxConcurrentStreams)
+                : undefined,
+            }
+          : undefined,
+      };
+    });
+    state.completedSteps.push(WizardStep.Clients);
+
+    // AGENT-MODE: redisPassword / sentryDsn zawsze '' (człowiek → .env); host/port OK z answers
+    state.data.serverConfig = this.mapServerConfigFromAnswers(answers.server);
+    state.completedSteps.push(WizardStep.ServerConfig);
+
+    const result = this.buildResult(state);
+    return { ...result, wizardState: state };
+  }
+
+  private mapServerConfigFromAnswers(
+    server: InitAnswers['server'],
+  ): ServerConfigPromptResult {
+    return {
+      port: asPort(server.port),
+      nodeEnv: server.nodeEnv,
+      swaggerEnabled: server.swaggerEnabled,
+      cacheEnabled: server.cacheEnabled,
+      cacheBackend: server.cacheBackend,
+      redisHost: server.redisHost,
+      redisPort:
+        server.redisPort !== undefined ? asPort(server.redisPort) : undefined,
+      redisPassword: '',
+      rateLimitSmartEnabled: server.rateLimitSmartEnabled,
+      metricsBackend: server.metricsBackend,
+      sentryDsn: '',
+    };
   }
 
   private async executeStep(
@@ -189,6 +299,7 @@ export class WizardOrchestratorService {
           id: provider.id,
           type: provider.type,
           apiKeyRef: provider.apiKeyRef,
+          enabled: provider.enabled !== false,
           ...(provider.baseUrlRef && { baseUrlRef: provider.baseUrlRef }),
         })),
         clients: state.data.clients!.map((client) => ({

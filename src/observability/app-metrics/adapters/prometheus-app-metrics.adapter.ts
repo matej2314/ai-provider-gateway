@@ -225,7 +225,10 @@ export class PrometheusAppMetricsAdapter implements AppMetricsBackend {
     for (const component of Object.keys(
       snapshot.components,
     ) as HealthComponent[]) {
-      this.setComponentHealth(component, snapshot.components[component]);
+      const status = snapshot.components[component];
+      if (status) {
+        this.setComponentHealth(component, status);
+      }
     }
   }
 

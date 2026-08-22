@@ -10,7 +10,7 @@ Wersja dokumentu: **1.9**.
 | **Baza (przykład)** | `http://localhost:3000` |
 | **Prefiks ścieżek** | `/api/v1` (`API_GLOBAL_PREFIX` w `src/setup.app.ts`) |
 | **Format** | JSON (`application/json`) dla standard; SSE (`text/event-stream`) dla streamingu |
-| **Sukces POST (JSON)** | **201 Created** — natywny czat i fasady IDE (non-stream); zgodne z `openapi.json` (`@ApiResponse({ status: 201 })`) |
+| **Sukces POST (JSON)** | **201 Created** — natywny czat i fasady oficjalnych kontraktów (non-stream); zgodne z `openapi.json` (`@ApiResponse({ status: 201 })`) |
 | **Sukces POST (stream)** | **200** — `text/event-stream` (`POST .../chat/stream`, `stream: true` na fasadach) |
 | **Błędy (JSON)** | Envelope `ErrorEnvelope` (`{statusCode, code, message, requestId, details?}`) — schema w `openapi.json`, implementacja w `src/common/filters/http-exception.filter.ts` |
 | **`x-request-id`** | Nagłówek odpowiedzi (wszystkie trasy z `RequestIdMiddleware`, w tym health) — echo nagłówka żądania lub `req_<uuid>` |
@@ -121,7 +121,7 @@ Standardowa odpowiedź (pełna) — **zaimplementowane.** Guardy: `@GatewayKeyAn
 
 ---
 
-## Integracje IDE (`src/integrations/`)
+## Fasady oficjalnych kontraktów (`src/integrations/`)
 
 Fasady dla klientów oczekujących API vendora. Wspólna allowlista kluczy klienta; **inny** nagłówek auth niż natywny czat. Trasy i schematy w **[`openapi.json`](../../openapi.json)** (security `BearerAuth` / `ApiKeyAuth`). Błędy w formacie vendora, nie `ErrorEnvelope`. Szczegóły: `integracje.md`, `integracja_openai_kontrakt.md`, `integracja_anthropic_messages.md`.
 

@@ -1,13 +1,13 @@
-# Fasada kontraktu OpenAI (Cursor IDE)
+# Fasada oficjalnego kontraktu OpenAI
 
 > **Ważne — fasada ≠ provider OpenAI:**  
-> Ten dokument opisuje **fasadę integracji** — warstwę HTTP w `src/integrations/openai/`, która implementuje **kształt** OpenAI Chat Completions API. Służy kompatybilności z Cursor i podobnymi klientami; OpenAI API stało się jednym ze standardów branżowych dla narzędzi IDE.  
+> Ten dokument opisuje **fasadę oficjalnego kontraktu** — warstwę HTTP w `src/integrations/openai/`, która implementuje **kształt** OpenAI Chat Completions API. Służy kompatybilności z Cursor i innymi klientami oczekującymi tego kontraktu.  
 > **To nie jest** gwarancja, że backend LLM to api.openai.com — routing zależy wyłącznie od **`model`** (= `modelAlias` w YAML) i wpisu `models[]` → `providerInstance` (może być Anthropic, Google, OpenAI lub compatible).  
 > **Auth:** `Authorization: Bearer` to **klucz klienta gateway** z allowlisty, nie klucz OpenAI.com.  
 > Adapter runtime OpenAI (`create-openai-provider.ts`, `create-openai-compatible-provider-instance.ts` w `src/providers/`) — osobna warstwa — [`provider_openai_runtime.md`](provider_openai_runtime.md).  
 > Analogiczna zasada dla fasady Anthropic: [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md), [`dictionary.md`](dictionary.md).
 
-Fasada **`/api/v1/openai`** pozwala podłączyć **Cursor** (i inne klienty ze sztywnym klientem OpenAI) do gatewaya, używając własnej allowlisty kluców zamiast klucza OpenAI.com.
+Fasada **`/api/v1/openai`** pozwala podłączyć **Cursor** (i inne klienty wymagające kontraktu OpenAI) do gatewaya, używając własnej allowlisty poświadczeń zamiast klucza OpenAI.com.
 
 > Moduł `src/integrations/openai/` — `GET /models`, `POST /chat/completions` (JSON + stream SSE w formacie OpenAI). Architektura wspólna: [`integracje.md`](integracje.md).
 
@@ -140,6 +140,6 @@ Trasy OpenAI są w **`openapi.json`** (tag **OpenAI API**, security `BearerAuth`
 ## Powiązane
 
 - [`integracje.md`](integracje.md) — architektura fasad, rate limit
-- [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md) — fasada Anthropic (Claude Code)
+- [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md) — fasada oficjalnego kontraktu Anthropic
 - [`konfiguracja.md`](konfiguracja.md) — `gateway.config.yaml`, klucze env
 - [`lista_endpointów.md`](lista_endpointów.md)

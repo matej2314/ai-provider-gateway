@@ -13,7 +13,7 @@ Gateway CLI (wizard, CRUD providerów/modeli/klientów): [`CLI.md`](CLI.md).
 - **Docker Compose** 2.0+
 - Klucze API providerów (np. Anthropic, Google) — zależnie od skonfigurowanych adapterów
 - (Opcjonalnie) **Node.js 20+** i `npm install` — do walidacji konfiguracji oraz CLI przed deployem
-- **Deploy VPS (Actions):** self-hosted runner na serwerze (`[self-hosted, linux]`), Docker daemon dostępny dla runnera (często DooD / `docker.sock`), HashiCorp Vault (AppRole) z sekretami aplikacji, GitHub Environment `production` (`VAULT_ROLE_ID`, `VAULT_SECRET_ID`)
+- **Deploy VPS (Actions):** self-hosted runner na serwerze (`[self-hosted, linux]`), Docker daemon dostępny dla runnera (często DooD / `docker.sock`), sekrety aplikacji jako skopiowany plik `.env` na hoście **albo** we własnym menedżerze sekretów (wymaga dostosowania [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) i skryptów w `deployment/scripts/`), GitHub Environment `production`
 
 ---
 
@@ -37,16 +37,18 @@ deployment/
 │   ├── deploy-production.sh               # sync | secrets | up | health | all (pełny stack)
 │   ├── deploy-staging.sh                  # jak production, bez Redis (DEPLOY_MODE=staging)
 │   └── rollback.sh                        # auto-rollback do last known-good SHA
-└── templates/
-    ├── .env.example                       # Szablon zmiennych środowiskowych
-    └── gateway.config.example.yaml        # Szablon YAML (boilerplate / placeholder)
+└── templates/                             # Opcjonalne kopie / CI PLACEHOLDER
+    ├── .env.example                       # Do setupu preferuj root `.env.example`
+    └── gateway.config.example.yaml        # Do setupu preferuj root `gateway.config.example.yaml`
 ```
 
-Pliki aktywne (`gateway.config.yaml`, `.env`) **kopiujesz do katalogu głównego repozytorium** — lokalny Docker montuje je stamtąd do kontenera. Na VPS pipeline synchronizuje checkout do katalogu hosta (domyślnie `/opt/ai-provider-gateway`) i bind-mountuje stamtąd.
+Pliki aktywne (`gateway.config.yaml`, `.env`) żyją w **katalogu głównym** repozytorium — skopiuj je z rootowych placeholderów (`gateway.config.example.yaml`, `.env.example`), potem uzupełnij albo uruchom `config:init`. Lokalny Docker montuje je z roota do kontenera. Na VPS pipeline synchronizuje checkout do katalogu hosta (domyślnie `/opt/ai-provider-gateway`) i bind-mountuje stamtąd.
 
 ---
 
-## Szybki start
+## Szybki start (lokalnie — Docker Compose)
+
+Poniższe kroki dotyczą **uruchomienia na maszynie deweloperskiej** (Compose / Makefile / npm). Deploy produkcyjny przez GitHub Actions jest opisany w sekcji [Deploy produkcyjny (GitHub Actions)](#deploy-produkcyjny-github-actions) — m.in. sieć Docker tworzy tam pipeline, nie operator.
 
 ### 1. Sklonuj repozytorium
 
@@ -59,19 +61,19 @@ cd ai-provider-gateway
 
 Projekt **nie ma wdrożenia zero-config**. Musisz dostarczyć `gateway.config.yaml` i `.env` w katalogu głównym. Dostępne są dwie ścieżki:
 
-#### Opcja A: Szablony produkcyjne (zalecane dla Docker / CI/CD)
+#### Opcja A: Placeholdery w katalogu głównym (zalecane dla Docker / CI/CD)
 
 ```bash
-cp deployment/templates/gateway.config.example.yaml gateway.config.yaml
-cp deployment/templates/.env.example .env
+cp gateway.config.example.yaml gateway.config.yaml
+cp .env.example .env
 ```
 
 Następnie uzupełnij pliki:
 
-- **`.env`** — sekrety i ustawienia serwera (`MASTER_KEY`, klucze providerów, opcjonalnie Redis, Sentry, rate limit).
+- **`.env`** — sekrety i ustawienia serwera (wartości pod nazwami `*KeyRef` z YAML, opcjonalnie Redis, Sentry, rate limit).
 - **`gateway.config.yaml`** — struktura providerów, modeli i klientów.
 
-Szablon YAML w `deployment/templates/gateway.config.example.yaml` to **konfiguracja boilerplate** — minimalny, poprawny schemat Zod z jawnymi placeholderami do uzupełnienia:
+Szablon YAML w `gateway.config.example.yaml` (katalog główny) to **konfiguracja boilerplate** — minimalny, poprawny schemat Zod z jawnymi placeholderami do uzupełnienia:
 
 | Element | Przykład w szablonie |
 |---------|----------------------|
@@ -91,7 +93,7 @@ Po skopiowaniu szablonu do `gateway.config.yaml` możesz:
 - **Ręcznie** zastąpić placeholdery prawdziwymi nazwami env i wpisami (zgodnie ze schematem Zod — patrz [`konfiguracja.md`](konfiguracja.md) sekcja 2), **albo**
 - Uruchomić wizard (Opcja B), który wygeneruje pełną konfigurację operacyjną.
 
-> **Ważne:** Nazwy zmiennych w `.env` muszą odpowiadać polom `*KeyRef` w YAML (`masterKeyRef`, `apiKeyRef`, `gatewayKeyRef`). Runtime **nie** podstawia `${VAR}` — wczytuje wartości z env po nazwie refa.
+> **Ważne:** Nazwy zmiennych w `.env` muszą odpowiadać polom `*KeyRef` w YAML (`masterKeyRef`, `apiKeyRef`, `gatewayKeyRef`). Rootowy `.env.example` jest sparowany z `gateway.config.example.yaml`. Runtime **nie** podstawia `${VAR}` — wczytuje wartości z env po nazwie refa.
 
 #### Opcja B: Wizard CLI (zalecane przy pierwszym uruchomieniu lokalnym)
 
@@ -115,15 +117,39 @@ npm run config:validate
 
 Przy konfiguracji boilerplate walidator zakończy się błędem i wskaże `gateway config:init` — to oczekiwane zachowanie **przed** uzupełnieniem plików.
 
-### 4. Sieć Docker
+### 4. Sieć Docker (`ai-gateway-network`)
 
-Wszystkie pliki Compose używają zewnętrznej sieci `ai-gateway-network`. Utwórz ją **raz** przed pierwszym startem:
+Wszystkie pliki Compose deklarują sieć `ai-gateway-network` jako **`external: true`** — sam `docker compose up` **nie** utworzy sieci. Zachowanie zależy od ścieżki wdrożenia:
+
+| Ścieżka | Kto tworzy sieć? | Co zrobić |
+|---------|------------------|-----------|
+| **Lokalnie** (`make docker-up*`, `npm run docker:up*`, ręczny Compose) | Ty | Utwórz sieć **raz** przed pierwszym startem (poniżej) |
+| **Produkcja na VPS** ([`deploy.yml`](../../.github/workflows/deploy.yml) → `deploy-production.sh up`) | Pipeline | Nic — `cmd_up` woła `docker network create ai-gateway-network` (idempotentnie, `\|\| true`) przed `compose up` |
+| **CI** ([`ci.yml`](../../.github/workflows/ci.yml), testy obrazu) | Workflow | Nic — job CI tworzy sieć przed testami |
+
+#### Lokalny deployment
+
+Przed pierwszym `docker compose` / `make docker-up*` / `npm run docker:up*`:
 
 ```bash
 docker network create ai-gateway-network
 ```
 
-### 5. Deploy
+Ponowne wywołanie przy istniejącej sieci kończy się błędem Dockera — to normalne; sieć już jest. Sprawdzenie: `docker network ls | grep ai-gateway-network`.
+
+Bez tej sieci lokalny Compose padnie z komunikatem o braku sieci zewnętrznej.
+
+#### Produkcja (GitHub Actions)
+
+Na VPS **nie** twórz sieci ręcznie jako krok przygotowania deployu. Orchestracja:
+
+1. Actions → **Deploy to VPS** → `deploy.yml`
+2. `deployment/scripts/deploy-production.sh` → komenda `up` (`cmd_up`)
+3. Skrypt tworzy `ai-gateway-network` (jeśli brak), potem buduje i startuje stack
+
+Szczegóły przebiegu: [Deploy produkcyjny (GitHub Actions)](#deploy-produkcyjny-github-actions).
+
+### 5. Deploy (lokalny Compose)
 
 Wybierz wariant stacku:
 
@@ -192,14 +218,14 @@ make docker-down
 
 | Plik | Lokalizacja | Cel | W Git |
 |------|-------------|-----|-------|
-| `gateway.config.example.yaml` | `deployment/templates/` | Szablon boilerplate (CLI-compatible) | ✅ |
+| `gateway.config.example.yaml` | katalog główny | PLACEHOLDER boilerplate (CLI-compatible) | ✅ |
 | `gateway.config.yaml` | katalog główny | Aktywna konfiguracja runtime | ❌ (lokalnie) |
-| `.env.example` | `deployment/templates/` | Szablon zmiennych | ✅ |
+| `.env.example` | katalog główny | Szablon zmiennych (sparowany z placeholderami YAML) | ✅ |
 | `.env` | katalog główny | Aktywne sekrety i env | ❌ `.gitignore` |
 
 **Nigdy nie commituj** `gateway.config.yaml` ani `.env` z prawdziwymi sekretami.
 
-Po skopiowaniu szablonu YAML do katalogu głównego i zmianie nazwy na `gateway.config.yaml` struktura pozostaje zgodna z walidatorem Zod (`src/config/gateway-config.schema.ts`) i z komendami CLI — nie trzeba konwertować formatu między „szablonem deploymentu” a „formatem projektu”.
+Po skopiowaniu `gateway.config.example.yaml` do `gateway.config.yaml` struktura pozostaje zgodna z walidatorem Zod (`src/config/gateway-config.schema.ts`) i z komendami CLI.
 
 ---
 
@@ -208,8 +234,8 @@ Po skopiowaniu szablonu YAML do katalogu głównego i zmianie nazwy na `gateway.
 | Scenariusz | Metoda | Powód |
 |------------|--------|-------|
 | Pierwsze uruchomienie lokalne | CLI `config:init` | Szybki, prowadzony setup z walidacją |
-| Docker Compose / VPS | Szablony z `deployment/templates/` | Brak TTY w kontenerze |
-| Kubernetes / CI/CD | Szablony + ConfigMap / Secrets Manager | Sekrety wstrzykiwane w runtime |
+| Docker Compose / VPS | Root `gateway.config.example.yaml` + `.env.example` | Brak TTY w kontenerze; PLACEHOLDER wykrywany przez CLI |
+| Kubernetes / CI/CD | Rootowe placeholdery + ConfigMap / Secrets Manager | Sekrety wstrzykiwane w runtime |
 | Dodanie providera lokalnie | CLI `provider:add` | Walidacja i sync `.env` |
 | Migracja dev → prod | Pliki wygenerowane przez CLI | Po review sekretów i limitów — te same pliki montujesz w Docker |
 
@@ -281,7 +307,7 @@ Więcej pól i reguł: [`konfiguracja.md`](konfiguracja.md).
 
 ## Zmienne środowiskowe
 
-Pełny szablon: `deployment/templates/.env.example`.
+Pełny szablon: `.env.example` (katalog główny; sparowany z `gateway.config.example.yaml`).
 
 **Wymagane do startu** (po uzupełnieniu boilerplate — nazwy zależą od YAML):
 
@@ -336,7 +362,7 @@ Lokalne skróty `npm run deploy:mvp` / `deploy:staging` / `deploy:production` (o
 
 ---
 
-## Deploy na VPS (GitHub Actions)
+## Deploy produkcyjny (GitHub Actions)
 
 Produkcyjny pipeline: [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) → skrypt [`deployment/scripts/deploy-production.sh`](../../deployment/scripts/deploy-production.sh).
 
@@ -348,9 +374,10 @@ Produkcyjny pipeline: [`.github/workflows/deploy.yml`](../../.github/workflows/d
 | Runner | Self-hosted, labelki `[self-hosted, linux]` (VPS) |
 | Environment | GitHub `production` (approval + sekrety Vault AppRole) |
 | Katalog na hoście | `/opt/ai-provider-gateway` (`DEPLOY_DIR`) |
+| Sieć Docker | `ai-gateway-network` — tworzona w `deploy-production.sh` (`cmd_up`); **nie** wymaga ręcznego `docker network create` przed Actions |
 | Last known-good | Plik `/opt/ai-provider-gateway/.deployed-sha` |
 | Gate CI | Co najmniej jeden **sukces** workflow `ci.yml` dla deployowanego SHA |
-| Sekrety aplikacji | Vault KV `secret/data/ai-provider-gateway/prod` → `.env` (workspace + host) |
+| Sekrety aplikacji | **Bazowo HashiCorp Vault** (AppRole + KV `secret/data/ai-provider-gateway/prod` → `.env` na workspace i hoście). Własny menedżer sekretów / skopiowany `.env` wymaga zmian w: [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) (krok *Fetch secrets from Vault*), [`deployment/scripts/deploy-production.sh`](../../deployment/scripts/deploy-production.sh) (`cmd_secrets`), oraz zwykle [`deployment/scripts/rollback.sh`](../../deployment/scripts/rollback.sh) (`SKIP_VAULT_FETCH`) |
 | Readiness | `GET http://ai-gateway:3000/api/v1/health/ready` → `body.status == "ready"` |
 | Health retries | Domyślnie **6** prób co **5 s** (`HEALTH_ATTEMPTS` w `deploy-production.sh`) |
 
@@ -361,7 +388,7 @@ Definicja workflow pochodzi z brancha wybranego w UI Actions („Use workflow fr
 1. Upewnij się, że dla docelowego SHA jest zielony run [`ci.yml`](../../.github/workflows/ci.yml) (na push do feature brancha zwykle tryb szybki: lint + unit).
 2. Actions → **Deploy to VPS** → Run workflow.
 3. Inputy:
-   - **`branch`** — tip brancha (domyślnie w workflow: feature używany do nauki flow),
+   - **`branch`** — tip brancha (domyślnie w workflow: **`main`**),
    - **`sha`** (opcjonalnie) — konkretny commit lub tag; gdy ustawiony, **nadpisuje** tip brancha.
 
 Ręczny rollback bez czekania na auto-rollback: ten sam workflow z `sha` = poprzedni dobry commit (re-deploy znanego refa).
@@ -374,7 +401,7 @@ Ręczny rollback bez czekania na auto-rollback: ten sam workflow z `sha` = poprz
 4. **Mutation point** — odtąd fail może zostawić host w półstanie; auto-rollback jest uprawniony.
 5. `deploy-production.sh sync` — stop starych kontenerów gateway/prometheus/grafana, wyczyść `DEPLOY_DIR` (zostawia `.env` i `.deployed-sha`), wgraj checkout tar’em (ścieżka DooD-safe).
 6. `secrets` — AppRole login do Vault, zapis `.env`.
-7. `up` — sieć `ai-gateway-network`, overlaye bindów hosta + `main_network`, `compose build gateway` + `up -d` (pełny stack: gateway + Redis + monitoring).
+7. `up` — **tworzy** zewnętrzną sieć `ai-gateway-network` (jeśli brak; `docker network create … || true`), overlay bindów hosta (`DEPLOY_DIR` → config/logi/monitoring), `compose build gateway` + `up -d` (pełny stack: gateway + Redis + monitoring).
 8. `health` — pętla readiness.
 9. Zapis nowego SHA do `.deployed-sha`.
 10. Cleanup workspace `.env` (hostowego `.env` **nie** kasuje).
@@ -471,8 +498,8 @@ Na Linux/macOS zamień `%cd%` na `$(pwd)`.
 ```bash
 gateway config:show          # podgląd YAML
 gateway config:init          # wizard (gdy boilerplate)
-npm run config:validate      # walidacja YAML + reguły runtime (bez formatu legacy env)
-gateway config:validate      # pełna walidacja (+ format legacy ANTHROPIC/GOOGLE gdy ustawione)
+npm run config:validate      # walidacja YAML + reguły runtime
+gateway config:validate      # pełna walidacja (+ validateEnvironment)
 ```
 
 Upewnij się, że `.env` zawiera wartości dla wszystkich `*KeyRef` z YAML.
@@ -490,7 +517,7 @@ gateway provider:test
 docker logs ai-gateway
 ```
 
-Typowe przyczyny: brak `gateway.config.yaml` w katalogu głównym, brak sieci `ai-gateway-network`, pusty `MASTER_KEY`, port 3000 zajęty, błąd składni YAML.
+Typowe przyczyny: brak `gateway.config.yaml` w katalogu głównym, brak sieci `ai-gateway-network` (**tylko lokalny Compose** — utwórz ręcznie; na VPS tworzy ją `deploy-production.sh`), pusty `MASTER_KEY`, port 3000 zajęty, błąd składni YAML.
 
 ### Redis niedostępny
 
@@ -530,8 +557,8 @@ Sprawdź, czy fail był **po** kroku mutation, czy istnieje `/opt/ai-provider-ga
 Przed wdrożeniem na produkcję:
 
 - [ ] `MASTER_KEY` — silna wartość losowa (`gateway key:generate --type master` lub `openssl rand -hex 32`)
-- [ ] Klucze providerów i klientów — rotacja; na VPS źródłem jest **Vault** (nie commit `.env`)
-- [ ] GitHub Environment `production`: `VAULT_ROLE_ID`, `VAULT_SECRET_ID`; self-hosted runner online
+- [ ] Klucze providerów i klientów — rotacja; **nie** commitować `.env`. Źródło na produkcji (zgodnie z założeniami): **bazowo HashiCorp Vault**, albo skopiowany `.env` na hoście / własny menedżer sekretów (wymaga zmian w `deploy.yml`, `deploy-production.sh`, zwykle `rollback.sh` — patrz wiersz *Sekrety aplikacji* powyżej)
+- [ ] GitHub Environment `production` + self-hosted runner online; przy bazowym Vault: sekrety `VAULT_ROLE_ID`, `VAULT_SECRET_ID`
 - [ ] Katalog hosta `/opt/ai-provider-gateway` istnieje i jest montowalny przez Docker daemon
 - [ ] HTTPS — reverse proxy (nginx, Traefik, load balancer)
 - [ ] Limity rate limit — dopasowane do tierów API providerów i ruchu

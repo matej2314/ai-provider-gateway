@@ -14,12 +14,12 @@ Szczegóły: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md) (sekcj
 
 ## Jak czytać tę dokumentację
 
-1. **Pierwsze uruchomienie** — uzupełnij `.env` i `gateway.config.yaml` albo uruchom `gateway config:init` ([`konfiguracja.md`](konfiguracja.md), [`CLI.md`](CLI.md)); Docker: [`deployment.md`](deployment.md).
+1. **Pierwsze uruchomienie** — skopiuj `gateway.config.example.yaml` → `gateway.config.yaml` oraz `.env.example` → `.env`, potem uzupełnij sekrety / zastąp placeholdery, albo uruchom `gateway config:init` ([`konfiguracja.md`](konfiguracja.md), [`CLI.md`](CLI.md)); Docker: [`deployment.md`](deployment.md).
 2. **Koncepcja** — [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md) (WHAT / WHY, zakres produktu).
 3. **Architektura** — [`architektura.md`](architektura.md) (moduły i granice), [`architektura_api.md`](architektura_api.md) (konwencje HTTP), [`architektura_katalogi_pliki.md`](architektura_katalogi_pliki.md) (drzewo repo).
 4. **API** — kontrakt: [`openapi.json`](../../openapi.json) (generowany: `npm run openapi:export`); Swagger UI: `/api/v1/api-docs`; opis ludzki: [`lista_endpointów.md`](lista_endpointów.md), [`dokumentacja_api.md`](dokumentacja_api.md).
 5. **Konfiguracja i przepływy** — [`konfiguracja.md`](konfiguracja.md), [`data_flow.md`](data_flow.md), [`conversation_tracking.md`](conversation_tracking.md).
-6. **Integracje IDE** — fasada ≠ adapter runtime ([`dictionary.md`](dictionary.md)); [`integracje.md`](integracje.md), [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md), [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md), [`provider_openai_runtime.md`](provider_openai_runtime.md).
+6. **Fasady oficjalnych kontraktów** — fasada ≠ adapter runtime ([`dictionary.md`](dictionary.md)); [`integracje.md`](integracje.md), [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md), [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md), [`provider_openai_runtime.md`](provider_openai_runtime.md).
 7. **Operacje** — [`CLI.md`](CLI.md), [`deployment.md`](deployment.md), [`testy.md`](testy.md), [`anty_patterny.md`](anty_patterny.md).
 
 ## Spis plików
@@ -40,8 +40,8 @@ Szczegóły: [`dokumentacja_koncepcyjna.md`](dokumentacja_koncepcyjna.md) (sekcj
 | [`brand_types.md`](brand_types.md) | Brand types TypeScript |
 | [`anty_patterny.md`](anty_patterny.md) | Pułapki i praktyki do unikania |
 | [`integracje.md`](integracje.md) | Architektura fasad OpenAI / Anthropic |
-| [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md) | Fasada OpenAI (Cursor) |
-| [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md) | Fasada Anthropic (Claude Code) |
+| [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md) | Fasada oficjalnego kontraktu OpenAI |
+| [`integracja_anthropic_messages.md`](integracja_anthropic_messages.md) | Fasada oficjalnego kontraktu Anthropic |
 | [`provider_openai_runtime.md`](provider_openai_runtime.md) | Adapter runtime OpenAI / openai-compatible |
 | [`CLI.md`](CLI.md) | Gateway CLI (`gateway <namespace>:<action>`) |
 | [`deployment.md`](deployment.md) | Docker Compose i deploy VPS (GitHub Actions) |

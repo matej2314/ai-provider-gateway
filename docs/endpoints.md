@@ -10,7 +10,7 @@ Document version: **1.9**.
 | **Base (example)** | `http://localhost:3000` |
 | **Path prefix** | `/api/v1` (`API_GLOBAL_PREFIX` in `src/setup.app.ts`) |
 | **Format** | JSON (`application/json`) for standard; SSE (`text/event-stream`) for streaming |
-| **POST success (JSON)** | **201 Created** — native chat and IDE facades (non-stream); matches `openapi.json` (`@ApiResponse({ status: 201 })`) |
+| **POST success (JSON)** | **201 Created** — native chat and official contract facades (non-stream); matches `openapi.json` (`@ApiResponse({ status: 201 })`) |
 | **POST success (stream)** | **200** — `text/event-stream` (`POST .../chat/stream`, `stream: true` on facades) |
 | **Errors (JSON)** | `ErrorEnvelope` envelope (`{statusCode, code, message, requestId, details?}`) — schema in `openapi.json`, implementation in `src/common/filters/http-exception.filter.ts` |
 | **`x-request-id`** | Response header (all routes with `RequestIdMiddleware`, including health) — echo of request header or `req_<uuid>` |
@@ -121,7 +121,7 @@ Standard response (full) — **implemented.** Guards: `@GatewayKeyAndSmartRateLi
 
 ---
 
-## IDE integrations (`src/integrations/`)
+## Official contract facades (`src/integrations/`)
 
 Facades for clients expecting vendor APIs. Shared client key allowlist; **different** auth header than native chat. Routes and schemas in **[`openapi.json`](../openapi.json)** (security `BearerAuth` / `ApiKeyAuth`). Errors in vendor format, not `ErrorEnvelope`. Details: `integrations.md`, `openai-contract-integration.md`, `anthropic-messages-integration.md`.
 

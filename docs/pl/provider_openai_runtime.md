@@ -15,7 +15,7 @@
 | **Auth vendora** | — | `apiKeyRef` + `baseUrlRef` w YAML |
 | **Wymaga drugiej warstwy?** | Nie | Nie |
 
-Adapter implementuje port **`AIProvider`** — ten sam kontrakt co `create-anthropic-provider.ts` i `create-google-provider.ts`. Nie rejestruje tras HTTP i nie obsługuje autoryzacji klientów IDE.
+Adapter implementuje port **`AIProvider`** — ten sam kontrakt co `create-anthropic-provider.ts` i `create-google-provider.ts`. Nie rejestruje tras HTTP i nie obsługuje autoryzacji klientów fasady.
 
 Routing między Chat Completions a Responses API odbywa się w `create-openai-provider.core.ts` według **`type`** wpisu w YAML (nie w fasadzie HTTP): `openai` → Responses API, `openai-compatible` → Chat Completions.
 
@@ -121,7 +121,7 @@ Pole `baseUrl` **nie** występuje w YAML — tylko `baseUrlRef` wskazujący zmie
 ## Powiązane dokumenty
 
 - [`integracja_openai_kontrakt.md`](integracja_openai_kontrakt.md) — fasada HTTP (Cursor)
-- [`integracje.md`](integracje.md) — architektura fasad IDE
+- [`integracje.md`](integracje.md) — architektura fasad oficjalnych kontraktów
 - [`dictionary.md`](dictionary.md) — słownik, macierz parametrów
 - [`konfiguracja.md`](konfiguracja.md) — YAML, env, reguły `policy.params`
 - [`spec/SPEC-PROVIDERS.md`](spec/SPEC-PROVIDERS.md) — kryteria akceptacji adapterów

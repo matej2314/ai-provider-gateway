@@ -1,6 +1,5 @@
 import { plainToInstance, Transform } from 'class-transformer';
 import {
-  IsNotEmpty,
   IsOptional,
   IsString,
   validateSync,
@@ -10,13 +9,8 @@ import {
   Min,
   IsNumber,
   ValidateIf,
-  Matches,
 } from 'class-validator';
 import type { CACHE_BACKEND_TYPE } from '../cache/interfaces/cache-backend-interface';
-
-function trimStringValue(value: unknown): unknown {
-  return typeof value === 'string' ? value.trim() : value;
-}
 
 function toBoolean(value: unknown): boolean {
   return value === 'true' || value === true;
@@ -42,24 +36,6 @@ function isRedisCacheBackend(obj: EnvironmentVariables): boolean {
 }
 
 class EnvironmentVariables {
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @Transform(({ value }: { value: unknown }) => trimStringValue(value))
-  @Matches(/^sk-ant-/, {
-    message: 'ANTHROPIC_API_KEY must start with "sk-ant-"',
-  })
-  ANTHROPIC_API_KEY?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @Transform(({ value }: { value: unknown }) => trimStringValue(value))
-  @Matches(/^(AIza|AQ\.)/, {
-    message: 'GOOGLE_API_KEY must start with "AIza" or "AQ" strings',
-  })
-  GOOGLE_API_KEY?: string;
-
   @Transform(({ value }: { value: unknown }) => toBoolean(value))
   @IsBoolean()
   @IsOptional()
@@ -188,7 +164,7 @@ export function parseCacheBackend(
 
 export function validate(config: Record<string, unknown>) {
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
-    enableImplicitConversion: true,
+    enableImplicitConversion: false,
   });
   const errors = validateSync(validatedConfig, {
     skipMissingProperties: false,

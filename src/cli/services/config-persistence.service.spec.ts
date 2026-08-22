@@ -98,4 +98,30 @@ describe('ConfigPersistenceService', () => {
       service.persistConfig(invalid, cwd, { skipEffectiveCheck: true }),
     ).resolves.toBeDefined();
   });
+
+  it('persistConfig rejects missing provider API key by default', async () => {
+    const configPath = join(cwd, 'gateway.config.yaml');
+    writeFileSync(configPath, 'schemaVersion: 1\n', 'utf-8');
+    writeFileSync(join(cwd, '.env'), '', 'utf-8');
+    delete process.env[TEST_API_KEY_REF];
+
+    const config = createTestGatewayConfig();
+    await expect(service.persistConfig(config, cwd)).rejects.toThrow(
+      /Missing API key/,
+    );
+  });
+
+  it('persistConfig allows missing provider secrets when allowMissingProviderSecrets', async () => {
+    const configPath = join(cwd, 'gateway.config.yaml');
+    writeFileSync(configPath, 'schemaVersion: 1\n', 'utf-8');
+    writeFileSync(join(cwd, '.env'), '', 'utf-8');
+    delete process.env[TEST_API_KEY_REF];
+
+    const config = createTestGatewayConfig();
+    await expect(
+      service.persistConfig(config, cwd, {
+        allowMissingProviderSecrets: true,
+      }),
+    ).resolves.toBeDefined();
+  });
 });

@@ -57,7 +57,7 @@ Ten plik zbiera typowe pułapki w projektach “LLM gateway”.
 
 **Wyjątek (zamierzony):** osobne prefiksy `/api/v1/openai` i `/api/v1/anthropic` z formatem vendora — patrz §13 (Fasady integracji). Nie dotyczy natywnego `/api/v1/chat`.
 
-Uzasadnienie: Fasady IDE wymagają zgodności z OpenAI API i Anthropic Messages API; osobne ścieżki są **zamierzone** i nie naruszają zasad tego anty-wzorca (dotyczy wyłącznie natywnego kontraktu gateway).
+Uzasadnienie: Fasady oficjalnych kontraktów wymagają zgodności z OpenAI API i Anthropic Messages API; osobne ścieżki są **zamierzone** i nie naruszają zasad tego anty-wzorca (dotyczy wyłącznie natywnego kontraktu gateway).
 
 ## 6) Streaming “jak leci”
 
@@ -130,7 +130,7 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 **Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony wpis usuwany); streaming jest ścieżką bez cache (`spec/SPEC-CHAT-STREAMING.md`).
 
-## 13) Mylenie trzech kontraktów API (natywny vs fasady IDE)
+## 13) Mylenie trzech kontraktów API (natywny vs fasady oficjalnych kontraktów)
 
 **Nie rób**:
 
