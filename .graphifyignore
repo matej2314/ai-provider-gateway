@@ -1,0 +1,15 @@
+# Agent knowledge graph corpus: src/, test/, English docs/, openapi.json.
+# Syntax matches gitignore. .gitignore is also applied; this file only excludes more.
+
+*
+!src/
+!src/**
+!test/
+!test/**
+!docs/
+!docs/**
+!openapi.json
+
+# Polish docs are a parallel tree of the English set — indexing both doubles communities.
+docs/pl/
+docs/pl/**
