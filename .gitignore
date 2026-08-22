@@ -75,6 +75,9 @@ gateway-to-contracts-last-step.md
 tools_implementation.md
 cli-implementation-plan.md
 backup/*
+graphify-out/*
+graphify-out/cache
+coverage-security/*
 
 .env.test
 .env.example.old
