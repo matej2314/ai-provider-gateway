@@ -67,10 +67,11 @@ Variables are validated at startup by **`validateEnvironment()`** (facade → `E
 
 **Loading the Redis module in Nest:**
 
-- **Shared Redis infrastructure:** `RedisConnectionService` (`src/cache/adapters/redis-cache/`) is shared by **response cache** and **smart rate limiting**. Predicate: `isRedisRequired()` in `src/cache/should-include-redis-stack.ts`.
+- **Shared Redis infrastructure:** `RedisConnectionService` (`src/cache/adapters/redis-cache/`) is shared by **exact response cache**, **smart rate limiting**, and **semantic cache** (Redis Search). Predicate: `isRedisRequired()` in `src/cache/should-include-redis-stack.ts`.
 - **When Redis connects:** when `isRedisRequiredFromEnv()` = true, i.e.:
   - `CACHE_ENABLED=true` **and** `CACHE_BACKEND=redis`, **or**
-  - `RATE_LIMIT_SMART_ENABLED=true`.
+  - `RATE_LIMIT_SMART_ENABLED=true`, **or**
+  - `SEMANTIC_CACHE_ENABLED=true` (Redis Search is required even when exact cache is `noop`).
 - **Implementation:** `CacheModule.register({ includeRedisStack: isRedisRequiredFromEnv() })` in `src/app.module.ts`. The option name `includeRedisStack` is historical — it covers all Redis infrastructure, not only cache.
 - **When Redis is required but unavailable:** smart rate limit → fail-open (requests allowed through); readiness → `checks.redis: degraded` (details below).
 
@@ -92,14 +93,16 @@ Semantic cache sits **on top of** exact cache in the `POST /api/v1/chat` lookup 
 
 **Fail-open:** when the embedding service or Redis Search is unavailable, the request is forwarded to the provider — the cache layer does not block chat. `GET /api/v1/health/ready` may report `checks.embeddings: degraded` without changing `status` to `not_ready`.
 
-**Redis:** uses the same `RedisConnectionService` and Redis Stack instance as exact cache and rate limit (port **6380**, image `redis/redis-stack-server`). The vector index name includes the model and dimension (e.g. `mxbai-1024`). Changing `EMBEDDING_DIM` requires a new index.
+**Redis:** uses the same `RedisConnectionService` and Redis Stack instance as exact cache and rate limit (port **6380**, image `redis/redis-stack-server`). The vector index name includes the model and dimension (e.g. `qwen3-1024`). Changing `EMBEDDING_MODEL` or `EMBEDDING_DIM` requires a new index.
+
+**Embedding text:** store and lookup use the **bare** last-user `content` (or a Qwen-specific instruction). Do **not** prefix with `search_query:` — that instruction belongs to `nomic-embed-text` / `mxbai` and `qwen3-embedding` does not understand it. Both sides must use the same format; a format change = a new index.
 
 | Variable | Default in code | Meaning |
 |----------|-----------------|---------|
-| `SEMANTIC_CACHE_ENABLED` | `false` | When `true`, enables semantic lookup in `POST /api/v1/chat`. Requires Redis Stack + embedding service. |
+| `SEMANTIC_CACHE_ENABLED` | `false` | When `true`, enables semantic lookup in `POST /api/v1/chat`. Requires Redis Stack + embedding service. Code default is `false`; this project's `.env` / Compose example uses `true`. |
 | `EMBEDDING_BASE_URL` | `http://localhost:11435` | Base URL of the Ollama embedding service. In Docker networks: `http://ollama-embedding:11434`. |
-| `EMBEDDING_MODEL` | `mxbai-embed-large` | Ollama model for embeddings. Changing the model requires a new vector index. |
-| `EMBEDDING_DIM` | `1024` | Embedding vector dimension. Must match the model (`mxbai-embed-large` → 1024). Changing this value requires dropping and recreating the Redis Search index. |
+| `EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Ollama model for embeddings (`POST /api/embed`). Changing the model requires a new vector index. A lighter model (e.g. `nomic-embed-text`) is a new index, not a hot-swap. |
+| `EMBEDDING_DIM` | `1024` | Embedding vector dimension. Must match the model (`qwen3-embedding:0.6b` → 1024). Changing this value requires dropping and recreating the Redis Search index. |
 | `EMBEDDING_TIMEOUT_MS` | `5000` | HTTP timeout for embedding requests (ms). On timeout → fail-open. |
 | `SEMANTIC_CACHE_MIN_SIMILARITY` | `0.90` | Minimum cosine **similarity** for a hit (0–1). Redis Search stores cosine **distance** ≈ `1 − similarity`; cutoff ≈ 0.10. |
 | `SEMANTIC_CACHE_TTL` | same as `CACHE_TTL` / `3600` | TTL of semantic cache entries (seconds). |
@@ -157,10 +160,11 @@ When Redis is unavailable or not `ready`, `SmartRateLimiterService` **allows** r
 
 **Readiness and Redis:** `GET /api/v1/health/ready` returns:
 
-- **`checks.redis`** — shared Redis infrastructure state (PING probe only when `required: true`; fields `required`, `consumers`: `cache`, `rate-limit`),
-- **`checks.cache`** — cache feature state (when backend is `redis`, availability follows from `checks.redis`, without a separate probe).
+- **`checks.redis`** — shared Redis infrastructure state (PING probe only when `required: true`; fields `required`, `consumers`: `cache`, `rate-limit`, `semantic-cache`),
+- **`checks.cache`** — exact-cache feature state (when backend is `redis`, availability follows from `checks.redis`, without a separate probe),
+- **`checks.embeddings`** — present only when `SEMANTIC_CACHE_ENABLED=true`; fail-open (`degraded` does not block `ready`).
 
-With `CACHE_ENABLED=false` and `RATE_LIMIT_SMART_ENABLED=true`, readiness **checks Redis** via `checks.redis`, not `checks.cache`.
+With `CACHE_ENABLED=false` and `RATE_LIMIT_SMART_ENABLED=true` or `SEMANTIC_CACHE_ENABLED=true`, readiness **checks Redis** via `checks.redis`, not `checks.cache`.
 
 ## 2) `gateway.config.yaml` file (models / instances / policies)
 

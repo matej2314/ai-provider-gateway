@@ -189,4 +189,10 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 
 **Nie rób:** ustaw `SEMANTIC_CACHE_MIN_SIMILARITY` ponizej 0.85 w produkcji. Niski prog powoduje ze odpowiedzi na semantycznie rozne prompty sa serwowane z cache — tresciowo niepoprawne dla aktualnego zapytania.
 
-**Rób:** zachowaj domyslne 0.90 (podobienstwo cosinusowe) lub zwieksz dla domen wymagajacych wysokiej precyzji. Uzywaj partycjonowania per alias (`modelAlias` + `clientId`) aby ograniczyc trafienia cross-context. Monitoruj metryki `semantic_cache_hits` i probkuj trafienia cache podczas strojenia.
+**Rób:** zachowaj domyślne 0.90 (podobieństwo cosinusowe) lub zwiększ dla domen wymagających wysokiej precyzji. Używaj partycjonowania per alias (`modelAlias` + `clientId`) aby ograniczyć trafienia cross-context. Monitoruj metryki semantic hit / below-threshold / error i próbkuj trafienia cache podczas strojenia.
+
+## 19) Prefiks nomic / mxbai przy embeddingu Qwen
+
+**Nie rób:** dodawaj prefiksu `search_query:` (ani `search_document:`) do tekstu embeddingu przy `qwen3-embedding:0.6b`. Ta instrukcja należy do `nomic-embed-text` / `mxbai`. Qwen 3 Embedding jej nie rozumie — niespójność store vs lookup wygląda jak fałszywe missy.
+
+**Rób:** embedduj gołą treść ostatniej wiadomości `role: user` (albo dedykowaną instrukcję Qwena) po **obu** stronach (zapis i lookup). Format musi być identyczny. Zmiana formatu albo przejście na `nomic-embed-text` wymaga nowego indeksu (np. `qwen3-1024`), nie hot-swapu.

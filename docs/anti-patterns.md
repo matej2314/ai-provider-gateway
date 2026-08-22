@@ -173,20 +173,26 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 **Don’t:** expect `npm run start:dev` to work right after cloning without a filled `.env` (provider keys + `MASTER_KEY`) and a valid `gateway.config.yaml`.
 
 **Do:** run `gateway config:init` or manually fill YAML + `.env` (`configuration.md`); verify with `gateway config:validate` (full) or `npm run config:validate` (YAML + runtime rules).
-## 16) Rozszerzanie CacheBackend o vector search
+## 16) Extending `CacheBackend` with vector search
 
-**Nie:** dodawaj zapytan Redis Search / KNN do istniejacych adapterow `CacheBackend` / `noop` / `redis` w `src/cache/adapters/`. Interfejs KV `CacheBackend` jest zaprojektowany dla dokladnych lookupu klucz-wartosc i nie ma koncepcji wyszukiwania podobienstwa.
+**Don’t:** add Redis Search / KNN queries to the existing `CacheBackend` / `noop` / `redis` adapters in `src/cache/adapters/`. The KV `CacheBackend` interface is for exact key-value lookup and has no similarity-search concept.
 
-**Zrob:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (exact -> semantic -> provider) jest orkiestrowana w `ChatCacheGuardService`, nie wewnatrz istniejacych adapterow.
+**Do:** implement semantic lookup as a **separate port** (`EmbeddingBackend`, `VectorStore`) in `src/cache/semantic/` — independent adapters wired by `SemanticCacheService`. Lookup order (exact → semantic → provider) is orchestrated in `ChatCacheGuardService`, not inside the KV adapters.
 
-## 17) Nadpisywanie command: w Redis Stack Compose
+## 17) Overriding `command:` on Redis Stack Compose
 
-**Nie:** nadpisuj `command:` w `docker-compose.redis.yml` aby konfigurkowac polityke pamieci Redis lub inne opcje. Nadpisanie `command:` na obrazie `redis/redis-stack-server` usuwa domyslne argumenty entry point ktore laduja moduly Redis Search i JSON — modul `search` zniknie cicho.
+**Don’t:** override `command:` in `docker-compose.redis.yml` to set Redis memory policy or other options. Overriding `command:` on `redis/redis-stack-server` drops the image entrypoint arguments that load Redis Search and JSON — the `search` module disappears silently.
 
-**Zrob:** przekazuj parametry Redis przez zmienna srodowiskowa **`REDIS_ARGS`** w serwisie Compose. Przyklad: `REDIS_ARGS: '--port 6380 --maxmemory 2gb --maxmemory-policy noeviction'`.
+**Do:** pass Redis parameters through the **`REDIS_ARGS`** environment variable on the Compose service. Example: `REDIS_ARGS: '--port 6380 --maxmemory 2gb --maxmemory-policy noeviction'`.
 
-## 18) Zly trafienie semantyczne — niski prog podobienstwa
+## 18) Bad semantic hit — similarity threshold too low
 
-**Nie:** ustaw `SEMANTIC_CACHE_MIN_SIMILARITY` ponizej 0.85 w produkcji. Niski prog powoduje ze odpowiedzi na semantycznie rozne prompty sa serwowane z cache — trescio niepoprawne dla aktualnego zapytania.
+**Don’t:** set `SEMANTIC_CACHE_MIN_SIMILARITY` below 0.85 in production. A low threshold serves cached answers for semantically different prompts — wrong content for the current query.
 
-**Zrob:** zachowaj domyslne 0.90 (podobienstwo cosinusowe) lub zwieksz dla domen wymagajacych wysokiej precyzji. Uzywaj partycjonowania per alias (`modelAlias` + `clientId`) aby ograniczyc trafiienia cross-context. Monitoruj metryki `semantic_cache_hits` i probekuj trafienia cache podczas strojenia.
+**Do:** keep the default 0.90 (cosine similarity) or raise it for high-precision domains. Partition by alias (`modelAlias` + `clientId`) to limit cross-context hits. Monitor semantic hit / below-threshold / error metrics and sample cache hits while tuning.
+
+## 19) Nomic / mxbai prefix on Qwen embeddings
+
+**Don’t:** prefix embedding text with `search_query:` (or `search_document:`) when using `qwen3-embedding:0.6b`. That instruction belongs to `nomic-embed-text` / `mxbai`. Qwen 3 Embedding does not understand it — store and lookup drift, which looks like false misses.
+
+**Do:** embed the bare last-user `content` (or a Qwen-specific instruction) on **both** store and lookup. The two sides must use the same format. Changing the format or switching to `nomic-embed-text` requires a new index (e.g. `qwen3-1024`), not a hot-swap.

@@ -17,7 +17,7 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 | **Provider** | Instancja `AIProvider` (fabryka + klucz API per wpis w YAML). |
 | **LLM API** | Zewnętrzny serwis providera. |
 | **ResponseCache (ExactCache)** | `ResponseCacheService` — odczyt/zapis exact cache dla **`POST /api/v1/chat`** (klucz hash: `modelAlias`, `clientId`, `messages`, sygnatura system promptu, efektywne parametry); odczyt walidowany `CachedChatResponseSchema`; brak wpływu na streaming. |
-| **SemanticCache** | `SemanticCacheService` — embedding ostatniej wiadomości `role: user` → zapytanie KNN w Redis Search → sprawdzenie progu podobieństwa cosinusowego. Fail-open: błąd embedding/Search → wywołanie providera. Pominięty dla tooling, `clientId === 'unknown'` i streamingu. |
+| **SemanticCache** | `SemanticCacheService` — embedding ostatniej wiadomości `role: user` (goły tekst, `qwen3-embedding:0.6b`) → zapytanie KNN w Redis Search → sprawdzenie progu podobieństwa cosinusowego. Fail-open: błąd embedding/Search → wywołanie providera. Pominięty dla tooling, `clientId === 'unknown'` i streamingu. |
 | **Metrics** | **`AiMetricsService`** (Sentry LLM spans) + **`AppMetricsService`** (Prometheus RED); span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId` (`conversation_tracking.md`). Health gauges odświeżane przy `GET /metrics`. |
 | **Fasada integracji** | Kontroler `src/integrations/openai` lub `anthropic` + mappery — tłumaczenie kontraktu vendora na `ChatRequestDto`, potem ten sam `ChatService` co natywny czat (`integracje.md`). |
 

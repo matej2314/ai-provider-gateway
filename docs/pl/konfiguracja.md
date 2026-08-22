@@ -64,10 +64,11 @@ Zmienne są walidowane przy starcie przez **`validateEnvironment()`** (fasada �
 
 **Ładowanie modułu Redis w Nest:**
 
-- **Wspólna infrastruktura Redis:** `RedisConnectionService` (`src/cache/adapters/redis-cache/`) jest współdzielony przez **cache odpowiedzi** i **smart rate limiting**. Predykat: `isRedisRequired()` w `src/cache/should-include-redis-stack.ts`.
+- **Wspólna infrastruktura Redis:** `RedisConnectionService` (`src/cache/adapters/redis-cache/`) jest współdzielony przez **exact cache odpowiedzi**, **smart rate limiting** i **cache semantyczny** (Redis Search). Predykat: `isRedisRequired()` w `src/cache/should-include-redis-stack.ts`.
 - **Kiedy Redis się łączy:** gdy `isRedisRequiredFromEnv()` = true, tj.:
   - `CACHE_ENABLED=true` **oraz** `CACHE_BACKEND=redis`, **lub**
-  - `RATE_LIMIT_SMART_ENABLED=true`.
+  - `RATE_LIMIT_SMART_ENABLED=true`, **lub**
+  - `SEMANTIC_CACHE_ENABLED=true` (Redis Search jest wymagany także gdy exact cache to `noop`).
 - **Implementacja:** `CacheModule.register({ includeRedisStack: isRedisRequiredFromEnv() })` w `src/app.module.ts`. Nazwa opcji `includeRedisStack` jest historyczna — dotyczy całej infrastruktury Redis, nie tylko cache.
 - **Gdy Redis wymagany, ale niedostępny:** smart rate limit → fail-open (żądania przepuszczane); readiness → `checks.redis: degraded` (szczegóły poniżej).
 
@@ -89,14 +90,16 @@ Cache semantyczny stoi **powyżej** cache'u exact w łańcuchu lookupów dla `PO
 
 **Fail-open:** gdy serwis embeddingów lub Redis Search jest niedostępny, żądanie trafia do providera — warstwa cache nie blokuje czatu. `GET /api/v1/health/ready` może raportować `checks.embeddings: degraded` bez zmiany `status` na `not_ready`.
 
-**Redis:** używa tego samego `RedisConnectionService` i instancji Redis Stack co cache exact i rate limit (port **6380**, obraz `redis/redis-stack-server`). Nazwa indeksu wektorowego zawiera model i wymiar (np. `mxbai-1024`). Zmiana `EMBEDDING_DIM` wymaga nowego indeksu.
+**Redis:** używa tego samego `RedisConnectionService` i instancji Redis Stack co cache exact i rate limit (port **6380**, obraz `redis/redis-stack-server`). Nazwa indeksu wektorowego zawiera model i wymiar (np. `qwen3-1024`). Zmiana `EMBEDDING_MODEL` lub `EMBEDDING_DIM` wymaga nowego indeksu.
+
+**Tekst embeddingu:** zapis i lookup używają **gołej** treści ostatniej wiadomości `role: user` (albo dedykowanej instrukcji Qwena). **Nie** dodawaj prefiksu `search_query:` — to instrukcja modeli `nomic-embed-text` / `mxbai`, której `qwen3-embedding` nie rozumie. Obie strony muszą używać identycznego formatu; zmiana formatu = nowy indeks.
 
 | Zmienna | Default w kodzie | Znaczenie |
 |---------|-----------------|-----------|
-| `SEMANTIC_CACHE_ENABLED` | `false` | Gdy `true`, włącza semantic lookup w `POST /api/v1/chat`. Wymaga Redis Stack + serwisu embeddingów. |
+| `SEMANTIC_CACHE_ENABLED` | `false` | Gdy `true`, włącza semantic lookup w `POST /api/v1/chat`. Wymaga Redis Stack + serwisu embeddingów. Domyślnie w kodzie `false`; `.env` / Compose tego projektu używa `true`. |
 | `EMBEDDING_BASE_URL` | `http://localhost:11435` | Bazowy URL serwisu embeddingów Ollama. W sieciach Docker: `http://ollama-embedding:11434`. |
-| `EMBEDDING_MODEL` | `mxbai-embed-large` | Model Ollama do embeddingów. Zmiana modelu wymaga nowego indeksu wektorowego. |
-| `EMBEDDING_DIM` | `1024` | Wymiar wektora embeddingu. Musi pasować do modelu (`mxbai-embed-large` → 1024). Zmiana wartości wymaga usunięcia i odtworzenia indeksu Redis Search. |
+| `EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Model Ollama do embeddingów (`POST /api/embed`). Zmiana modelu wymaga nowego indeksu wektorowego. Lżejszy model (np. `nomic-embed-text`) to nowy indeks, nie hot-swap. |
+| `EMBEDDING_DIM` | `1024` | Wymiar wektora embeddingu. Musi pasować do modelu (`qwen3-embedding:0.6b` → 1024). Zmiana wartości wymaga usunięcia i odtworzenia indeksu Redis Search. |
 | `EMBEDDING_TIMEOUT_MS` | `5000` | Timeout HTTP zapytań o embedding (ms). Po przekroczeniu → fail-open. |
 | `SEMANTIC_CACHE_MIN_SIMILARITY` | `0.90` | Minimalne podobieństwo cosinusowe dla trafienia (0–1). Redis Search przechowuje **dystans** cosinusowy ≈ `1 − podobieństwo`; cutoff ≈ 0.10. |
 | `SEMANTIC_CACHE_TTL` | jak `CACHE_TTL` / `3600` | TTL wpisów cache semantycznego (sekundy). |
@@ -154,10 +157,11 @@ Gdy Redis niedostępny lub nie `ready`, `SmartRateLimiterService` **przepuszcza*
 
 **Readiness a Redis:** `GET /api/v1/health/ready` zwraca:
 
-- **`checks.redis`** — stan współdzielonej infrastruktury Redis (probe `PING` tylko gdy `required: true`; pola `required`, `consumers`: `cache`, `rate-limit`),
-- **`checks.cache`** — stan feature cache (gdy backend `redis`, dostępność wynika z `checks.redis`, bez osobnego probe).
+- **`checks.redis`** — stan współdzielonej infrastruktury Redis (probe `PING` tylko gdy `required: true`; pola `required`, `consumers`: `cache`, `rate-limit`, `semantic-cache`),
+- **`checks.cache`** — stan feature cache exact (gdy backend `redis`, dostępność wynika z `checks.redis`, bez osobnego probe),
+- **`checks.embeddings`** — obecne tylko gdy `SEMANTIC_CACHE_ENABLED=true`; fail-open (`degraded` nie blokuje `ready`).
 
-Przy `CACHE_ENABLED=false` i `RATE_LIMIT_SMART_ENABLED=true` readiness **sprawdza Redis** przez `checks.redis`, nie `checks.cache`.
+Przy `CACHE_ENABLED=false` oraz `RATE_LIMIT_SMART_ENABLED=true` albo `SEMANTIC_CACHE_ENABLED=true` readiness **sprawdza Redis** przez `checks.redis`, nie `checks.cache`.
 
 ## 2) Plik `gateway.config.yaml` (modele / instancje / polityki)
 

@@ -135,7 +135,9 @@ npm run cli config:validate
 npm run start:dev
 ```
 
-Default: `http://localhost:3000`, API prefix `/api/v1`.
+`npm run start:dev` starts only the Nest process — it does **not** start Docker. Default: `http://localhost:3000`, API prefix `/api/v1`.
+
+For **semantic cache** locally, start infra first (`npm run infra:up`): Redis Stack on **6380** and ollama-embedding (`qwen3-embedding:0.6b`) on **11435**. Set `SEMANTIC_CACHE_ENABLED=true` in `.env`.
 
 Details: [`docs/configuration.md`](docs/configuration.md), [`docs/command_line_interface.md`](docs/command_line_interface.md).
 
@@ -158,12 +160,13 @@ More examples (stream, models, thinking, tooling): [`docs/api-documentation.md`]
 
 ```bash
 docker network create ai-gateway-network   # once
-npm run docker:up           # gateway only
-# npm run docker:up:full    # gateway + Redis Stack + Prometheus + Grafana
-# npm run infra:up          # Redis Stack + ollama-embedding (for start:dev with semantic cache)
+npm run docker:up           # base: gateway + Redis Stack + ollama-embedding
+# npm run docker:up:full    # base + Prometheus + Grafana
+# npm run infra:up          # Redis Stack + ollama-embedding only (for start:dev)
+# npm run docker:up:ollama  # optional chat Ollama — not part of the base
 ```
 
-**Semantic cache** (local dev): also start the infra stack (`infra:up`) — Redis Stack on port **6380** and ollama-embedding on port **11435**. Set `SEMANTIC_CACHE_ENABLED=true` in `.env`. Minimum **16 GB RAM** when running the full stack with semantic cache.
+**Base stack** for semantic cache: gateway + Redis Stack (`redis/redis-stack-server`, port **6380**) + ollama-embedding (`qwen3-embedding:0.6b`, host port **11435**). Chat Ollama (`llama3.1:8b`) is optional and separate. Minimum **16 GB RAM** for the base stack. Set `SEMANTIC_CACHE_ENABLED=true` in `.env`.
 
 Full guide: [`docs/deployment.md`](docs/deployment.md).
 
@@ -225,7 +228,7 @@ ai-provider-gateway/
 | `test/e2e/` | HTTP contract tests with mocked providers |
 | `test/security/` | Auth bypass, Helmet, disclosure, fuzzing |
 | `test/integration/` | Live SDK + Redis (Docker) |
-| `deployment/docker/` | Compose stacks (MVP, Redis Stack, monitoring, Ollama chat, Ollama embedding, dev) |
+| `deployment/docker/` | Compose stacks (gateway, Redis Stack, ollama-embedding, monitoring, optional chat Ollama, dev) |
 | `gateway.config.example.yaml`, `.env.example` | Root PLACEHOLDER YAML + env template for manual setup |
 | `.github/workflows/` | CI and VPS deploy |
 
@@ -273,7 +276,7 @@ npm run test:integration   # live; needs Docker Redis + .env.test
 npm run test:all           # unit + e2e
 
 npm run openapi:export
-npm run docker:up / docker:up:full / docker:down
+npm run docker:up / docker:up:full / infra:up / docker:down
 ```
 
 Counters and suite details: [`docs/testing.md`](docs/testing.md). Make targets: [`Makefile`](Makefile).
