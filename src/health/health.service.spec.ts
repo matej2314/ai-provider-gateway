@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { HealthService } from './health.service';
 import { CacheRegistryService } from '../cache/cache-registry.service';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
+import { SemanticCacheService } from '../cache/semantic/semantic-cache.service';
 import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { PreMetricsScrapeRegistry } from '../observability/app-metrics/pre-metrics-scrape.registry';
 import { LoggingService } from '../logging/logging.service';
@@ -23,12 +24,14 @@ describe('HealthService', () => {
   let service: HealthService;
   let mockCacheRegistry: Partial<CacheRegistryService>;
   let mockRedisConnection: Partial<RedisConnectionService>;
+  let mockSemanticCache: Partial<SemanticCacheService>;
   let mockAppMetrics: Partial<AppMetricsService>;
   let mockLogger: Partial<LoggingService>;
   let preMetricsScrapeRegistry: PreMetricsScrapeRegistry;
 
   async function initService(
     configOptions: MockConfigServiceOptions = healthyReadinessConfig,
+    semanticCache?: Partial<SemanticCacheService>,
   ) {
     const mockConfigService = createMockConfigService(configOptions);
 
@@ -41,6 +44,8 @@ describe('HealthService', () => {
       ping: jest.fn().mockResolvedValue(false),
     };
 
+    mockSemanticCache = semanticCache ?? {};
+
     mockAppMetrics = {
       syncHealthMetrics: jest.fn(),
       setProcessUpTime: jest.fn(),
@@ -49,20 +54,27 @@ describe('HealthService', () => {
     mockLogger = createMockLoggingService();
     preMetricsScrapeRegistry = new PreMetricsScrapeRegistry();
 
-    const module = await Test.createTestingModule({
-      providers: [
-        HealthService,
-        { provide: ConfigService, useValue: mockConfigService },
-        { provide: CacheRegistryService, useValue: mockCacheRegistry },
-        { provide: RedisConnectionService, useValue: mockRedisConnection },
-        { provide: AppMetricsService, useValue: mockAppMetrics },
-        {
-          provide: PreMetricsScrapeRegistry,
-          useValue: preMetricsScrapeRegistry,
-        },
-        { provide: LoggingService, useValue: mockLogger },
-      ],
-    }).compile();
+    const providers: any[] = [
+      HealthService,
+      { provide: ConfigService, useValue: mockConfigService },
+      { provide: CacheRegistryService, useValue: mockCacheRegistry },
+      { provide: RedisConnectionService, useValue: mockRedisConnection },
+      { provide: AppMetricsService, useValue: mockAppMetrics },
+      {
+        provide: PreMetricsScrapeRegistry,
+        useValue: preMetricsScrapeRegistry,
+      },
+      { provide: LoggingService, useValue: mockLogger },
+    ];
+
+    if (semanticCache !== undefined) {
+      providers.push({
+        provide: SemanticCacheService,
+        useValue: mockSemanticCache,
+      });
+    }
+
+    const module = await Test.createTestingModule({ providers }).compile();
 
     service = module.get(HealthService);
   }
@@ -360,6 +372,83 @@ describe('HealthService', () => {
       const result = await service.getReadiness();
 
       expect(result.checks.cache.status).toBe('healthy');
+    });
+  });
+
+  describe('checkEmbeddings', () => {
+    it('should omit embeddings check when semantic cache disabled', async () => {
+      await initService(healthyReadinessConfig);
+
+      const result = await service.getReadiness();
+
+      expect(result.checks.embeddings).toBeUndefined();
+    });
+
+    it('should return degraded when semantic enabled but probe fails', async () => {
+      await initService(
+        {
+          ...healthyReadinessConfig,
+          semanticCache: { enabled: true },
+        },
+        { probeEmbedding: jest.fn().mockResolvedValue(false) },
+      );
+
+      const result = await service.getReadiness();
+
+      expect(result.checks.embeddings).toBeDefined();
+      expect(result.checks.embeddings!.status).toBe('degraded');
+      expect(result.checks.embeddings!.message).toBe(
+        'Embedding service unavailable',
+      );
+    });
+
+    it('should be ready even when embeddings degraded (fail-open)', async () => {
+      await initService(
+        {
+          ...healthyReadinessConfig,
+          semanticCache: { enabled: true },
+        },
+        { probeEmbedding: jest.fn().mockResolvedValue(false) },
+      );
+
+      const result = await service.getReadiness();
+
+      expect(result.status).toBe('ready');
+    });
+
+    it('should return healthy when semantic enabled and probe succeeds', async () => {
+      await initService(
+        {
+          ...healthyReadinessConfig,
+          semanticCache: { enabled: true },
+        },
+        { probeEmbedding: jest.fn().mockResolvedValue(true) },
+      );
+
+      const result = await service.getReadiness();
+
+      expect(result.checks.embeddings).toBeDefined();
+      expect(result.checks.embeddings!.status).toBe('healthy');
+    });
+
+    it('should include embeddings in health metrics when present', async () => {
+      await initService(
+        {
+          ...healthyReadinessConfig,
+          semanticCache: { enabled: true },
+        },
+        { probeEmbedding: jest.fn().mockResolvedValue(false) },
+      );
+
+      await service.getReadiness();
+
+      expect(mockAppMetrics.syncHealthMetrics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          components: expect.objectContaining({
+            embeddings: 'degraded',
+          }),
+        }),
+      );
     });
   });
 

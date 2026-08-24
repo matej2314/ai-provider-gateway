@@ -96,7 +96,7 @@ Runtime `HealthService` wypełni nowe pola w Fazie 2; do tego czasu pole embeddi
 
 ---
 
-## Faza 2 — Aplikacja (`src/`) (status: NIE_ROZPOCZĘTY)
+## Faza 2 — Aplikacja (`src/`) (status: WYKONANY)
 
 Implementacja feature’u. Adaptery czytają wyłącznie `getAppConfig` / `getAppConfigOrThrow`, nigdy `process.env`. `CacheBackend` KV **bez** Search.
 
@@ -1049,7 +1049,7 @@ Bez zmian API (`getClient()` wystarczy Search). Lua rate limit nietknięty.
 
 ---
 
-### Krok 2.3 — Health i metryki (status: NIE_ROZPOCZĘTY)
+### Krok 2.3 — Health i metryki (status: WYKONANY)
 
 DTO z Fazy 1 (`checks.embeddings`, `consumers: semantic-cache`) już są. Tu wypełnienie runtime.
 
@@ -1168,7 +1168,7 @@ i eksport w `metrics`. Gauge `gateway_health_status{component=embeddings}` dzia�
 
 ---
 
-### Krok 2.4 — Testy jednostkowe (status: NIE_ROZPOCZĘTY)
+### Krok 2.4 — Testy jednostkowe (status: WYKONANY)
 
 Fake `EmbeddingBackend` (stały wektor) + fake `VectorStore`. Bez sieci, bez Redis, bez Ollamy.
 
@@ -1247,7 +1247,7 @@ Tylko istniejący `deployment/docker/docker-compose.redis.yml` — **bez** noweg
 **Po:**
 ```yaml
   redis:
-    image: redis/redis-stack-server:7.4.2-v2
+    image: redis/redis-stack-server:latest
     container_name: ai-gateway-redis
     restart: unless-stopped
     ports:
@@ -1271,24 +1271,38 @@ Sanity po starcie (nie w YAML): `docker exec ai-gateway-redis redis-cli -p 6380 
 
 #### `deployment/docker/docker-compose.ollama-embedding.yml` — NOWY
 
-Reuse `Dockerfile.ollama` (ARG `OLLAMA_MODEL`). Osobny volume od czatowej Ollamy. CPU, bez `deploy.resources.reservations.devices` GPU. Host `11435:11434`.
+Osobny volume od czatowej Ollamy. CPU, bez `deploy.resources.reservations.devices` GPU. Host `11435:11434`. Obraz `ollama/ollama:latest` (bez build). Model `qwen3-embedding:0.6b` ładuje one-shot `ollama-pull` na wspólny volume `ollama-embedding-data`; po sukcesie kontener `ollama-pull` kończy się i jest automatycznie usuwany — long-running zostaje tylko `ollama-embedding`.
 
 ```yaml
 name: ai-provider-gateway-ollama-embedding
 
 # Embedding only (npm run infra:up / część bazy docker:up)
 # NIE współdziel volume z docker-compose.ollama.yml (czat llama3.1:8b)
+# Model: one-shot ollama-pull → wspólny volume → kontener usuwany po sukcesie
 
 services:
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ai-gateway-ollama-pull
+    volumes:
+      - ollama-embedding-data:/root/.ollama
+    networks:
+      - ai-gateway-network
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      ollama serve &
+      until ollama list >/dev/null 2>&1; do sleep 1; done &&
+      ollama pull qwen3-embedding:0.6b &&
+      ollama list | grep -Fq qwen3-embedding:0.6b
+    restart: "no"
+
   ollama-embedding:
-    build:
-      context: .
-      dockerfile: Dockerfile.ollama
-      args:
-        OLLAMA_MODEL: qwen3-embedding:0.6b
-    image: ai-gateway-ollama-embedding:qwen3-0.6b
+    image: ollama/ollama:latest
     container_name: ai-gateway-ollama-embedding
     restart: unless-stopped
+    depends_on:
+      ollama-pull:
+        condition: service_completed_successfully
     environment:
       OLLAMA_KEEP_ALIVE: "-1"
     ports:
@@ -1313,9 +1327,7 @@ networks:
     name: ai-gateway-network
 ```
 
-`deployment/docker/Dockerfile.ollama` i `docker-compose.ollama.yml` (czat) — **bez zmian**.
-
-W sieci Dockera gateway: `EMBEDDING_BASE_URL=http://ollama-embedding:11434`. Na hoście (`start:dev`): `http://localhost:11435`.
+Po sukcesie `ollama-pull` kończy pracę (`restart: "no"`, `service_completed_successfully`) i jest usuwany — long-running zostaje tylko `ollama-embedding`. W sieci Dockera gateway: `EMBEDDING_BASE_URL=http://ollama-embedding:11434`. Na hoście (`start:dev`): `http://localhost:11435`.
 
 ---
 

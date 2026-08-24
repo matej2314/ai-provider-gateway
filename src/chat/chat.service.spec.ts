@@ -711,6 +711,8 @@ describe('ChatService', () => {
         'anthropic',
         TEST_REQUEST_ID,
       );
+      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCacheGuard.setCachedIfAllowed).not.toHaveBeenCalled();
       expect(mockValidation.validateThinking).toHaveBeenCalledWith(
         resolvedConfig,
         expectedOptions,

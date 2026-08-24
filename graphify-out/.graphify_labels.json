@@ -158,8 +158,12 @@
   "156": "ConfigShowCommand",
   "157": "ModelListCommand",
   "158": "ProviderListCommand",
+  "159": ".child",
   "160": "Directory and file architecture",
   "161": "Documentation — AI Provider Gateway",
+  "162": "ConfigSecretsStatusCommand",
+  "163": "NoopErrorReportingAdapter",
+  "164": "LoggingModule",
   "165": "ollama-chat.md",
   "166": "openai-chat-gpt.md"
 }

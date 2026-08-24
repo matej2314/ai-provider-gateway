@@ -1,10 +1,11 @@
 import { Inject, Injectable, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getAppConfig } from '../config/typed-config';
+import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
 import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { PreMetricsScrapeRegistry } from '../observability/app-metrics/pre-metrics-scrape.registry';
 import { CacheRegistryService } from '../cache/cache-registry.service';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
+import { SemanticCacheService } from '../cache/semantic/semantic-cache.service';
 import {
   getRedisConsumersFromConfig,
   isRedisRequiredFromConfig,
@@ -42,6 +43,8 @@ export class HealthService implements OnModuleInit {
     private readonly appMetrics: AppMetricsService,
     private readonly preMetricsScrapeRegistry: PreMetricsScrapeRegistry,
     loggingService: LoggingService,
+    @Optional()
+    private readonly semanticCache?: SemanticCacheService,
   ) {
     this.logger = loggingService.child({ module: 'HealthService' });
   }
@@ -65,17 +68,20 @@ export class HealthService implements OnModuleInit {
     const redisRequired = isRedisRequiredFromConfig(this.config);
     const redisCheck = redisRequired ? await this.checkRedis() : undefined;
     const cacheCheck = this.checkCache(redisCheck);
+    const embeddingsCheck = await this.checkEmbeddings();
 
     const checks: HealthReadinessResponseDto['checks'] = {
       config: configCheck,
       cache: cacheCheck,
       ...(redisCheck ? { redis: redisCheck } : {}),
+      ...(embeddingsCheck ? { embeddings: embeddingsCheck } : {}),
     };
 
     const allHealthy = [
       configCheck,
       cacheCheck,
       ...(redisCheck ? [redisCheck] : []),
+      ...(embeddingsCheck ? [embeddingsCheck] : []),
     ].every(
       (check) => check.status === 'healthy' || check.status === 'degraded',
     );
@@ -120,6 +126,9 @@ export class HealthService implements OnModuleInit {
     };
     if (result.checks.redis) {
       components.redis = result.checks.redis.status;
+    }
+    if (result.checks.embeddings) {
+      components.embeddings = result.checks.embeddings.status;
     }
 
     this.appMetrics.syncHealthMetrics({
@@ -208,6 +217,28 @@ export class HealthService implements OnModuleInit {
     return {
       status: 'healthy',
       message: `Cache backend ${backendId} available`,
+    };
+  }
+
+  private async checkEmbeddings(): Promise<HealthCheckResult | undefined> {
+    const cfg = getAppConfigOrThrow(this.config, 'semanticCache');
+    if (!cfg.enabled) return undefined;
+    if (!this.semanticCache) {
+      return {
+        status: 'degraded',
+        message: 'Embedding service unavailable',
+      };
+    }
+    const available = await this.semanticCache.probeEmbedding();
+    if (!available) {
+      return {
+        status: 'degraded',
+        message: 'Embedding service unavailable',
+      };
+    }
+    return {
+      status: 'healthy',
+      message: 'Embedding service available',
     };
   }
 

@@ -70,13 +70,13 @@
     "semantic_hash": "1ae0c76205a0d5a80f152ac9d229ecb4"
   },
   "src/cache/response-cache.service.spec.ts": {
-    "mtime": 1787572767.9712582,
-    "ast_hash": "7c018e045f295efdc7452b83793daaf4",
+    "mtime": 1787576576.555813,
+    "ast_hash": "6fde8712e72e3cf093b4fa960d8ea5b3",
     "semantic_hash": ""
   },
   "src/cache/response-cache.service.ts": {
-    "mtime": 1787572422.896134,
-    "ast_hash": "c0f619e63fd8b13b98d51634c6719112",
+    "mtime": 1787576131.4125047,
+    "ast_hash": "cb8b148ef898ddf7aed7af71c4024651",
     "semantic_hash": ""
   },
   "src/cache/schemas/cached-chat-response.schema.ts": {
@@ -125,8 +125,8 @@
     "semantic_hash": "4c5f23479eb33585a3f229559edeedc2"
   },
   "src/chat/chat.service.spec.ts": {
-    "mtime": 1787572544.2775772,
-    "ast_hash": "fb9288be04f6a5bd4ea3282d2f1b8081",
+    "mtime": 1787578081.2496264,
+    "ast_hash": "bad102fafd971c8f0da06a72bdc9a9c9",
     "semantic_hash": ""
   },
   "src/chat/chat.service.ts": {
@@ -330,8 +330,8 @@
     "semantic_hash": "40ee35fdc11efcb7203543711ff8264a"
   },
   "src/chat/services/chat-cache-guard.service.spec.ts": {
-    "mtime": 1787572513.4994354,
-    "ast_hash": "718d1157c68d66165b006d105783bfed",
+    "mtime": 1787576576.555813,
+    "ast_hash": "231ebfd8c20b94b70de352cedc32dee0",
     "semantic_hash": ""
   },
   "src/chat/services/chat-cache-guard.service.ts": {
@@ -660,8 +660,8 @@
     "semantic_hash": ""
   },
   "src/cli/services/prompts/server-prompt.service.ts": {
-    "mtime": 1787565044.4241078,
-    "ast_hash": "de6a28b30be6d08170e68761f20c733d",
+    "mtime": 1787576576.555813,
+    "ast_hash": "16fac606b6de56d51a9874e80cfc7fac",
     "semantic_hash": ""
   },
   "src/cli/services/provider-manager.service.ts": {
@@ -900,8 +900,8 @@
     "semantic_hash": "b56cab0210a2b02b81cb65175c723d35"
   },
   "src/common/mocks/createMockConfigService.ts": {
-    "mtime": 1787565036.7883904,
-    "ast_hash": "d6976032e5a174b9f41282df09ab9b0a",
+    "mtime": 1787576576.555813,
+    "ast_hash": "c176931d4d9f4011473f9e1c6c11a780",
     "semantic_hash": ""
   },
   "src/common/mocks/createMockContext.ts": {
@@ -1170,13 +1170,13 @@
     "semantic_hash": "b790c4ccf31b6bf931acabe29b3bb59d"
   },
   "src/health/health.service.spec.ts": {
-    "mtime": 1787384980.7331045,
-    "ast_hash": "f9aeb6002686d067bfd19aa695212ad3",
+    "mtime": 1787577607.7563603,
+    "ast_hash": "c1803437ccf45d037bcf8b5a2a7ece51",
     "semantic_hash": ""
   },
   "src/health/health.service.ts": {
-    "mtime": 1787384980.7331045,
-    "ast_hash": "1a805e0d6f31cc542d49cee424f16406",
+    "mtime": 1787577576.2039597,
+    "ast_hash": "c807a2a0ad31218be72cbbe4fb6406c4",
     "semantic_hash": ""
   },
   "src/instrument.ts": {
@@ -1640,9 +1640,9 @@
     "semantic_hash": ""
   },
   "src/observability/app-metrics/adapters/prometheus-app-metrics.adapter.spec.ts": {
-    "mtime": 1785524096.5081773,
-    "ast_hash": "45b3c8e21126c4153bbee3456652f8b9",
-    "semantic_hash": "45b3c8e21126c4153bbee3456652f8b9"
+    "mtime": 1787577619.6909294,
+    "ast_hash": "40880b70dc3e073b3759451a0b70b228",
+    "semantic_hash": ""
   },
   "src/observability/app-metrics/adapters/prometheus-app-metrics.adapter.ts": {
     "mtime": 1787570853.116109,
@@ -1670,8 +1670,8 @@
     "semantic_hash": "70d2689f2e7c8bc49de3491b1f43c315"
   },
   "src/observability/app-metrics/interfaces/app-metrics-backend.interface.ts": {
-    "mtime": 1787570828.1056936,
-    "ast_hash": "dd4fd21eee50c806fa15ee6378f6d720",
+    "mtime": 1787577537.1176553,
+    "ast_hash": "90004ff12ba7a3e16369078cf00c39b5",
     "semantic_hash": ""
   },
   "src/observability/app-metrics/metrics.controller.ts": {
@@ -2550,8 +2550,8 @@
     "semantic_hash": ""
   },
   "src/cache/semantic/adapters/redis-vector-store.adapter.ts": {
-    "mtime": 1787570459.9152653,
-    "ast_hash": "e64f54ceb8e6685384d9a3938085b828",
+    "mtime": 1787576985.446903,
+    "ast_hash": "b0dd70079210370ee9e8eaa5df83aa2d",
     "semantic_hash": ""
   },
   "src/cache/semantic/embedding-backend.interface.ts": {
@@ -2565,8 +2565,8 @@
     "semantic_hash": ""
   },
   "src/cache/semantic/index-name.ts": {
-    "mtime": 1787566802.7181804,
-    "ast_hash": "c5e392d5cfa3a83aeed40edef4b5b73c",
+    "mtime": 1787578225.218458,
+    "ast_hash": "17f27066b71eb97fc0bd73cd18012c44",
     "semantic_hash": ""
   },
   "src/cache/semantic/last-user-message.ts": {
@@ -2580,8 +2580,8 @@
     "semantic_hash": ""
   },
   "src/cache/semantic/vector-store.interface.ts": {
-    "mtime": 1787570103.873018,
-    "ast_hash": "3eb22501b7fac039e88ca0420c1d76d9",
+    "mtime": 1787576060.7001147,
+    "ast_hash": "6e9340397463b5a9ceef60f00fd23913",
     "semantic_hash": ""
   },
   "src/cache/semantic/semantic-cache.service.ts": {
@@ -2592,6 +2592,26 @@
   "src/cache/semantic/semantic-cache.module.ts": {
     "mtime": 1787571126.9596162,
     "ast_hash": "3897b2ab1bd5c989d999bb5b184a3956",
+    "semantic_hash": ""
+  },
+  "src/cache/semantic/embedding-circuit-breaker.spec.ts": {
+    "mtime": 1787578048.4547596,
+    "ast_hash": "65d643ca522ea2431b8da1b4da9aba37",
+    "semantic_hash": ""
+  },
+  "src/cache/semantic/index-name.spec.ts": {
+    "mtime": 1787578065.6630855,
+    "ast_hash": "73b02e6b412001369f0fc2e0ea213b54",
+    "semantic_hash": ""
+  },
+  "src/cache/semantic/last-user-message.spec.ts": {
+    "mtime": 1787578046.09165,
+    "ast_hash": "4c37276ad4481a8a0bdf937ee1bfb5f1",
+    "semantic_hash": ""
+  },
+  "src/cache/semantic/semantic-cache.service.spec.ts": {
+    "mtime": 1787578065.9446268,
+    "ast_hash": "d4be7634f1e5054787fb0367f96894b6",
     "semantic_hash": ""
   }
 }
