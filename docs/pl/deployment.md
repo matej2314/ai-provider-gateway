@@ -157,16 +157,16 @@ Wybierz wariant stacku:
 
 | Wariant | Makefile | npm |
 |---------|----------|-----|
-| **Baza** (gateway + Redis Stack + ollama-embedding) | `make docker-up` | `npm run docker:up` |
+| **Baza** (gateway + Redis Stack + ollama-embedding) | `make docker-up` | `npm run docker:up` *(cel — Faza 3)* |
 | Gateway + Redis Stack (bez embeddingu) | `make docker-up-redis` | `npm run docker:up:redis` |
 | Gateway + monitoring | `make docker-up-monitoring` | `npm run docker:up:monitoring` |
-| Pełny stack (baza + Prometheus + Grafana) | `make docker-up-full` | `npm run docker:up:full` |
-| Tylko infra (Redis Stack + embedding, do `start:dev`) | — | `npm run infra:up` |
+| Pełny stack (baza + Prometheus + Grafana) | `make docker-up-full` | `npm run docker:up:full` *(cel — Faza 3 obejmuje embedding)* |
+| Tylko infra (Redis Stack + embedding, do `start:dev`) | — | `npm run infra:up` *(Faza 3)* |
 | Ollama czat (opcjonalny lokalny LLM — **poza** bazą) | `make docker-up-ollama` | `npm run docker:up:ollama` |
 | Dev (hot reload) | `make docker-up-dev` | `npm run docker:up:dev` |
 | Dev + pełny stack | `make docker-up-dev-full` | `npm run docker:up:dev:full` |
 
-**Bazowy stack produktu:** gateway + Redis Stack + ollama-embedding. `npm run start:dev` **nie** startuje Dockera — do semantic cache na procesie hosta użyj `npm run infra:up` (tylko Redis Stack + embedding). Czatowa Ollama (`llama3.1:8b`) zostaje na `docker:up:ollama`.
+**Bazowy stack produktu (cel):** gateway + Redis Stack + ollama-embedding. Plik Compose `docker-compose.ollama-embedding.yml`, obraz Redis Stack/`REDIS_ARGS` oraz skrypty npm `infra:up` / bazowy `docker:up` wchodzą w **Fazie 3 planu semantic-cache** — do tego czasu obecne skrypty startują gateway (± alpine Redis przez `docker:up:redis`). `npm run start:dev` **nie** startuje Dockera. Czatowa Ollama (`llama3.1:8b`) zostaje na `docker:up:ollama`.
 
 **Wymagania RAM:** baza stacku (gateway + Redis Stack + ollama-embedding z `qwen3-embedding:0.6b` na CPU) wymaga minimum **16 GB RAM**. Czatowa Ollama to osobny opcjonalny serwis i **nie** wchodzi w tę liczbę.
 

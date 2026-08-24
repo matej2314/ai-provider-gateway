@@ -86,7 +86,7 @@ Cache semantyczny stoi **powyżej** cache'u exact w łańcuchu lookupów dla `PO
 2. **Trafienie semantyczne** — embedding ostatniej wiadomości `role: user`, zapytanie KNN w Redis Search (partycja: `modelAlias` + `clientId`), podobieństwo cosinusowe ≥ próg → zwracana jest zapisana odpowiedź.
 3. **Miss** — wywołanie providera; zapis exact + upsert wektora.
 
-**Warunki pominięcia** (żądanie trafia bezpośrednio do providera bez lookupów): żądania tooling, brak `gatewayKey`, `clientId === 'unknown'`, brak ostatniej wiadomości użytkownika z niepustym `content`, wszystkie żądania streamingowe (`POST /api/v1/chat/stream`).
+**Warunki pominięcia** (żądanie trafia bezpośrednio do providera bez lookupu semantycznego): żądania tooling, brak `gatewayKey`, `clientId === 'unknown'`, brak ostatniej wiadomości użytkownika z niepustym `content`, wszystkie żądania streamingowe (`POST /api/v1/chat/stream`).
 
 **Fail-open:** gdy serwis embeddingów lub Redis Search jest niedostępny, żądanie trafia do providera — warstwa cache nie blokuje czatu. `GET /api/v1/health/ready` może raportować `checks.embeddings: degraded` bez zmiany `status` na `not_ready`.
 

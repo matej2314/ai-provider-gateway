@@ -5,7 +5,7 @@ import { HealthCheckItemDto } from './health-check-item.dto';
 export class HealthRedisCheckItemDto extends HealthCheckItemDto {
   @ApiProperty({
     description:
-      'Whether Redis is required in this deployment (cache redis and/or smart rate limit).',
+      'Whether Redis is required in this deployment (cache redis and/or smart rate limit and/or semantic cache).',
     example: true,
   })
   required: boolean;

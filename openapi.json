@@ -2032,7 +2032,7 @@
           },
           "required": {
             "type": "boolean",
-            "description": "Whether Redis is required in this deployment (cache redis and/or smart rate limit).",
+            "description": "Whether Redis is required in this deployment (cache redis and/or smart rate limit and/or semantic cache).",
             "example": true
           },
           "consumers": {
@@ -2064,7 +2064,7 @@
             "$ref": "#/components/schemas/HealthCheckItemDto"
           },
           "redis": {
-            "description": "Shared redis infrastructure. Present only when Redis is required (cache redis and/or smart rate limit). Probed when present.",
+            "description": "Shared redis infrastructure. Present only when Redis is required (cache redis and/or smart rate limit and/or semantic cache). Probed when present.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/HealthRedisCheckItemDto"

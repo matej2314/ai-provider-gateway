@@ -11,7 +11,7 @@ class HealthReadinessChecksDto {
   @ApiPropertyOptional({
     type: HealthRedisCheckItemDto,
     description:
-      'Shared redis infrastructure. Present only when Redis is required (cache redis and/or smart rate limit). Probed when present.',
+      'Shared redis infrastructure. Present only when Redis is required (cache redis and/or smart rate limit and/or semantic cache). Probed when present.',
   })
   redis?: HealthRedisCheckItemDto;
 

@@ -589,7 +589,7 @@ Kierunek zależności: **config → cli**, **cache/should-include-redis-stack �
 | `templates/env.template.ts` | `generateEnvTemplate()`, `isEnvInputRedisRequired()` |
 | `src/cache/should-include-redis-stack.ts` | Współdzielona z runtime logika `isRedisRequired()` (CLI importuje **bez** `ConfigModule`) |
 
-Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `validateEnvironment()` / fasada walidacji, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import z `src/cache/should-include-redis-stack.ts`: predykat wymagania Redis (cache redis i/lub smart rate limit). Patrz `anty_patterny.md` (§14).
+Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `validateEnvironment()` / fasada walidacji, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import z `src/cache/should-include-redis-stack.ts`: predykat wymagania Redis (cache redis i/lub smart rate limit i/lub semantic cache). Patrz `anty_patterny.md` (§14).
 
 ## Wskazówki
 

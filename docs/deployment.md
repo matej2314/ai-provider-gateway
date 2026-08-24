@@ -157,16 +157,16 @@ Choose a stack variant:
 
 | Variant | Makefile | npm |
 |---------|----------|-----|
-| **Base** (gateway + Redis Stack + ollama-embedding) | `make docker-up` | `npm run docker:up` |
+| **Base** (gateway + Redis Stack + ollama-embedding) | `make docker-up` | `npm run docker:up` *(target — Phase 3)* |
 | Gateway + Redis Stack (no embedding) | `make docker-up-redis` | `npm run docker:up:redis` |
 | Gateway + monitoring | `make docker-up-monitoring` | `npm run docker:up:monitoring` |
-| Full stack (base + Prometheus + Grafana) | `make docker-up-full` | `npm run docker:up:full` |
-| Infra only (Redis Stack + embedding, for `start:dev`) | — | `npm run infra:up` |
+| Full stack (base + Prometheus + Grafana) | `make docker-up-full` | `npm run docker:up:full` *(target — Phase 3 includes embedding)* |
+| Infra only (Redis Stack + embedding, for `start:dev`) | — | `npm run infra:up` *(Phase 3)* |
 | Chat Ollama (optional local LLM — **not** part of the base) | `make docker-up-ollama` | `npm run docker:up:ollama` |
 | Dev (hot reload) | `make docker-up-dev` | `npm run docker:up:dev` |
 | Dev + full stack | `make docker-up-dev-full` | `npm run docker:up:dev:full` |
 
-**Product base stack:** gateway + Redis Stack + ollama-embedding. `npm run start:dev` does **not** start Docker — for semantic cache on the host process use `npm run infra:up` (Redis Stack + embedding only). Chat Ollama (`llama3.1:8b`) stays on `docker:up:ollama`.
+**Product base stack (target):** gateway + Redis Stack + ollama-embedding. Compose file `docker-compose.ollama-embedding.yml`, Redis Stack image/`REDIS_ARGS`, and npm scripts `infra:up` / base `docker:up` wiring land in **semantic-cache plan Phase 3** — until then current scripts still start gateway (± alpine Redis via `docker:up:redis`). `npm run start:dev` does **not** start Docker. Chat Ollama (`llama3.1:8b`) stays on `docker:up:ollama`.
 
 **RAM requirement:** the base stack (gateway + Redis Stack + ollama-embedding with `qwen3-embedding:0.6b` on CPU) requires minimum **16 GB RAM**. Chat Ollama is a separate optional service and is **not** included in that figure.
 

@@ -589,7 +589,7 @@ Dependency direction: **config → cli**, **cache/should-include-redis-stack →
 | `templates/env.template.ts` | `generateEnvTemplate()`, `isEnvInputRedisRequired()` |
 | `src/cache/should-include-redis-stack.ts` | Shared with runtime `isRedisRequired()` logic (CLI imports **without** `ConfigModule`) |
 
-Imports from `src/config/`: types, Zod schemas, `validateGatewayConfig()`, `validateEnvironment()` / validation facade, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import from `src/cache/should-include-redis-stack.ts`: Redis requirement predicate (redis cache and/or smart rate limit). See `anti-patterns.md` (§14).
+Imports from `src/config/`: types, Zod schemas, `validateGatewayConfig()`, `validateEnvironment()` / validation facade, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import from `src/cache/should-include-redis-stack.ts`: Redis requirement predicate (redis cache and/or smart rate limit and/or semantic cache). See `anti-patterns.md` (§14).
 
 ## Tips
 
