@@ -18,11 +18,35 @@ import {
   asCacheKey,
   asCacheTtlSeconds,
   asModelAlias,
+  asClientId,
   type CacheKey,
   type CacheTtlSeconds,
+  type ClientId,
 } from '../common/types/branded.types';
 
 export type { CachedChatResponse } from './types/cached-chat-response.type';
+
+/** Maps a live chat response into the shape stored by exact and semantic cache. */
+export function toCachedChatResponse(
+  response: ChatResponseData,
+): CachedChatResponse {
+  return {
+    id: response.id,
+    provider: asProviderInstanceId(response.provider),
+    model: response.model,
+    output: response.output,
+    requestId: response.requestId,
+    ...(response.usage && {
+      usage: {
+        inputTokens: asInputTokens(response.usage.inputTokens ?? 0),
+        outputTokens: asOutputTokens(response.usage.outputTokens ?? 0),
+      },
+    }),
+    ...(response.warnings?.length && { warnings: response.warnings }),
+    cached: true,
+    cachedAt: new Date().toISOString(),
+  };
+}
 
 @Injectable()
 export class ResponseCacheService {
@@ -42,6 +66,7 @@ export class ResponseCacheService {
 
   private generateCacheKey(
     request: ChatRequestDto,
+    clientId: ClientId,
     effectiveCallParams?: ProviderCallOptions,
   ): CacheKey {
     const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
@@ -55,6 +80,7 @@ export class ResponseCacheService {
 
     const payload = JSON.stringify({
       modelAlias: request.modelAlias,
+      clientId,
       messages: request.messages,
       systemSignature,
       callParams: this.serializeCallParamsForCache(effectiveCallParams),
@@ -89,11 +115,16 @@ export class ResponseCacheService {
 
   async getCachedResponse(
     request: ChatRequestDto,
+    clientId: string,
     effectiveCallParams?: ProviderCallOptions,
   ): Promise<CachedChatResponse | null> {
     if (!this.cache.isAvailable()) return null;
 
-    const key = this.generateCacheKey(request, effectiveCallParams);
+    const key = this.generateCacheKey(
+      request,
+      asClientId(clientId),
+      effectiveCallParams,
+    );
     const cached = await this.cache.get(key);
 
     if (!cached) {
@@ -129,28 +160,18 @@ export class ResponseCacheService {
   async setCachedResponse(
     request: ChatRequestDto,
     response: ChatResponseData,
+    clientId: string,
     effectiveCallParams?: ProviderCallOptions,
     ttlSeconds?: CacheTtlSeconds,
   ): Promise<void> {
     if (!this.cache.isAvailable()) return;
 
-    const key = this.generateCacheKey(request, effectiveCallParams);
-    const cachedResponse: CachedChatResponse = {
-      id: response.id,
-      provider: asProviderInstanceId(response.provider),
-      model: response.model,
-      output: response.output,
-      requestId: response.requestId,
-      ...(response.usage && {
-        usage: {
-          inputTokens: asInputTokens(response.usage.inputTokens ?? 0),
-          outputTokens: asOutputTokens(response.usage.outputTokens ?? 0),
-        },
-      }),
-      ...(response.warnings?.length && { warnings: response.warnings }),
-      cached: true,
-      cachedAt: new Date().toISOString(),
-    };
+    const key = this.generateCacheKey(
+      request,
+      asClientId(clientId),
+      effectiveCallParams,
+    );
+    const cachedResponse = toCachedChatResponse(response);
 
     const serialized = JSON.stringify(cachedResponse);
     const configuredTtl = getAppConfig(this.config, 'cache')?.ttl;
@@ -170,9 +191,14 @@ export class ResponseCacheService {
 
   async invalidateCache(
     request: ChatRequestDto,
+    clientId: string,
     effectiveCallParams?: ProviderCallOptions,
   ): Promise<void> {
-    const key = this.generateCacheKey(request, effectiveCallParams);
+    const key = this.generateCacheKey(
+      request,
+      asClientId(clientId),
+      effectiveCallParams,
+    );
     const success = await this.cache.delete(key);
 
     if (success) {

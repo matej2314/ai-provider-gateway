@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { HttpStatus } from '@nestjs/common';
 import { ChatCacheGuardService } from './chat-cache-guard.service';
 import { ResponseCacheService } from '../../cache/response-cache.service';
+import { SemanticCacheService } from '../../cache/semantic/semantic-cache.service';
 import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
 import { LoggingService } from '../../logging/logging.service';
 import { ApiErrorCode } from '../../common/errors/api-error.code';
@@ -24,8 +25,10 @@ import {
   TEST_REQUEST_ID,
 } from '../../common/mocks/test-constants';
 import {
+  asClientId,
   asConversationId,
   asEnvRef,
+  asGatewayKey,
   asProviderInstanceId,
   asRequestId,
   asResponseId,
@@ -33,6 +36,9 @@ import {
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
+
+const TEST_CLIENT_ID = asClientId('test-client');
+const UNKNOWN_CLIENT_ID = asClientId('unknown');
 
 const cacheEnabledGatewayConfig: MockConfigServiceOptions = {
   gatewayOptions: {
@@ -55,6 +61,10 @@ const cacheEnabledGatewayConfig: MockConfigServiceOptions = {
 describe('ChatCacheGuardService', () => {
   let service: ChatCacheGuardService;
   let mockCache: Partial<ResponseCacheService>;
+  let mockSemanticCache: {
+    lookup: jest.Mock;
+    storeReply: jest.Mock;
+  };
   let mockRateLimiter: Partial<SmartRateLimiterService>;
   let mockLogger: Partial<LoggingService>;
 
@@ -70,7 +80,8 @@ describe('ChatCacheGuardService', () => {
     output: { type: 'text' as const, text: 'Cached answer' },
     requestId: asRequestId('req-1'),
     conversationId: TEST_CONVERSATION_ID,
-    cached: true,
+    cached: true as const,
+    cachedAt: '2026-01-01T00:00:00.000Z',
   };
 
   const chatResponse: ChatResponseData = {
@@ -86,21 +97,38 @@ describe('ChatCacheGuardService', () => {
 
   async function initService(
     configOptions: MockConfigServiceOptions = cacheEnabledGatewayConfig,
+    withSemantic = true,
   ) {
     mockCache = createMockResponseCacheService();
     mockRateLimiter = createMockSmartRateLimiter();
     mockLogger = createMockLoggingService();
+    mockSemanticCache = {
+      lookup: jest.fn().mockResolvedValue(null),
+      storeReply: jest.fn().mockResolvedValue(undefined),
+    };
 
     const mockConfig = createMockConfigService(configOptions);
 
+    const providers: Array<
+      | typeof ChatCacheGuardService
+      | { provide: unknown; useValue: unknown }
+    > = [
+      ChatCacheGuardService,
+      { provide: ResponseCacheService, useValue: mockCache },
+      { provide: ConfigService, useValue: mockConfig },
+      { provide: SmartRateLimiterService, useValue: mockRateLimiter },
+      { provide: LoggingService, useValue: mockLogger },
+    ];
+
+    if (withSemantic) {
+      providers.push({
+        provide: SemanticCacheService,
+        useValue: mockSemanticCache,
+      });
+    }
+
     const module = await Test.createTestingModule({
-      providers: [
-        ChatCacheGuardService,
-        { provide: ResponseCacheService, useValue: mockCache },
-        { provide: ConfigService, useValue: mockConfig },
-        { provide: SmartRateLimiterService, useValue: mockRateLimiter },
-        { provide: LoggingService, useValue: mockLogger },
-      ],
+      providers,
     }).compile();
 
     service = module.get(ChatCacheGuardService);
@@ -200,7 +228,7 @@ describe('ChatCacheGuardService', () => {
 
   describe('getCachedIfAllowed', () => {
     describe('Happy path', () => {
-      it('should return cached response when cache hit and model allowed', async () => {
+      it('should return cached response when exact hit and model allowed', async () => {
         (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(
           cachedResponse,
         );
@@ -208,12 +236,34 @@ describe('ChatCacheGuardService', () => {
         const result = await service.getCachedIfAllowed(
           baseRequest,
           providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(result).toEqual(cachedResponse);
         expect(mockCache.getCachedResponse).toHaveBeenCalledWith(
           baseRequest,
+          TEST_CLIENT_ID,
           providerOptions,
+        );
+        expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
+      });
+
+      it('should fall through to semantic on exact miss', async () => {
+        (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
+        mockSemanticCache.lookup.mockResolvedValue(cachedResponse);
+
+        const result = await service.getCachedIfAllowed(
+          baseRequest,
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+        );
+
+        expect(result).toEqual(cachedResponse);
+        expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
+          baseRequest,
+          TEST_CLIENT_ID,
         );
       });
     });
@@ -230,18 +280,80 @@ describe('ChatCacheGuardService', () => {
         const result = await service.getCachedIfAllowed(
           toolingRequest,
           providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+        );
+
+        expect(result).toBeNull();
+        expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
+      });
+
+      it('should return null when clientId is unknown', async () => {
+        const result = await service.getCachedIfAllowed(
+          baseRequest,
+          providerOptions,
+          UNKNOWN_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(result).toBeNull();
         expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
       });
 
-      it('should return null on cache miss', async () => {
+      it('should return null when gatewayKey is empty', async () => {
+        const result = await service.getCachedIfAllowed(
+          baseRequest,
+          providerOptions,
+          TEST_CLIENT_ID,
+          asGatewayKey(''),
+        );
+
+        expect(result).toBeNull();
+        expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
+      });
+
+      it('should return null on exact and semantic miss', async () => {
         (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
 
         const result = await service.getCachedIfAllowed(
           baseRequest,
           providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+        );
+
+        expect(result).toBeNull();
+        expect(mockSemanticCache.lookup).toHaveBeenCalled();
+      });
+
+      it('should skip semantic when no last user message', async () => {
+        (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
+        const request: ChatRequestDto = {
+          ...baseRequest,
+          messages: [{ role: 'assistant', content: 'Hello' }],
+        };
+
+        const result = await service.getCachedIfAllowed(
+          request,
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+        );
+
+        expect(result).toBeNull();
+        expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
+      });
+
+      it('should skip semantic when SemanticCacheService is absent', async () => {
+        await initService(cacheEnabledGatewayConfig, false);
+        (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
+
+        const result = await service.getCachedIfAllowed(
+          baseRequest,
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(result).toBeNull();
@@ -257,7 +369,12 @@ describe('ChatCacheGuardService', () => {
         );
 
         await expect(
-          service.getCachedIfAllowed(baseRequest, providerOptions),
+          service.getCachedIfAllowed(
+            baseRequest,
+            providerOptions,
+            TEST_CLIENT_ID,
+            TEST_GATEWAY_KEY_BRANDED,
+          ),
         ).rejects.toThrow('Missing config key: gateway');
       });
 
@@ -277,6 +394,8 @@ describe('ChatCacheGuardService', () => {
         const result = await service.getCachedIfAllowed(
           baseRequest,
           providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(result).toBeNull();
@@ -302,6 +421,8 @@ describe('ChatCacheGuardService', () => {
         const result = await service.getCachedIfAllowed(
           baseRequest,
           providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(result).toBeNull();
@@ -323,6 +444,8 @@ describe('ChatCacheGuardService', () => {
         const result = await service.getCachedIfAllowed(
           baseRequest,
           providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(result).toBeNull();
@@ -336,7 +459,12 @@ describe('ChatCacheGuardService', () => {
         );
 
         await expect(
-          service.getCachedIfAllowed(baseRequest, providerOptions),
+          service.getCachedIfAllowed(
+            baseRequest,
+            providerOptions,
+            TEST_CLIENT_ID,
+            TEST_GATEWAY_KEY_BRANDED,
+          ),
         ).rejects.toThrow('Cache backend error');
       });
     });
@@ -344,17 +472,29 @@ describe('ChatCacheGuardService', () => {
 
   describe('setCachedIfAllowed', () => {
     describe('Happy path', () => {
-      it('should call setCachedResponse for non-tooling request', async () => {
+      it('should call setCachedResponse and await storeReply', async () => {
         await service.setCachedIfAllowed(
           baseRequest,
           chatResponse,
           providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(mockCache.setCachedResponse).toHaveBeenCalledWith(
           baseRequest,
           chatResponse,
+          TEST_CLIENT_ID,
           providerOptions,
+        );
+        expect(mockSemanticCache.storeReply).toHaveBeenCalledWith(
+          baseRequest,
+          expect.objectContaining({
+            id: chatResponse.id,
+            cached: true,
+            output: chatResponse.output,
+          }),
+          TEST_CLIENT_ID,
         );
       });
     });
@@ -372,9 +512,38 @@ describe('ChatCacheGuardService', () => {
           toolingRequest,
           chatResponse,
           providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(mockCache.setCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
+      });
+
+      it('should skip when clientId is unknown', async () => {
+        await service.setCachedIfAllowed(
+          baseRequest,
+          chatResponse,
+          providerOptions,
+          UNKNOWN_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+        );
+
+        expect(mockCache.setCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
+      });
+
+      it('should skip when gatewayKey is empty', async () => {
+        await service.setCachedIfAllowed(
+          baseRequest,
+          chatResponse,
+          providerOptions,
+          TEST_CLIENT_ID,
+          asGatewayKey(''),
+        );
+
+        expect(mockCache.setCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
       });
     });
 
@@ -389,9 +558,12 @@ describe('ChatCacheGuardService', () => {
           request,
           chatResponse,
           providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(mockCache.setCachedResponse).toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).toHaveBeenCalled();
       });
 
       it('should propagate setCachedResponse errors', async () => {
@@ -404,6 +576,8 @@ describe('ChatCacheGuardService', () => {
             baseRequest,
             chatResponse,
             providerOptions,
+            TEST_CLIENT_ID,
+            TEST_GATEWAY_KEY_BRANDED,
           ),
         ).rejects.toThrow('Write failed');
       });

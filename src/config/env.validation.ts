@@ -28,10 +28,14 @@ function toNumber(value: unknown): number {
   return NaN;
 }
 
-function isRedisCacheBackend(obj: EnvironmentVariables): boolean {
+function isRedisInfrastructureRequired(obj: EnvironmentVariables): boolean {
+  const redisKv =
+    obj.CACHE_ENABLED === true &&
+    (obj.CACHE_BACKEND ?? 'noop').toLowerCase() === 'redis';
   return (
-    obj.CACHE_BACKEND === 'redis' &&
-    (obj.CACHE_BACKEND ?? 'noop').toLowerCase() === 'redis'
+    redisKv ||
+    obj.RATE_LIMIT_SMART_ENABLED === true ||
+    obj.SEMANTIC_CACHE_ENABLED === true
   );
 }
 
@@ -55,24 +59,24 @@ class EnvironmentVariables {
   @IsOptional()
   CACHE_KEY_PREFIX?: string = 'aigw:';
 
-  @ValidateIf((obj: EnvironmentVariables) => isRedisCacheBackend(obj))
+  @ValidateIf((obj: EnvironmentVariables) => isRedisInfrastructureRequired(obj))
   @IsString()
   @IsOptional()
   REDIS_HOST?: string = 'localhost';
 
-  @ValidateIf((obj: EnvironmentVariables) => isRedisCacheBackend(obj))
+  @ValidateIf((obj: EnvironmentVariables) => isRedisInfrastructureRequired(obj))
   @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()
   @Min(1)
   @IsOptional()
   REDIS_PORT?: number = 6379;
 
-  @ValidateIf((obj: EnvironmentVariables) => isRedisCacheBackend(obj))
+  @ValidateIf((obj: EnvironmentVariables) => isRedisInfrastructureRequired(obj))
   @IsString()
   @IsOptional()
   REDIS_PASSWORD?: string = '';
 
-  @ValidateIf((obj: EnvironmentVariables) => isRedisCacheBackend(obj))
+  @ValidateIf((obj: EnvironmentVariables) => isRedisInfrastructureRequired(obj))
   @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()
   @Min(0)
@@ -145,6 +149,49 @@ class EnvironmentVariables {
   @IsIn(['sentry', 'noop'])
   @IsOptional()
   AI_METRICS_BACKEND?: 'sentry' | 'noop' = 'noop';
+
+  @Transform(({ value }: { value: unknown }) => toBoolean(value))
+  @IsBoolean()
+  @IsOptional()
+  SEMANTIC_CACHE_ENABLED?: boolean = false;
+
+  @IsString()
+  @IsOptional()
+  EMBEDDING_BASE_URL?: string = 'http://localhost:11435';
+
+  @IsString()
+  @IsOptional()
+  EMBEDDING_MODEL?: string = 'qwen3-embedding:0.6b';
+
+  @Transform(({ value }: { value: unknown }) => toInt(value))
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  EMBEDDING_DIM?: number = 1024;
+
+  @Transform(({ value }: { value: unknown }) => toInt(value))
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  EMBEDDING_TIMEOUT_MS?: number = 5000;
+
+  @Transform(({ value }: { value: unknown }) => toNumber(value))
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  SEMANTIC_CACHE_MIN_SIMILARITY?: number = 0.9;
+
+  @Transform(({ value }: { value: unknown }) => toInt(value))
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  SEMANTIC_CACHE_TTL?: number = 3600;
+
+  @Transform(({ value }: { value: unknown }) => toInt(value))
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  SEMANTIC_CACHE_K?: number = 3;
 }
 
 const CACHE_BACKEND_VALUES = ['noop', 'redis', 'memory', 'other'] as const;

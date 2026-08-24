@@ -196,6 +196,8 @@ export class WizardOrchestratorService {
         server.redisPort !== undefined ? asPort(server.redisPort) : undefined,
       redisPassword: '',
       rateLimitSmartEnabled: server.rateLimitSmartEnabled,
+      // Agent answers schema = Phase 5; honor existing env for Redis snapshot.
+      semanticCacheEnabled: process.env.SEMANTIC_CACHE_ENABLED === 'true',
       metricsBackend: server.metricsBackend,
       sentryDsn: '',
     };
@@ -288,6 +290,7 @@ export class WizardOrchestratorService {
       redisPort: serverConfig.redisPort,
       redisPassword: serverConfig.redisPassword,
       rateLimitSmartEnabled: serverConfig.rateLimitSmartEnabled,
+      semanticCacheEnabled: serverConfig.semanticCacheEnabled,
       metricsBackend: serverConfig.metricsBackend,
       sentryDsn: serverConfig.sentryDsn,
     };

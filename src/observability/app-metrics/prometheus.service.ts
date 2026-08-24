@@ -95,6 +95,13 @@ export class PrometheusService implements OnModuleInit {
       registers: [this.registry],
     });
 
+    const semanticCacheLookupTotal = new Counter({
+      name: 'gateway_semantic_cache_lookup_total',
+      help: 'Semantic cache lookup outcomes',
+      labelNames: ['model', 'result'],
+      registers: [this.registry],
+    });
+
     const cacheHitRate = new Gauge({
       name: 'gateway_cache_hit_rate',
       help: 'Cache hit rate (0-1)',
@@ -146,6 +153,7 @@ export class PrometheusService implements OnModuleInit {
       llmTokensPerRequest,
       rateLimitsTotal,
       cacheAccessTotal,
+      semanticCacheLookupTotal,
       cacheHitRate,
       activeStreams,
       providerHealth,

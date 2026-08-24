@@ -335,7 +335,12 @@ describe('ChatService', () => {
         'native',
       );
 
-      expect(mockCacheGuard.getCachedIfAllowed).toHaveBeenCalled();
+      expect(mockCacheGuard.getCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
+        expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+      );
       expect(result).toEqual({
         ...cachedResponse,
         conversationId: VALID_CONVERSATION_ID,
@@ -533,6 +538,8 @@ describe('ChatService', () => {
           output: { type: 'text', text: 'Fresh answer' },
         }),
         expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
       );
     });
 

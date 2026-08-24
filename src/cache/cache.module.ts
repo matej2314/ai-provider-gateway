@@ -5,6 +5,7 @@ import { NoopCacheModule } from './adapters/noop-cache/noop-cache.module';
 import { RedisCacheModule } from './adapters/redis-cache/redis-cache.module';
 import { CACHE_BACKEND } from './cache.tokens';
 import { ResponseCacheService } from './response-cache.service';
+import { SemanticCacheModule } from './semantic/semantic-cache.module';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
 import type { CacheKey, CacheTtlSeconds } from '../common/types/branded.types';
 
@@ -15,10 +16,12 @@ export interface CacheModuleOptions {
 @Module({})
 export class CacheModule {
   static register(options: CacheModuleOptions): DynamicModule {
+    const semanticEnabled = process.env.SEMANTIC_CACHE_ENABLED === 'true';
     const imports = [
       NoopCacheModule,
       AppMetricsModule,
       ...(options.includeRedisStack ? [RedisCacheModule] : []),
+      ...(semanticEnabled ? [SemanticCacheModule] : []),
     ];
 
     const exports: Array<
@@ -26,7 +29,10 @@ export class CacheModule {
       | typeof CacheRegistryService
       | typeof RedisCacheModule
       | typeof ResponseCacheService
+      | typeof SemanticCacheModule
     > = [CACHE_BACKEND, CacheRegistryService, ResponseCacheService];
+
+    if (semanticEnabled) exports.push(SemanticCacheModule);
 
     if (options.includeRedisStack) {
       exports.push(RedisCacheModule);

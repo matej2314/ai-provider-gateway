@@ -50,6 +50,8 @@ export interface AppProviderStreamScope {
 
 export type HealthComponent = 'config' | 'redis' | 'cache';
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
+/** Semantic cache lookup outcome (exact cache keeps recordCacheAccess). */
+export type SemanticCacheLookupResult = 'hit' | 'below-threshold' | 'error';
 
 export interface HealthMetricsSnapshot {
   ready: boolean;
@@ -92,6 +94,10 @@ export interface AppMetricsBackend {
   // --- Infrastructure ---
   recordRateLimit(client: ClientId, reason: RateLimitReason): void;
   recordCacheAccess(model: ModelAlias, hit: boolean): void;
+  recordSemanticCacheLookup(
+    model: ModelAlias,
+    result: SemanticCacheLookupResult,
+  ): void;
   updateCacheHitRate(model: ModelAlias, rate: number): void;
   // --- Gauges ---
   setActiveStreams(client: ClientId, count: number): void;

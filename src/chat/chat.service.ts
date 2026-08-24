@@ -122,6 +122,8 @@ export class ChatService {
       const cachedResponse = await this.cacheGuardService.getCachedIfAllowed(
         requestBody,
         options,
+        clientId,
+        gatewayKey,
       );
 
       if (cachedResponse) {
@@ -190,6 +192,8 @@ export class ChatService {
         requestBody,
         chatResult,
         options,
+        clientId,
+        gatewayKey,
       );
 
       log.info('Chat completed successfully', {

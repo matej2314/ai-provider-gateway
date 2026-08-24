@@ -14,6 +14,7 @@ import type {
   TokenDirection,
   HttpRequestLabels,
   HttpMethod,
+  SemanticCacheLookupResult,
 } from './interfaces/app-metrics-backend.interface';
 import type {
   ClientId,
@@ -160,6 +161,17 @@ export class AppMetricsService {
    */
   recordCacheAccess(model: ModelAlias, hit: boolean): void {
     this.backend.recordCacheAccess(model, hit);
+  }
+
+  /**
+   * Records a semantic cache lookup outcome.
+   * Captures: model and result (hit / below-threshold / error).
+   */
+  recordSemanticCacheLookup(
+    model: ModelAlias,
+    result: SemanticCacheLookupResult,
+  ): void {
+    this.backend.recordSemanticCacheLookup(model, result);
   }
 
   /**

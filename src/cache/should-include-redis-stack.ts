@@ -12,6 +12,7 @@ export type RedisRequirementSnapshot = {
     backend?: CACHE_BACKEND_TYPE;
   };
   rateLimitSmartEnabled?: boolean;
+  semanticCacheEnabled?: boolean;
 };
 
 function resolveCacheForRequirement(input: RedisRequirementSnapshot): {
@@ -33,14 +34,9 @@ export function getRedisConsumers(
 ): RedisConsumer[] {
   const cache = resolveCacheForRequirement(input);
   const consumers: RedisConsumer[] = [];
-
-  if (cache.enabled && cache.backend === 'redis') {
-    consumers.push('cache');
-  }
-
-  if (input.rateLimitSmartEnabled === true) {
-    consumers.push('rate-limit');
-  }
+  if (cache.enabled && cache.backend === 'redis') consumers.push('cache');
+  if (input.rateLimitSmartEnabled === true) consumers.push('rate-limit');
+  if (input.semanticCacheEnabled === true) consumers.push('semantic-cache');
   return consumers;
 }
 
@@ -52,13 +48,13 @@ export function isRedisRequiredFromEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
   const cacheEnabled = env.CACHE_ENABLED === 'true';
-
   return isRedisRequired({
     cache: {
       enabled: cacheEnabled,
       backend: parseCacheBackend(env.CACHE_BACKEND, cacheEnabled),
     },
     rateLimitSmartEnabled: env.RATE_LIMIT_SMART_ENABLED === 'true',
+    semanticCacheEnabled: env.SEMANTIC_CACHE_ENABLED === 'true',
   });
 }
 
@@ -68,10 +64,13 @@ export function isRedisRequiredFromConfig(
   const cache = getAppConfig(configService, 'cache');
   const rateLimitSmartEnabled =
     getAppConfig(configService, 'RATE_LIMIT_SMART_ENABLED') === true;
+  const semanticCacheEnabled =
+    getAppConfig(configService, 'semanticCache')?.enabled === true;
 
   return isRedisRequired({
     cache,
     rateLimitSmartEnabled,
+    semanticCacheEnabled,
   });
 }
 
@@ -81,10 +80,13 @@ export function getRedisConsumersFromConfig(
   const cache = getAppConfig(configService, 'cache');
   const rateLimitSmartEnabled =
     getAppConfig(configService, 'RATE_LIMIT_SMART_ENABLED') === true;
+  const semanticCacheEnabled =
+    getAppConfig(configService, 'semanticCache')?.enabled === true;
 
   return getRedisConsumers({
     cache,
     rateLimitSmartEnabled,
+    semanticCacheEnabled,
   });
 }
 

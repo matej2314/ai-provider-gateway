@@ -100,7 +100,7 @@ Runtime `HealthService` wypełni nowe pola w Fazie 2; do tego czasu pole embeddi
 
 Implementacja feature’u. Adaptery czytają wyłącznie `getAppConfig` / `getAppConfigOrThrow`, nigdy `process.env`. `CacheBackend` KV **bez** Search.
 
-### Krok 2.1 — Konfiguracja (status: NIE_ROZPOCZĘTY)
+### Krok 2.1 — Konfiguracja (status: WYKONANY)
 
 Pliki: `src/config/env.validation.ts`, `src/config/app-configuration.types.ts`, `src/config/configuration.ts`, `src/cache/should-include-redis-stack.ts`, `src/cache/should-include-redis-stack.spec.ts`, `src/common/mocks/createMockConfigService.ts`, `src/cli/templates/env.template.ts`, `src/cli/services/prompts/server-prompt.service.ts` (tylko snapshot Redis — pytania semantic = Faza 5).
 
@@ -373,7 +373,7 @@ Na razie **tylko** przekazać `semanticCacheEnabled` do `isRedisRequired` / `isE
 
 ---
 
-### Krok 2.2 — Porty i adaptery w `src/cache` (status: NIE_ROZPOCZĘTY)
+### Krok 2.2 — Porty i adaptery w `src/cache` (status: WYKONANY)
 
 - `EmbeddingBackend` + adapter Ollama (`POST /api/embed`)
 - `OllamaEmbeddingAdapter` implements `OnModuleInit` — warmup request przy starcie (fail-open); eliminuje cold-start Ollamy na pierwszym żywym zapytaniu

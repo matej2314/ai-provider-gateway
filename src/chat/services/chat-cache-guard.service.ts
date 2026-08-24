@@ -1,18 +1,32 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggingService } from '../../logging/logging.service';
-import { ResponseCacheService } from '../../cache/response-cache.service';
+import {
+  ResponseCacheService,
+  toCachedChatResponse,
+} from '../../cache/response-cache.service';
 import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
 import { ApiErrorCode } from '../../common/errors/api-error.code';
 import { isCachedChatAllowedForModelAlias } from '../helpers/cache-policy';
 import { isToolingRequest } from '../helpers/tooling-request';
-import type { ChatRequestDto } from '../dto/chat-request.dto';
+import { asProviderInstanceId } from '../../common/types/branded.types';
+import { SemanticCacheService } from '../../cache/semantic/semantic-cache.service';
+import { lastUserMessageText } from '../../cache/semantic/last-user-message';
 import { getAppConfigOrThrow } from '../../config/typed-config';
 import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import type { CachedChatResponse } from '../../cache/response-cache.service';
-import type { GatewayKey, RequestId } from '../../common/types/branded.types';
-import { asProviderInstanceId } from '../../common/types/branded.types';
+import type {
+  ClientId,
+  GatewayKey,
+  RequestId,
+} from '../../common/types/branded.types';
+import type { ChatRequestDto } from '../dto/chat-request.dto';
 
 @Injectable()
 export class ChatCacheGuardService {
@@ -23,6 +37,7 @@ export class ChatCacheGuardService {
     private readonly config: ConfigService,
     private readonly rateLimiter: SmartRateLimiterService,
     private readonly loggingService: LoggingService,
+    @Optional() private readonly semanticCache?: SemanticCacheService,
   ) {
     const logger = this.loggingService.child({
       module: 'ChatCacheGuardService',
@@ -63,24 +78,37 @@ export class ChatCacheGuardService {
   async getCachedIfAllowed(
     requestBody: ChatRequestDto,
     options: ProviderCallOptions,
+    clientId: ClientId,
+    gatewayKey: GatewayKey,
   ): Promise<CachedChatResponse | null> {
-    const skipCache = isToolingRequest(requestBody);
+    if (
+      isToolingRequest(requestBody) ||
+      !gatewayKey ||
+      clientId === 'unknown'
+    ) {
+      return null;
+    }
 
-    if (skipCache) return null;
-
-    const cachedResponse = await this.cacheService.getCachedResponse(
+    const exact = await this.cacheService.getCachedResponse(
       requestBody,
+      clientId,
       options,
     );
 
     const gateway = getAppConfigOrThrow(this.config, 'gateway');
     const modelAlias = requestBody.modelAlias;
 
-    if (
-      cachedResponse &&
-      isCachedChatAllowedForModelAlias(gateway, modelAlias)
-    ) {
-      return cachedResponse;
+    if (exact && isCachedChatAllowedForModelAlias(gateway, modelAlias)) {
+      return exact;
+    }
+
+    if (!lastUserMessageText(requestBody) || !this.semanticCache) {
+      return null;
+    }
+
+    const semantic = await this.semanticCache.lookup(requestBody, clientId);
+    if (semantic && isCachedChatAllowedForModelAlias(gateway, modelAlias)) {
+      return semantic;
     }
 
     return null;
@@ -90,11 +118,30 @@ export class ChatCacheGuardService {
     requestBody: ChatRequestDto,
     response: ChatResponseData,
     options: ProviderCallOptions,
+    clientId: ClientId,
+    gatewayKey: GatewayKey,
   ): Promise<void> {
-    const skipCache = isToolingRequest(requestBody);
+    if (
+      isToolingRequest(requestBody) ||
+      !gatewayKey ||
+      clientId === 'unknown'
+    ) {
+      return;
+    }
 
-    if (!skipCache) {
-      await this.cacheService.setCachedResponse(requestBody, response, options);
+    await this.cacheService.setCachedResponse(
+      requestBody,
+      response,
+      clientId,
+      options,
+    );
+
+    if (this.semanticCache && lastUserMessageText(requestBody)) {
+      await this.semanticCache.storeReply(
+        requestBody,
+        toCachedChatResponse(response),
+        clientId,
+      );
     }
   }
 }

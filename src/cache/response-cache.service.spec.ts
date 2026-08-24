@@ -28,6 +28,10 @@ import {
   TEST_TOOL_CALL_ID_CACHED,
   TEST_CACHE_TTL_SECONDS,
 } from '../common/mocks/test-constants';
+import { asClientId } from '../common/types/branded.types';
+
+const TEST_CLIENT_ID = asClientId('test-client');
+const OTHER_CLIENT_ID = asClientId('other-client');
 
 describe('ResponseCacheService', () => {
   let service: ResponseCacheService;
@@ -70,7 +74,7 @@ describe('ResponseCacheService', () => {
     it('should return null when cache not available', async () => {
       (mockCacheBackend.isAvailable as jest.Mock).mockReturnValue(false);
 
-      const result = await service.getCachedResponse(request);
+      const result = await service.getCachedResponse(request, TEST_CLIENT_ID);
 
       expect(result).toBeNull();
       expect(mockCacheBackend.get).not.toHaveBeenCalled();
@@ -80,7 +84,7 @@ describe('ResponseCacheService', () => {
     it('should return null when cache miss', async () => {
       (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
 
-      const result = await service.getCachedResponse(request);
+      const result = await service.getCachedResponse(request, TEST_CLIENT_ID);
 
       expect(result).toBeNull();
       expect(mockLogger.debug).toHaveBeenCalledWith(
@@ -111,7 +115,7 @@ describe('ResponseCacheService', () => {
         JSON.stringify(cached),
       );
 
-      const result = await service.getCachedResponse(request);
+      const result = await service.getCachedResponse(request, TEST_CLIENT_ID);
 
       expect(result).toEqual(cached);
       expect(mockLogger.info).toHaveBeenCalledWith(
@@ -126,26 +130,39 @@ describe('ResponseCacheService', () => {
     it('should generate same cache key for same request', async () => {
       (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
 
-      await service.getCachedResponse(request);
+      await service.getCachedResponse(request, TEST_CLIENT_ID);
       const key1 = (mockCacheBackend.get as jest.Mock).mock.calls[0][0];
 
-      await service.getCachedResponse(request);
+      await service.getCachedResponse(request, TEST_CLIENT_ID);
       const key2 = (mockCacheBackend.get as jest.Mock).mock.calls[1][0];
 
       expect(key1).toBe(key2);
     });
 
+
+    it('should generate different cache key for different clientId', async () => {
+      (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
+
+      await service.getCachedResponse(request, TEST_CLIENT_ID);
+      const keyA = (mockCacheBackend.get as jest.Mock).mock.calls[0][0];
+
+      await service.getCachedResponse(request, OTHER_CLIENT_ID);
+      const keyB = (mockCacheBackend.get as jest.Mock).mock.calls[1][0];
+
+      expect(keyA).not.toBe(keyB);
+    });
+
     it('should generate different cache key for different messages', async () => {
       (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
 
-      await service.getCachedResponse(request);
+      await service.getCachedResponse(request, TEST_CLIENT_ID);
       const key1 = (mockCacheBackend.get as jest.Mock).mock.calls[0][0];
 
       const request2 = {
         ...request,
         messages: [{ role: 'user' as const, content: 'Hi' }],
       };
-      await service.getCachedResponse(request2);
+      await service.getCachedResponse(request2, TEST_CLIENT_ID);
       const key2 = (mockCacheBackend.get as jest.Mock).mock.calls[1][0];
 
       expect(key1).not.toBe(key2);
@@ -155,11 +172,11 @@ describe('ResponseCacheService', () => {
       (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
 
       const callParams1: ProviderCallOptions = { temperature: 0.7 };
-      await service.getCachedResponse(request, callParams1);
+      await service.getCachedResponse(request, TEST_CLIENT_ID, callParams1);
       const key1 = (mockCacheBackend.get as jest.Mock).mock.calls[0][0];
 
       const callParams2: ProviderCallOptions = { temperature: 0.9 };
-      await service.getCachedResponse(request, callParams2);
+      await service.getCachedResponse(request, TEST_CLIENT_ID, callParams2);
       const key2 = (mockCacheBackend.get as jest.Mock).mock.calls[1][0];
 
       expect(key1).not.toBe(key2);
@@ -169,7 +186,7 @@ describe('ResponseCacheService', () => {
       (mockCacheBackend.get as jest.Mock).mockResolvedValue('invalid json');
       (mockCacheBackend.delete as jest.Mock).mockResolvedValue(true);
 
-      const result = await service.getCachedResponse(request);
+      const result = await service.getCachedResponse(request, TEST_CLIENT_ID);
 
       expect(result).toBeNull();
       expect(mockCacheBackend.delete).toHaveBeenCalled();
@@ -186,7 +203,7 @@ describe('ResponseCacheService', () => {
     it('should include cache key prefix from config', async () => {
       (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
 
-      await service.getCachedResponse(request);
+      await service.getCachedResponse(request, TEST_CLIENT_ID);
 
       const key = (mockCacheBackend.get as jest.Mock).mock.calls[0][0];
       expect(key).toMatch(/^aigw:cache:chat:/);
@@ -208,7 +225,7 @@ describe('ResponseCacheService', () => {
       );
       (mockCacheBackend.delete as jest.Mock).mockResolvedValue(true);
 
-      const result = await service.getCachedResponse(request);
+      const result = await service.getCachedResponse(request, TEST_CLIENT_ID);
 
       expect(result).toBeNull();
       expect(mockCacheBackend.delete).toHaveBeenCalled();
@@ -237,7 +254,7 @@ describe('ResponseCacheService', () => {
       );
       (mockCacheBackend.delete as jest.Mock).mockResolvedValue(true);
 
-      const result = await service.getCachedResponse(request);
+      const result = await service.getCachedResponse(request, TEST_CLIENT_ID);
 
       expect(result).toBeNull();
       expect(mockCacheBackend.delete).toHaveBeenCalled();
@@ -270,14 +287,14 @@ describe('ResponseCacheService', () => {
     it('should generate different cache key for different modelAlias', async () => {
       (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
 
-      await service.getCachedResponse(request);
+      await service.getCachedResponse(request, TEST_CLIENT_ID);
       const keyPrimary = (mockCacheBackend.get as jest.Mock).mock.calls[0][0];
 
       const requestOtherAlias = {
         ...request,
         modelAlias: 'other-model-alias',
       };
-      await service.getCachedResponse(requestOtherAlias);
+      await service.getCachedResponse(requestOtherAlias, TEST_CLIENT_ID);
       const keyOther = (mockCacheBackend.get as jest.Mock).mock.calls[1][0];
 
       expect(keyPrimary).not.toBe(keyOther);
@@ -286,7 +303,7 @@ describe('ResponseCacheService', () => {
     it('should not cache when cache not available', async () => {
       (mockCacheBackend.isAvailable as jest.Mock).mockReturnValue(false);
 
-      await service.setCachedResponse(request, response);
+      await service.setCachedResponse(request, response, TEST_CLIENT_ID);
 
       expect(mockCacheBackend.set).not.toHaveBeenCalled();
     });
@@ -294,7 +311,7 @@ describe('ResponseCacheService', () => {
     it('should cache response with default TTL', async () => {
       (mockCacheBackend.set as jest.Mock).mockResolvedValue(true);
 
-      await service.setCachedResponse(request, response);
+      await service.setCachedResponse(request, response, TEST_CLIENT_ID);
 
       expect(mockCacheBackend.set).toHaveBeenCalledWith(
         expect.any(String),
@@ -309,6 +326,7 @@ describe('ResponseCacheService', () => {
       await service.setCachedResponse(
         request,
         response,
+        TEST_CLIENT_ID,
         undefined,
         TEST_CACHE_TTL_CUSTOM,
       );
@@ -323,7 +341,7 @@ describe('ResponseCacheService', () => {
     it('should add cached flag and cachedAt timestamp', async () => {
       (mockCacheBackend.set as jest.Mock).mockResolvedValue(true);
 
-      await service.setCachedResponse(request, response);
+      await service.setCachedResponse(request, response, TEST_CLIENT_ID);
 
       const serialized = (mockCacheBackend.set as jest.Mock).mock.calls[0][1];
       const parsed = JSON.parse(serialized);
@@ -352,7 +370,7 @@ describe('ResponseCacheService', () => {
         effectiveModelAlias: TEST_FALLBACK_MODEL_ALIAS,
       };
 
-      await service.setCachedResponse(request, fullResponse);
+      await service.setCachedResponse(request, fullResponse, TEST_CLIENT_ID);
 
       const parsed = JSON.parse(
         (mockCacheBackend.set as jest.Mock).mock.calls[0][1],
@@ -377,7 +395,7 @@ describe('ResponseCacheService', () => {
     it('should log debug on successful cache set', async () => {
       (mockCacheBackend.set as jest.Mock).mockResolvedValue(true);
 
-      await service.setCachedResponse(request, response);
+      await service.setCachedResponse(request, response, TEST_CLIENT_ID);
 
       expect(mockLogger.debug).toHaveBeenCalledWith(
         expect.stringContaining('Cache SET'),
@@ -387,7 +405,7 @@ describe('ResponseCacheService', () => {
     it('should log warn when cache set fails', async () => {
       (mockCacheBackend.set as jest.Mock).mockResolvedValue(false);
 
-      await service.setCachedResponse(request, response);
+      await service.setCachedResponse(request, response, TEST_CLIENT_ID);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Failed to cache response'),
@@ -404,7 +422,7 @@ describe('ResponseCacheService', () => {
     it('should delete cache entry', async () => {
       (mockCacheBackend.delete as jest.Mock).mockResolvedValue(true);
 
-      await service.invalidateCache(request);
+      await service.invalidateCache(request, TEST_CLIENT_ID);
 
       expect(mockCacheBackend.delete).toHaveBeenCalled();
     });
@@ -412,7 +430,7 @@ describe('ResponseCacheService', () => {
     it('should log info on successful invalidation', async () => {
       (mockCacheBackend.delete as jest.Mock).mockResolvedValue(true);
 
-      await service.invalidateCache(request);
+      await service.invalidateCache(request, TEST_CLIENT_ID);
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Cache invalidated'),
@@ -422,7 +440,7 @@ describe('ResponseCacheService', () => {
     it('should not log when delete returns false', async () => {
       (mockCacheBackend.delete as jest.Mock).mockResolvedValue(false);
 
-      await service.invalidateCache(request);
+      await service.invalidateCache(request, TEST_CLIENT_ID);
 
       expect(mockLogger.info).not.toHaveBeenCalled();
     });
@@ -448,8 +466,8 @@ describe('ResponseCacheService', () => {
 
       (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
 
-      await service.getCachedResponse(request, callParams);
-      await service.getCachedResponse(request, callParams);
+      await service.getCachedResponse(request, TEST_CLIENT_ID, callParams);
+      await service.getCachedResponse(request, TEST_CLIENT_ID, callParams);
 
       const key1 = (mockCacheBackend.get as jest.Mock).mock.calls[0][0];
       const key2 = (mockCacheBackend.get as jest.Mock).mock.calls[1][0];
@@ -466,7 +484,7 @@ describe('ResponseCacheService', () => {
       (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.getCachedResponse(request, undefined),
+        service.getCachedResponse(request, TEST_CLIENT_ID, undefined),
       ).resolves.not.toThrow();
     });
   });

@@ -58,4 +58,21 @@ describe('should-include-redis-stack', () => {
       expect(isRedisRequired({})).toBe(false);
     });
   });
+
+  it('should be true when only semantic cache enabled', () => {
+    expect(
+      isRedisRequiredFromEnv({
+        CACHE_ENABLED: 'false',
+        CACHE_BACKEND: 'noop',
+        RATE_LIMIT_SMART_ENABLED: 'false',
+        SEMANTIC_CACHE_ENABLED: 'true',
+      }),
+    ).toBe(true);
+  });
+
+  it('should include semantic-cache consumer', () => {
+    expect(getRedisConsumers({ semanticCacheEnabled: true })).toEqual([
+      'semantic-cache',
+    ]);
+  });
 });

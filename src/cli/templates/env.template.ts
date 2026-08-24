@@ -37,6 +37,8 @@ export interface EnvTemplateInput {
   redisPassword?: string;
 
   rateLimitSmartEnabled?: boolean;
+  /** Present when already set in env/input; wizard questions = Phase 5. */
+  semanticCacheEnabled?: boolean;
 
   metricsBackend?: 'sentry' | 'noop';
   sentryDsn?: string;
@@ -52,6 +54,7 @@ export function isEnvInputRedisRequired(input: EnvTemplateInput): boolean {
       backend: cacheEnabled ? cacheBackend : 'noop',
     },
     rateLimitSmartEnabled: input.rateLimitSmartEnabled === true,
+    semanticCacheEnabled: input.semanticCacheEnabled === true,
   });
 }
 
