@@ -110,8 +110,7 @@ describe('ChatCacheGuardService', () => {
     const mockConfig = createMockConfigService(configOptions);
 
     const providers: Array<
-      | typeof ChatCacheGuardService
-      | { provide: unknown; useValue: unknown }
+      typeof ChatCacheGuardService | { provide: unknown; useValue: unknown }
     > = [
       ChatCacheGuardService,
       { provide: ResponseCacheService, useValue: mockCache },

@@ -219,13 +219,11 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
       : {
           enabled: options.semanticCache?.enabled ?? false,
           embeddingBaseUrl:
-            options.semanticCache?.embeddingBaseUrl ??
-            'http://localhost:11435',
+            options.semanticCache?.embeddingBaseUrl ?? 'http://localhost:11435',
           embeddingModel:
             options.semanticCache?.embeddingModel ?? 'qwen3-embedding:0.6b',
           embeddingDim: options.semanticCache?.embeddingDim ?? 1024,
-          embeddingTimeoutMs:
-            options.semanticCache?.embeddingTimeoutMs ?? 5000,
+          embeddingTimeoutMs: options.semanticCache?.embeddingTimeoutMs ?? 5000,
           minSimilarity: options.semanticCache?.minSimilarity ?? 0.9,
           ttl: asCacheTtlSeconds(options.semanticCache?.ttl ?? 3600),
           k: options.semanticCache?.k ?? 3,

@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import { getAppConfigOrThrow } from '../../../config/typed-config';
 import { RedisConnectionService } from '../../adapters/redis-cache/redis-connection.service';
-import { LoggingService } from '../../../logging/logging.service';
 import { parseCachedChatResponse } from '../../schemas/cached-chat-response.schema';
 import { semanticIndexName } from '../index-name';
 import type {
@@ -20,7 +19,6 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
   constructor(
     private readonly redis: RedisConnectionService,
     private readonly config: ConfigService,
-    private readonly loggingService: LoggingService,
   ) {}
 
   private indexName(): string {
@@ -48,12 +46,13 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
   private parseKnnHits(raw: unknown): VectorSearchHit[] {
     if (!Array.isArray(raw) || raw.length < 3) return [];
 
+    const items = raw as unknown[];
     const count = Number(raw[0]);
     if (!Number.isFinite(count) || count < 1) return [];
 
     const hits: VectorSearchHit[] = [];
-    for (let i = 1; i + 1 < raw.length; i += 2) {
-      const fields = raw[i + 1];
+    for (let i = 1; i + 1 < items.length; i += 2) {
+      const fields = items[i + 1];
       if (!Array.isArray(fields)) continue;
 
       const map = new Map<string, string>();

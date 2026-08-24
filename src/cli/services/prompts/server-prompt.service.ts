@@ -135,8 +135,7 @@ export class ServerPromptService {
     ]);
 
     // Semantic cache prompts = Phase 5; honor existing env for Redis snapshot.
-    const semanticCacheEnabled =
-      process.env.SEMANTIC_CACHE_ENABLED === 'true';
+    const semanticCacheEnabled = process.env.SEMANTIC_CACHE_ENABLED === 'true';
 
     const redisRequired = isRedisRequired({
       cache: {

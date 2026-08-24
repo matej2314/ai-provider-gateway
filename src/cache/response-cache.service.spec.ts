@@ -139,7 +139,6 @@ describe('ResponseCacheService', () => {
       expect(key1).toBe(key2);
     });
 
-
     it('should generate different cache key for different clientId', async () => {
       (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
 
