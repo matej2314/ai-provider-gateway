@@ -18,9 +18,6 @@ import {
 import { asClientId } from '../../common/types/branded.types';
 import type { ChatRequestDto } from '../../chat/dto/chat-request.dto';
 import type { CachedChatResponse } from '../types/cached-chat-response.type';
-import type { EmbeddingBackend } from './embedding-backend.interface';
-import type { VectorStore } from './vector-store.interface';
-
 const TEST_CLIENT_ID = asClientId('test-client');
 const FIXED_VECTOR = [0.1, 0.2, 0.3];
 
@@ -40,8 +37,8 @@ const cachedReply: CachedChatResponse = {
 
 describe('SemanticCacheService', () => {
   let service: SemanticCacheService;
-  let mockEmbedding: jest.Mocked<EmbeddingBackend>;
-  let mockVectorStore: jest.Mocked<VectorStore>;
+  let mockEmbedding: { isAvailable: jest.Mock; embed: jest.Mock };
+  let mockVectorStore: { knn: jest.Mock; upsert: jest.Mock };
   let mockAppMetrics: { recordSemanticCacheLookup: jest.Mock };
   let mockLogger: Partial<LoggingService>;
 
