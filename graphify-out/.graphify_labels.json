@@ -151,6 +151,8 @@
   "149": "Dictionary — AI Provider Gateway",
   "150": "Testing — AI Provider Gateway",
   "151": "wait-for-redis.ts",
+  "152": "alias",
+  "153": "e2e-env.setup.ts",
   "154": "Data flow — AI Provider Gateway",
   "155": "OpenAI adapter (provider runtime)",
   "160": "Directory and file architecture",

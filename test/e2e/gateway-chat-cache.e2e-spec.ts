@@ -21,7 +21,10 @@ import {
 import { RedisConnectionService } from '../../src/cache/adapters/redis-cache/redis-connection.service';
 import { ProviderInstancesBootstrap } from '../../src/providers/provider-instances.bootstrap';
 import { LoggingService } from '../../src/logging/logging.service';
-import { closeE2eApp } from './helpers/create-e2e-app';
+import {
+  closeE2eApp,
+  createE2eGatewayKeyRuntime,
+} from './helpers/create-e2e-app';
 import {
   E2E_GATEWAY_KEY,
   E2E_POST_SUCCESS_STATUS,
@@ -52,6 +55,8 @@ async function createE2eAppWithCache(
     .useValue(
       createMockConfigService({
         cache: { enabled: true, backend: 'memory', ttl: 3600 },
+        semanticCache: { enabled: false },
+        gatewayKey: createE2eGatewayKeyRuntime(),
       }),
     )
     .overrideProvider(CACHE_BACKEND)

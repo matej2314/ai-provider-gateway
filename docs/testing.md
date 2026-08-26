@@ -33,6 +33,8 @@ Additional scripts from `package.json`:
 - `npm run test:security:watch` — security in watch mode (`maxWorkers: 1`)
 - `npm run test:security:ci` — security with `--ci` and coverage (`coverage-security/`)
 - `npm run test:integration:redis:up` / `:down` — test Redis container (port **6380**, DB **15**)
+- `npm run test:integration:semantic` — vector integration on Redis Stack (port **6381**); starts/stops `docker-compose.redis-stack.yml`; fake embedding (no Ollama)
+- `npm run test:integration:semantic:redis:up` / `:down` — Redis Stack container only for semantic vector tests
 - `npm run deploy:production` — `test:security` + `docker:build` + `docker:up:full`
 
 **Unit, E2E, and security tests do not require** a running HTTP server, Redis, or provider API keys — E2E and security bootstrap the NestJS app in the test process with infrastructure mocks.
@@ -74,7 +76,7 @@ Config: `test/jest-cli.json` — `roots: ["<rootDir>/../src/cli"]`.
 
 ## E2E tests (`test/e2e/`)
 
-Config: `test/jest-e2e.json` — `testRegex: .e2e-spec.ts$`, `setupFilesAfterEnv: e2e/setup/jest-e2e.setup.ts`.
+Config: `test/jest-e2e.json` — `testRegex: .e2e-spec.ts$`, `setupFiles: e2e/setup/e2e-env.setup.ts` (`SEMANTIC_CACHE_ENABLED=false` by default), `setupFilesAfterEnv: e2e/setup/jest-e2e.setup.ts`.
 
 ### Spec files
 
@@ -84,7 +86,8 @@ Naming convention: `*-facade*.e2e-spec.ts` = **HTTP facade** test (`src/integrat
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `gateway-chat.e2e-spec.ts`                  | Native chat: `POST /api/v1/chat`, `POST /api/v1/chat/stream`, generation warnings                                            |
 | `gateway-chat-stream-scenarios.e2e-spec.ts` | SSE: headers, events, fallback in stream, concurrent stream limits, `warnings` in `done`                              |
-| `gateway-chat-cache.e2e-spec.ts`            | Response cache for `POST /api/v1/chat` (mock cache backend), `warnings` persistence                                           |
+| `gateway-chat-cache.e2e-spec.ts`            | Exact response cache for `POST /api/v1/chat` (mock cache backend), `warnings` persistence                                           |
+| `gateway-chat-semantic-cache.e2e-spec.ts`   | Semantic cache HTTP path: fake embedding + in-memory vector store; miss→hit; tooling bypass (no Redis Stack / Ollama) |
 | `native-models.e2e-spec.ts`                 | Native catalog: `GET /models`, auth, `ErrorEnvelope` 404, alias parity with facades                                          |
 | `facade-models.e2e-spec.ts`                 | OpenAI and Anthropic facade model catalogs (`GET /openai/models`, `GET /anthropic/models`) — auth, list shape, multiple aliases |
 | `openai-facade.e2e-spec.ts`                 | OpenAI facade: auth, response shape, streaming                                                                            |
@@ -144,6 +147,7 @@ Spec files (`test/integration/*.integration-spec.ts`, **15** suites):
 | `gateway-chat-alias.integration-spec.ts`                 | Alias routing                   |
 | `gateway-chat-cache-redis.integration-spec.ts`           | Cache + Redis                     |
 | `gateway-chat-cache-tooling.integration-spec.ts`         | Cache + tooling                   |
+| `gateway-semantic-cache.integration-spec.ts`             | Semantic KNN on Redis Stack (port **6381**; run via `npm run test:integration:semantic`) |
 | `gateway-chat-openai-live.integration-spec.ts`           | Native chat with OpenAI adapter   |
 | `gateway-chat-openai-stream-live.integration-spec.ts`    | Native stream with OpenAI adapter |
 | `gateway-openai-compatible.integration-spec.ts`          | openai-compatible adapter (live)  |
@@ -157,7 +161,7 @@ Spec files (`test/integration/*.integration-spec.ts`, **15** suites):
 
 Setup details: **`test/integration/README.md`**.
 
-**Semantic cache integration (Faza 4):** vector integration tests run against Redis Stack (`redis/redis-stack-server`), **not** the alpine Redis in `test/integration/docker-compose.redis.yml`. A separate Docker stack with Redis Stack is required. The embedding service (Ollama) is **stubbed** with a constant-vector fake — no live Ollama is needed in CI. Exact-cache KV and rate-limit tests continue to use the alpine Redis.
+**Semantic cache integration (Faza 4):** vector integration tests run against Redis Stack (`test/integration/docker-compose.redis-stack.yml`, host port **6381**), **not** the alpine Redis in `test/integration/docker-compose.redis.yml`. Runner: `npm run test:integration:semantic` (pre/post bring the Stack container up/down). The embedding service (Ollama) is **stubbed** with a constant-vector fake — no live Ollama is needed in CI. Spec skips unless `SEMANTIC_CACHE_ENABLED=true` and `REDIS_PORT=6381`. Exact-cache KV and rate-limit tests continue to use the alpine Redis.
 
 ## Security tests (`test/security/`)
 

@@ -1,6 +1,6 @@
 ﻿# Plan: semantic cache
 
-Status epiku: **Fazy 1–2 WYKONANE** (ciała kroków `WYKONANY` bez zmian). **Faza 6 WYKONANA** (kroki 6.1–6.7). **Faza 3 WYKONANA** (kroki 3.1–3.3). Fazy 4–5: **NIE_ROZPOCZĘTE**. Faza 6 **MUSI** być w całości wykonana przed Fazą 3 — spełnione.  
+Status epiku: **Fazy 1–2 WYKONANE** (ciała kroków `WYKONANY` bez zmian). **Faza 6 WYKONANA** (kroki 6.1–6.7). **Faza 3 WYKONANA** (kroki 3.1–3.3). **Faza 4 WYKONANA** (kroki 4.1–4.3). Faza 5: **NIE_ROZPOCZĘTA**. Faza 6 **MUSI** być w całości wykonana przed Fazą 3 — spełnione.  
 Wiążący kontrakt warstwy semantic cache: **§0 + DoD v1** (uzupełnione 2026-08-25 — cel v1 **oraz** pasek poprawek: circuit z odzyskiem, jeden embed na miss, probe `/ready` w budżecie healthchecka, known limitation partycji). Migawki implementacji w krokach 2.x pozostają historią wykonania; nie nadpisują §0. Faza 6 to refaktor `src/` + docs pod ten kontrakt, **bez** Compose.  
 Ten plik jest wyłącznie planem — bez zmian w `src/`, `docs/` ani Compose, dopóki użytkownik o to nie poprosi.  
 Źródło ustaleń: przegląd `src/cache`, Compose, readiness (2026-08-22); korekta kontraktów opisowych po raporcie zgodności (2026-08-25).
@@ -2255,9 +2255,9 @@ Redis już był w production; embedding doklejamy do tej samej gałęzi. Czatowe
 
 ---
 
-## Faza 4 — Testy integracyjne i E2E (status: NIE_ROZPOCZĘTY)
+## Faza 4 — Testy integracyjne i E2E (status: WYKONANY)
 
-### Krok 4.1 — Compose Redis Stack tylko pod wektory (status: NIE_ROZPOCZĘTY)
+### Krok 4.1 — Compose Redis Stack tylko pod wektory (status: WYKONANY)
 
 `test/integration/docker-compose.redis.yml` (`redis:7-alpine`, mapowanie `6380:6379`) **zostaje** dla KV / rate-limit.
 
@@ -2302,7 +2302,7 @@ Port **6381** na hoście — bez kolizji z alpine na 6380 i z dev Stack na 6380.
 
 (`cross-env` tylko jeśli już jest w repo; inaczej PowerShell-safe env w skrypcie `scripts/`.) CI: **bez** żywej Ollamy — `EMBEDDING_BASE_URL` celowo martwy; testy podmieniają `EMBEDDING_BACKEND` na fake.
 
-### Krok 4.2 — Integration wektorowa (status: NIE_ROZPOCZĘTY)
+### Krok 4.2 — Integration wektorowa (status: WYKONANY)
 
 #### `test/integration/gateway-semantic-cache.integration-spec.ts` — NOWY
 
@@ -2312,7 +2312,7 @@ Port **6381** na hoście — bez kolizji z alpine na 6380 i z dev Stack na 6380.
 - Scenariusze: SET → KNN hit przy progu 0.90; inny `clientId` → miss (TAG); `FT.INFO` indeksu `qwen3-1024` (lub `semanticIndexName`).
 - Nie wołać HTTP Ollamy.
 
-### Krok 4.3 — E2E HTTP (status: NIE_ROZPOCZĘTY)
+### Krok 4.3 — E2E HTTP (status: WYKONANY)
 
 #### `test/e2e/helpers/create-e2e-app.ts` / env E2E
 

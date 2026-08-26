@@ -2025,9 +2025,9 @@
     "semantic_hash": "ccfd29e611225b5b21dbc4543369f4cd"
   },
   "test/e2e/gateway-chat-cache.e2e-spec.ts": {
-    "mtime": 1784640699.5696118,
-    "ast_hash": "1c6b4ed1c5ba1539290cefd27c617db9",
-    "semantic_hash": "1c6b4ed1c5ba1539290cefd27c617db9"
+    "mtime": 1787755671.917996,
+    "ast_hash": "8e5fd269c4257766718b39656fe25aef",
+    "semantic_hash": ""
   },
   "test/e2e/gateway-chat-openai.e2e-spec.ts": {
     "mtime": 1787692002.8406553,
@@ -2045,9 +2045,9 @@
     "semantic_hash": "1dce147f014466a93042c065750711d9"
   },
   "test/e2e/helpers/create-e2e-app.ts": {
-    "mtime": 1787692002.8416555,
-    "ast_hash": "15301cd32ab42d05c306db612993278d",
-    "semantic_hash": "15301cd32ab42d05c306db612993278d"
+    "mtime": 1787755686.8464742,
+    "ast_hash": "02fa5482d0a9a14536506496017e0726",
+    "semantic_hash": ""
   },
   "test/e2e/helpers/e2e-constants.ts": {
     "mtime": 1784640699.572611,
@@ -2275,9 +2275,9 @@
     "semantic_hash": "db87c0a1efe9a9700f823637345d21c5"
   },
   "test/jest-e2e.json": {
-    "mtime": 1784640699.6236153,
-    "ast_hash": "d34f9d018cac5134648c99c07f5bebbd",
-    "semantic_hash": "d34f9d018cac5134648c99c07f5bebbd"
+    "mtime": 1787755258.3334646,
+    "ast_hash": "b21c9dae68936b16d617f00651ba12ad",
+    "semantic_hash": ""
   },
   "test/jest-integration.json": {
     "mtime": 1784640699.624616,
@@ -2470,8 +2470,8 @@
     "semantic_hash": ""
   },
   "docs/testing.md": {
-    "mtime": 1787751242.5595727,
-    "ast_hash": "51453af7c41a5f8475ca14c7f2274c8c",
+    "mtime": 1787755849.4076269,
+    "ast_hash": "00c948e0c9bff82f504ccce6ed5f8650",
     "semantic_hash": ""
   },
   "src/config/system-prompt/MAIN_SYSTEM_PROMPT.md": {
@@ -2595,8 +2595,8 @@
     "semantic_hash": ""
   },
   "src/cache/semantic/embedding-circuit-breaker.spec.ts": {
-    "mtime": 1787752199.2462766,
-    "ast_hash": "b6a3c6dc8e13c92490726ca299ea58b8",
+    "mtime": 1787753114.8393059,
+    "ast_hash": "069b65ea39560b1f33a386a0152a9c34",
     "semantic_hash": ""
   },
   "src/cache/semantic/index-name.spec.ts": {
@@ -2610,8 +2610,8 @@
     "semantic_hash": ""
   },
   "src/cache/semantic/semantic-cache.service.spec.ts": {
-    "mtime": 1787752584.089111,
-    "ast_hash": "60d86ff913d35180097225288ea370be",
+    "mtime": 1787753114.8393059,
+    "ast_hash": "d1086076cd9f2155350cff8431b1a979",
     "semantic_hash": ""
   },
   "src/cache/semantic/semantic-cache.constants.spec.ts": {
@@ -2622,6 +2622,26 @@
   "src/cache/semantic/semantic-cache.constants.ts": {
     "mtime": 1787752136.7482278,
     "ast_hash": "18fbd83c0ad27286cc5cd2d38da56939",
+    "semantic_hash": ""
+  },
+  "test/e2e/gateway-chat-semantic-cache.e2e-spec.ts": {
+    "mtime": 1787755802.9492958,
+    "ast_hash": "0c9b1f9523fc450d2ec0fe913dbccd84",
+    "semantic_hash": ""
+  },
+  "test/e2e/setup/e2e-env.setup.ts": {
+    "mtime": 1787755254.194743,
+    "ast_hash": "c12ea58457c1d8855d80f0a623775159",
+    "semantic_hash": ""
+  },
+  "test/integration/gateway-semantic-cache.integration-spec.ts": {
+    "mtime": 1787755253.028519,
+    "ast_hash": "4119377bd59c37612f2c43a5c3558fc8",
+    "semantic_hash": ""
+  },
+  "test/integration/docker-compose.redis-stack.yml": {
+    "mtime": 1787755226.8928,
+    "ast_hash": "e89220912ad1a40bc672c7c7036df774",
     "semantic_hash": ""
   }
 }
