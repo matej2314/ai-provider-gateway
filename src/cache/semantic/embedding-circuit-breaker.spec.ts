@@ -34,7 +34,10 @@ describe('EmbeddingCircuitBreaker', () => {
     });
 
     it('allows a single trial after cooldown (half-open)', () => {
-      const c = new EmbeddingCircuitBreaker(EMBEDDING_CIRCUIT_OPEN_AFTER, 1_000);
+      const c = new EmbeddingCircuitBreaker(
+        EMBEDDING_CIRCUIT_OPEN_AFTER,
+        1_000,
+      );
       for (let i = 0; i < EMBEDDING_CIRCUIT_OPEN_AFTER; i += 1) {
         c.recordEmbedFailure();
       }
@@ -45,7 +48,10 @@ describe('EmbeddingCircuitBreaker', () => {
     });
 
     it('should close after success on half-open trial', () => {
-      const c = new EmbeddingCircuitBreaker(EMBEDDING_CIRCUIT_OPEN_AFTER, 1_000);
+      const c = new EmbeddingCircuitBreaker(
+        EMBEDDING_CIRCUIT_OPEN_AFTER,
+        1_000,
+      );
       for (let i = 0; i < EMBEDDING_CIRCUIT_OPEN_AFTER; i += 1) {
         c.recordEmbedFailure();
       }

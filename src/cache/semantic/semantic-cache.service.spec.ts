@@ -477,7 +477,9 @@ describe('SemanticCacheService', () => {
 
       expect(mockVectorStore.upsert).not.toHaveBeenCalled();
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Semantic cache store embed failed (fail-open)'),
+        expect.stringContaining(
+          'Semantic cache store embed failed (fail-open)',
+        ),
       );
     });
 

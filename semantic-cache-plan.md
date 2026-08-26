@@ -1,6 +1,6 @@
 ﻿# Plan: semantic cache
 
-Status epiku: **Fazy 1–2 WYKONANE** (ciała kroków `WYKONANY` bez zmian). **Faza 6 WYKONANA** (kroki 6.1–6.7). Fazy 3–5: **NIE_ROZPOCZĘTE**. Faza 6 **MUSI** być w całości wykonana przed Fazą 3 — spełnione.  
+Status epiku: **Fazy 1–2 WYKONANE** (ciała kroków `WYKONANY` bez zmian). **Faza 6 WYKONANA** (kroki 6.1–6.7). **Faza 3 WYKONANA** (kroki 3.1–3.3). Fazy 4–5: **NIE_ROZPOCZĘTE**. Faza 6 **MUSI** być w całości wykonana przed Fazą 3 — spełnione.  
 Wiążący kontrakt warstwy semantic cache: **§0 + DoD v1** (uzupełnione 2026-08-25 — cel v1 **oraz** pasek poprawek: circuit z odzyskiem, jeden embed na miss, probe `/ready` w budżecie healthchecka, known limitation partycji). Migawki implementacji w krokach 2.x pozostają historią wykonania; nie nadpisują §0. Faza 6 to refaktor `src/` + docs pod ten kontrakt, **bez** Compose.  
 Ten plik jest wyłącznie planem — bez zmian w `src/`, `docs/` ani Compose, dopóki użytkownik o to nie poprosi.  
 Źródło ustaleń: przegląd `src/cache`, Compose, readiness (2026-08-22); korekta kontraktów opisowych po raporcie zgodności (2026-08-25).
@@ -2029,11 +2029,11 @@ Użyć `jest.useFakeTimers()`.
 
 ---
 
-## Faza 3 — Infrastruktura Compose i skrypty (status: NIE_ROZPOCZĘTY)
+## Faza 3 — Infrastruktura Compose i skrypty (status: WYKONANY)
 
 > **Nie startować tej fazy, dopóki Faza 6 nie jest WYKONANA.** Kolejność: **2 ⇒ 6 ⇒ 3 → 4**.
 
-### Krok 3.1 — Redis Stack (status: NIE_ROZPOCZĘTY)
+### Krok 3.1 — Redis Stack (status: WYKONANY)
 
 Tylko istniejący `deployment/docker/docker-compose.redis.yml` — **bez** nowego pliku Compose dla Redis. Pin tagu `redis/redis-stack-server` (np. `7.4.2-v2`; potwierdzić tag przy implementacji). `REDIS_ARGS`, nie `command:`.
 
@@ -2081,7 +2081,7 @@ Sanity po starcie (nie w YAML): `docker exec ai-gateway-redis redis-cli -p 6380 
 
 ---
 
-### Krok 3.2 — Ollama embedding (status: NIE_ROZPOCZĘTY)
+### Krok 3.2 — Ollama embedding (status: WYKONANY)
 
 #### `deployment/docker/docker-compose.ollama-embedding.yml` — NOWY
 
@@ -2145,7 +2145,7 @@ Po sukcesie `ollama-pull` kończy pracę (`restart: "no"`, `service_completed_su
 
 ---
 
-### Krok 3.3 — Skrypty i deploy (status: NIE_ROZPOCZĘTY)
+### Krok 3.3 — Skrypty i deploy (status: WYKONANY)
 
 Nowa **baza**: gateway + Redis Stack + ollama-embedding. Czatowa Ollama nadal osobno.
 
