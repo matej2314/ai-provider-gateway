@@ -88,7 +88,11 @@ Cache semantyczny stoi **powyżej** cache'u exact w łańcuchu lookupów dla `PO
 
 **Warunki pominięcia** (żądanie trafia bezpośrednio do providera bez lookupu semantycznego): żądania tooling, brak `gatewayKey`, `clientId === 'unknown'`, brak ostatniej wiadomości użytkownika z niepustym `content`, wszystkie żądania streamingowe (`POST /api/v1/chat/stream`).
 
-**Fail-open:** gdy serwis embeddingów lub Redis Search jest niedostępny, żądanie trafia do providera — warstwa cache nie blokuje czatu. `GET /api/v1/health/ready` może raportować `checks.embeddings: degraded` bez zmiany `status` na `not_ready`.
+**Fail-open:** gdy serwis embeddingów lub Redis Search jest niedostępny, żądanie trafia do providera — warstwa cache nie blokuje czatu. Degradacja jest **chwilowa**: obwód embeddingu wraca do ruchu (half-open po cooldown; udany probe `/ready` zamyka obwód). `GET /api/v1/health/ready` może raportować `checks.embeddings: degraded` bez zmiany `status` na `not_ready`. Probe embeddingów są throttlowane i używają `min(2000, EMBEDDING_TIMEOUT_MS)` — nigdy nie osiągają timeoutu Docker HEALTHCHECK gatewaya (3 s). Gdy `EMBEDDING_TIMEOUT_MS` jest powyżej 2 s, probe jest ściśle krótszy; gdy jest ≤ 2 s, probe ma ten sam budżet co czat (nie dłuższy). `embeddings: healthy` nie współistnieje z trwale otwartym obwodem.
+
+**Partycja (known limitation v1):** KNN semantyczny filtruje tylko po `modelAlias` + `clientId`. W przeciwieństwie do exact cache **nie** obejmuje sygnatury system promptu ani efektywnych parametrów wywołania. Zmiana promptu albo `responseFormat` nie unieważnia wpisów semantycznych (granicą jest TTL). Patrz `anty_patterny.md` §20.
+
+**Ścieżka miss:** co najwyżej jeden `embed` na żądanie JSON. Lookup zwraca opcjonalny wektor oraz czy `embed` już był wołany (`embedAttempted` w `SemanticCacheService`). Przy zapisie: jest wektor → tylko upsert (bez drugiego `embed`); `embed` już był i brak wektora → pomiń zapis semantyczny (bez retry po padniętym lookupie); `embed` nie był wołany (np. otwarty obwód) → zapis **może** zrobić **pierwszy** `embed`, jeśli obwód wpuszcza próbę. Streaming (`POST /api/v1/chat/stream`) w v1 nie używa tej warstwy; późniejszy zapis po streamie: SET z `{ embedAttempted: false }` (pierwszy embed, bez lookupu na starcie) — `semantic-cache-plan.md` Faza 5.
 
 **Redis:** używa tego samego `RedisConnectionService` i instancji Redis Stack co cache exact i rate limit (port **6380**, obraz `redis/redis-stack-server`). Nazwa indeksu wektorowego zawiera model i wymiar (np. `qwen3-1024`). Zmiana `EMBEDDING_MODEL` lub `EMBEDDING_DIM` wymaga nowego indeksu.
 
@@ -96,11 +100,11 @@ Cache semantyczny stoi **powyżej** cache'u exact w łańcuchu lookupów dla `PO
 
 | Zmienna | Default w kodzie | Znaczenie |
 |---------|-----------------|-----------|
-| `SEMANTIC_CACHE_ENABLED` | `false` | Gdy `true`, włącza semantic lookup w `POST /api/v1/chat`. Wymaga Redis Stack + serwisu embeddingów. Domyślnie w kodzie `false`; `.env` / Compose tego projektu używa `true`. |
+| `SEMANTIC_CACHE_ENABLED` | `false` | Gdy `true`, włącza semantic lookup w `POST /api/v1/chat`. Wymaga Redis Stack + serwisu embeddingów. Domyślnie w kodzie `false`; `true` w `.env.example` / Compose tego projektu to przykład **lokalny**, nie certyfikat produkcji (wymaga Fazy 6 + 3 + 4). |
 | `EMBEDDING_BASE_URL` | `http://localhost:11435` | Bazowy URL serwisu embeddingów Ollama. W sieciach Docker: `http://ollama-embedding:11434`. |
 | `EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Model Ollama do embeddingów (`POST /api/embed`). Zmiana modelu wymaga nowego indeksu wektorowego. Lżejszy model (np. `nomic-embed-text`) to nowy indeks, nie hot-swap. |
 | `EMBEDDING_DIM` | `1024` | Wymiar wektora embeddingu. Musi pasować do modelu (`qwen3-embedding:0.6b` → 1024). Zmiana wartości wymaga usunięcia i odtworzenia indeksu Redis Search. |
-| `EMBEDDING_TIMEOUT_MS` | `5000` | Timeout HTTP zapytań o embedding (ms). Po przekroczeniu → fail-open. |
+| `EMBEDDING_TIMEOUT_MS` | `5000` | Timeout HTTP zapytań o embedding (ms). Po przekroczeniu → fail-open. Probe `/ready` używa `min(2000, ta wartość)`, bez osobnej zmiennej env. |
 | `SEMANTIC_CACHE_MIN_SIMILARITY` | `0.90` | Minimalne podobieństwo cosinusowe dla trafienia (0–1). Redis Search przechowuje **dystans** cosinusowy ≈ `1 − podobieństwo`; cutoff ≈ 0.10. |
 | `SEMANTIC_CACHE_TTL` | jak `CACHE_TTL` / `3600` | TTL wpisów cache semantycznego (sekundy). |
 | `SEMANTIC_CACHE_K` | `3` | Liczba najbliższych sąsiadów w zapytaniu KNN; bierzemy najlepszy wynik powyżej progu. |

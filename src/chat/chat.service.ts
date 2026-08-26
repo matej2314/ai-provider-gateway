@@ -31,6 +31,7 @@ import {
   type ModelAlias,
   ClientId,
 } from '../common/types/branded.types';
+import type { SemanticStoreEmbedState } from '../cache/semantic/semantic-cache.service';
 
 @Injectable()
 export class ChatService {
@@ -118,13 +119,17 @@ export class ChatService {
       modelAlias: requestBody.modelAlias,
     });
 
+    let embedState: SemanticStoreEmbedState | undefined;
+
     if (gatewayKey) {
-      const cachedResponse = await this.cacheGuardService.getCachedIfAllowed(
-        requestBody,
-        options,
-        clientId,
-        gatewayKey,
-      );
+      const { cached: cachedResponse, embedState: lookupEmbedState } =
+        await this.cacheGuardService.getCachedIfAllowed(
+          requestBody,
+          options,
+          clientId,
+          gatewayKey,
+        );
+      embedState = lookupEmbedState;
 
       if (cachedResponse) {
         log.info('Chat cache hit');
@@ -194,6 +199,7 @@ export class ChatService {
         options,
         clientId,
         gatewayKey,
+        embedState,
       );
 
       log.info('Chat completed successfully', {

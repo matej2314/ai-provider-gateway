@@ -128,7 +128,7 @@ Details: `dictionary.md`, `api-documentation.md`.
 
 **Don’t:** expect that **`requestId`** in a cached response always matches the current request — the implementation returns the identifier stored with the first response.
 
-**Do:** consciously enable cache only where response repeatability is acceptable; monitor TTL and invalidation (changing the system prompt changes the cache key in the current implementation). Read `configuration.md` (env `CACHE_*`, `REDIS_*`); Redis reads are validated with a Zod schema (`CachedChatResponseSchema` — corrupt entry removed); streaming is a cache-free path (`pl/spec/SPEC-CHAT-STREAMING.md`).
+**Do:** consciously enable cache only where response repeatability is acceptable; monitor TTL and invalidation (changing the system prompt changes the cache key in the current implementation — exact cache only; semantic: see 20). Read `configuration.md` (env `CACHE_*`, `REDIS_*`); Redis reads are validated with a Zod schema (`CachedChatResponseSchema` — corrupt entry removed); streaming is a cache-free path (`pl/spec/SPEC-CHAT-STREAMING.md`).
 
 ## 13) Confusing three API contracts (native vs official contract facades)
 
@@ -177,7 +177,7 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 
 **Don’t:** add Redis Search / KNN queries to the existing `CacheBackend` / `noop` / `redis` adapters in `src/cache/adapters/`. The KV `CacheBackend` interface is for exact key-value lookup and has no similarity-search concept.
 
-**Do:** implement semantic lookup as a **separate port** (`EmbeddingBackend`, `VectorStore`) in `src/cache/semantic/` — independent adapters wired by `SemanticCacheService`. Lookup order (exact → semantic → provider) is orchestrated in `ChatCacheGuardService`, not inside the KV adapters.
+**Do:** implement semantic lookup as a **separate port** (`EmbeddingBackend`, `VectorStore`) in `src/cache/semantic/` — independent adapters wired by `SemanticCacheService`. Lookup order (exact → semantic → provider) is orchestrated in `ChatCacheGuardService`, not inside the KV adapters. On store, reuse the lookup vector; do **not** call `embed` again when lookup already attempted it (failed or succeeded without a usable vector).
 
 ## 17) Overriding `command:` on Redis Stack Compose
 
@@ -196,3 +196,9 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 **Don’t:** prefix embedding text with `search_query:` (or `search_document:`) when using `qwen3-embedding:0.6b`. That instruction belongs to `nomic-embed-text` / `mxbai`. Qwen 3 Embedding does not understand it — store and lookup drift, which looks like false misses.
 
 **Do:** embed the bare last-user `content` (or a Qwen-specific instruction) on **both** store and lookup. The two sides must use the same format. Changing the format or switching to `nomic-embed-text` requires a new index (e.g. `qwen3-1024`), not a hot-swap.
+
+## 20) Assuming a system-prompt change invalidates semantic cache
+
+**Don’t:** assume that editing `MASTER_SYSTEM_PROMPT.md` / per-alias prompts, or changing call params (`responseFormat`, `temperature`, `seed`, …), drops semantic KNN hits. Exact cache hashes `systemSignature` and effective params; the Redis Search index partitions only on `modelAlias` + `clientId`. Old semantic replies can be served until TTL (`SEMANTIC_CACHE_TTL`). There is no bulk semantic invalidation.
+
+**Do:** treat this as a v1 known limitation. Document it next to exact-vs-semantic lookup. Shorten `SEMANTIC_CACHE_TTL` if prompt/params churn is high. Do not lower the similarity threshold to “make up” for missing partitions. Adding `systemSignature` / params as TAG is a separate decision (out of v1).

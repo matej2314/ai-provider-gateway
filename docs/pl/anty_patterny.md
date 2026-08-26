@@ -128,7 +128,7 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 **Nie rób**: oczekiwania, że **`requestId`** w odpowiedzi z cache zawsze odpowiada bieżącemu żądaniu — w implementacji zwracany jest identyfikator zapisany wraz z pierwszą odpowiedzią.
 
-**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony wpis usuwany); streaming jest ścieżką bez cache (`spec/SPEC-CHAT-STREAMING.md`).
+**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji — tylko exact cache; semantic: pkt 20). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony wpis usuwany); streaming jest ścieżką bez cache (`spec/SPEC-CHAT-STREAMING.md`).
 
 ## 13) Mylenie trzech kontraktów API (natywny vs fasady oficjalnych kontraktów)
 
@@ -177,7 +177,7 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 
 **Nie rób:** dodawaj zapytan Redis Search / KNN do istniejacych adapterow `CacheBackend` / `noop` / `redis` w `src/cache/adapters/`. Interfejs KV `CacheBackend` jest zaprojektowany dla dokladnych lookupu klucz-wartosc i nie ma koncepcji wyszukiwania podobienstwa.
 
-**Rób:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (exact -> semantic -> provider) jest orkiestrowana w `ChatCacheGuardService`, nie wewnatrz istniejacych adapterow.
+**Rób:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (exact -> semantic -> provider) jest orkiestrowana w `ChatCacheGuardService`, nie wewnatrz istniejacych adapterow. Przy zapisie reuse wektora z lookupu; **nie** wołaj ponownie `embed`, gdy lookup już go próbował (sukces bez wektora albo błąd).
 
 ## 17) Nadpisywanie command: w Redis Stack Compose
 
@@ -196,3 +196,9 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 **Nie rób:** dodawaj prefiksu `search_query:` (ani `search_document:`) do tekstu embeddingu przy `qwen3-embedding:0.6b`. Ta instrukcja należy do `nomic-embed-text` / `mxbai`. Qwen 3 Embedding jej nie rozumie — niespójność store vs lookup wygląda jak fałszywe missy.
 
 **Rób:** embedduj gołą treść ostatniej wiadomości `role: user` (albo dedykowaną instrukcję Qwena) po **obu** stronach (zapis i lookup). Format musi być identyczny. Zmiana formatu albo przejście na `nomic-embed-text` wymaga nowego indeksu (np. `qwen3-1024`), nie hot-swapu.
+
+## 20) Założenie, że zmiana system promptu unieważnia cache semantyczny
+
+**Nie rób:** zakładać, że edycja `MASTER_SYSTEM_PROMPT.md` / promptów per alias albo zmiana parametrów wywołania (`responseFormat`, `temperature`, `seed`, …) kasuje trafienia KNN. Exact cache hashuje `systemSignature` i efektywne params; indeks Redis Search partycjonuje tylko po `modelAlias` + `clientId`. Stare odpowiedzi semantyczne mogą być serwowane do końca TTL (`SEMANTIC_CACHE_TTL`). Nie ma hurtowej invalidacji semantic.
+
+**Rób:** traktuj to jako known limitation v1. Opisz obok kolejności lookup exact vs semantic. Skróć `SEMANTIC_CACHE_TTL`, gdy prompt/params często się zmieniają. Nie obniżaj progu podobieństwa, żeby „nadrobić” brak partycji. TAG `systemSignature` / params — osobna decyzja (poza v1).

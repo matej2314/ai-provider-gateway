@@ -431,6 +431,24 @@ describe('HealthService', () => {
       expect(result.checks.embeddings!.status).toBe('healthy');
     });
 
+    it('should probe embeddings only once within the 5s throttle window', async () => {
+      const probeEmbedding = jest.fn().mockResolvedValue(true);
+      await initService(
+        {
+          ...healthyReadinessConfig,
+          semanticCache: { enabled: true },
+        },
+        { probeEmbedding },
+      );
+
+      const first = await service.getReadiness();
+      const second = await service.getReadiness();
+
+      expect(probeEmbedding).toHaveBeenCalledTimes(1);
+      expect(first.checks.embeddings).toEqual(second.checks.embeddings);
+      expect(first.checks.embeddings!.status).toBe('healthy');
+    });
+
     it('should include embeddings in health metrics when present', async () => {
       await initService(
         {

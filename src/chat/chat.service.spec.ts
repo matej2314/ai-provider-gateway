@@ -120,7 +120,7 @@ describe('ChatService', () => {
 
     mockCacheGuard = {
       checkRateLimit: jest.fn().mockResolvedValue(undefined),
-      getCachedIfAllowed: jest.fn().mockResolvedValue(null),
+      getCachedIfAllowed: jest.fn().mockResolvedValue({ cached: null }),
       setCachedIfAllowed: jest.fn().mockResolvedValue(undefined),
     };
 
@@ -323,9 +323,9 @@ describe('ChatService', () => {
         id: 'cached-123',
         output: { type: 'text' as const, text: 'Cached response' },
       };
-      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue(
-        cachedResponse,
-      );
+      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: cachedResponse,
+      });
 
       const result = await service.executeChat(
         baseRequest,
@@ -540,6 +540,35 @@ describe('ChatService', () => {
         expect.any(Object),
         TEST_CLIENT_ID,
         TEST_GATEWAY_KEY_BRANDED,
+        undefined,
+      );
+    });
+
+    it('should pass embedState from lookup to cache write on miss', async () => {
+      const embedState = { vector: [0.1, 0.2, 0.3], embedAttempted: true };
+      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: null,
+        embedState,
+      });
+      mockExecutorChatSuccess({ text: 'Fresh answer' });
+
+      await service.executeChat(
+        baseRequest,
+        TEST_CLIENT_ID,
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        'native',
+      );
+
+      expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
+        expect.objectContaining({
+          output: { type: 'text', text: 'Fresh answer' },
+        }),
+        expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        embedState,
       );
     });
 

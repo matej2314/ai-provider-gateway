@@ -31,11 +31,12 @@ export class OllamaEmbeddingAdapter implements EmbeddingBackend, OnModuleInit {
     return getAppConfigOrThrow(this.config, 'semanticCache').enabled;
   }
 
-  async embed(text: string): Promise<number[]> {
+  async embed(text: string, timeoutMs?: number): Promise<number[]> {
     const cfg = getAppConfigOrThrow(this.config, 'semanticCache');
     const url = `${cfg.embeddingBaseUrl.replace(/\/$/, '')}/api/embed`;
+    const budget = timeoutMs ?? cfg.embeddingTimeoutMs;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), cfg.embeddingTimeoutMs);
+    const timer = setTimeout(() => controller.abort(), budget);
     try {
       const embedResponse = await fetch(url, {
         method: 'POST',

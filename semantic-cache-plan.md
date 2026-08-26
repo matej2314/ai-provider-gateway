@@ -1,6 +1,6 @@
 ﻿# Plan: semantic cache
 
-Status epiku: **Fazy 1–2 WYKONANE** (ciała kroków `WYKONANY` bez zmian). **Faza 6 NIE_ROZPOCZĘTA — MUSI być wykonana przed Fazą 3.** Fazy 3–5: **NIE_ROZPOCZĘTE**.  
+Status epiku: **Fazy 1–2 WYKONANE** (ciała kroków `WYKONANY` bez zmian). **Faza 6 WYKONANA** (kroki 6.1–6.7). Fazy 3–5: **NIE_ROZPOCZĘTE**. Faza 6 **MUSI** być w całości wykonana przed Fazą 3 — spełnione.  
 Wiążący kontrakt warstwy semantic cache: **§0 + DoD v1** (uzupełnione 2026-08-25 — cel v1 **oraz** pasek poprawek: circuit z odzyskiem, jeden embed na miss, probe `/ready` w budżecie healthchecka, known limitation partycji). Migawki implementacji w krokach 2.x pozostają historią wykonania; nie nadpisują §0. Faza 6 to refaktor `src/` + docs pod ten kontrakt, **bez** Compose.  
 Ten plik jest wyłącznie planem — bez zmian w `src/`, `docs/` ani Compose, dopóki użytkownik o to nie poprosi.  
 Źródło ustaleń: przegląd `src/cache`, Compose, readiness (2026-08-22); korekta kontraktów opisowych po raporcie zgodności (2026-08-25).
@@ -18,13 +18,13 @@ Wiążące dla DoD warstwy. Gdzie 2026-08-25 zmienia wcześniejsze brzmienie, wi
 | Lookup             | exact (hash) → semantic (embedding + KNN) → provider                                                                                                                                                                                                                                                                                                                     |
 | HTTP v1            | non-stream: `POST /api/v1/chat` i fasady przez `ChatService`                                                                                                                                                                                                                                                                                                             |
 | Stream v1          | bez odczytu/zapisu cache                                                                                                                                                                                                                                                                                                                                                 |
-| Stream później     | krok po v1: **zapis exact po udanym streamie** (A). Replay SSE (B) poza zakresem                                                                                                                                                                                                                                                                                         |
+| Stream później     | Faza 5 (po v1): **exact + semantic**. 5.A — po udanym streamie `setCachedIfAllowed` z `{ embedAttempted: false }` (lookup na starcie **off**; `storeReply` może zrobić **pierwszy** `embed`). 5.B — lookup na starcie; hit → replay SSE; miss → SET z `embedState` z lookupu (reuse wektora). Zmiana względem: wcześniejszy wiersz „zapis exact po udanym streamie (A); Replay SSE (B) poza zakresem” (tylko exact, bez kontraktu `embedAttempted`).                                                                                                                                                                                                                                                                                         |
 | Tekst wektora      | ostatnia wiadomość `role: user` z niepustym `content`                                                                                                                                                                                                                                                                                                                    |
 | Partycja           | TAG `modelAlias` + `clientId`; ten sam `clientId` wchodzi do klucza exact. Semantic **nie** partycjonuje po `systemSignature` ani po efektywnych params wywołania (to ograniczenie v1, obowiązkowo opisane w docs — dopisek pod tabelą)                                                                                                                                  |
 | Skip               | tooling; brak `gatewayKey`; `clientId === 'unknown'`; brak ostatniego usera (tylko semantic); stream v1                                                                                                                                                                                                                                                                  |
 | Fail-open          | Redis / embedding down → chat idzie dalej; `/ready` może być `embeddings: degraded`, nie `not_ready`. Fail-open = **degradacja chwilowa**, nie trwałe wyłączenie semantic cache do restartu procesu (dopisek: circuit)                                                                                                                                                   |
 | Circuit embeddingu | Obwód tylko na błędach **`embed()`**. Stany closed → open (po 3 kolejnych błędach embed) → **half-open** (próbny embed po cooldown) → closed. Sukces half-open albo sukces `probeEmbedding()` zamyka obwód. Błędy Redis (`knn` / `upsert`) **nie** zużywają tego licznika. Warmup `OnModuleInit` nie otwiera obwodu                                                      |
-| Reuse wektora      | Na exact-miss + semantic-miss: **jeden** `embed` na żądanie. `lookup` udostępnia wektor; `setCachedIfAllowed` **przekazuje** go do `storeReply(..., reusedVector)`. Zapis nadal `await` (nie `void`)                                                                                                                                                                     |
+| Reuse wektora      | Na exact-miss + semantic-miss: **co najwyżej jeden** `embed` na żądanie. `lookup` zwraca `{ reply, vector, embedAttempted }`; SET przekazuje `SemanticStoreEmbedState`. Jest wektor → tylko `upsert`. `embedAttempted: true` bez wektora → **brak** retry. `embedAttempted: false` → `storeReply` może zrobić **pierwszy** `embed` (circuit). Zapis `await` (nie `void`). Zmiana względem: Faza 6 / 6.3–6.4 — samo `reusedVector?` (brak wektora = cichy skip, bez rozróżnienia „nie liczono” vs „padło”).                                                                                                                                                                                                                                                                                         |
 | Health `/ready`    | `checks.embeddings` tylko gdy flaga on; `degraded` nie blokuje `ready`. Probe embeddings **nie wiesza** `GET /ready`: throttle wyniku (jak scrape metryk) i/lub timeout probe **krótszy** niż `EMBEDDING_TIMEOUT_MS` oraz **krótszy** niż timeout healthchecka gatewaya (Compose/Dockerfile: **3 s**). `embeddings: healthy` nie współistnieje z obwodem trwale otwartym |
 | Flagi              | kod: `SEMANTIC_CACHE_ENABLED=false`; `.env` / Compose tego projektu: `true` jako przykład **lokalny**, nie certyfikat produkcji. Poza dev: kontrakt circuit + reuse + probe **oraz** Fazy 3–4 (żywy Redis Search)                                                                                                                                                        |
 | Próg               | cosine **similarity** default **0.90** (env nadpisuje); w Redis COSINE dystans ≈ `1 − similarity` → cutoff **0.10**. Ryzyko „podobny tekst, inna tożsamość” zostaje (anti-patterns pkt 18)                                                                                                                                                                               |
@@ -42,6 +42,7 @@ Wiążące dla DoD warstwy. Gdzie 2026-08-25 zmienia wcześniejsze brzmienie, wi
 - **Reuse wektora.** Zmiana względem: komentarz `storeReply` w kroku 2.2 (intencja reuse) vs snippet `ChatCacheGuardService` bez 4. argumentu. Wiążący jest **jeden embed na miss** + przekazanie wektora z lookup do SET; snippet bez `reusedVector` nie jest kontraktem.
 - **Probe `/ready`.** Zmiana względem: krok 2.3 (żywy `probeEmbedding()` na każdym `evaluateReadiness()`, bez throttlingu). Wiążące: `GET /ready` (w tym Docker `HEALTHCHECK` timeout 3 s) nie czeka na pełne `EMBEDDING_TIMEOUT_MS` (5000). Nie wydłużamy healthchecka gatewaya pod embedding — skracamy/cache’ujemy probe.
 - **Partycja.** Wymiar TAG bez zmian względem 2026-08-22 (`modelAlias` + `clientId`). Dopisek: exact nadal hashuje sygnaturę system promptu i efektywne params; semantic nie. Brak bulk-invalidacji KNN przy zmianie promptu — bound to TTL. Docs (`anti-patterns` / `anty_patterny`, `configuration` / `konfiguracja`) **muszą** to nazwać jako known limitation v1. TAG `systemSignature` / params oraz opt-in per alias = poza v1 (osobna decyzja).
+- **Stream później / `embedAttempted` (2026-08-26).** Zmiana względem: wiersz Stream później (tylko zapis exact w 5.A; replay B „poza zakresem” bez reuse) oraz reuse jako samo `reusedVector?`. JSON: `embedAttempted` rozróżnia retry od pierwszego `embed` w `storeReply`. Stream: 5.A `{ embedAttempted: false }` po `done`; 5.B lookup na starcie i SET z `embedState` z lookupu.
 
 ---
 
@@ -1311,7 +1312,7 @@ Flaga off → brak `checks.embeddings`; flaga on + probe fail → `embeddings: d
 
 ---
 
-## Faza 6 — Poprawki po raporcie (`src/` + docs) (status: NIE_ROZPOCZĘTY)
+## Faza 6 — Poprawki po raporcie (`src/` + docs) (status: WYKONANY)
 
 > **KOLEJNOŚĆ — OBOWIĄZKOWA:** **Faza 6 MUSI być w całości wykonana przed Fazą 3.**  
 > Dalsze fazy idą numeracją: **3 → 4**; Faza 5 po v1.  
@@ -1327,7 +1328,7 @@ Kolejność w tej fazie: circuit → port embed timeout → serwis lookup/store/
 
 ---
 
-### Krok 6.1 — Circuit breaker: half-open i odzysk (status: NIE_ROZPOCZĘTY)
+### Krok 6.1 — Circuit breaker: half-open i odzysk (status: WYKONANY)
 
 Refaktor względem: Faza 2 / Krok 2.2 `embedding-circuit-breaker.ts` (WYKONANY; G2: `+=` bez half-open).
 
@@ -1412,7 +1413,7 @@ export class EmbeddingCircuitBreaker {
 
 ---
 
-### Krok 6.2 — Timeout probe na porcie embed (status: NIE_ROZPOCZĘTY)
+### Krok 6.2 — Timeout probe na porcie embed (status: WYKONANY)
 
 Refaktor względem: Faza 2 / Krok 2.2 `EmbeddingBackend` + `OllamaEmbeddingAdapter.embed` (WYKONANY; zawsze `EMBEDDING_TIMEOUT_MS`).
 
@@ -1464,7 +1465,7 @@ Reszta metody bez zmian. Warmup `onModuleInit` nadal `this.embed('warmup')` (pe�
 
 ---
 
-### Krok 6.3 — Lookup zwraca wektor; Redis ≠ circuit embed (status: NIE_ROZPOCZĘTY)
+### Krok 6.3 — Lookup zwraca wektor; Redis ≠ circuit embed (status: WYKONANY)
 
 Refaktor względem: Faza 2 / Krok 2.2 `SemanticCacheService` (WYKONANY).
 
@@ -1630,7 +1631,7 @@ export type SemanticLookupResult = {
 
 ---
 
-### Krok 6.4 — Guard + `ChatService`: jeden embed na miss (status: NIE_ROZPOCZĘTY)
+### Krok 6.4 — Guard + `ChatService`: jeden embed na miss (status: WYKONANY)
 
 Refaktor względem: Faza 2 / Krok 2.2 `ChatCacheGuardService` + `ChatService.executeChat` (WYKONANY; `storeReply` bez 4. argumentu).
 
@@ -1801,7 +1802,7 @@ oraz
 
 ---
 
-### Krok 6.5 — `/ready`: throttle + krótki probe (status: NIE_ROZPOCZĘTY)
+### Krok 6.5 — `/ready`: throttle + krótki probe (status: WYKONANY)
 
 Refaktor względem: Faza 2 / Krok 2.3 `HealthService.checkEmbeddings` / `getReadiness` (WYKONANY; żywy probe na każdym `evaluateReadiness()`, bez throttlingu).
 
@@ -1894,7 +1895,7 @@ oraz
 
 ---
 
-### Krok 6.6 — Docs: known limitation partycji + fail-open (status: NIE_ROZPOCZĘTY)
+### Krok 6.6 — Docs: known limitation partycji + fail-open (status: WYKONANY)
 
 Refaktor względem: Faza 1 / Krok 1.2 (WYKONANY) oraz pkt 12/18 w `anti-patterns.md` (pkt 12 mówi, że zmiana system promptu zmienia klucz cache — to **tylko exact**).
 
@@ -1947,7 +1948,7 @@ W wierszu tabeli `SEMANTIC_CACHE_ENABLED`: dopisać, że `true` w `.env.example`
 
 ---
 
-### Krok 6.7 — Testy jednostkowe poprawek (status: NIE_ROZPOCZĘTY)
+### Krok 6.7 — Testy jednostkowe poprawek (status: WYKONANY)
 
 Refaktor względem: Faza 2 / Krok 2.4 (WYKONANY). Fake porty; bez Redis Stack / Ollamy.
 
@@ -2327,9 +2328,9 @@ Opcjonalnie NOWY `test/e2e/gateway-chat-semantic-cache.e2e-spec.ts`: fake embedd
 
 Poza zakresem v1 poza punktem A gdy ktoś go świadomie odpali. Każdy podkrok `NIE_ROZPOCZĘTY`.
 
-### Krok 5.A — Zapis exact + upsert wektora po `executeStream` (status: NIE_ROZPOCZĘTY)
+### Krok 5.A — Zapis exact + semantic po `executeStream` (status: NIE_ROZPOCZĘTY)
 
-Refaktor względem: `src/chat/chat.service.ts` `executeStream` (v1: zero cache). Wymaga złożenia pełnego `output` z chunków / `streamResult`.
+Refaktor względem: `src/chat/chat.service.ts` `executeStream` (v1: zero cache) **oraz** `SemanticCacheService.storeReply` / `SemanticStoreEmbedState` (JSON chat: lookup przekazuje `{ vector, embedAttempted }`; bez wektora i `embedAttempted: true` = brak retry). Wymaga złożenia pełnego `output` z chunków / `streamResult`.
 
 **Przed** (koniec happy-path, po `emit(doneEvent)`):
 
@@ -2372,17 +2373,25 @@ log.info('Chat stream completed', {
         options,
         clientId,
         gatewayKey,
+        { embedAttempted: false },
       );
 
       const latency = Date.now() - startedAt;
       log.info('Chat stream completed', { /* … */ });
 ```
 
-Lookup na streamie nadal **off** (klient już otworzył SSE). Replay SSE = 5.B.
+Lookup na starcie streamu nadal **off** (klient już otworzył SSE) — to nie jest drugi `embed` na JSON miss, tylko **pierwszy** `embed` tej ścieżki, w `storeReply`, gdy circuit wpuszcza. Exact zapisuje się zawsze (guard). Semantic: `upsert` po tym jednym `embed`. **Nie** wołać SET bez `embedState` i **nie** liczyć na `reusedVector ?? embed()` — po failu lookupu JSON `embedAttempted: true` blokuje retry; tu lookupu nie było, więc `false`. Replay / odczyt na starcie = 5.B.
 
-### Krok 5.B — Replay SSE z cache (status: NIE_ROZPOCZĘTY)
+### Krok 5.B — Replay SSE z cache + reuse wektora przy SET (status: NIE_ROZPOCZĘTY)
 
-Poza v1. Nie implementować, dopóki nie będzie osobnej decyzji. Miejsce: `executeStream` przed `runOnce` — gdy exact/semantic hit, emit `meta`/`delta`/`done` z zapisanego `output`. Poza zakresem v1.
+Refaktor względem: Krok 5.A (NIE_ROZPOCZĘTY) — SET z `{ embedAttempted: false }` bez lookupu. Poza v1. Nie implementować, dopóki nie będzie osobnej decyzji.
+
+Miejsce: `executeStream` **przed** `runOnce` (po `flushHeaders`): `getCachedIfAllowed` jak JSON.
+
+- **Hit** (exact lub semantic) → emit `meta` / `delta` / `done` z zapisanego `output`; **bez** providera i **bez** SET.
+- **Miss** → zachowaj `embedState` z lookupu; stream jak dziś; po `done` `setCachedIfAllowed(..., embedState)` zamiast `{ embedAttempted: false }` — ten sam wektor co JSON, bez drugiego `embed`.
+
+Jeden pipeline z `executeChat`: lookup → (hit: replay \| miss: provider) → store ze stanem embed. Poza zakresem v1.
 
 ### Krok 5.C — Wizard `config:init` (status: NIE_ROZPOCZĘTY)
 

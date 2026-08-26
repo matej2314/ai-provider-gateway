@@ -39,6 +39,7 @@ import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider
 
 const TEST_CLIENT_ID = asClientId('test-client');
 const UNKNOWN_CLIENT_ID = asClientId('unknown');
+const FIXED_VECTOR = [0.1, 0.2, 0.3];
 
 const cacheEnabledGatewayConfig: MockConfigServiceOptions = {
   gatewayOptions: {
@@ -103,7 +104,11 @@ describe('ChatCacheGuardService', () => {
     mockRateLimiter = createMockSmartRateLimiter();
     mockLogger = createMockLoggingService();
     mockSemanticCache = {
-      lookup: jest.fn().mockResolvedValue(null),
+      lookup: jest.fn().mockResolvedValue({
+        reply: null,
+        vector: FIXED_VECTOR,
+        embedAttempted: true,
+      }),
       storeReply: jest.fn().mockResolvedValue(undefined),
     };
 
@@ -239,7 +244,7 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toEqual(cachedResponse);
+        expect(result).toEqual({ cached: cachedResponse });
         expect(mockCache.getCachedResponse).toHaveBeenCalledWith(
           baseRequest,
           TEST_CLIENT_ID,
@@ -250,7 +255,11 @@ describe('ChatCacheGuardService', () => {
 
       it('should fall through to semantic on exact miss', async () => {
         (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
-        mockSemanticCache.lookup.mockResolvedValue(cachedResponse);
+        mockSemanticCache.lookup.mockResolvedValue({
+          reply: cachedResponse,
+          vector: FIXED_VECTOR,
+          embedAttempted: true,
+        });
 
         const result = await service.getCachedIfAllowed(
           baseRequest,
@@ -259,7 +268,7 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toEqual(cachedResponse);
+        expect(result).toEqual({ cached: cachedResponse });
         expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
           baseRequest,
           TEST_CLIENT_ID,
@@ -283,7 +292,7 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({ cached: null });
         expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
         expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
       });
@@ -296,7 +305,7 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({ cached: null });
         expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
       });
 
@@ -308,11 +317,11 @@ describe('ChatCacheGuardService', () => {
           asGatewayKey(''),
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({ cached: null });
         expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
       });
 
-      it('should return null on exact and semantic miss', async () => {
+      it('should return embedState on exact and semantic miss', async () => {
         (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
 
         const result = await service.getCachedIfAllowed(
@@ -322,8 +331,35 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({
+          cached: null,
+          embedState: {
+            vector: FIXED_VECTOR,
+            embedAttempted: true,
+          },
+        });
         expect(mockSemanticCache.lookup).toHaveBeenCalled();
+      });
+
+      it('should pass embedAttempted false when lookup skipped embed', async () => {
+        (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
+        mockSemanticCache.lookup.mockResolvedValue({
+          reply: null,
+          vector: null,
+          embedAttempted: false,
+        });
+
+        const result = await service.getCachedIfAllowed(
+          baseRequest,
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+        );
+
+        expect(result).toEqual({
+          cached: null,
+          embedState: { vector: undefined, embedAttempted: false },
+        });
       });
 
       it('should skip semantic when no last user message', async () => {
@@ -340,7 +376,7 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({ cached: null });
         expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
       });
 
@@ -355,7 +391,7 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({ cached: null });
       });
     });
 
@@ -397,7 +433,13 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({
+          cached: null,
+          embedState: {
+            vector: FIXED_VECTOR,
+            embedAttempted: true,
+          },
+        });
       });
 
       it('should return null when provider is disabled', async () => {
@@ -424,7 +466,13 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({
+          cached: null,
+          embedState: {
+            vector: FIXED_VECTOR,
+            embedAttempted: true,
+          },
+        });
       });
 
       it('should return null when provider row missing', async () => {
@@ -447,7 +495,13 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({
+          cached: null,
+          embedState: {
+            vector: FIXED_VECTOR,
+            embedAttempted: true,
+          },
+        });
       });
     });
 
@@ -471,13 +525,14 @@ describe('ChatCacheGuardService', () => {
 
   describe('setCachedIfAllowed', () => {
     describe('Happy path', () => {
-      it('should call setCachedResponse and await storeReply', async () => {
+      it('should call setCachedResponse and await storeReply with embedState', async () => {
         await service.setCachedIfAllowed(
           baseRequest,
           chatResponse,
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,
+          { vector: FIXED_VECTOR, embedAttempted: true },
         );
 
         expect(mockCache.setCachedResponse).toHaveBeenCalledWith(
@@ -494,6 +549,7 @@ describe('ChatCacheGuardService', () => {
             output: chatResponse.output,
           }),
           TEST_CLIENT_ID,
+          { vector: FIXED_VECTOR, embedAttempted: true },
         );
       });
     });

@@ -15,7 +15,10 @@ import { ApiErrorCode } from '../../common/errors/api-error.code';
 import { isCachedChatAllowedForModelAlias } from '../helpers/cache-policy';
 import { isToolingRequest } from '../helpers/tooling-request';
 import { asProviderInstanceId } from '../../common/types/branded.types';
-import { SemanticCacheService } from '../../cache/semantic/semantic-cache.service';
+import {
+  SemanticCacheService,
+  type SemanticStoreEmbedState,
+} from '../../cache/semantic/semantic-cache.service';
 import { lastUserMessageText } from '../../cache/semantic/last-user-message';
 import { getAppConfigOrThrow } from '../../config/typed-config';
 import type { ChatResponseData } from './chat-response-builder.service';
@@ -80,13 +83,16 @@ export class ChatCacheGuardService {
     options: ProviderCallOptions,
     clientId: ClientId,
     gatewayKey: GatewayKey,
-  ): Promise<CachedChatResponse | null> {
+  ): Promise<{
+    cached: CachedChatResponse | null;
+    embedState?: SemanticStoreEmbedState;
+  }> {
     if (
       isToolingRequest(requestBody) ||
       !gatewayKey ||
       clientId === 'unknown'
     ) {
-      return null;
+      return { cached: null };
     }
 
     const exact = await this.cacheService.getCachedResponse(
@@ -94,24 +100,31 @@ export class ChatCacheGuardService {
       clientId,
       options,
     );
-
     const gateway = getAppConfigOrThrow(this.config, 'gateway');
     const modelAlias = requestBody.modelAlias;
 
     if (exact && isCachedChatAllowedForModelAlias(gateway, modelAlias)) {
-      return exact;
+      return { cached: exact };
     }
 
     if (!lastUserMessageText(requestBody) || !this.semanticCache) {
-      return null;
+      return { cached: null };
     }
 
     const semantic = await this.semanticCache.lookup(requestBody, clientId);
-    if (semantic && isCachedChatAllowedForModelAlias(gateway, modelAlias)) {
-      return semantic;
+    if (
+      semantic.reply &&
+      isCachedChatAllowedForModelAlias(gateway, modelAlias)
+    ) {
+      return { cached: semantic.reply };
     }
-
-    return null;
+    return {
+      cached: null,
+      embedState: {
+        vector: semantic.vector ?? undefined,
+        embedAttempted: semantic.embedAttempted,
+      },
+    };
   }
 
   async setCachedIfAllowed(
@@ -120,6 +133,7 @@ export class ChatCacheGuardService {
     options: ProviderCallOptions,
     clientId: ClientId,
     gatewayKey: GatewayKey,
+    embedState?: SemanticStoreEmbedState,
   ): Promise<void> {
     if (
       isToolingRequest(requestBody) ||
@@ -128,19 +142,18 @@ export class ChatCacheGuardService {
     ) {
       return;
     }
-
     await this.cacheService.setCachedResponse(
       requestBody,
       response,
       clientId,
       options,
     );
-
     if (this.semanticCache && lastUserMessageText(requestBody)) {
       await this.semanticCache.storeReply(
         requestBody,
         toCachedChatResponse(response),
         clientId,
+        embedState ?? { embedAttempted: false },
       );
     }
   }

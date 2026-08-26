@@ -10,14 +10,14 @@ This document complements `api-documentation.md` and `architecture.md`: it shows
 |-------|-----------|
 | **Client** | Any HTTP client (application, service, BFF). |
 | **HTTP** | Controller + DTO validation + response. |
-| **ChatService** | Shared `prepareRequestForExecution` (ingress, tooling/thinking, cooldown check). Cache only in `executeChat`. `ResilientExecutor`, gateway response build (`id`, `conversationId`, `effectiveModelAlias`). |
+| **ChatService** | Shared `prepareRequestForExecution` (ingress, tooling/thinking, cooldown check). Cache only in `executeChat` (exact then semantic; SET gets lookup embed state). `ResilientExecutor`, gateway response build (`id`, `conversationId`, `effectiveModelAlias`). |
 | **ChatProviderCallService** | Single adapter call: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `AiMetricsService.observeProviderCall` / `observeProviderStream`, `AppMetricsService` (RED), SSE `meta`/`delta` emission. |
 | **ResilientExecutor** | `src/chat/resilience/` — retry on the requested alias (`policy.retry`, `policy.timeoutMs` → `buildRetryPolicyFromResolved`), then optionally YAML `fallback` alias (one hop). On timeout: `AbortSignal` to `completeOnce` / `streamOnce` → SDK adapter; response `PROVIDER_TIMEOUT` (504). |
 | **Registry** | `ProviderRegistryService` — maps YAML alias to **`providerInstance`** → `AIProvider` + `modelId`. |
 | **Provider** | `AIProvider` instance (factory + API key per YAML entry). |
 | **LLM API** | External provider service. |
 | **ResponseCache (ExactCache)** | `ResponseCacheService` — read/write of exact cache for **`POST /api/v1/chat`** (hash key: `modelAlias`, `clientId`, `messages`, system prompt signature, effective call parameters); reads validated with `CachedChatResponseSchema`; no impact on streaming. |
-| **SemanticCache** | `SemanticCacheService` — embeds the last `role: user` message (bare text, `qwen3-embedding:0.6b`) → KNN query in Redis Search → cosine similarity threshold check. Fail-open: embedding/Search error → provider call. Skipped for tooling, `clientId === 'unknown'`, and streaming. |
+| **SemanticCache** | `SemanticCacheService` — embeds the last `role: user` message (bare text, `qwen3-embedding:0.6b`) → KNN query in Redis Search → cosine similarity threshold check. Fail-open: embedding/Search error → provider call. Skipped for tooling, `clientId === 'unknown'`, and streaming. Store reuses the lookup vector or, if `embed` was not attempted, may run the first `embed` (no retry after a failed lookup). |
 | **Metrics** | **`AiMetricsService`** (Sentry LLM spans) + **`AppMetricsService`** (Prometheus RED); span `gen_ai.chat` per LLM call; **`gen_ai.conversation.id`** only when client supplies `conversationId` (`conversation-tracking.md`). Health gauges refreshed on `GET /metrics`. |
 | **Integration facade** | Controller `src/integrations/openai` or `anthropic` + mappers — translate vendor contract to `ChatRequestDto`, then the same `ChatService` as native chat (`integrations.md`). |
 
@@ -54,6 +54,8 @@ sequenceDiagram
   end
   H-->>-K: 201 JSON or error
 ```
+
+On a semantic miss, `executeChat` passes lookup embed state into SET: reuse vector, or skip retry, or first `embed` if lookup never called it (`configuration.md`).
 
 ---
 

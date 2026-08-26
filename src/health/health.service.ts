@@ -28,10 +28,14 @@ export interface HealthRedisCheckResult extends HealthCheckResult {
 @Injectable()
 export class HealthService implements OnModuleInit {
   private static readonly SCRAPE_REFRESH_MS = 5_000;
+  private static readonly EMBEDDINGS_PROBE_REFRESH_MS = 5_000;
 
   private readonly logger: LoggingService;
   private lastAggregateStatus: 'ready' | 'not_ready' | undefined;
   private lastScrapeRefreshAt = 0;
+  private lastEmbeddingsProbeAt = 0;
+  private lastEmbeddingsCheck: HealthCheckResult | undefined;
+  private embeddingsProbeInFlight: Promise<HealthCheckResult> | undefined;
   private scrapeRefreshInFlight: Promise<void> | undefined;
 
   constructor(
@@ -229,17 +233,33 @@ export class HealthService implements OnModuleInit {
         message: 'Embedding service unavailable',
       };
     }
-    const available = await this.semanticCache.probeEmbedding();
-    if (!available) {
-      return {
-        status: 'degraded',
-        message: 'Embedding service unavailable',
-      };
+
+    const now = Date.now();
+    if (
+      this.lastEmbeddingsCheck &&
+      now - this.lastEmbeddingsProbeAt <
+        HealthService.EMBEDDINGS_PROBE_REFRESH_MS
+    ) {
+      return this.lastEmbeddingsCheck;
     }
-    return {
-      status: 'healthy',
-      message: 'Embedding service available',
-    };
+
+    if (this.embeddingsProbeInFlight) {
+      return this.embeddingsProbeInFlight;
+    }
+
+    this.embeddingsProbeInFlight = (async () => {
+      const available = await this.semanticCache?.probeEmbedding();
+      const result: HealthCheckResult = available
+        ? { status: 'healthy', message: 'Embedding service available' }
+        : { status: 'degraded', message: 'Embedding service unavailable' };
+      this.lastEmbeddingsCheck = result;
+      this.lastEmbeddingsProbeAt = Date.now();
+      return result;
+    })().finally(() => {
+      this.embeddingsProbeInFlight = undefined;
+    });
+
+    return this.embeddingsProbeInFlight;
   }
 
   private async checkRedis(): Promise<HealthRedisCheckResult> {
