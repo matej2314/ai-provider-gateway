@@ -1,24 +1,59 @@
 import type { INestApplication } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { AppModule } from '../../src/app.module';
+import { setupApp } from '../../src/setup.app';
+import { CACHE_BACKEND } from '../../src/cache/cache.tokens';
 import type { CacheBackend } from '../../src/cache/interfaces/cache-backend-interface';
+import { OllamaEmbeddingAdapter } from '../../src/cache/semantic/adapters/ollama-embedding.adapter';
+import { RedisVectorStoreAdapter } from '../../src/cache/semantic/adapters/redis-vector-store.adapter';
 import type { EmbeddingBackend } from '../../src/cache/semantic/embedding-backend.interface';
+import { SemanticCacheModule } from '../../src/cache/semantic/semantic-cache.module';
+import {
+  EMBEDDING_BACKEND,
+  VECTOR_STORE,
+} from '../../src/cache/semantic/semantic-cache.tokens';
 import type {
   VectorSearchHit,
   VectorStore,
   VectorStoreKnnInput,
   VectorStoreUpsertInput,
 } from '../../src/cache/semantic/vector-store.interface';
+import { createMockConfigService } from '../../src/common/mocks/createMockConfigService';
 import { TEST_MODEL_ALIAS } from '../../src/common/mocks/test-constants';
-import {
-  createE2eProviderRegistry,
-  type E2eProviderRegistryMock,
-} from './helpers/e2e-provider-registry';
+import { RedisConnectionService } from '../../src/cache/adapters/redis-cache/redis-connection.service';
+import { LoggingService } from '../../src/logging/logging.service';
+import { ProviderInstancesBootstrap } from '../../src/providers/provider-instances.bootstrap';
+import { ProviderRegistryService } from '../../src/providers/provider-registry.service';
 import { createE2eGatewayKeyRuntime } from './helpers/create-e2e-app';
 import {
   E2E_GATEWAY_KEY,
   E2E_POST_SUCCESS_STATUS,
   E2E_ROUTES,
 } from './helpers/e2e-constants';
+import {
+  createE2eLoggingServiceMock,
+  createE2eProviderBootstrapMock,
+  createE2eRedisConnectionMock,
+} from './helpers/e2e-infra-mocks';
+import {
+  createE2eProviderRegistry,
+  type E2eProviderRegistryMock,
+} from './helpers/e2e-provider-registry';
+
+/**
+ * E2E setup leaves SEMANTIC_CACHE_ENABLED=false so CacheModule skips SemanticCacheModule.
+ * Import it here as global so ChatCacheGuardService can resolve SemanticCacheService
+ * without jest.resetModules() / dynamic import (unsupported under Jest CJS).
+ */
+@Global()
+@Module({
+  imports: [SemanticCacheModule],
+  exports: [SemanticCacheModule],
+})
+class E2eSemanticCacheModule {}
 
 const EMBEDDING_DIM = 1024;
 const FIXED_VECTOR = Array.from(
@@ -38,7 +73,7 @@ function createInMemoryVectorStore(): VectorStore {
   const entries: VectorStoreUpsertInput[] = [];
 
   return {
-    async upsert(input: VectorStoreUpsertInput): Promise<void> {
+    upsert(input: VectorStoreUpsertInput): Promise<void> {
       const idx = entries.findIndex(
         (e) =>
           e.clientId === input.clientId &&
@@ -50,16 +85,23 @@ function createInMemoryVectorStore(): VectorStore {
       } else {
         entries.push(input);
       }
+      return Promise.resolve();
     },
 
-    async knn(input: VectorStoreKnnInput): Promise<VectorSearchHit[]> {
-      return entries
-        .filter(
-          (e) =>
-            e.clientId === input.clientId && e.modelAlias === input.modelAlias,
-        )
-        .map((e) => ({ similarity: 1, reply: { ...e.reply, cached: true } }))
-        .slice(0, input.k);
+    knn(input: VectorStoreKnnInput): Promise<VectorSearchHit[]> {
+      return Promise.resolve(
+        entries
+          .filter(
+            (e) =>
+              e.clientId === input.clientId &&
+              e.modelAlias === input.modelAlias,
+          )
+          .map((e): VectorSearchHit => ({
+            similarity: 1,
+            reply: { ...e.reply, cached: true as const },
+          }))
+          .slice(0, input.k),
+      );
     },
   };
 }
@@ -74,61 +116,16 @@ function createNoopExactCacheBackend(): CacheBackend {
 }
 
 /**
- * Loads AppModule with SEMANTIC_CACHE_ENABLED so CacheModule registers
- * SemanticCacheModule, then swaps embedding + vector ports for fakes (no Stack/Ollama).
+ * AppModule + SemanticCacheModule (fakes for embedding/vector — no Stack/Ollama).
  */
 async function createE2eAppWithSemanticCache(
   providerRegistry: E2eProviderRegistryMock,
 ): Promise<INestApplication> {
-  process.env.SEMANTIC_CACHE_ENABLED = 'true';
-  jest.resetModules();
-
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Test } = require('@nestjs/testing') as typeof import('@nestjs/testing');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { ConfigService } = require('@nestjs/config') as typeof import('@nestjs/config');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { AppModule } = require('../../src/app.module') as typeof import('../../src/app.module');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { setupApp } = require('../../src/setup.app') as typeof import('../../src/setup.app');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { CACHE_BACKEND } = require('../../src/cache/cache.tokens') as typeof import('../../src/cache/cache.tokens');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { EMBEDDING_BACKEND, VECTOR_STORE } =
-    require('../../src/cache/semantic/semantic-cache.tokens') as typeof import('../../src/cache/semantic/semantic-cache.tokens');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { OllamaEmbeddingAdapter } =
-    require('../../src/cache/semantic/adapters/ollama-embedding.adapter') as typeof import('../../src/cache/semantic/adapters/ollama-embedding.adapter');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { RedisVectorStoreAdapter } =
-    require('../../src/cache/semantic/adapters/redis-vector-store.adapter') as typeof import('../../src/cache/semantic/adapters/redis-vector-store.adapter');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { ProviderRegistryService } =
-    require('../../src/providers/provider-registry.service') as typeof import('../../src/providers/provider-registry.service');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { RedisConnectionService } =
-    require('../../src/cache/adapters/redis-cache/redis-connection.service') as typeof import('../../src/cache/adapters/redis-cache/redis-connection.service');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { ProviderInstancesBootstrap } =
-    require('../../src/providers/provider-instances.bootstrap') as typeof import('../../src/providers/provider-instances.bootstrap');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { LoggingService } =
-    require('../../src/logging/logging.service') as typeof import('../../src/logging/logging.service');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createMockConfigService } =
-    require('../../src/common/mocks/createMockConfigService') as typeof import('../../src/common/mocks/createMockConfigService');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const {
-    createE2eLoggingServiceMock,
-    createE2eProviderBootstrapMock,
-    createE2eRedisConnectionMock,
-  } = require('./helpers/e2e-infra-mocks') as typeof import('./helpers/e2e-infra-mocks');
-
   const fakeEmbedding = createFixedEmbeddingBackend();
   const fakeVectorStore = createInMemoryVectorStore();
 
   const moduleFixture = await Test.createTestingModule({
-    imports: [AppModule],
+    imports: [AppModule, E2eSemanticCacheModule],
   })
     .overrideProvider(ConfigService)
     .useValue(
@@ -185,7 +182,6 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
     if (app) {
       await app.close();
     }
-    process.env.SEMANTIC_CACHE_ENABLED = 'false';
   });
 
   beforeEach(() => {
