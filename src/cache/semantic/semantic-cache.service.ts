@@ -5,12 +5,12 @@ import { AppMetricsService } from '../../observability/app-metrics/app-metrics.s
 import { LoggingService } from '../../logging/logging.service';
 import { asModelAlias, type ClientId } from '../../common/types/branded.types';
 import { EMBEDDING_BACKEND, VECTOR_STORE } from './semantic-cache.tokens';
-import { lastUserMessageText, isSingleTurnUserRequest } from './last-user-message';
-import { EmbeddingCircuitBreaker } from './embedding-circuit-breaker';
 import {
-  computeSystemSignature,
-  hashCallParams,
-} from '../cache-identity';
+  lastUserMessageText,
+  isSingleTurnUserRequest,
+} from './last-user-message';
+import { EmbeddingCircuitBreaker } from './embedding-circuit-breaker';
+import { computeSystemSignature, hashCallParams } from '../cache-identity';
 import {
   EMBEDDING_CIRCUIT_COOLDOWN_MS,
   EMBEDDING_CIRCUIT_OPEN_AFTER,

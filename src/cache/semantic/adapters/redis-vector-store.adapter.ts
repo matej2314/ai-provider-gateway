@@ -203,10 +203,13 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
         this.indexCreated = true;
         return;
       }
-      this.logger.warn('Failed to create Redis Search vector index (fail-open)', {
-        index,
-        message: this.errorMessage(createErr),
-      });
+      this.logger.warn(
+        'Failed to create Redis Search vector index (fail-open)',
+        {
+          index,
+          message: this.errorMessage(createErr),
+        },
+      );
     }
   }
 
@@ -305,9 +308,12 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
         try {
           return await this.searchKnn(input);
         } catch (retryErr: unknown) {
-          this.logger.warn('Semantic KNN failed after index recreate (fail-open)', {
-            message: this.errorMessage(retryErr),
-          });
+          this.logger.warn(
+            'Semantic KNN failed after index recreate (fail-open)',
+            {
+              message: this.errorMessage(retryErr),
+            },
+          );
           return [];
         }
       }

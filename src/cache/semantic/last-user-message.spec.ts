@@ -94,9 +94,7 @@ describe('isSingleTurnUserRequest', () => {
   });
 
   it('should return false for only assistant messages', () => {
-    const msgs: ChatMessageDto[] = [
-      { role: 'assistant', content: 'hello' },
-    ];
+    const msgs: ChatMessageDto[] = [{ role: 'assistant', content: 'hello' }];
     expect(isSingleTurnUserRequest(msgs)).toBe(false);
   });
 });

@@ -1,5 +1,9 @@
 import type { CachedChatResponse } from '../types/cached-chat-response.type';
-import type { ClientId, ModelAlias, SemanticCacheTtlSeconds } from '../../common/types/branded.types';
+import type {
+  ClientId,
+  ModelAlias,
+  SemanticCacheTtlSeconds,
+} from '../../common/types/branded.types';
 
 export type VectorSearchHit = {
   similarity: number;

@@ -58,7 +58,7 @@ describe('OllamaEmbeddingAdapter', () => {
 
   beforeEach(async () => {
     fetchMock = jest.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
+    global.fetch = fetchMock;
     adapter = await createAdapter();
   });
 
@@ -104,7 +104,7 @@ describe('OllamaEmbeddingAdapter', () => {
         ok: false,
         status: 503,
         json: () => Promise.resolve({}),
-      } as Response);
+      });
 
       await expect(adapter.embed('x')).rejects.toThrow(
         'embed request failed: 503',
@@ -124,7 +124,7 @@ describe('OllamaEmbeddingAdapter', () => {
         ok: true,
         status: 200,
         json: () => Promise.resolve({ embeddings: [] }),
-      } as Response);
+      });
 
       await expect(adapter.embed('x')).rejects.toThrow(
         'Embedding dimensions mismatch: got 0, expected 4',
@@ -185,7 +185,7 @@ describe('OllamaEmbeddingAdapter', () => {
         ok: false,
         status: 500,
         json: () => Promise.resolve({}),
-      } as Response);
+      });
 
       await expect(adapter.onModuleInit()).resolves.toBeUndefined();
       expect(mockLogger.warn).toHaveBeenCalledWith(

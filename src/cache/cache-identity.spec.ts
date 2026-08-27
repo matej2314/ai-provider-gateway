@@ -1,9 +1,6 @@
 import { asJsonSchemaName } from '../common/types/branded.types';
 import type { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
-import {
-  hashCallParams,
-  serializeCallParamsForCache,
-} from './cache-identity';
+import { hashCallParams, serializeCallParamsForCache } from './cache-identity';
 
 describe('serializeCallParamsForCache', () => {
   it('should snapshot every generation field from ProviderCallOptions', () => {

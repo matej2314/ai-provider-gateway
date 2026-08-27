@@ -125,7 +125,10 @@ export function validateGatewayConfig(
   warnings.push(...collectInactiveProviderWarnings(parsed, effectiveConfig));
 
   const rawMinSimilarity = env.SEMANTIC_CACHE_MIN_SIMILARITY;
-  if (rawMinSimilarity !== undefined && String(rawMinSimilarity).trim() !== '') {
+  if (
+    rawMinSimilarity !== undefined &&
+    String(rawMinSimilarity).trim() !== ''
+  ) {
     const minSimilarity = Number(rawMinSimilarity);
     if (Number.isFinite(minSimilarity) && minSimilarity < 0.85) {
       warnings.push(

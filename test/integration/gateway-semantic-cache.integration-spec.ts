@@ -11,7 +11,11 @@ import {
   TEST_OUTPUT_TOKENS_SMALL,
   TEST_PROVIDER_INSTANCE_BRANDED,
 } from '../../src/common/mocks/test-constants';
-import { asClientId, asPort, asSemanticCacheTtlSeconds } from '../../src/common/types/branded.types';
+import {
+  asClientId,
+  asPort,
+  asSemanticCacheTtlSeconds,
+} from '../../src/common/types/branded.types';
 import { RedisConnectionService } from '../../src/cache/adapters/redis-cache/redis-connection.service';
 import { RedisVectorStoreAdapter } from '../../src/cache/semantic/adapters/redis-vector-store.adapter';
 import { SemanticCacheService } from '../../src/cache/semantic/semantic-cache.service';
@@ -219,7 +223,9 @@ const shouldRunSemanticVector =
         cached: true,
         output: { text: 'Recovered after FLUSHDB' },
       });
-      await expect(client!.call('FT.INFO', EXPECTED_INDEX)).resolves.toBeDefined();
+      await expect(
+        client!.call('FT.INFO', EXPECTED_INDEX),
+      ).resolves.toBeDefined();
     });
 
     it('SET → KNN hit at similarity threshold 0.90', async () => {
@@ -415,9 +421,9 @@ const shouldRunSemanticVector =
       const store = moduleRef.get(RedisVectorStoreAdapter);
       await store.ensureIndex();
 
-      const prompts = moduleRef.get(ConfigService).get!(
-        'resolvedSystemPrompts',
-      ) as ResolvedSystemPrompts;
+      const prompts = moduleRef
+        .get(ConfigService)
+        .get('resolvedSystemPrompts') as ResolvedSystemPrompts;
       const systemSignature = computeSystemSignature(prompts, TEST_MODEL_ALIAS);
       const callParams = hashCallParams(undefined);
       const text = 'semantic-integration-ttl-expiry';
@@ -515,11 +521,17 @@ const shouldRunSemanticVector =
         { embedAttempted: false },
       );
 
-      const lower = await semanticCache.lookup(userRequest(text), CLIENT_TEAM_A_LOWER);
+      const lower = await semanticCache.lookup(
+        userRequest(text),
+        CLIENT_TEAM_A_LOWER,
+      );
       expect(lower.embedAttempted).toBe(true);
       expect(lower.reply).toBeNull();
 
-      const sameCase = await semanticCache.lookup(userRequest(text), CLIENT_TEAM_A);
+      const sameCase = await semanticCache.lookup(
+        userRequest(text),
+        CLIENT_TEAM_A,
+      );
       expect(sameCase.reply).toMatchObject({
         output: { text: 'Stored for Team-A' },
       });
@@ -559,9 +571,9 @@ const shouldRunSemanticVector =
       const store = moduleRef.get(RedisVectorStoreAdapter);
       await store.ensureIndex();
 
-      const prompts = moduleRef.get(ConfigService).get!(
-        'resolvedSystemPrompts',
-      ) as ResolvedSystemPrompts;
+      const prompts = moduleRef
+        .get(ConfigService)
+        .get('resolvedSystemPrompts') as ResolvedSystemPrompts;
       const systemSignature = computeSystemSignature(prompts, TEST_MODEL_ALIAS);
       const callParams = hashCallParams(undefined);
       const text = 'semantic-integration-damaged-json';
@@ -581,7 +593,7 @@ const shouldRunSemanticVector =
       expect(client).not.toBeNull();
       const keys = await client!.keys(`aigw:sem:${EXPECTED_INDEX}:*`);
       expect(keys.length).toBeGreaterThanOrEqual(1);
-      await client!.hset(keys[0]!, 'reply', '{not-valid-json');
+      await client!.hset(keys[0], 'reply', '{not-valid-json');
 
       const hits = await store.knn({
         vector: [...FIXED_VECTOR],

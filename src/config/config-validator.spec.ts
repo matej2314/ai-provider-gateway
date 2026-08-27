@@ -424,7 +424,9 @@ describe('validateGatewayConfig', () => {
       const result = validateGatewayConfig({ configPath, env });
 
       expect(result.success).toBe(false);
-      expect(result.errors.join('\n')).toMatch(/Invalid key in record|TAG|special/i);
+      expect(result.errors.join('\n')).toMatch(
+        /Invalid key in record|TAG|special/i,
+      );
     });
 
     it('rejects model alias with comma', () => {
@@ -447,7 +449,9 @@ describe('validateGatewayConfig', () => {
       const result = validateGatewayConfig({ configPath, env });
 
       expect(result.success).toBe(false);
-      expect(result.errors.join('\n')).toMatch(/Invalid key in record|TAG|special/i);
+      expect(result.errors.join('\n')).toMatch(
+        /Invalid key in record|TAG|special/i,
+      );
     });
 
     it('accepts hyphenated client id (Team-A)', () => {

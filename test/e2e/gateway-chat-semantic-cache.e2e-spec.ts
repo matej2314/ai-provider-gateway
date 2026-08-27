@@ -216,7 +216,10 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
     providerRegistry = createE2eProviderRegistry();
     completeMock = jest.spyOn(providerRegistry.provider, 'complete');
     fakeVectorStore = createInMemoryVectorStore();
-    app = await createE2eAppWithSemanticCache(providerRegistry, fakeVectorStore);
+    app = await createE2eAppWithSemanticCache(
+      providerRegistry,
+      fakeVectorStore,
+    );
   });
 
   afterAll(async () => {
@@ -227,7 +230,10 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
 
   beforeEach(() => {
     completeMock.mockClear();
-    if ('clear' in fakeVectorStore && typeof fakeVectorStore.clear === 'function') {
+    if (
+      'clear' in fakeVectorStore &&
+      typeof fakeVectorStore.clear === 'function'
+    ) {
       fakeVectorStore.clear();
     }
   });
@@ -361,7 +367,10 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
       modelAlias: TEST_MODEL_ALIAS,
       messages: [
         { role: 'user' as const, content: 'Explain quantum computing' },
-        { role: 'assistant' as const, content: 'Quantum computing uses qubits…' },
+        {
+          role: 'assistant' as const,
+          content: 'Quantum computing uses qubits…',
+        },
         { role: 'user' as const, content: 'kontynuuj' },
       ],
     };
@@ -399,7 +408,9 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
       .set('x-gateway-key', E2E_GATEWAY_KEY)
       .send({
         modelAlias: TEST_MODEL_ALIAS,
-        messages: [{ role: 'user' as const, content: 'Semantic e2e seed phrase' }],
+        messages: [
+          { role: 'user' as const, content: 'Semantic e2e seed phrase' },
+        ],
       })
       .expect(E2E_POST_SUCCESS_STATUS);
 

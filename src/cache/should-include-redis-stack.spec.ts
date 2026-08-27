@@ -72,9 +72,9 @@ describe('should-include-redis-stack', () => {
   });
 
   it('isSemanticCacheEnabledFromEnv matches Redis semantic consumer toggle', () => {
-    expect(isSemanticCacheEnabledFromEnv({ SEMANTIC_CACHE_ENABLED: 'true' })).toBe(
-      true,
-    );
+    expect(
+      isSemanticCacheEnabledFromEnv({ SEMANTIC_CACHE_ENABLED: 'true' }),
+    ).toBe(true);
     expect(
       isSemanticCacheEnabledFromEnv({ SEMANTIC_CACHE_ENABLED: 'false' }),
     ).toBe(false);

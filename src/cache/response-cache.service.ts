@@ -74,10 +74,7 @@ export class ResponseCacheService {
     effectiveCallParams?: ProviderCallOptions,
   ): CacheKey {
     const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
-    const systemSignature = computeSystemSignature(
-      prompts,
-      request.modelAlias,
-    );
+    const systemSignature = computeSystemSignature(prompts, request.modelAlias);
 
     const payload = JSON.stringify({
       modelAlias: request.modelAlias,

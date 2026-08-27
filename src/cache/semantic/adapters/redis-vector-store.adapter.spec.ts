@@ -134,10 +134,13 @@ describe('RedisVectorStoreAdapter', () => {
       const a = adapter.ensureIndex();
       const b = adapter.ensureIndex();
       resolveInfo?.({});
-      await expect(Promise.all([a, b])).resolves.toEqual([undefined, undefined]);
-      expect(mockCall.mock.calls.filter((c) => c[0] === 'FT.INFO')).toHaveLength(
-        1,
-      );
+      await expect(Promise.all([a, b])).resolves.toEqual([
+        undefined,
+        undefined,
+      ]);
+      expect(
+        mockCall.mock.calls.filter((c) => c[0] === 'FT.INFO'),
+      ).toHaveLength(1);
     });
 
     it('should warn when Search module is missing', async () => {
@@ -322,8 +325,8 @@ describe('RedisVectorStoreAdapter', () => {
       });
 
       expect(hits).toHaveLength(1);
-      expect(hits[0]!.similarity).toBeCloseTo(0.9);
-      expect(hits[0]!.reply.output).toEqual({
+      expect(hits[0].similarity).toBeCloseTo(0.9);
+      expect(hits[0].reply.output).toEqual({
         type: 'text',
         text: 'from-redis',
       });
@@ -358,8 +361,8 @@ describe('RedisVectorStoreAdapter', () => {
       });
 
       expect(hits).toHaveLength(1);
-      expect(hits[0]!.similarity).toBeCloseTo(0.8);
-      expect(hits[0]!.reply.output.text).toBe('from-redis');
+      expect(hits[0].similarity).toBeCloseTo(0.8);
+      expect(hits[0].reply.output.text).toBe('from-redis');
     });
 
     it('should return empty hits when Redis client is null (fail-open)', async () => {
@@ -398,12 +401,12 @@ describe('RedisVectorStoreAdapter', () => {
       });
 
       expect(hits).toEqual([]);
-      expect(mockCall.mock.calls.filter((c) => c[0] === 'FT.CREATE')).toHaveLength(
-        1,
-      );
-      expect(mockCall.mock.calls.filter((c) => c[0] === 'FT.SEARCH')).toHaveLength(
-        2,
-      );
+      expect(
+        mockCall.mock.calls.filter((c) => c[0] === 'FT.CREATE'),
+      ).toHaveLength(1);
+      expect(
+        mockCall.mock.calls.filter((c) => c[0] === 'FT.SEARCH'),
+      ).toHaveLength(2);
     });
   });
 
@@ -551,9 +554,7 @@ describe('RedisVectorStoreAdapter', () => {
         ttlSeconds: asSemanticCacheTtlSeconds(60),
       });
 
-      const keys = client.multiChain.hset.mock.calls.map(
-        (c) => c[0] as string,
-      );
+      const keys = client.multiChain.hset.mock.calls.map((c) => c[0] as string);
       expect(new Set(keys).size).toBe(3);
     });
 

@@ -56,7 +56,5 @@ export function hashCallParams(
   effectiveCallParams?: ProviderCallOptions,
 ): string {
   const serialized = serializeCallParamsForCache(effectiveCallParams);
-  return createHash('sha256')
-    .update(JSON.stringify(serialized))
-    .digest('hex');
+  return createHash('sha256').update(JSON.stringify(serialized)).digest('hex');
 }

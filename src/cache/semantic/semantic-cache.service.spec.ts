@@ -436,11 +436,7 @@ describe('SemanticCacheService', () => {
     });
 
     it('should embed once and upsert when embedState is omitted', async () => {
-      await service.storeReply(
-        userRequest,
-        cachedReply,
-        TEST_CLIENT_ID,
-      );
+      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID);
 
       expect(mockEmbedding.embed).toHaveBeenCalledTimes(1);
       expect(mockEmbedding.embed).toHaveBeenCalledWith('Hello semantic');
@@ -851,11 +847,7 @@ describe('SemanticCacheService', () => {
         { similarity: 0.95, reply: cachedReply },
       ]);
 
-      const result = await service.lookup(
-        userRequest,
-        TEST_CLIENT_ID,
-        options,
-      );
+      const result = await service.lookup(userRequest, TEST_CLIENT_ID, options);
 
       expect(result.reply).toEqual(cachedReply);
       expect(result.embedAttempted).toBe(true);
