@@ -1,13 +1,48 @@
+import { createHash } from 'node:crypto';
+import {
+  SEMANTIC_CACHE_PROJECT_ID,
+  canonicalSemanticSchema,
+} from './semantic-cache.constants';
+
+export type SemanticIndexNameOptions = {
+  /** Override project id (tests). Default: {@link SEMANTIC_CACHE_PROJECT_ID}. */
+  projectId?: string;
+  /** Override canonical SCHEMA string (tests). Default from dim. */
+  schemaCanonical?: string;
+};
+
 /**
- * Pełna znormalizowana nazwa modelu + DIM → nazwa indeksu Redis Search.
- * `qwen3-embedding:0.6b` i `qwen3-embedding:4b` przy tym samym DIM nie współdzielą indeksu.
- * Zmiana modelu lub DIM = nowy indeks.
+ * Normalize embedding model for the middle segment of the index name.
+ * `qwen3-embedding:0.6b` → `qwen3-embedding-0-6b`.
  */
-export function semanticIndexName(embeddingModel: string, dim: number): string {
-  const normalized = embeddingModel
+export function normalizeEmbeddingModelForIndex(embeddingModel: string): string {
+  return embeddingModel
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return `${normalized}-${dim}`;
+}
+
+/**
+ * Redis Search index name:
+ * `{PROJECT_ID}:sem:idx:{normalizedModel}-{dim}-{schemaHash8}`
+ *
+ * `schemaHash8` = first 8 hex chars of SHA-256 over
+ * `{PROJECT_ID}\n{embeddingModel}\n{dim}\n{canonicalSchema}`.
+ * Changing SCHEMA fields/types, project id, model, or DIM → new index (orphan old).
+ */
+export function semanticIndexName(
+  embeddingModel: string,
+  dim: number,
+  options?: SemanticIndexNameOptions,
+): string {
+  const projectId = options?.projectId ?? SEMANTIC_CACHE_PROJECT_ID;
+  const schemaCanonical =
+    options?.schemaCanonical ?? canonicalSemanticSchema(dim);
+  const normalized = normalizeEmbeddingModelForIndex(embeddingModel);
+  const schemaHash8 = createHash('sha256')
+    .update(`${projectId}\n${embeddingModel}\n${dim}\n${schemaCanonical}`)
+    .digest('hex')
+    .slice(0, 8);
+  return `${projectId}:sem:idx:${normalized}-${dim}-${schemaHash8}`;
 }

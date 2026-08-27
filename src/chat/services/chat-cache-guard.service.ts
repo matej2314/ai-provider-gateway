@@ -27,12 +27,24 @@ import { getAppConfigOrThrow } from '../../config/typed-config';
 import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import type { CachedChatResponse } from '../../cache/response-cache.service';
+import type { ChatCacheSource } from '../../cache/types/chat-cache-source.type';
 import type {
   ClientId,
   GatewayKey,
   RequestId,
 } from '../../common/types/branded.types';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
+
+export type ChatCacheLookupResult =
+  | {
+      cached: CachedChatResponse;
+      cacheSource: ChatCacheSource;
+      embedState?: SemanticStoreEmbedState;
+    }
+  | {
+      cached: null;
+      embedState?: SemanticStoreEmbedState;
+    };
 
 @Injectable()
 export class ChatCacheGuardService {
@@ -86,10 +98,7 @@ export class ChatCacheGuardService {
     options: ProviderCallOptions,
     clientId: ClientId,
     gatewayKey: GatewayKey,
-  ): Promise<{
-    cached: CachedChatResponse | null;
-    embedState?: SemanticStoreEmbedState;
-  }> {
+  ): Promise<ChatCacheLookupResult> {
     if (
       isToolingRequest(requestBody) ||
       !gatewayKey ||
@@ -110,7 +119,7 @@ export class ChatCacheGuardService {
       options,
     );
     if (exact) {
-      return { cached: exact };
+      return { cached: exact, cacheSource: 'exact' };
     }
 
     if (
@@ -127,7 +136,7 @@ export class ChatCacheGuardService {
       options,
     );
     if (semantic.reply) {
-      return { cached: semantic.reply };
+      return { cached: semantic.reply, cacheSource: 'semantic' };
     }
     return {
       cached: null,

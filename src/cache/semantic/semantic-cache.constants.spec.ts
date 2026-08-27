@@ -1,8 +1,44 @@
 import {
   EMBEDDING_PROBE_TIMEOUT_MS,
   GATEWAY_HEALTHCHECK_TIMEOUT_MS,
+  SEMANTIC_CACHE_PROJECT_ID,
+  canonicalSemanticSchema,
   embeddingProbeTimeoutMs,
+  semanticSchemaFtCreateArgs,
 } from './semantic-cache.constants';
+
+describe('SEMANTIC_CACHE_PROJECT_ID', () => {
+  it('must not contain spaces or colons (index-name segment separator)', () => {
+    expect(SEMANTIC_CACHE_PROJECT_ID).toBe('ai-provider-gateway');
+    expect(SEMANTIC_CACHE_PROJECT_ID).not.toMatch(/[\s:]/);
+  });
+});
+
+describe('canonicalSemanticSchema / semanticSchemaFtCreateArgs', () => {
+  it('should stay aligned for TAG fields and vector DIM', () => {
+    const dim = 1024;
+    const canonical = canonicalSemanticSchema(dim);
+    const ftArgs = semanticSchemaFtCreateArgs(dim);
+
+    expect(canonical).toContain('modelAlias:TAG:CASESENSITIVE');
+    expect(canonical).toContain(`vector:VECTOR:FLAT:FLOAT32:${dim}:COSINE`);
+    expect(ftArgs).toEqual(
+      expect.arrayContaining([
+        'modelAlias',
+        'TAG',
+        'CASESENSITIVE',
+        'DIM',
+        String(dim),
+        'DISTANCE_METRIC',
+        'COSINE',
+      ]),
+    );
+  });
+
+  it('should change when dim changes', () => {
+    expect(canonicalSemanticSchema(1024)).not.toBe(canonicalSemanticSchema(768));
+  });
+});
 
 describe('embeddingProbeTimeoutMs', () => {
   it.each([

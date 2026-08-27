@@ -244,7 +244,10 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toEqual({ cached: cachedResponse });
+        expect(result).toEqual({
+          cached: cachedResponse,
+          cacheSource: 'exact',
+        });
         expect(mockCache.getCachedResponse).toHaveBeenCalledWith(
           baseRequest,
           TEST_CLIENT_ID,
@@ -268,7 +271,10 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toEqual({ cached: cachedResponse });
+        expect(result).toEqual({
+          cached: cachedResponse,
+          cacheSource: 'semantic',
+        });
         expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
           baseRequest,
           TEST_CLIENT_ID,

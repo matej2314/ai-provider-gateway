@@ -48,7 +48,9 @@ export class ChatController {
     );
 
     if ('cached' in result && result.cached) {
-      return toChatResponseDtoFromCache(result, result.conversationId);
+      return toChatResponseDtoFromCache(result, result.conversationId, {
+        cacheSource: result.cacheSource,
+      });
     }
 
     return toChatResponseDto(result);

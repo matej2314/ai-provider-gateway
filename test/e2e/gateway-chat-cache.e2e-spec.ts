@@ -106,6 +106,7 @@ describe('Gateway Chat Cache (E2E)', () => {
         .expect(E2E_POST_SUCCESS_STATUS);
 
       expect(response.body.cached).toBeUndefined();
+      expect(response.body.cacheSource).toBeUndefined();
       expect(completeMock).toHaveBeenCalledTimes(1);
     });
 
@@ -125,6 +126,7 @@ describe('Gateway Chat Cache (E2E)', () => {
       expect(second.body).toMatchObject({
         cached: true,
         cachedAt: expect.any(String),
+        cacheSource: 'exact',
         output: first.body.output,
       });
       expect(completeMock).toHaveBeenCalledTimes(1);
@@ -248,6 +250,7 @@ describe('Gateway Chat Cache (E2E)', () => {
         .expect(E2E_POST_SUCCESS_STATUS);
 
       expect(second.body.cached).toBe(true);
+      expect(second.body.cacheSource).toBe('exact');
       expect(second.body.warnings).toEqual(first.body.warnings);
     });
   });

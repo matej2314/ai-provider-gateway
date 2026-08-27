@@ -325,6 +325,7 @@ describe('ChatService', () => {
       };
       (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
         cached: cachedResponse,
+        cacheSource: 'exact',
       });
 
       const result = await service.executeChat(
@@ -344,9 +345,43 @@ describe('ChatService', () => {
       expect(result).toEqual({
         ...cachedResponse,
         conversationId: VALID_CONVERSATION_ID,
+        cacheSource: 'exact',
       });
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith('Chat cache hit');
+      expect(mockLogger.info).toHaveBeenCalledWith('Chat cache hit', {
+        cacheSource: 'exact',
+      });
+    });
+
+    it('should propagate semantic cacheSource on semantic hit', async () => {
+      const cachedResponse = {
+        id: 'cached-sem-123',
+        output: { type: 'text' as const, text: 'Semantic cached' },
+        cached: true as const,
+        cachedAt: '2026-01-01T00:00:00.000Z',
+      };
+      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: cachedResponse,
+        cacheSource: 'semantic',
+      });
+
+      const result = await service.executeChat(
+        baseRequest,
+        TEST_CLIENT_ID,
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        'native',
+      );
+
+      expect(result).toEqual({
+        ...cachedResponse,
+        conversationId: VALID_CONVERSATION_ID,
+        cacheSource: 'semantic',
+      });
+      expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith('Chat cache hit', {
+        cacheSource: 'semantic',
+      });
     });
 
     it('should propagate cache guard rate limit errors', async () => {

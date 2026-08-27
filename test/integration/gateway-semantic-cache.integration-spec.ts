@@ -187,17 +187,24 @@ const shouldRunSemanticVector =
       await moduleRef?.close();
     });
 
-    it('creates Redis Search index (FT.INFO full normalized model + DIM)', async () => {
+    it('creates Redis Search index (project prefix + model + DIM + schema hash)', async () => {
       const store = moduleRef.get(RedisVectorStoreAdapter);
       await store.ensureIndex();
 
       const client = redis.getClient();
       expect(client).not.toBeNull();
-      expect(EXPECTED_INDEX).toBe('qwen3-embedding-0-6b-1024');
+      expect(EXPECTED_INDEX.startsWith('ai-provider-gateway:sem:idx:')).toBe(
+        true,
+      );
+      expect(EXPECTED_INDEX).toMatch(
+        /^ai-provider-gateway:sem:idx:qwen3-embedding-0-6b-1024-[a-f0-9]{8}$/,
+      );
       const info = await client!.call('FT.INFO', EXPECTED_INDEX);
       expect(info).toBeDefined();
       const flat = Array.isArray(info) ? info.map(String) : [];
       expect(flat).toEqual(expect.arrayContaining([EXPECTED_INDEX]));
+      // HASH documents use PREFIX `{index}:` (no legacy `aigw:sem:` wrapper)
+      expect(flat.join(' ')).toContain(`${EXPECTED_INDEX}:`);
     });
 
     it('recreates index after FLUSHDB without process restart (B5)', async () => {
@@ -591,8 +598,9 @@ const shouldRunSemanticVector =
 
       const client = redis.getClient();
       expect(client).not.toBeNull();
-      const keys = await client!.keys(`aigw:sem:${EXPECTED_INDEX}:*`);
+      const keys = await client!.keys(`${EXPECTED_INDEX}:*`);
       expect(keys.length).toBeGreaterThanOrEqual(1);
+      expect(keys[0].startsWith('aigw:sem:')).toBe(false);
       await client!.hset(keys[0], 'reply', '{not-valid-json');
 
       const hits = await store.knn({

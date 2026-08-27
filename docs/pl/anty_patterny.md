@@ -199,12 +199,14 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 
 **Nie rób:** dodawaj prefiksu `search_query:` (ani `search_document:`) do tekstu embeddingu przy `qwen3-embedding:0.6b`. Ta instrukcja należy do `nomic-embed-text` / `mxbai`. Qwen 3 Embedding jej nie rozumie — niespójność store vs lookup wygląda jak fałszywe missy.
 
-**Rób:** embedduj gołą treść last-user żądania **jednoturowego** (albo dedykowaną instrukcję Qwena) po **obu** stronach (zapis i lookup). Format musi być identyczny. Zmiana formatu albo przejście na `nomic-embed-text` (albo inny tag rozmiaru tej samej rodziny, np. `qwen3-embedding:4b`) wymaga nowego indeksu z **pełnej znormalizowanej** nazwy modelu + DIM (np. domyślny → `qwen3-embedding-0-6b-1024`), nie hot-swapu. **Nie** zakładaj, że krótki slug rodziny w stylu `qwen3` izoluje warianty modelu.
+**Rób:** embedduj gołą treść last-user żądania **jednoturowego** (albo dedykowaną instrukcję Qwena) po **obu** stronach (zapis i lookup). Format musi być identyczny. Zmiana formatu albo przejście na `nomic-embed-text` (albo inny tag rozmiaru tej samej rodziny, np. `qwen3-embedding:4b`) wymaga nowego indeksu `{PROJECT_ID}:sem:idx:{znormalizowanyModel}-{DIM}-{schemaHash8}` (np. domyślny → `ai-provider-gateway:sem:idx:qwen3-embedding-0-6b-1024-<8hex>`), nie hot-swapu. **Nie** zakładaj, że krótki slug rodziny w stylu `qwen3` izoluje warianty modelu.
 
 ## 20) Założenie, że zmiana promptu/params zostawia trafienia semantic w tej samej partycji
 
 **Nie rób:** zakładać, że edycja `MASTER_SYSTEM_PROMPT.md` / promptów per alias albo zmiana parametrów wywołania (`responseFormat`, `temperature`, `seed`, …) nadal serwuje poprzednie trafienia KNN. Exact i semantic dzielą tę samą tożsamość konfiguracji: Redis Search filtruje po `modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`. Zmiana promptu lub params → **inna partycja** → miss.
 
 **Nie rób:** oczekiwać hurtowego `FT.DROPINDEX` / masowego czyszczenia przy zmianie promptu lub params. Stare wektory w poprzedniej partycji zostają do TTL (`SEMANTIC_CACHE_TTL`).
+
+**Nie rób:** traktować udanego `FT.INFO` na legacy nazwie indeksu (np. `qwen3-embedding-0-6b-1024` bez prefiksu `ai-provider-gateway:sem:idx:`, albo HASH-y pod `aigw:sem:…`) jako bieżącego indeksu gatewaya. Po zmianie SCHEMA / prefiksu projektu to **orphany** — zostaw je do TTL albo dropuj tylko indeksy zaczynające się od `ai-provider-gateway:` (nigdy `portfolio:*`).
 
 **Rób:** traktuj rozdział partycji jak rozdział klucza exact. Skróć `SEMANTIC_CACHE_TTL`, jeśli stare partycje mają znikać szybciej. Nie obniżaj progu podobieństwa, żeby „nadrobić” missy partycji.

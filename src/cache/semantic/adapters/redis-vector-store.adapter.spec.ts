@@ -106,6 +106,9 @@ describe('RedisVectorStoreAdapter', () => {
       expect(createCall).toBeDefined();
       expect(createCall).toEqual(
         expect.arrayContaining([
+          'PREFIX',
+          '1',
+          `${indexName}:`,
           'modelAlias',
           'TAG',
           'CASESENSITIVE',
@@ -113,6 +116,9 @@ describe('RedisVectorStoreAdapter', () => {
           'TAG',
           'CASESENSITIVE',
         ]),
+      );
+      expect(createCall).not.toEqual(
+        expect.arrayContaining([`aigw:sem:${indexName}:`]),
       );
       // Second ensure should be a no-op after latch
       mockCall.mockClear();
@@ -473,7 +479,7 @@ describe('RedisVectorStoreAdapter', () => {
 
       expect(client.multi).toHaveBeenCalledTimes(1);
       expect(client.multiChain.hset).toHaveBeenCalledWith(
-        expect.stringMatching(/^aigw:sem:/),
+        expect.stringMatching(new RegExp(`^${indexName}:`)),
         expect.objectContaining({
           modelAlias: 'test-model',
           clientId: 'client-a',
@@ -483,7 +489,7 @@ describe('RedisVectorStoreAdapter', () => {
         }),
       );
       expect(client.multiChain.expire).toHaveBeenCalledWith(
-        expect.stringMatching(/^aigw:sem:/),
+        expect.stringMatching(new RegExp(`^${indexName}:`)),
         60,
       );
       expect(client.multiChain.exec).toHaveBeenCalledTimes(1);
@@ -532,7 +538,8 @@ describe('RedisVectorStoreAdapter', () => {
       const key1 = client.multiChain.hset.mock.calls[0]![0] as string;
       const key2 = client.multiChain.hset.mock.calls[1]![0] as string;
       expect(key1).toBe(key2);
-      expect(key1).toMatch(new RegExp(`^aigw:sem:${indexName}:[a-f0-9]{32}$`));
+      expect(key1).toMatch(new RegExp(`^${indexName}:[a-f0-9]{32}$`));
+      expect(key1.startsWith('aigw:sem:')).toBe(false);
     });
 
     it('should use a different entryKey when text or callParams change', async () => {

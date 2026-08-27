@@ -347,6 +347,7 @@ describe('ResponseCacheService', () => {
 
       expect(parsed.cached).toBe(true);
       expect(parsed.cachedAt).toBeDefined();
+      expect(parsed.cacheSource).toBeUndefined();
       expect(new Date(parsed.cachedAt).getTime()).toBeLessThanOrEqual(
         Date.now(),
       );
@@ -386,6 +387,7 @@ describe('ResponseCacheService', () => {
         cachedAt: expect.any(String),
       });
       expect(parsed.conversationId).toBeUndefined();
+      expect(parsed.cacheSource).toBeUndefined();
       expect(parsed.toolCalls).toBeUndefined();
       expect(parsed.finishReason).toBeUndefined();
       expect(parsed.effectiveModelAlias).toBeUndefined();

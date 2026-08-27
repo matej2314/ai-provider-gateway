@@ -32,6 +32,10 @@ import {
   ClientId,
 } from '../common/types/branded.types';
 import type { SemanticStoreEmbedState } from '../cache/semantic/semantic-cache.service';
+import type {
+  ChatResponseData,
+  CachedChatResponseWithConversation,
+} from './dto/chat-response.dto';
 
 @Injectable()
 export class ChatService {
@@ -100,7 +104,7 @@ export class ChatService {
     requestId: RequestId,
     gatewayKey: GatewayKey,
     ingressProfile: ChatIngressProfile,
-  ) {
+  ): Promise<ChatResponseData | CachedChatResponseWithConversation> {
     const {
       primaryResolved,
       options,
@@ -122,20 +126,22 @@ export class ChatService {
     let embedState: SemanticStoreEmbedState | undefined;
 
     if (gatewayKey) {
-      const { cached: cachedResponse, embedState: lookupEmbedState } =
-        await this.cacheGuardService.getCachedIfAllowed(
-          requestBody,
-          options,
-          clientId,
-          gatewayKey,
-        );
-      embedState = lookupEmbedState;
+      const lookup = await this.cacheGuardService.getCachedIfAllowed(
+        requestBody,
+        options,
+        clientId,
+        gatewayKey,
+      );
+      embedState = lookup.embedState;
 
-      if (cachedResponse) {
-        log.info('Chat cache hit');
+      if (lookup.cached) {
+        log.info('Chat cache hit', {
+          cacheSource: lookup.cacheSource,
+        });
         return {
-          ...cachedResponse,
+          ...lookup.cached,
           conversationId: responseConversationId,
+          cacheSource: lookup.cacheSource,
         };
       }
     }

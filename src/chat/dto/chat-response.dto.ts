@@ -11,6 +11,7 @@ import type { GatewayToolCall } from '../../providers/types/tooling-types';
 import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
 import type { GatewayFinishReason } from '../types/gateway-finish-reason.type';
 import type { CachedChatResponse } from '../../cache/types/cached-chat-response.type';
+import type { ChatCacheSource } from '../../cache/types/chat-cache-source.type';
 import type {
   ResponseId,
   RequestId,
@@ -21,6 +22,8 @@ import type {
   OutputTokens,
   SystemFingerprint,
 } from '../../common/types/branded.types';
+
+export type { ChatCacheSource };
 
 export class ChatUsageDetailsDto {
   @ApiPropertyOptional({
@@ -151,6 +154,13 @@ export class ChatResponseDto {
   cachedAt?: string;
 
   @ApiPropertyOptional({
+    enum: ['exact', 'semantic'],
+    description:
+      'Which cache layer served this response. Present only on a cache hit; omitted on a provider miss. Not stored in the Redis payload.',
+  })
+  cacheSource?: ChatCacheSource;
+
+  @ApiPropertyOptional({
     type: ChatUsageDetailsDto,
     description:
       'Extended usage details (cache tokens, reasoning tokens). Populated when provider supports extended usage details.',
@@ -185,6 +195,7 @@ export class ChatResponseDto {
 /** Cached response enriched with conversation context for API mapping. */
 export type CachedChatResponseWithConversation = CachedChatResponse & {
   conversationId: ConversationId;
+  cacheSource: ChatCacheSource;
 };
 
 export function toChatResponseDto(data: ChatResponseData): ChatResponseDto {
@@ -216,6 +227,7 @@ export function toChatResponseDto(data: ChatResponseData): ChatResponseDto {
 export function toChatResponseDtoFromCache(
   data: CachedChatResponse,
   conversationId: ConversationId,
+  options: { cacheSource: ChatCacheSource },
 ): ChatResponseDto {
   return {
     id: data.id,
@@ -227,6 +239,7 @@ export function toChatResponseDtoFromCache(
     conversationId,
     cached: true,
     cachedAt: data.cachedAt,
+    cacheSource: options.cacheSource,
     ...(data.warnings?.length && { warnings: data.warnings }),
   };
 }

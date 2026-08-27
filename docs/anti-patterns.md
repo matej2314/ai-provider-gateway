@@ -199,12 +199,14 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 
 **Don’t:** prefix embedding text with `search_query:` (or `search_document:`) when using `qwen3-embedding:0.6b`. That instruction belongs to `nomic-embed-text` / `mxbai`. Qwen 3 Embedding does not understand it — store and lookup drift, which looks like false misses.
 
-**Do:** embed the bare last-user `content` of a **single-turn** request (or a Qwen-specific instruction) on **both** store and lookup. The two sides must use the same format. Changing the format or switching to `nomic-embed-text` (or another size tag of the same family, e.g. `qwen3-embedding:4b`) requires a new index named from the **full normalized** model + DIM (e.g. default → `qwen3-embedding-0-6b-1024`), not a hot-swap. Do **not** assume a short family slug such as `qwen3` isolates model variants.
+**Do:** embed the bare last-user `content` of a **single-turn** request (or a Qwen-specific instruction) on **both** store and lookup. The two sides must use the same format. Changing the format or switching to `nomic-embed-text` (or another size tag of the same family, e.g. `qwen3-embedding:4b`) requires a new index named `{PROJECT_ID}:sem:idx:{normalizedModel}-{DIM}-{schemaHash8}` (e.g. default → `ai-provider-gateway:sem:idx:qwen3-embedding-0-6b-1024-<8hex>`), not a hot-swap. Do **not** assume a short family slug such as `qwen3` isolates model variants.
 
 ## 20) Assuming prompt/params change leaves semantic hits in the same partition
 
 **Don’t:** assume that editing `MASTER_SYSTEM_PROMPT.md` / per-alias prompts, or changing call params (`responseFormat`, `temperature`, `seed`, …), still serves the previous semantic KNN hits. Exact and semantic now share the same configuration identity: Redis Search filters on `modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`. A prompt or params change → **different partition** → miss.
 
 **Don’t:** expect a bulk `FT.DROPINDEX` / wholesale purge when prompt or params change. Old vectors in the previous partition remain until TTL (`SEMANTIC_CACHE_TTL`).
+
+**Don’t:** treat a successful `FT.INFO` on a legacy index name (e.g. `qwen3-embedding-0-6b-1024` without the `ai-provider-gateway:sem:idx:` prefix, or HASH keys under `aigw:sem:…`) as the current gateway index. After a SCHEMA / project-prefix change those are **orphans** — leave them to TTL or drop only indexes whose name starts with `ai-provider-gateway:` (never `portfolio:*`).
 
 **Do:** treat partition separation like exact-cache key separation. Shorten `SEMANTIC_CACHE_TTL` if you need old partitions to disappear faster. Do not lower the similarity threshold to “make up” for partition misses.

@@ -1,5 +1,5 @@
 ---
-wersja: 8
+wersja: 10
 data_utworzenia: 2026-08-26
 data_modyfikacji: 2026-08-27
 ---
@@ -28,7 +28,7 @@ Gateway musi działać na poprawnie zwalidowanym środowisku: sekrety włączony
 
 1. Operator włącza cache (`CACHE_ENABLED`, ewentualnie Redis — `docs/pl/konfiguracja.md`).
 2. Klient wysyła `POST /api/v1/chat` z określonym `modelAlias` i `messages`.
-3. Przy drugim identycznym żądaniu (w granicach klucza cache — `ResponseCacheService`) gateway może zwrócić odpowiedź z `cached: true` i `cachedAt` bez wywołania providera.
+3. Przy drugim identycznym żądaniu (w granicach klucza cache — `ResponseCacheService`) gateway może zwrócić odpowiedź z `cached: true`, `cachedAt` i `cacheSource: "exact"` bez wywołania providera.
 
 ### Scenariusz D — wieloturowa rozmowa z metrykami Sentry
 
@@ -76,7 +76,7 @@ F-7. Limity DTO: `messages` — **1..150** elementów; `content` — max **3000*
 
 Zmiana względem: wcześniejsze F-7 („max 3000 znaków na wiadomość” bez rozróżnienia roli). Powód: treść `tool` ma wyższy limit w DTO.
 
-F-8. *(Opcjonalnie — cache exact-match)* Gateway może zwracać zapisaną odpowiedź dla `POST /api/v1/chat` z polami `cached: true` i `cachedAt`, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Odczyt walidowany `CachedChatResponseSchema` — uszkodzony wpis usuwany. Streaming v1 nie podlega temu cache (`SPEC-CHAT-STREAMING.md`).
+F-8. *(Opcjonalnie — cache exact-match)* Gateway może zwracać zapisaną odpowiedź dla `POST /api/v1/chat` z polami `cached: true`, `cachedAt` oraz `cacheSource: "exact"`, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Odczyt walidowany `CachedChatResponseSchema` — uszkodzony wpis usuwany. Pole `cacheSource` należy do **tej** odpowiedzi lookupu i **nie** jest zapisywane w Redis (`CachedChatResponse` / Zod bez tego pola). Przy missie (odpowiedź z providera) pola `cached`, `cachedAt` i `cacheSource` są nieobecne. Streaming v1 nie podlega temu cache (`SPEC-CHAT-STREAMING.md`).
 
 Klucz cache obejmuje m.in. `modelAlias`, `clientId`, `messages`, sygnaturę promptów systemowych oraz zserializowane parametry wywołania. Cache **pomija** żądania z toolingiem (F-2b) oraz alias, którego `providerInstance` ma `enabled !== true` (`isCachedChatAllowedForModelAlias`). Backendy i env — `SPEC-KONFIGURACJA.md` F-1b.
 
@@ -84,9 +84,13 @@ Exact i semantic dzielą tożsamość **konfiguracji** żądania (`systemSignatu
 
 Zmiana względem: wcześniejsze F-8 (wersja 5), które głosiło known limitation v1: „sygnatura promptu i params są w kluczu **tylko exact-match**; cache semantyczny partycjonuje wyłącznie `modelAlias` + `clientId`; zmiana promptu / `responseFormat` nie unieważnia KNN (granicą jest TTL)”. Powód: fałszywe trafienia przy zmianie promptu/params; kontrakt v1.1 = ta sama partycja konfiguracji co exact + skip wielotury.
 
-F-8b. *(Opcjonalnie — cache semantyczny)* Po missie exact, gdy `SEMANTIC_CACHE_ENABLED=true`, gateway może zwrócić hit KNN z `cached: true` (ten sam kształt odpowiedzi co exact). Kolejność: polityka cache aliasu → exact → semantic → provider. Env: `SPEC-KONFIGURACJA.md` F-1d, `docs/pl/konfiguracja.md`.
+F-8b. *(Opcjonalnie — cache semantyczny)* Po missie exact, gdy `SEMANTIC_CACHE_ENABLED=true`, gateway może zwrócić hit KNN z `cached: true`, `cachedAt` i `cacheSource: "semantic"`. Kolejność: polityka cache aliasu → exact → semantic → provider. Env: `SPEC-KONFIGURACJA.md` F-1d, `docs/pl/konfiguracja.md`.
 
-**Indeks Redis Search:** nazwa = **pełny znormalizowany** `EMBEDDING_MODEL` + `EMBEDDING_DIM` (nie krótki slug rodziny). Przykład: `qwen3-embedding:0.6b` + `1024` → `qwen3-embedding-0-6b-1024`. Warianty tej samej rodziny przy tym samym DIM (np. `:4b`) → **osobny** indeks. Zmiana `EMBEDDING_MODEL` lub `EMBEDDING_DIM` = nowy indeks.
+Zmiana względem: F-8 / F-8b w wersji 8 (hit exact i semantic miały ten sam kształt JSON bez rozróżnienia warstwy; F-8b: „ten sam kształt odpowiedzi co exact”). Powód: klient nie mógł odróżnić exact od semantic; `cacheSource` jest metadaną lookupu, nie payloadu w Redis.
+
+**Indeks Redis Search:** nazwa = `{PROJECT_ID}:sem:idx:{znormalizowanyModel}-{DIM}-{schemaHash8}`, gdzie `PROJECT_ID` to stała w kodzie `ai-provider-gateway` (plain text, pierwszy segment — widoczny w `FT._LIST`), a `schemaHash8` to pierwsze 8 hex znaków SHA-256 z `{PROJECT_ID}\n{embeddingModel}\n{DIM}\n{canonicalSchema}` (kanoniczna SCHEMA = ta sama lista pól/typów co `FT.CREATE`). Przykład: `qwen3-embedding:0.6b` + `1024` → `ai-provider-gateway:sem:idx:qwen3-embedding-0-6b-1024-<8hex>`. Prefiks kluczy HASH = `{index}:` (bez legacy `aigw:sem:`). Warianty tej samej rodziny przy tym samym DIM (np. `:4b`) → **osobny** indeks. Zmiana `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `PROJECT_ID` albo treści SCHEMA → nowy indeks (stary orphan do TTL / ręcznego GC; bez automatycznego `FT.DROPINDEX`).
+
+Zmiana względem: F-8b w wersji 9 (nazwa = tylko znormalizowany model + DIM, np. `qwen3-embedding-0-6b-1024`; prefiks HASH `aigw:sem:{index}:`). Powód: w współdzielonym Redis brak rozpoznawalnego projektu w `FT._LIST` oraz cichy reuse indeksu przy zmianie SCHEMA przy tym samym model+DIM.
 
 **Partycja TAG (filtr KNN):** `modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`. TAG-i są **case-sensitive** (`CASESENSITIVE`). Klucze `clients` / `models` w YAML nie mogą zawierać przecinka ani innych separatorów TAG (poza dozwolonym myślnikiem) — `GatewayConfigSchema`. Zmiana promptu systemowego albo efektywnych params → inna partycja → **brak** semantic hit (bez hurtowego dropu indeksu; stare wektory do TTL). TAG `embeddingModel` dodatkowo izoluje przestrzeń wektorów w filtrze (obok nazwy indeksu).
 
@@ -115,7 +119,8 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 ## Kryteria akceptacji
 
 - [x] Dla poprawnego requestu gateway zwraca **201** i spójny JSON (`ChatController`, domyślne zachowanie NestJS dla `POST`).
-- [x] *(Cache exact)* Przy włączonym i dostępnym backendzie cache powtórzone identyczne żądanie `POST /api/v1/chat` może zwrócić odpowiedź z `cached: true`.
+- [x] *(Cache exact)* Przy włączonym i dostępnym backendzie cache powtórzone identyczne żądanie `POST /api/v1/chat` może zwrócić odpowiedź z `cached: true` i `cacheSource: "exact"`.
+- [x] *(Cache source)* Trafienie semantic → `cacheSource: "semantic"`; miss providera → brak pól `cached`, `cachedAt`, `cacheSource`.
 - [x] Dla nieznanego `modelAlias` gateway zwraca `400` z `code: MODEL_ALIAS_NOT_FOUND` (bez wywołania providera).
 - [x] Parametry są walidowane (DTO, `allowOverrides`, clamp `bounds`; `THINKING_NOT_SUPPORTED` przy braku capability).
 - [x] `requestId` jest obecny w odpowiedzi sukcesu; nagłówek odpowiedzi **`x-request-id`**.
@@ -126,7 +131,7 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [x] Cache semantyczny: co najwyżej jeden `embed` na żądanie JSON; brak retry `embed` przy zapisie, gdy lookup już go wołał; stream v1 bez tej warstwy.
 - [x] Cache semantyczny: inne efektywne params albo inna `systemSignature` → brak semantic hit (ta sama ostatnia fraza user nie wystarcza).
 - [x] Cache semantyczny: wieloturowa `messages[]` (lub więcej niż jeden `user`) → brak lookupu/store semantic (brak wywołania `embed`).
-- [x] Cache semantyczny: indeks i filtr KNN zawierają pełny `embeddingModel` + DIM — zmiana `EMBEDDING_MODEL` przy stałym DIM izoluje przestrzeń KNN (brak cross-hit między wariantami).
+- [x] Cache semantyczny: indeks zaczyna się od `ai-provider-gateway:sem:idx:` i zawiera pełny `embeddingModel` + DIM + hash SCHEMA — zmiana `EMBEDDING_MODEL` / DIM / SCHEMA izoluje przestrzeń KNN (brak cross-hit między wariantami; brak cichego reuse przy zmianie pól indeksu).
 
 ## Poza zakresem (względem rdzenia MVP)
 

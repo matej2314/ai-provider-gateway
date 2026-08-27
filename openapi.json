@@ -1827,6 +1827,14 @@
             "type": "string",
             "format": "date-time"
           },
+          "cacheSource": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "semantic"
+            ],
+            "description": "Which cache layer served this response. Present only on a cache hit; omitted on a provider miss. Not stored in the Redis payload."
+          },
           "usageDetails": {
             "description": "Extended usage details (cache tokens, reasoning tokens). Populated when provider supports extended usage details.",
             "allOf": [

@@ -339,7 +339,7 @@ Pełny szablon: `.env.example` (katalog główny; sparowany z `gateway.config.ex
 | `CACHE_BACKEND` | `noop` | `redis` wymaga Redis; cache semantyczny **nie** jest wartością `CACHE_BACKEND` |
 | `SEMANTIC_CACHE_ENABLED` | `false` (kod) / `true` (`.env` projektu) | Lookup semantyczny; wymaga Redis Stack + embeddingu |
 | `EMBEDDING_BASE_URL` | `http://localhost:11435` | Host vs `http://ollama-embedding:11434` w Dockerze |
-| `EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Zmiana = nowy indeks Redis Search (pełny znormalizowany model + DIM, np. `qwen3-embedding-0-6b-1024`) |
+| `EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Zmiana = nowy indeks Redis Search (`ai-provider-gateway:sem:idx:` + pełny znormalizowany model + DIM + hash SCHEMA) |
 | `RATE_LIMIT_SMART_ENABLED` | `false` | Smart rate limit per klucz (wymaga Redis) |
 | `SENTRY_DSN` | pusty | Error reporting / AI metrics (Sentry) |
 | `METRICS_BACKEND` | auto | `prometheus` / `noop` — w production domyślnie Prometheus |

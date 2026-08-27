@@ -83,7 +83,7 @@ sequenceDiagram
   S->>S: resolveProviderCallOptions(policy, body.params)
   S->>C: getCachedResponse (with effective params)
   alt cache hit (provider enabled in YAML; entry passed CachedChatResponseSchema)
-    C-->>S: JSON (with cached/cachedAt)
+    C-->>S: JSON (with cached/cachedAt/cacheSource)
     S-->>H: response
   else no entry
     S->>S: checkCooldown (optional, smart limit)
@@ -103,7 +103,7 @@ sequenceDiagram
   H-->>-K: 201 JSON (+ conversationId)
 ```
 
-**Notes:** optional **`params`** in the body are merged with `policy.params` in YAML (`resolveProviderCallOptions`) before cache and the provider call. A cached response contains **`cached: true`** and **`cachedAt`**; the **`requestId`** field comes from the request stored in cache (it is not overwritten with a new ID per request). A **`MODEL_NOT_ALLOWED`** error may occur right after `resolve`, before the LLM call.
+**Notes:** optional **`params`** in the body are merged with `policy.params` in YAML (`resolveProviderCallOptions`) before cache and the provider call. A cached response contains **`cached: true`**, **`cachedAt`**, and **`cacheSource`** (`exact` | `semantic`); the **`requestId`** field comes from the request stored in cache (it is not overwritten with a new ID per request). A **`MODEL_NOT_ALLOWED`** error may occur right after `resolve`, before the LLM call.
 
 ---
 

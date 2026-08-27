@@ -140,7 +140,7 @@ Udana odpowiedź JSON: **201 Created** — domyślne zachowanie NestJS dla `POST
 
 `ChatService.executeChat`: `id`, **`provider`** (identyfikator **`providerInstance`** z YAML), `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`**, opcjonalnie **`toolCalls`**, **`finishReason`**, **`usageDetails`**, opcjonalnie **`systemFingerprint`** (tylko gdy adapter upstream je dostarczy — patrz `dictionary.md`), `output`, `usage`, `requestId`, **`conversationId`**.
 
-**Cache (opcjonalny):** lookup przed wywołaniem providera; **pomijany** dla żądań z toolingiem. Przy trafieniu — gdy alias i provider są **włączone** w YAML — zwracany JSON z **`cached: true`**, **`cachedAt`**. Odczyt z backendu parsowany przez **`parseCachedChatResponse`** (`CachedChatResponseSchema`); niepoprawny wpis usuwany. Streaming nie jest cache’owany.
+**Cache (opcjonalny):** lookup przed wywołaniem providera; **pomijany** dla żądań z toolingiem. Przy trafieniu — gdy alias i provider są **włączone** w YAML — zwracany JSON z **`cached: true`**, **`cachedAt`** i **`cacheSource`** (`"exact"` albo `"semantic"`). Przy missie providera pole jest nieobecne i **nie** jest zapisywane w Redis. Odczyt z backendu parsowany przez **`parseCachedChatResponse`** (`CachedChatResponseSchema`); niepoprawny wpis usuwany. Streaming nie jest cache’owany. Fasady OpenAI/Anthropic **nie** eksponują `cacheSource` (JSON vendora).
 
 **Cooldown po 429 od providera** (`SmartRateLimiterService.setCooldown`) jest ustawiany w **`ChatErrorHandlerService.handleProviderError`** po błędzie upstream — dotyczy **`executeChat` i `executeStream`** (w obu ścieżkach przekazywany jest `gatewayKey`). Wspólne sprawdzenie cooldownu przed wywołaniem: `prepareRequestForExecution` → `checkCooldown`.
 
@@ -459,7 +459,7 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 1. Używaj **`openapi.json`** do generatorów i integracji — wybierz właściwy **`securityScheme`**: `GatewayKeyAuth` (czat natywny), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic).
 2. Do **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** dołącz nagłówek **`X-Gateway-Key`** z wartością operatora (allowlista — `konfiguracja.md`).
 3. **`params`** w body są opcjonalne — bez nich używane są wyłącznie `policy.params.defaults` z YAML; override wymaga wpisu pola w `allowOverrides` dla aliasu (`konfiguracja.md`). **Skutek u vendora** zależy od providera aliasu (np. Anthropic odrzuca jednoczesne `temperature` + `topP`) — `dictionary.md`.
-4. Przy włączonym cache powtórzone **`POST /api/v1/chat`** z tym samym body mogą zwrócić odpowiedź z **`cached: true`** bez wywołania providera (`konfiguracja.md`).
+4. Przy włączonym cache powtórzone **`POST /api/v1/chat`** z tym samym body mogą zwrócić odpowiedź z **`cached: true`** i **`cacheSource: "exact"`** (albo `"semantic"` po hicie KNN) bez wywołania providera (`konfiguracja.md`).
 5. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator w `src/config/system-prompt/`.
 6. Przy streamingu składaj tekst z kolejnych `delta`; metadane końcowe (`usage`, `toolCalls`, `finishReason`, opcjonalnie `systemFingerprint` — tylko gdy upstream je dostarczy) są w evencie **`done`**.
 7. **`usage`** może być niekompletne między providerami.

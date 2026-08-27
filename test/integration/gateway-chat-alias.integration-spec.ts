@@ -84,6 +84,7 @@ describe('Gateway chat cache model alias isolation (integration)', () => {
     expect(hitFirstAlias.body).toMatchObject({
       cached: true,
       cachedAt: expect.any(String),
+      cacheSource: 'exact',
       model: INTEGRATION_MODEL_ALIAS,
       output: { text: firstAlias.body.output.text },
     });
@@ -102,6 +103,7 @@ describe('Gateway chat cache model alias isolation (integration)', () => {
     expect(hitSecondAlias.body).toMatchObject({
       cached: true,
       cachedAt: expect.any(String),
+      cacheSource: 'exact',
       model: INTEGRATION_SECOND_MODEL_ALIAS,
       output: { text: secondAlias.body.output.text },
     });

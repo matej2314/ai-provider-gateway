@@ -6,6 +6,7 @@ import { LoggingService } from '../../../logging/logging.service';
 import { RedisConnectionService } from '../../adapters/redis-cache/redis-connection.service';
 import { parseCachedChatResponse } from '../../schemas/cached-chat-response.schema';
 import { semanticIndexName } from '../index-name';
+import { semanticSchemaFtCreateArgs } from '../semantic-cache.constants';
 import type {
   VectorStore,
   VectorSearchHit,
@@ -167,35 +168,9 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
         'HASH',
         'PREFIX',
         '1',
-        `aigw:sem:${index}:`,
+        `${index}:`,
         'SCHEMA',
-        'modelAlias',
-        'TAG',
-        'CASESENSITIVE',
-        'clientId',
-        'TAG',
-        'CASESENSITIVE',
-        'embeddingModel',
-        'TAG',
-        'CASESENSITIVE',
-        'systemSignature',
-        'TAG',
-        'CASESENSITIVE',
-        'callParams',
-        'TAG',
-        'CASESENSITIVE',
-        'reply',
-        'TEXT',
-        'vector',
-        'VECTOR',
-        'FLAT',
-        '6',
-        'TYPE',
-        'FLOAT32',
-        'DIM',
-        String(semCache.embeddingDim),
-        'DISTANCE_METRIC',
-        'COSINE',
+        ...semanticSchemaFtCreateArgs(semCache.embeddingDim),
       );
       this.indexCreated = true;
     } catch (createErr: unknown) {
@@ -343,7 +318,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       .update(text)
       .digest('hex')
       .slice(0, 32);
-    return `aigw:sem:${this.indexName()}:${hash}`;
+    return `${this.indexName()}:${hash}`;
   }
 
   async upsert(input: VectorStoreUpsertInput): Promise<void> {

@@ -249,6 +249,7 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
       .expect(E2E_POST_SUCCESS_STATUS);
 
     expect(first.body.cached).toBeUndefined();
+    expect(first.body.cacheSource).toBeUndefined();
     expect(completeMock).toHaveBeenCalledTimes(1);
 
     const second = await request(app.getHttpServer())
@@ -263,6 +264,7 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
     expect(second.body).toMatchObject({
       cached: true,
       cachedAt: expect.any(String),
+      cacheSource: 'semantic',
       output: first.body.output,
     });
     expect(completeMock).toHaveBeenCalledTimes(1);
@@ -292,6 +294,7 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
       .expect(E2E_POST_SUCCESS_STATUS);
 
     expect(first.body.cached).toBeUndefined();
+    expect(first.body.cacheSource).toBeUndefined();
     expect(completeMock).toHaveBeenCalledTimes(1);
 
     const second = await request(app.getHttpServer())
@@ -390,6 +393,7 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
       .expect(E2E_POST_SUCCESS_STATUS);
 
     expect(first.body.cached).toBeUndefined();
+    expect(first.body.cacheSource).toBeUndefined();
     expect(completeMock).toHaveBeenCalledTimes(1);
 
     const second = await request(app.getHttpServer())

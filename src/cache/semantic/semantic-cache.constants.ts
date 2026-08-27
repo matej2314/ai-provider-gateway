@@ -1,3 +1,60 @@
+/**
+ * Plain-text project id — first segment of the Redis Search index name and
+ * input to the schema hash. Must not contain spaces or colons (colon separates
+ * index-name segments). Not read from package.json / env.
+ */
+export const SEMANTIC_CACHE_PROJECT_ID = 'ai-provider-gateway';
+
+/** TAG fields shared by canonical schema string and `FT.CREATE` SCHEMA args. */
+const SEMANTIC_SCHEMA_TAG_FIELDS = [
+  'modelAlias',
+  'clientId',
+  'embeddingModel',
+  'systemSignature',
+  'callParams',
+] as const;
+
+/**
+ * Deterministic SCHEMA fingerprint used in the index-name hash.
+ * Same field list / order as `semanticSchemaFtCreateArgs` (single source of truth).
+ */
+export function canonicalSemanticSchema(dim: number): string {
+  const tags = SEMANTIC_SCHEMA_TAG_FIELDS.map(
+    (field) => `${field}:TAG:CASESENSITIVE`,
+  );
+  return [
+    ...tags,
+    'reply:TEXT',
+    `vector:VECTOR:FLAT:FLOAT32:${dim}:COSINE`,
+  ].join('\n');
+}
+
+/**
+ * `FT.CREATE … SCHEMA` argument list — must stay aligned with
+ * {@link canonicalSemanticSchema}.
+ */
+export function semanticSchemaFtCreateArgs(dim: number): string[] {
+  const args: string[] = [];
+  for (const field of SEMANTIC_SCHEMA_TAG_FIELDS) {
+    args.push(field, 'TAG', 'CASESENSITIVE');
+  }
+  args.push(
+    'reply',
+    'TEXT',
+    'vector',
+    'VECTOR',
+    'FLAT',
+    '6',
+    'TYPE',
+    'FLOAT32',
+    'DIM',
+    String(dim),
+    'DISTANCE_METRIC',
+    'COSINE',
+  );
+  return args;
+}
+
 /** Consecutive `embed()` failures before the circuit opens. */
 export const EMBEDDING_CIRCUIT_OPEN_AFTER = 3;
 

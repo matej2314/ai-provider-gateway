@@ -140,7 +140,7 @@ Successful JSON response: **201 Created** â default NestJS behavior for `PO
 
 `ChatService.executeChat`: `id`, **`provider`** (**`providerInstance`** identifier from YAML), `model` (requested `modelAlias`), optionally **`effectiveModelAlias`**, optionally **`toolCalls`**, **`finishReason`**, **`usageDetails`**, optionally **`systemFingerprint`** (only when the upstream adapter supplies it â see `dictionary.md`), `output`, `usage`, `requestId`, **`conversationId`**.
 
-**Cache (optional):** lookup before calling the provider; **skipped** for requests with tooling. On a hit â when the alias and provider are **enabled** in YAML â JSON is returned with **`cached: true`**, **`cachedAt`**. Backend reads are parsed by **`parseCachedChatResponse`** (`CachedChatResponseSchema`); invalid entry is removed. Streaming is not cached.
+**Cache (optional):** lookup before calling the provider; **skipped** for requests with tooling. On a hit — when the alias and provider are **enabled** in YAML — JSON is returned with **`cached: true`**, **`cachedAt`**, and **`cacheSource`** (`"exact"` or `"semantic"`). The field is omitted on a provider miss and is **not** stored in Redis. Backend reads are parsed by **`parseCachedChatResponse`** (`CachedChatResponseSchema`); invalid entry is removed. Streaming is not cached. OpenAI/Anthropic facades do **not** expose `cacheSource` (vendor JSON).
 
 **Cooldown after provider 429** (`SmartRateLimiterService.setCooldown`) is set in **`ChatErrorHandlerService.handleProviderError`** after an upstream error â applies to **`executeChat` and `executeStream`** (in both paths `gatewayKey` is passed). Shared cooldown check before the call: `prepareRequestForExecution` â `checkCooldown`.
 
@@ -459,7 +459,7 @@ Stable machine codes â **`dictionary.md`**. **`GlobalExceptionFilter`** pre
 1. Use **`openapi.json`** for generators and integrations â choose the correct **`securityScheme`**: `GatewayKeyAuth` (native chat), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic).
 2. For **`POST /api/v1/chat`** and **`POST /api/v1/chat/stream`** include the **`X-Gateway-Key`** header with an operator value (allowlist â `configuration.md`).
 3. **`params`** in the body are optional â without them only `policy.params.defaults` from YAML are used; override requires the field in `allowOverrides` for the alias (`configuration.md`). **Vendor effect** depends on the alias provider (e.g. Anthropic rejects simultaneous `temperature` + `topP`) â `dictionary.md`.
-4. With cache enabled, repeated **`POST /api/v1/chat`** with the same body may return a response with **`cached: true`** without calling the provider (`configuration.md`).
+4. With cache enabled, repeated **`POST /api/v1/chat`** with the same body may return a response with **`cached: true`** and **`cacheSource: "exact"`** (or `"semantic"` after a KNN hit) without calling the provider (`configuration.md`).
 5. Do not rely on **`role=system`** in `messages[]` â it is rejected; system policy is set by the operator in `src/config/system-prompt/`.
 6. When streaming, assemble text from successive `delta`s; final metadata (`usage`, `toolCalls`, `finishReason`, optionally `systemFingerprint` â only when upstream supplies it) is in the **`done`** event.
 7. **`usage`** may be incomplete across providers.
