@@ -456,11 +456,15 @@ describe('ResponseCacheService', () => {
         temperature: 0.7,
         maxOutputTokens: 1000,
         topP: 0.9,
+        topK: 40,
         stop: ['END'],
         frequencyPenalty: 0.5,
         presencePenalty: 0.5,
         seed: 42,
         responseFormat: { type: 'json_object' },
+        thinkingEnabled: true,
+        thinkingBudget: 'low',
+        parallelToolCalls: false,
       };
 
       (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);

@@ -14,6 +14,6 @@ import { SemanticCacheService } from './semantic-cache.service';
     { provide: VECTOR_STORE, useExisting: RedisVectorStoreAdapter },
     SemanticCacheService,
   ],
-  exports: [SemanticCacheService, EMBEDDING_BACKEND],
+  exports: [SemanticCacheService, EMBEDDING_BACKEND, VECTOR_STORE],
 })
 export class SemanticCacheModule {}

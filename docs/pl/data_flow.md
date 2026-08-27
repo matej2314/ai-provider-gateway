@@ -43,8 +43,8 @@ sequenceDiagram
     E-->>S: zapisana odpowiedź (cached: true)
     S-->>-H: 201 JSON (cached, exact)
   else exact MISS / wyłączony
-    S->>SC: lookup semantyczny (embedding + KNN) — pominięty dla tooling / unknown clientId / stream
-    alt semantic HIT (similarity >= próg)
+    S->>SC: lookup semantyczny (embedding + KNN) — pominięty dla tooling / unknown clientId / wielotury / stream
+    alt semantic HIT (similarity >= próg, ta sama partycja)
       SC-->>S: zapisana odpowiedź (cached: true)
       S-->>-H: 201 JSON (cached, semantyczny)
     else semantic MISS / wyłączony / fail-open
@@ -55,7 +55,7 @@ sequenceDiagram
   H-->>-K: 201 JSON lub błąd
 ```
 
-Przy missie semantycznym `executeChat` przekazuje do SET stan embed z lookupu: reuse wektora, brak retry albo pierwszy `embed`, gdy lookup go nie wołał (`konfiguracja.md`).
+Przy missie semantycznym `executeChat` przekazuje do SET stan embed z lookupu: reuse wektora, brak retry albo pierwszy `embed`, gdy lookup go nie wołał (`konfiguracja.md`). Zapis semantyczny tylko dla żądań jednoturowych w tej samej partycji TAG co lookup (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`).
 
 ---
 

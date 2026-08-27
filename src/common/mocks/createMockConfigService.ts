@@ -14,6 +14,7 @@ import {
   asRateLimitBurst,
   asRateLimitRps,
   asCacheTtlSeconds,
+  asSemanticCacheTtlSeconds,
   asPort,
 } from '../types/branded.types';
 import type { AppConfiguration } from '../../config/app-configuration.types';
@@ -225,7 +226,7 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
           embeddingDim: options.semanticCache?.embeddingDim ?? 1024,
           embeddingTimeoutMs: options.semanticCache?.embeddingTimeoutMs ?? 5000,
           minSimilarity: options.semanticCache?.minSimilarity ?? 0.9,
-          ttl: asCacheTtlSeconds(options.semanticCache?.ttl ?? 3600),
+          ttl: asSemanticCacheTtlSeconds(options.semanticCache?.ttl ?? 3600),
           k: options.semanticCache?.k ?? 3,
         };
 

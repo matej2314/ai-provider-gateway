@@ -2,6 +2,7 @@ import {
   getRedisConsumers,
   isRedisRequired,
   isRedisRequiredFromEnv,
+  isSemanticCacheEnabledFromEnv,
 } from './should-include-redis-stack';
 
 describe('should-include-redis-stack', () => {
@@ -68,6 +69,16 @@ describe('should-include-redis-stack', () => {
         SEMANTIC_CACHE_ENABLED: 'true',
       }),
     ).toBe(true);
+  });
+
+  it('isSemanticCacheEnabledFromEnv matches Redis semantic consumer toggle', () => {
+    expect(isSemanticCacheEnabledFromEnv({ SEMANTIC_CACHE_ENABLED: 'true' })).toBe(
+      true,
+    );
+    expect(
+      isSemanticCacheEnabledFromEnv({ SEMANTIC_CACHE_ENABLED: 'false' }),
+    ).toBe(false);
+    expect(isSemanticCacheEnabledFromEnv({})).toBe(false);
   });
 
   it('should include semantic-cache consumer', () => {

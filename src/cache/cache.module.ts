@@ -11,12 +11,14 @@ import type { CacheKey, CacheTtlSeconds } from '../common/types/branded.types';
 
 export interface CacheModuleOptions {
   includeRedisStack: boolean;
+  /** Must use the same predicate as Redis requirement (`isSemanticCacheEnabledFromEnv`). */
+  semanticEnabled: boolean;
 }
 
 @Module({})
 export class CacheModule {
   static register(options: CacheModuleOptions): DynamicModule {
-    const semanticEnabled = process.env.SEMANTIC_CACHE_ENABLED === 'true';
+    const semanticEnabled = options.semanticEnabled;
     const imports = [
       NoopCacheModule,
       AppMetricsModule,

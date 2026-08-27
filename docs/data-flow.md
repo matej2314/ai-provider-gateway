@@ -43,8 +43,8 @@ sequenceDiagram
     E-->>S: stored response (cached: true)
     S-->>-H: 201 JSON (cached, exact)
   else exact MISS / disabled
-    S->>SC: semantic lookup (embedding + KNN) — skipped for tooling / unknown clientId / stream
-    alt semantic HIT (similarity >= threshold)
+    S->>SC: semantic lookup (embedding + KNN) — skipped for tooling / unknown clientId / multi-turn / stream
+    alt semantic HIT (similarity >= threshold, same partition)
       SC-->>S: stored response (cached: true)
       S-->>-H: 201 JSON (cached, semantic)
     else semantic MISS / disabled / fail-open
@@ -55,7 +55,7 @@ sequenceDiagram
   H-->>-K: 201 JSON or error
 ```
 
-On a semantic miss, `executeChat` passes lookup embed state into SET: reuse vector, or skip retry, or first `embed` if lookup never called it (`configuration.md`).
+On a semantic miss, `executeChat` passes lookup embed state into SET: reuse vector, or skip retry, or first `embed` if lookup never called it (`configuration.md`). Semantic store runs only for single-turn requests in the same TAG partition as lookup (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`).
 
 ---
 

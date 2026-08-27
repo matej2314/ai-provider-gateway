@@ -11,7 +11,7 @@ import {
   TEST_OUTPUT_TOKENS_SMALL,
   TEST_PROVIDER_INSTANCE_BRANDED,
 } from '../../src/common/mocks/test-constants';
-import { asClientId, asPort } from '../../src/common/types';
+import { asClientId, asPort, asSemanticCacheTtlSeconds } from '../../src/common/types/branded.types';
 import { RedisConnectionService } from '../../src/cache/adapters/redis-cache/redis-connection.service';
 import { RedisVectorStoreAdapter } from '../../src/cache/semantic/adapters/redis-vector-store.adapter';
 import { SemanticCacheService } from '../../src/cache/semantic/semantic-cache.service';
@@ -20,17 +20,24 @@ import {
   EMBEDDING_BACKEND,
   VECTOR_STORE,
 } from '../../src/cache/semantic/semantic-cache.tokens';
+import {
+  computeSystemSignature,
+  hashCallParams,
+} from '../../src/cache/cache-identity';
 import { LoggingService } from '../../src/logging/logging.service';
 import { AppMetricsService } from '../../src/observability/app-metrics/app-metrics.service';
 import type { ChatRequestDto } from '../../src/chat/dto/chat-request.dto';
 import type { CachedChatResponse } from '../../src/cache/types/cached-chat-response.type';
 import type { EmbeddingBackend } from '../../src/cache/semantic/embedding-backend.interface';
+import type { ProviderCallOptions } from '../../src/providers/interfaces/ai-provider.interface';
+import type { ResolvedSystemPrompts } from '../../src/config/configuration.types';
 import { flushIntegrationRedisDb } from './helpers/flush-integration-redis';
 import { getRedisConnectionOptions } from './helpers/wait-for-redis';
 
 const EMBEDDING_DIM = 1024;
 const EMBEDDING_MODEL = 'qwen3-embedding:0.6b';
 const EXPECTED_INDEX = semanticIndexName(EMBEDDING_MODEL, EMBEDDING_DIM);
+const MIN_SIMILARITY = 0.9;
 
 /** Same constant vector for store + lookup — no live Ollama. */
 const FIXED_VECTOR = Array.from(
@@ -38,30 +45,64 @@ const FIXED_VECTOR = Array.from(
   (_, i) => ((i % 17) + 1) / 17,
 );
 
+/**
+ * Unit vector with known cosine similarity to `[1, 0, 0, …]`.
+ * Redis COSINE distance ≈ `1 - cos`; adapter exposes `similarity = 1 - dist`.
+ */
+function unitVectorAtCosine(cosine: number): number[] {
+  const v = new Array<number>(EMBEDDING_DIM).fill(0);
+  v[0] = cosine;
+  v[1] = Math.sqrt(Math.max(0, 1 - cosine * cosine));
+  return v;
+}
+
+const BASIS_VECTOR = unitVectorAtCosine(1);
+/** Above minSimilarity 0.9 → expect semantic hit. */
+const ABOVE_THRESHOLD_VECTOR = unitVectorAtCosine(0.95);
+/** Below minSimilarity 0.9 → expect miss (below-threshold). */
+const BELOW_THRESHOLD_VECTOR = unitVectorAtCosine(0.85);
+
 const CLIENT_A = asClientId('sem-client-a');
 const CLIENT_B = asClientId('sem-client-b');
+const CLIENT_TEAM_A = asClientId('Team-A');
+const CLIENT_TEAM_A_LOWER = asClientId('team-a');
 
-const cachedReply: CachedChatResponse = {
-  id: TEST_CACHED_RESPONSE_ID,
-  provider: TEST_PROVIDER_INSTANCE_BRANDED,
-  model: TEST_MODEL_ALIAS_BRANDED,
-  output: { type: 'text', text: 'Semantic integration hit' },
-  usage: {
-    inputTokens: TEST_INPUT_TOKENS,
-    outputTokens: TEST_OUTPUT_TOKENS_SMALL,
-  },
-  requestId: TEST_CACHED_REQUEST_ID,
-  cached: true,
-  cachedAt: '2026-01-01T00:00:00.000Z',
-};
+const OPTIONS_LOW_TEMP: ProviderCallOptions = { temperature: 0.2 };
+const OPTIONS_HIGH_TEMP: ProviderCallOptions = { temperature: 0.9 };
 
-function createFixedEmbeddingBackend(): EmbeddingBackend {
+/** Optional per-text override; defaults to FIXED_VECTOR (existing cases). */
+const embeddingByText = new Map<string, number[]>();
+
+function cachedReply(text: string): CachedChatResponse {
+  return {
+    id: TEST_CACHED_RESPONSE_ID,
+    provider: TEST_PROVIDER_INSTANCE_BRANDED,
+    model: TEST_MODEL_ALIAS_BRANDED,
+    output: { type: 'text', text },
+    usage: {
+      inputTokens: TEST_INPUT_TOKENS,
+      outputTokens: TEST_OUTPUT_TOKENS_SMALL,
+    },
+    requestId: TEST_CACHED_REQUEST_ID,
+    cached: true,
+    cachedAt: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+function createRoutableEmbeddingBackend(): EmbeddingBackend {
   return {
     isAvailable: () => true,
     embed: (text: string) => {
-      void text;
-      return Promise.resolve([...FIXED_VECTOR]);
+      const mapped = embeddingByText.get(text);
+      return Promise.resolve([...(mapped ?? FIXED_VECTOR)]);
     },
+  };
+}
+
+function userRequest(content: string): ChatRequestDto {
+  return {
+    modelAlias: TEST_MODEL_ALIAS,
+    messages: [{ role: 'user', content }],
   };
 }
 
@@ -80,11 +121,6 @@ const shouldRunSemanticVector =
     let semanticCache: SemanticCacheService;
     let redis: RedisConnectionService;
 
-    const userRequest: ChatRequestDto = {
-      modelAlias: TEST_MODEL_ALIAS,
-      messages: [{ role: 'user', content: 'semantic-integration-ping' }],
-    };
-
     beforeAll(async () => {
       await flushIntegrationRedisDb();
 
@@ -95,7 +131,7 @@ const shouldRunSemanticVector =
           embeddingModel: EMBEDDING_MODEL,
           embeddingDim: EMBEDDING_DIM,
           embeddingBaseUrl: 'http://127.0.0.1:9',
-          minSimilarity: 0.9,
+          minSimilarity: MIN_SIMILARITY,
           ttl: 3600,
           k: 3,
         },
@@ -109,7 +145,7 @@ const shouldRunSemanticVector =
         cache: { enabled: false, backend: 'noop' },
       });
 
-      const fakeEmbedding = createFixedEmbeddingBackend();
+      const fakeEmbedding = createRoutableEmbeddingBackend();
 
       moduleRef = await Test.createTestingModule({
         providers: [
@@ -138,25 +174,66 @@ const shouldRunSemanticVector =
       expect(redis.isReady()).toBe(true);
     });
 
+    beforeEach(async () => {
+      embeddingByText.clear();
+      await flushIntegrationRedisDb();
+    });
+
     afterAll(async () => {
       await moduleRef?.close();
     });
 
-    it('creates Redis Search index (FT.INFO qwen3-1024)', async () => {
+    it('creates Redis Search index (FT.INFO full normalized model + DIM)', async () => {
+      const store = moduleRef.get(RedisVectorStoreAdapter);
+      await store.ensureIndex();
+
       const client = redis.getClient();
       expect(client).not.toBeNull();
+      expect(EXPECTED_INDEX).toBe('qwen3-embedding-0-6b-1024');
       const info = await client!.call('FT.INFO', EXPECTED_INDEX);
       expect(info).toBeDefined();
       const flat = Array.isArray(info) ? info.map(String) : [];
       expect(flat).toEqual(expect.arrayContaining([EXPECTED_INDEX]));
     });
 
-    it('SET → KNN hit at similarity threshold 0.90', async () => {
-      await semanticCache.storeReply(userRequest, cachedReply, CLIENT_A, {
-        embedAttempted: false,
-      });
+    it('recreates index after FLUSHDB without process restart (B5)', async () => {
+      const store = moduleRef.get(RedisVectorStoreAdapter);
+      await store.ensureIndex();
 
-      const result = await semanticCache.lookup(userRequest, CLIENT_A);
+      const client = redis.getClient();
+      expect(client).not.toBeNull();
+      await client!.flushdb();
+
+      const request = userRequest('semantic-integration-flushdb-recover');
+      await semanticCache.storeReply(
+        request,
+        cachedReply('Recovered after FLUSHDB'),
+        CLIENT_A,
+        undefined,
+        { embedAttempted: false },
+      );
+
+      const result = await semanticCache.lookup(request, CLIENT_A);
+
+      expect(result.reply).toMatchObject({
+        cached: true,
+        output: { text: 'Recovered after FLUSHDB' },
+      });
+      await expect(client!.call('FT.INFO', EXPECTED_INDEX)).resolves.toBeDefined();
+    });
+
+    it('SET → KNN hit at similarity threshold 0.90', async () => {
+      const request = userRequest('semantic-integration-ping');
+
+      await semanticCache.storeReply(
+        request,
+        cachedReply('Semantic integration hit'),
+        CLIENT_A,
+        undefined,
+        { embedAttempted: false },
+      );
+
+      const result = await semanticCache.lookup(request, CLIENT_A);
 
       expect(result.embedAttempted).toBe(true);
       expect(result.vector).toHaveLength(EMBEDDING_DIM);
@@ -167,15 +244,355 @@ const shouldRunSemanticVector =
     });
 
     it('different clientId → KNN miss (TAG partition)', async () => {
-      await semanticCache.storeReply(userRequest, cachedReply, CLIENT_A, {
-        embedAttempted: false,
-      });
+      const request = userRequest('semantic-integration-client-partition');
 
-      const result = await semanticCache.lookup(userRequest, CLIENT_B);
+      await semanticCache.storeReply(
+        request,
+        cachedReply('Semantic integration hit'),
+        CLIENT_A,
+        undefined,
+        { embedAttempted: false },
+      );
+
+      const result = await semanticCache.lookup(request, CLIENT_B);
 
       expect(result.embedAttempted).toBe(true);
       expect(result.vector).toHaveLength(EMBEDDING_DIM);
       expect(result.reply).toBeNull();
+    });
+
+    it('different callParams → KNN miss despite identical embedding vector (B1)', async () => {
+      const request = userRequest('semantic-integration-params-partition');
+
+      await semanticCache.storeReply(
+        request,
+        cachedReply('Stored at temperature 0.2'),
+        CLIENT_A,
+        OPTIONS_LOW_TEMP,
+        { embedAttempted: false },
+      );
+
+      const result = await semanticCache.lookup(
+        request,
+        CLIENT_A,
+        OPTIONS_HIGH_TEMP,
+      );
+
+      expect(result.embedAttempted).toBe(true);
+      expect(result.vector).toHaveLength(EMBEDDING_DIM);
+      expect(result.reply).toBeNull();
+    });
+
+    it('matching callParams → KNN hit with same fake embedding (B1 positive)', async () => {
+      const request = userRequest('semantic-integration-params-hit');
+
+      await semanticCache.storeReply(
+        request,
+        cachedReply('Params partition hit'),
+        CLIENT_A,
+        OPTIONS_LOW_TEMP,
+        { embedAttempted: false },
+      );
+
+      const result = await semanticCache.lookup(
+        request,
+        CLIENT_A,
+        OPTIONS_LOW_TEMP,
+      );
+
+      expect(result.embedAttempted).toBe(true);
+      expect(result.reply).toMatchObject({
+        cached: true,
+        output: { text: 'Params partition hit' },
+      });
+    });
+
+    it('multi-turn request skips lookup embed (B2)', async () => {
+      const multiTurn: ChatRequestDto = {
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [
+          { role: 'user', content: 'Explain topic A' },
+          { role: 'assistant', content: 'Topic A is…' },
+          { role: 'user', content: 'kontynuuj' },
+        ],
+      };
+
+      await semanticCache.storeReply(
+        userRequest('semantic-integration-seed'),
+        cachedReply('Should not be returned to multi-turn'),
+        CLIENT_A,
+        undefined,
+        { embedAttempted: false },
+      );
+
+      const result = await semanticCache.lookup(multiTurn, CLIENT_A);
+
+      expect(result).toEqual({
+        reply: null,
+        vector: null,
+        embedAttempted: false,
+      });
+    });
+
+    it('same-family embedding model at same DIM → separate index; KNN does not cross (B3)', async () => {
+      const otherModel = 'qwen3-embedding:4b';
+      const otherIndex = semanticIndexName(otherModel, EMBEDDING_DIM);
+      expect(otherIndex).not.toBe(EXPECTED_INDEX);
+
+      const { host, port, password, db } = getRedisConnectionOptions();
+      const otherConfig = createMockConfigService({
+        semanticCache: {
+          enabled: true,
+          embeddingModel: otherModel,
+          embeddingDim: EMBEDDING_DIM,
+          embeddingBaseUrl: 'http://127.0.0.1:9',
+          minSimilarity: 0.9,
+          ttl: 3600,
+          k: 3,
+        },
+        redis: {
+          host,
+          port: asPort(port),
+          password: password ?? '',
+          db,
+          keyPrefix: 'it-sem:',
+        },
+        cache: { enabled: false, backend: 'noop' },
+      });
+
+      const otherModule = await Test.createTestingModule({
+        providers: [
+          {
+            provide: RedisConnectionService,
+            useValue: redis,
+          },
+          RedisVectorStoreAdapter,
+          {
+            provide: ConfigService,
+            useValue: otherConfig,
+          },
+          {
+            provide: LoggingService,
+            useValue: createMockLoggingService(),
+          },
+        ],
+      }).compile();
+
+      const otherStore = otherModule.get(RedisVectorStoreAdapter);
+      await otherStore.ensureIndex();
+
+      const client = redis.getClient();
+      expect(client).not.toBeNull();
+      await expect(client!.call('FT.INFO', otherIndex)).resolves.toBeDefined();
+
+      const request = userRequest('semantic-integration-embedding-model');
+      await semanticCache.storeReply(
+        request,
+        cachedReply('Stored under 0.6b index'),
+        CLIENT_A,
+        undefined,
+        { embedAttempted: false },
+      );
+
+      const prompts = otherConfig.get!(
+        'resolvedSystemPrompts',
+      ) as ResolvedSystemPrompts;
+      const hits = await otherStore.knn({
+        vector: [...FIXED_VECTOR],
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        clientId: CLIENT_A,
+        systemSignature: computeSystemSignature(prompts, TEST_MODEL_ALIAS),
+        callParams: hashCallParams(undefined),
+        k: 3,
+      });
+
+      expect(hits).toEqual([]);
+
+      await otherModule.close();
+    });
+
+    it('entry expires after TTL and disappears from KNN (B8)', async () => {
+      const store = moduleRef.get(RedisVectorStoreAdapter);
+      await store.ensureIndex();
+
+      const prompts = moduleRef.get(ConfigService).get!(
+        'resolvedSystemPrompts',
+      ) as ResolvedSystemPrompts;
+      const systemSignature = computeSystemSignature(prompts, TEST_MODEL_ALIAS);
+      const callParams = hashCallParams(undefined);
+      const text = 'semantic-integration-ttl-expiry';
+
+      await store.upsert({
+        vector: [...FIXED_VECTOR],
+        text,
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        clientId: CLIENT_A,
+        systemSignature,
+        callParams,
+        reply: cachedReply('TTL will expire'),
+        ttlSeconds: asSemanticCacheTtlSeconds(1),
+      });
+
+      const knnInput = {
+        vector: [...FIXED_VECTOR],
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        clientId: CLIENT_A,
+        systemSignature,
+        callParams,
+        k: 3,
+      };
+
+      await expect(store.knn(knnInput)).resolves.toEqual([
+        expect.objectContaining({
+          reply: expect.objectContaining({
+            output: { type: 'text', text: 'TTL will expire' },
+          }),
+        }),
+      ]);
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      await expect(store.knn(knnInput)).resolves.toEqual([]);
+    });
+
+    it('KNN hit above minSimilarity 0.9 and miss below (L4/L6)', async () => {
+      const seedText = 'semantic-integration-threshold-seed';
+      const hitText = 'semantic-integration-threshold-hit';
+      const missText = 'semantic-integration-threshold-miss';
+
+      embeddingByText.set(seedText, BASIS_VECTOR);
+      embeddingByText.set(hitText, ABOVE_THRESHOLD_VECTOR);
+      embeddingByText.set(missText, BELOW_THRESHOLD_VECTOR);
+
+      await semanticCache.storeReply(
+        userRequest(seedText),
+        cachedReply('Threshold seed reply'),
+        CLIENT_A,
+        undefined,
+        { embedAttempted: false },
+      );
+
+      const hit = await semanticCache.lookup(userRequest(hitText), CLIENT_A);
+      expect(hit.embedAttempted).toBe(true);
+      expect(hit.reply).toMatchObject({
+        cached: true,
+        output: { text: 'Threshold seed reply' },
+      });
+
+      const miss = await semanticCache.lookup(userRequest(missText), CLIENT_A);
+      expect(miss.embedAttempted).toBe(true);
+      expect(miss.vector).toHaveLength(EMBEDDING_DIM);
+      expect(miss.reply).toBeNull();
+    });
+
+    it('different modelAlias → KNN miss (TAG partition)', async () => {
+      const text = 'semantic-integration-model-partition';
+      await semanticCache.storeReply(
+        userRequest(text),
+        cachedReply('Stored under test-model'),
+        CLIENT_A,
+        undefined,
+        { embedAttempted: false },
+      );
+
+      const otherAliasRequest: ChatRequestDto = {
+        modelAlias: 'other-model',
+        messages: [{ role: 'user', content: text }],
+      };
+      const result = await semanticCache.lookup(otherAliasRequest, CLIENT_A);
+
+      expect(result.embedAttempted).toBe(true);
+      expect(result.reply).toBeNull();
+    });
+
+    it('Team-A vs team-a are distinct CASESENSITIVE client partitions (S16)', async () => {
+      const text = 'semantic-integration-case-sensitive-client';
+      await semanticCache.storeReply(
+        userRequest(text),
+        cachedReply('Stored for Team-A'),
+        CLIENT_TEAM_A,
+        undefined,
+        { embedAttempted: false },
+      );
+
+      const lower = await semanticCache.lookup(userRequest(text), CLIENT_TEAM_A_LOWER);
+      expect(lower.embedAttempted).toBe(true);
+      expect(lower.reply).toBeNull();
+
+      const sameCase = await semanticCache.lookup(userRequest(text), CLIENT_TEAM_A);
+      expect(sameCase.reply).toMatchObject({
+        output: { text: 'Stored for Team-A' },
+      });
+    });
+
+    it('different systemSignature → KNN miss despite identical vector (B1)', async () => {
+      const store = moduleRef.get(RedisVectorStoreAdapter);
+      await store.ensureIndex();
+
+      const callParams = hashCallParams(undefined);
+      const text = 'semantic-integration-system-sig';
+
+      await store.upsert({
+        vector: [...FIXED_VECTOR],
+        text,
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        clientId: CLIENT_A,
+        systemSignature: 'sys-sig-a',
+        callParams,
+        reply: cachedReply('Stored under sys-sig-a'),
+        ttlSeconds: asSemanticCacheTtlSeconds(3600),
+      });
+
+      const hits = await store.knn({
+        vector: [...FIXED_VECTOR],
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        clientId: CLIENT_A,
+        systemSignature: 'sys-sig-b',
+        callParams,
+        k: 3,
+      });
+
+      expect(hits).toEqual([]);
+    });
+
+    it('damaged reply JSON is skipped by KNN parse (Zod fail-closed)', async () => {
+      const store = moduleRef.get(RedisVectorStoreAdapter);
+      await store.ensureIndex();
+
+      const prompts = moduleRef.get(ConfigService).get!(
+        'resolvedSystemPrompts',
+      ) as ResolvedSystemPrompts;
+      const systemSignature = computeSystemSignature(prompts, TEST_MODEL_ALIAS);
+      const callParams = hashCallParams(undefined);
+      const text = 'semantic-integration-damaged-json';
+
+      await store.upsert({
+        vector: [...FIXED_VECTOR],
+        text,
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        clientId: CLIENT_A,
+        systemSignature,
+        callParams,
+        reply: cachedReply('Will be corrupted'),
+        ttlSeconds: asSemanticCacheTtlSeconds(3600),
+      });
+
+      const client = redis.getClient();
+      expect(client).not.toBeNull();
+      const keys = await client!.keys(`aigw:sem:${EXPECTED_INDEX}:*`);
+      expect(keys.length).toBeGreaterThanOrEqual(1);
+      await client!.hset(keys[0]!, 'reply', '{not-valid-json');
+
+      const hits = await store.knn({
+        vector: [...FIXED_VECTOR],
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        clientId: CLIENT_A,
+        systemSignature,
+        callParams,
+        k: 3,
+      });
+
+      expect(hits).toEqual([]);
     });
   },
 );

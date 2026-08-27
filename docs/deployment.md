@@ -339,7 +339,7 @@ Full template: `.env.example` (repo root; paired with `gateway.config.example.ya
 | `CACHE_BACKEND` | `noop` | `redis` requires Redis; semantic cache is **not** a `CACHE_BACKEND` value |
 | `SEMANTIC_CACHE_ENABLED` | `false` (code) / `true` (project `.env`) | Semantic lookup; requires Redis Stack + embedding |
 | `EMBEDDING_BASE_URL` | `http://localhost:11435` | Host vs `http://ollama-embedding:11434` in Docker |
-| `EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Change = new Redis Search index |
+| `EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Change = new Redis Search index (full normalized model + DIM, e.g. `qwen3-embedding-0-6b-1024`) |
 | `RATE_LIMIT_SMART_ENABLED` | `false` | Smart rate limit per key (requires Redis) |
 | `SENTRY_DSN` | empty | Error reporting / AI metrics (Sentry) |
 | `METRICS_BACKEND` | auto | `prometheus` / `noop` — in production defaults to Prometheus |
@@ -543,7 +543,7 @@ docker ps | grep redis
 docker exec ai-gateway-redis redis-cli -p 6380 ping   # expected: PONG
 ```
 
-When `RATE_LIMIT_SMART_ENABLED=true`, `CACHE_BACKEND=redis`, or `SEMANTIC_CACHE_ENABLED=true`, readiness may report `checks.redis: degraded` without a working Redis. Semantic cache fail-open still lets chat through; `checks.embeddings: degraded` does not block `ready`.
+When `RATE_LIMIT_SMART_ENABLED=true`, `CACHE_BACKEND=redis`, or `SEMANTIC_CACHE_ENABLED=true`, readiness may report `checks.redis: degraded` without a working Redis. Semantic cache fail-open still lets chat through; `checks.embeddings: degraded` and `checks.vectorStore: degraded` do not block `ready`. `/ready` surfaces Search/index health via `checks.vectorStore`; `MODULE LIST` remains a Compose runbook checklist, not the only signal.
 
 ### Prometheus / Grafana do not respond
 

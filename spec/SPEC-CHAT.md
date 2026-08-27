@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 8
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-26
+data_modyfikacji: 2026-08-27
 ---
 
 # SPEC — Chat (standard) — `POST /chat`
@@ -80,15 +80,21 @@ F-8. *(Opcjonalnie — cache exact-match)* Gateway może zwracać zapisaną odpo
 
 Klucz cache obejmuje m.in. `modelAlias`, `clientId`, `messages`, sygnaturę promptów systemowych oraz zserializowane parametry wywołania. Cache **pomija** żądania z toolingiem (F-2b) oraz alias, którego `providerInstance` ma `enabled !== true` (`isCachedChatAllowedForModelAlias`). Backendy i env — `SPEC-KONFIGURACJA.md` F-1b.
 
-Sygnatura promptu i params są w kluczu **tylko exact-match**. Cache semantyczny partycjonuje wyłącznie `modelAlias` + `clientId`; zmiana promptu / `responseFormat` nie unieważnia KNN (granicą jest TTL). Szczegóły: `docs/pl/konfiguracja.md` (known limitation v1), `docs/pl/anty_patterny.md` §20, F-8b.
+Exact i semantic dzielą tożsamość **konfiguracji** żądania (`systemSignature`, efektywne params). Semantyka podobieństwa dotyczy wyłącznie tekstu last-user przy żądaniu jednoturowym — F-8b.
 
-Zmiana względem: wcześniejsze F-8 („gdy włączony jest dostępny backend”) oraz brak rozróżnienia exact vs semantic przy invalidacji promptu. Powód: hash jest per klient; wyłączona instancja nie korzysta z exact-match; semantic nie hashuje `systemSignature`.
+Zmiana względem: wcześniejsze F-8 (wersja 5), które głosiło known limitation v1: „sygnatura promptu i params są w kluczu **tylko exact-match**; cache semantyczny partycjonuje wyłącznie `modelAlias` + `clientId`; zmiana promptu / `responseFormat` nie unieważnia KNN (granicą jest TTL)”. Powód: fałszywe trafienia przy zmianie promptu/params; kontrakt v1.1 = ta sama partycja konfiguracji co exact + skip wielotury.
 
-F-8b. *(Opcjonalnie — cache semantyczny)* Po missie exact, gdy `SEMANTIC_CACHE_ENABLED=true`, gateway może zwrócić hit KNN z `cached: true` (ten sam kształt odpowiedzi co exact). Kolejność: exact → semantic → provider. Env: `SPEC-KONFIGURACJA.md` F-1d, `docs/pl/konfiguracja.md`.
+F-8b. *(Opcjonalnie — cache semantyczny)* Po missie exact, gdy `SEMANTIC_CACHE_ENABLED=true`, gateway może zwrócić hit KNN z `cached: true` (ten sam kształt odpowiedzi co exact). Kolejność: polityka cache aliasu → exact → semantic → provider. Env: `SPEC-KONFIGURACJA.md` F-1d, `docs/pl/konfiguracja.md`.
 
-Na jednym żądaniu JSON **co najwyżej jeden** `embed`: lookup przekazuje do zapisu wektor oraz czy `embed` już był wołany. Jest wektor → tylko upsert. `embed` już był i brak wektora → zapis semantyczny **pomijany** (bez retry / bez drugiego timeoutu). `embed` nie był wołany (np. otwarty obwód) → zapis **może** zrobić pierwszy `embed`, jeśli obwód wpuszcza. Skip jak exact (tooling, brak klucza, `clientId === 'unknown'`) plus brak ostatniej wiadomości `user` z niepustym `content`.
+**Indeks Redis Search:** nazwa = **pełny znormalizowany** `EMBEDDING_MODEL` + `EMBEDDING_DIM` (nie krótki slug rodziny). Przykład: `qwen3-embedding:0.6b` + `1024` → `qwen3-embedding-0-6b-1024`. Warianty tej samej rodziny przy tym samym DIM (np. `:4b`) → **osobny** indeks. Zmiana `EMBEDDING_MODEL` lub `EMBEDDING_DIM` = nowy indeks.
 
-Zmiana względem: F-8 i poza zakresem „Cache semantyczny” (kontrakt zapisu = cichy skip bez wektora albo poza zestawem SPEC). Powód: rozróżnienie „nie liczono” vs „padło” (`embedAttempted` w `SemanticCacheService`).
+**Partycja TAG (filtr KNN):** `modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`. TAG-i są **case-sensitive** (`CASESENSITIVE`). Klucze `clients` / `models` w YAML nie mogą zawierać przecinka ani innych separatorów TAG (poza dozwolonym myślnikiem) — `GatewayConfigSchema`. Zmiana promptu systemowego albo efektywnych params → inna partycja → **brak** semantic hit (bez hurtowego dropu indeksu; stare wektory do TTL). TAG `embeddingModel` dodatkowo izoluje przestrzeń wektorów w filtrze (obok nazwy indeksu).
+
+**Jednotura:** lookup i store semantyczny **tylko** gdy `messages[]` zawiera dokładnie jedną wiadomość `role: user` i żadnych ról `assistant` / `tool`. Wielotura / frazy anaforyczne przy historii → skip (jak tooling).
+
+Na jednym żądaniu JSON **co najwyżej jeden** `embed`: lookup przekazuje do zapisu wektor oraz czy `embed` już był wołany. Jest wektor → tylko upsert. `embed` już był i brak wektora → zapis semantyczny **pomijany** (bez retry / bez drugiego timeoutu). `embed` nie był wołany (np. otwarty obwód) → zapis **może** zrobić pierwszy `embed`, jeśli obwód wpuszcza. Skip jak exact (tooling, brak klucza, `clientId === 'unknown'`, alias poza polityką cache) plus brak ostatniej wiadomości `user` z niepustym `content` **oraz** brak jednotury. Polityka `isCachedChatAllowedForModelAlias` jest sprawdzana **przed** I/O exact i semantic (odczyt i zapis).
+
+Zmiana względem: F-8b w wersji 7 (kolejność exact→semantic bez jawnej polityki przed I/O; milczenie o CASESENSITIVE / zakazie przecinka w ID). Powód: S3/S4/S16/S17 — ta sama polityka przed I/O i na zapisie; izolacja TAG case-sensitive bez wycieku na przecinku.
 
 F-9. *(Conversation tracking i metryki LLM)* `conversationId` opcjonalne w żądaniu w formacie `conv_<uuid>`. Do Sentry trafia **tylko** ID z body klienta. Gateway **zawsze** zwraca `conversationId` w odpowiedzi (echo lub `conv_<uuid>`). Klient od tury 2+ z ID musi wysyłać pełną historię w `messages[]`.
 
@@ -118,6 +124,9 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [x] Cooldown po 429 dotyczy ścieżki `executeChat` (wspólne `prepareRequestForExecution` ze streamem — `SPEC-CHAT-STREAMING.md`).
 - [x] Exact-match nie serwuje wpisu, gdy instancja aliasu jest wyłączona; klucz cache różni klientów.
 - [x] Cache semantyczny: co najwyżej jeden `embed` na żądanie JSON; brak retry `embed` przy zapisie, gdy lookup już go wołał; stream v1 bez tej warstwy.
+- [x] Cache semantyczny: inne efektywne params albo inna `systemSignature` → brak semantic hit (ta sama ostatnia fraza user nie wystarcza).
+- [x] Cache semantyczny: wieloturowa `messages[]` (lub więcej niż jeden `user`) → brak lookupu/store semantic (brak wywołania `embed`).
+- [x] Cache semantyczny: indeks i filtr KNN zawierają pełny `embeddingModel` + DIM — zmiana `EMBEDDING_MODEL` przy stałym DIM izoluje przestrzeń KNN (brak cross-hit między wariantami).
 
 ## Poza zakresem (względem rdzenia MVP)
 

@@ -7,6 +7,10 @@ import { CACHE_BACKEND } from './cache.tokens';
 import { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
 import { LoggingService } from '../logging/logging.service';
 import { parseCachedChatResponse } from './schemas/cached-chat-response.schema';
+import {
+  computeSystemSignature,
+  serializeCallParamsForCache,
+} from './cache-identity';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
 import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
 import type { ChatResponseData } from '../chat/services/chat-response-builder.service';
@@ -70,20 +74,17 @@ export class ResponseCacheService {
     effectiveCallParams?: ProviderCallOptions,
   ): CacheKey {
     const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
-    const systemSignature = createHash('sha256')
-      .update(prompts.master)
-      .update('|')
-      .update(prompts.main ?? '')
-      .update('|')
-      .update(prompts.perModelByAlias[request.modelAlias] ?? '')
-      .digest('hex');
+    const systemSignature = computeSystemSignature(
+      prompts,
+      request.modelAlias,
+    );
 
     const payload = JSON.stringify({
       modelAlias: request.modelAlias,
       clientId,
       messages: request.messages,
       systemSignature,
-      callParams: this.serializeCallParamsForCache(effectiveCallParams),
+      callParams: serializeCallParamsForCache(effectiveCallParams),
     });
     const hash = createHash('sha256').update(payload).digest('hex');
     const prefix =
@@ -95,22 +96,6 @@ export class ResponseCacheService {
 
   private recordCacheAccess(request: ChatRequestDto, hit: boolean): void {
     this.appMetrics.recordCacheAccess(asModelAlias(request.modelAlias), hit);
-  }
-
-  private serializeCallParamsForCache(
-    effectiveCallParams?: ProviderCallOptions,
-  ): Record<string, unknown> {
-    const stop = effectiveCallParams?.stop;
-    return {
-      temperature: effectiveCallParams?.temperature ?? null,
-      maxOutputTokens: effectiveCallParams?.maxOutputTokens ?? null,
-      topP: effectiveCallParams?.topP ?? null,
-      stop: stop === undefined ? null : stop,
-      frequencyPenalty: effectiveCallParams?.frequencyPenalty ?? null,
-      presencePenalty: effectiveCallParams?.presencePenalty ?? null,
-      seed: effectiveCallParams?.seed ?? null,
-      responseFormat: effectiveCallParams?.responseFormat ?? null,
-    };
   }
 
   async getCachedResponse(

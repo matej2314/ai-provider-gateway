@@ -2080,7 +2080,15 @@
             ]
           },
           "embeddings": {
-            "description": "Embedding service health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded state does not block ready status.",
+            "description": "Embedding service health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded state does not block ready status. Probe does not reset the embedding circuit breaker.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCheckItemDto"
+              }
+            ]
+          },
+          "vectorStore": {
+            "description": "Redis Search vector index health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded (missing Search module or index) does not block ready status.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/HealthCheckItemDto"

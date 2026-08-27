@@ -51,6 +51,7 @@ import {
   asRateLimitRps,
   asMaxConcurrentStreams,
   asCacheTtlSeconds,
+  asSemanticCacheTtlSeconds,
   asPort,
 } from 'src/common/types/branded.types';
 import { isRedisRequired } from '../cache/should-include-redis-stack';
@@ -278,7 +279,9 @@ export function buildAppConfiguration(
     embeddingDim: env.EMBEDDING_DIM ?? 1024,
     embeddingTimeoutMs: env.EMBEDDING_TIMEOUT_MS ?? 5000,
     minSimilarity: env.SEMANTIC_CACHE_MIN_SIMILARITY ?? 0.9,
-    ttl: asCacheTtlSeconds(env.SEMANTIC_CACHE_TTL ?? env.CACHE_TTL ?? 3600),
+    ttl: asSemanticCacheTtlSeconds(
+      env.SEMANTIC_CACHE_TTL ?? env.CACHE_TTL ?? 3600,
+    ),
     k: env.SEMANTIC_CACHE_K ?? 3,
   };
 

@@ -22,6 +22,7 @@ import type {
   VectorStoreUpsertInput,
 } from '../../src/cache/semantic/vector-store.interface';
 import { createMockConfigService } from '../../src/common/mocks/createMockConfigService';
+import { createTestGatewayConfig } from '../../src/common/mocks/createTestGatewayConfig';
 import { TEST_MODEL_ALIAS } from '../../src/common/mocks/test-constants';
 import { RedisConnectionService } from '../../src/cache/adapters/redis-cache/redis-connection.service';
 import { LoggingService } from '../../src/logging/logging.service';
@@ -44,7 +45,9 @@ import {
 } from './helpers/e2e-provider-registry';
 
 /**
- * E2E setup leaves SEMANTIC_CACHE_ENABLED=false so CacheModule skips SemanticCacheModule.
+ * E2E setup leaves SEMANTIC_CACHE_ENABLED=false so AppModule's CacheModule
+ * does not import SemanticCacheModule (toggle comes from
+ * `isSemanticCacheEnabledFromEnv()` via CacheModuleOptions).
  * Import it here as global so ChatCacheGuardService can resolve SemanticCacheService
  * without jest.resetModules() / dynamic import (unsupported under Jest CJS).
  */
@@ -68,16 +71,33 @@ function createFixedEmbeddingBackend(): EmbeddingBackend {
   };
 }
 
-/** In-memory KNN — constant fake vector ⇒ similarity 1.0; filters by TAG. */
-function createInMemoryVectorStore(): VectorStore {
+/** In-memory KNN — constant fake vector ⇒ similarity 1.0; filters by all TAGs. */
+function createInMemoryVectorStore(): VectorStore & { clear(): void } {
   const entries: VectorStoreUpsertInput[] = [];
 
   return {
+    clear(): void {
+      entries.length = 0;
+    },
+
+    ensureIndex(): Promise<void> {
+      return Promise.resolve();
+    },
+
+    probeIndex(): Promise<{ available: boolean; message: string }> {
+      return Promise.resolve({
+        available: true,
+        message: 'in-memory vector store',
+      });
+    },
+
     upsert(input: VectorStoreUpsertInput): Promise<void> {
       const idx = entries.findIndex(
         (e) =>
           e.clientId === input.clientId &&
           e.modelAlias === input.modelAlias &&
+          e.systemSignature === input.systemSignature &&
+          e.callParams === input.callParams &&
           e.text === input.text,
       );
       if (idx >= 0) {
@@ -94,12 +114,16 @@ function createInMemoryVectorStore(): VectorStore {
           .filter(
             (e) =>
               e.clientId === input.clientId &&
-              e.modelAlias === input.modelAlias,
+              e.modelAlias === input.modelAlias &&
+              e.systemSignature === input.systemSignature &&
+              e.callParams === input.callParams,
           )
-          .map((e): VectorSearchHit => ({
-            similarity: 1,
-            reply: { ...e.reply, cached: true as const },
-          }))
+          .map(
+            (e): VectorSearchHit => ({
+              similarity: 1,
+              reply: { ...e.reply, cached: true as const },
+            }),
+          )
           .slice(0, input.k),
       );
     },
@@ -120,9 +144,9 @@ function createNoopExactCacheBackend(): CacheBackend {
  */
 async function createE2eAppWithSemanticCache(
   providerRegistry: E2eProviderRegistryMock,
+  fakeVectorStore: VectorStore,
 ): Promise<INestApplication> {
   const fakeEmbedding = createFixedEmbeddingBackend();
-  const fakeVectorStore = createInMemoryVectorStore();
 
   const moduleFixture = await Test.createTestingModule({
     imports: [AppModule, E2eSemanticCacheModule],
@@ -138,6 +162,21 @@ async function createE2eAppWithSemanticCache(
           ttl: 3600,
           k: 3,
         },
+        gateway: createTestGatewayConfig({
+          models: {
+            [TEST_MODEL_ALIAS]: {
+              policy: {
+                timeoutMs: undefined,
+                retry: {},
+                params: {
+                  defaults: {},
+                  allowOverrides: ['temperature', 'responseFormat'],
+                  bounds: {},
+                },
+              },
+            },
+          },
+        }),
         gatewayKey: createE2eGatewayKeyRuntime(),
       }),
     )
@@ -171,11 +210,13 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
   let app: INestApplication;
   let providerRegistry: E2eProviderRegistryMock;
   let completeMock: jest.SpyInstance;
+  let fakeVectorStore: ReturnType<typeof createInMemoryVectorStore>;
 
   beforeAll(async () => {
     providerRegistry = createE2eProviderRegistry();
     completeMock = jest.spyOn(providerRegistry.provider, 'complete');
-    app = await createE2eAppWithSemanticCache(providerRegistry);
+    fakeVectorStore = createInMemoryVectorStore();
+    app = await createE2eAppWithSemanticCache(providerRegistry, fakeVectorStore);
   });
 
   afterAll(async () => {
@@ -186,6 +227,9 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
 
   beforeEach(() => {
     completeMock.mockClear();
+    if ('clear' in fakeVectorStore && typeof fakeVectorStore.clear === 'function') {
+      fakeVectorStore.clear();
+    }
   });
 
   it('miss then semantic hit on different text (exact off, same fake embedding)', async () => {
@@ -251,6 +295,130 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
       .expect(E2E_POST_SUCCESS_STATUS);
 
     expect(second.body.cached).toBeUndefined();
+    expect(completeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('misses semantic cache when params differ (B1 partition)', async () => {
+    await request(app.getHttpServer())
+      .post(E2E_ROUTES.chat)
+      .set('x-gateway-key', E2E_GATEWAY_KEY)
+      .send({
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user' as const, content: 'Semantic e2e params A' }],
+        params: { temperature: 0.5 },
+      })
+      .expect(E2E_POST_SUCCESS_STATUS);
+
+    expect(completeMock).toHaveBeenCalledTimes(1);
+
+    const second = await request(app.getHttpServer())
+      .post(E2E_ROUTES.chat)
+      .set('x-gateway-key', E2E_GATEWAY_KEY)
+      .send({
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user' as const, content: 'Semantic e2e params B' }],
+        params: { temperature: 0.9 },
+      })
+      .expect(E2E_POST_SUCCESS_STATUS);
+
+    expect(second.body.cached).toBeUndefined();
+    expect(completeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('misses semantic cache when responseFormat differs (B1 partition)', async () => {
+    await request(app.getHttpServer())
+      .post(E2E_ROUTES.chat)
+      .set('x-gateway-key', E2E_GATEWAY_KEY)
+      .send({
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [
+          { role: 'user' as const, content: 'Semantic e2e responseFormat A' },
+        ],
+        params: { responseFormat: { type: 'text' } },
+      })
+      .expect(E2E_POST_SUCCESS_STATUS);
+
+    expect(completeMock).toHaveBeenCalledTimes(1);
+
+    const second = await request(app.getHttpServer())
+      .post(E2E_ROUTES.chat)
+      .set('x-gateway-key', E2E_GATEWAY_KEY)
+      .send({
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [
+          { role: 'user' as const, content: 'Semantic e2e responseFormat B' },
+        ],
+        params: { responseFormat: { type: 'json_object' } },
+      })
+      .expect(E2E_POST_SUCCESS_STATUS);
+
+    expect(second.body.cached).toBeUndefined();
+    expect(completeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips semantic cache for multi-turn even when last user phrase matches (B2)', async () => {
+    const historyA = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [
+        { role: 'user' as const, content: 'Explain quantum computing' },
+        { role: 'assistant' as const, content: 'Quantum computing uses qubits…' },
+        { role: 'user' as const, content: 'kontynuuj' },
+      ],
+    };
+    const historyB = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [
+        { role: 'user' as const, content: 'Tell me about Roman history' },
+        { role: 'assistant' as const, content: 'Rome was founded…' },
+        { role: 'user' as const, content: 'kontynuuj' },
+      ],
+    };
+
+    const first = await request(app.getHttpServer())
+      .post(E2E_ROUTES.chat)
+      .set('x-gateway-key', E2E_GATEWAY_KEY)
+      .send(historyA)
+      .expect(E2E_POST_SUCCESS_STATUS);
+
+    expect(first.body.cached).toBeUndefined();
+    expect(completeMock).toHaveBeenCalledTimes(1);
+
+    const second = await request(app.getHttpServer())
+      .post(E2E_ROUTES.chat)
+      .set('x-gateway-key', E2E_GATEWAY_KEY)
+      .send(historyB)
+      .expect(E2E_POST_SUCCESS_STATUS);
+
+    expect(second.body.cached).toBeUndefined();
+    expect(completeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not apply single-turn semantic hit to multi-turn request (B2)', async () => {
+    await request(app.getHttpServer())
+      .post(E2E_ROUTES.chat)
+      .set('x-gateway-key', E2E_GATEWAY_KEY)
+      .send({
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user' as const, content: 'Semantic e2e seed phrase' }],
+      })
+      .expect(E2E_POST_SUCCESS_STATUS);
+
+    expect(completeMock).toHaveBeenCalledTimes(1);
+
+    const multiTurn = await request(app.getHttpServer())
+      .post(E2E_ROUTES.chat)
+      .set('x-gateway-key', E2E_GATEWAY_KEY)
+      .send({
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [
+          { role: 'user' as const, content: 'Different prior context' },
+          { role: 'assistant' as const, content: 'Prior answer' },
+          { role: 'user' as const, content: 'podsumuj to' },
+        ],
+      })
+      .expect(E2E_POST_SUCCESS_STATUS);
+
+    expect(multiTurn.body.cached).toBeUndefined();
     expect(completeMock).toHaveBeenCalledTimes(2);
   });
 });

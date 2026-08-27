@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-26
+data_modyfikacji: 2026-08-27
 ---
 
 # SPEC — Health (liveness/readiness)
@@ -36,13 +36,15 @@ Uwagi:
 - `timestamp` to ISO 8601 UTC (`new Date().toISOString()` w `HealthService.getLiveness` / `evaluateReadiness`).
 - Endpoint nie wymaga `X-Gateway-Key` i **nie** podlega smart rate limitowi (`SPEC-PLATFORMA-I-KONTRAKTY.md` F-13 / F-16).
 
-F-1b. `GET /api/v1/health/ready` zwraca readiness: `status` (`ready` | `not_ready`), `timestamp`, `version`, `uptime`, `checks.config`, `checks.cache`, oraz **warunkowo** `checks.redis`. Implementacja: `HealthService.evaluateReadiness` / `getReadiness`. **HTTP zawsze 200**. Bez `X-Gateway-Key` i bez smart rate limitu (jak liveness).
+F-1b. `GET /api/v1/health/ready` zwraca readiness: `status` (`ready` | `not_ready`), `timestamp`, `version`, `uptime`, `checks.config`, `checks.cache`, oraz **warunkowo** `checks.redis`, `checks.embeddings`, `checks.vectorStore`. Implementacja: `HealthService.evaluateReadiness` / `getReadiness`. **HTTP zawsze 200**. Bez `X-Gateway-Key` i bez smart rate limitu (jak liveness).
 
 - **`checks.config`**: zawsze obecny.
 - **`checks.cache`**: zawsze obecny — stan feature cache odpowiedzi (noop / inny backend / zależność od Redis gdy backend to redis).
-- **`checks.redis`**: pole **obecne tylko gdy Redis jest wymagany** (`isRedisRequiredFromConfig` — m.in. cache z backendem redis i/lub smart rate limit). Gdy Redis **nie** jest wymagany, pole jest **pomijane** (brak `ping()`). Gdy obecne: `RedisConnectionService.ping()`, `required: true`, `consumers` (co najmniej `cache` i/lub `rate-limit`). Status `degraded` **nie** blokuje `ready` (fail-open).
+- **`checks.redis`**: pole **obecne tylko gdy Redis jest wymagany** (`isRedisRequiredFromConfig` — m.in. cache z backendem redis i/lub smart rate limit i/lub semantic cache). Gdy Redis **nie** jest wymagany, pole jest **pomijane** (brak `ping()`). Gdy obecne: `RedisConnectionService.ping()`, `required: true`, `consumers` (co najmniej `cache` i/lub `rate-limit` i/lub `semantic-cache`). Status `degraded` **nie** blokuje `ready` (fail-open).
+- **`checks.embeddings`**: obecne tylko gdy `SEMANTIC_CACHE_ENABLED=true` (walidowane). Probe Ollamy (`SemanticCacheService.probeEmbedding`). Fail-open: `degraded` nie blokuje `ready`. Sonda **nie** resetuje embedding circuit breakera.
+- **`checks.vectorStore`**: obecne tylko gdy semantic włączony. Probe Redis Search / indeksu (`VectorStore.probeIndex` → `FT.INFO` po leniwym `ensureIndex`). Brak modułu Search (`unknown command`) lub indeksu → `degraded` z czytelnych komunikatem operatorskim; **nie** blokuje `ready`.
 
-Zmiana względem: wcześniejsze F-1b wymieniało `checks.redis` tak, jakby zawsze było w body. Powód: `health.service.ts` dodaje redis tylko przez spread, gdy `redisCheck` jest zdefiniowane; test `should omit redis check when not required`.
+Zmiana względem: F-1b w wersji 3 (tylko `config` / `cache` / warunkowy `redis`; embeddings/vectorStore w „poza zakresem”). Powód: B7 — przy padającym KNN raport nie może pokazywać wyłącznie `redis: healthy` + `embeddings: healthy` bez sygnału o Search/indeksie; S10 — sonda `/ready` nie zamyka breakera.
 
 Uwaga vs docs: `docs/pl/dokumentacja_api.md` / `docs/api-documentation.md` opisują kształt `required: false` + komunikat „Redis not required”. Kod takiego obiektu **nie zwraca**. Korekta dokumentacji — osobna decyzja.
 
@@ -63,11 +65,12 @@ NFR-2. Health endpoint ma działać szybko (p95 < 50ms lokalnie).
 
 - [x] `GET /api/v1/health` działa, gdy proces działa.
 - [x] Liveness zwraca `status: healthy` (bez sekretów).
-- [x] Readiness (`GET /api/v1/health/ready`) zawsze HTTP 200; raportuje `checks.config` i `checks.cache`; `checks.redis` tylko gdy Redis jest wymagany.
+- [x] Readiness (`GET /api/v1/health/ready`) zawsze HTTP 200; raportuje `checks.config` i `checks.cache`; `checks.redis` tylko gdy Redis jest wymagany; przy włączonym semantic — `checks.embeddings` i `checks.vectorStore` (fail-open).
 - [x] Health nie wymaga klucza i nie jest ograniczany smart rate limitem.
 
 ## Poza zakresem (względem rdzenia MVP)
 
 - Sprawdzanie dostępności providerów przy każdym health (koszty i opóźnienia).
 - `GET /metrics` (Prometheus, poza `/api/v1`) — `SPEC-METRYKI.md`.
-- Dodatkowe, feature-flagowane checki readiness poza `config` / `cache` / `redis`.
+
+Zmiana względem: wcześniejsze „Dodatkowe, feature-flagowane checki readiness poza `config` / `cache` / `redis`” — embeddings i vectorStore są w zakresie F-1b gdy semantic włączony.

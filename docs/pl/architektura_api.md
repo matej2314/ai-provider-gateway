@@ -82,10 +82,10 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 Dla `POST /api/v1/chat` gateway stosuje dwustopniowy lookup cache przed wywołaniem providera:
 
 1. **Trafienie exact** — deterministyczny hash `(modelAlias, clientId, messages, system prompt, efektywne parametry)` pasuje do zapisanej odpowiedzi → zwracana z `cached: true` i `cachedAt`. Semantycznie równoważna ze świeżym wywołaniem providera.
-2. **Trafienie semantyczne** — brak exact match, ale ostatnia wiadomość `role: user` embeddinguje się wystarczająco blisko do zapisanego zapytania (podobieństwo cosinusowe ≥ `SEMANTIC_CACHE_MIN_SIMILARITY`) → zwracana zapisana odpowiedź. Również oznaczona `cached: true`.
-3. **Miss** — wywołanie providera; wynik zapisywany w obu warstwach.
+2. **Trafienie semantyczne** — brak exact match, ale żądanie jest **jednoturowe** i ostatnia wiadomość `role: user` embedduje się wystarczająco blisko zapisanego zapytania w **tej samej** partycji KNN (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`), podobieństwo cosinusowe ≥ `SEMANTIC_CACHE_MIN_SIMILARITY` → zwracana zapisana odpowiedź z `cached: true`.
+3. **Miss** — wywołanie providera; wynik zapisywany w obu warstwach (upsert semantyczny tylko dla jednotury).
 
-**Uwaga o idempotencji:** trafienie exact i semantyczne są równoważnymi substytutami — klient otrzymuje ten sam kształt odpowiedzi. Pole `cached: true` odróżnia odpowiedź z cache od odpowiedzi od providera. Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z żadnej warstwy cache.
+**Uwaga o idempotencji:** trafienie exact i semantyczne mają ten sam kształt odpowiedzi (`cached: true`). **Nie** są nieograniczonymi substytutami: semantic hit jest ważny tylko w tej samej partycji konfiguracji i przy body jednoturowym. Streaming (`POST /api/v1/chat/stream`) **nie** korzysta z żadnej warstwy cache.
 
 ## Błędy HTTP
 

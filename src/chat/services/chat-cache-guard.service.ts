@@ -19,7 +19,10 @@ import {
   SemanticCacheService,
   type SemanticStoreEmbedState,
 } from '../../cache/semantic/semantic-cache.service';
-import { lastUserMessageText } from '../../cache/semantic/last-user-message';
+import {
+  lastUserMessageText,
+  isSingleTurnUserRequest,
+} from '../../cache/semantic/last-user-message';
 import { getAppConfigOrThrow } from '../../config/typed-config';
 import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
@@ -95,27 +98,35 @@ export class ChatCacheGuardService {
       return { cached: null };
     }
 
+    const gateway = getAppConfigOrThrow(this.config, 'gateway');
+    const modelAlias = requestBody.modelAlias;
+    if (!isCachedChatAllowedForModelAlias(gateway, modelAlias)) {
+      return { cached: null };
+    }
+
     const exact = await this.cacheService.getCachedResponse(
       requestBody,
       clientId,
       options,
     );
-    const gateway = getAppConfigOrThrow(this.config, 'gateway');
-    const modelAlias = requestBody.modelAlias;
-
-    if (exact && isCachedChatAllowedForModelAlias(gateway, modelAlias)) {
+    if (exact) {
       return { cached: exact };
     }
 
-    if (!lastUserMessageText(requestBody) || !this.semanticCache) {
+    if (
+      !lastUserMessageText(requestBody) ||
+      !isSingleTurnUserRequest(requestBody.messages) ||
+      !this.semanticCache
+    ) {
       return { cached: null };
     }
 
-    const semantic = await this.semanticCache.lookup(requestBody, clientId);
-    if (
-      semantic.reply &&
-      isCachedChatAllowedForModelAlias(gateway, modelAlias)
-    ) {
+    const semantic = await this.semanticCache.lookup(
+      requestBody,
+      clientId,
+      options,
+    );
+    if (semantic.reply) {
       return { cached: semantic.reply };
     }
     return {
@@ -142,17 +153,28 @@ export class ChatCacheGuardService {
     ) {
       return;
     }
+
+    const gateway = getAppConfigOrThrow(this.config, 'gateway');
+    if (!isCachedChatAllowedForModelAlias(gateway, requestBody.modelAlias)) {
+      return;
+    }
+
     await this.cacheService.setCachedResponse(
       requestBody,
       response,
       clientId,
       options,
     );
-    if (this.semanticCache && lastUserMessageText(requestBody)) {
+    if (
+      this.semanticCache &&
+      lastUserMessageText(requestBody) &&
+      isSingleTurnUserRequest(requestBody.messages)
+    ) {
       await this.semanticCache.storeReply(
         requestBody,
         toCachedChatResponse(response),
         clientId,
+        options,
         embedState ?? { embedAttempted: false },
       );
     }

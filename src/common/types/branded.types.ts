@@ -197,6 +197,11 @@ export type CacheKey = Brand<string, 'CacheKey'>;
 export type CacheTtlSeconds = Brand<number, 'CacheTtlSeconds'>;
 
 /**
+ * Semantic cache entry TTL in seconds (min 1 — no eternal vectors)
+ */
+export type SemanticCacheTtlSeconds = Brand<number, 'SemanticCacheTtlSeconds'>;
+
+/**
  * HTTP/TCP port number (1-65535)
  */
 export type Port = Brand<number, 'Port'>;
@@ -246,6 +251,15 @@ export const asPort = (value: number): Port => {
 export const asCacheTtlSeconds = (value: number): CacheTtlSeconds => {
   if (value < 0) throw new Error('CacheTtlSeconds must be >=0');
   return value as CacheTtlSeconds;
+};
+
+export const asSemanticCacheTtlSeconds = (
+  value: number,
+): SemanticCacheTtlSeconds => {
+  if (!Number.isFinite(value) || value < 1) {
+    throw new Error('SemanticCacheTtlSeconds must be >= 1');
+  }
+  return Math.floor(value) as SemanticCacheTtlSeconds;
 };
 
 export const asCacheKey = (value: string): CacheKey => {

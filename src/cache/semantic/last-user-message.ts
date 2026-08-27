@@ -1,3 +1,4 @@
+import type { ChatMessageDto } from '../../chat/dto/chat-message.dto';
 import type { ChatRequestDto } from '../../chat/dto/chat-request.dto';
 
 export function lastUserMessageText(request: ChatRequestDto): string | null {
@@ -9,4 +10,19 @@ export function lastUserMessageText(request: ChatRequestDto): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Semantic cache is only safe for single-turn requests: exactly one
+ * `user` message with no `assistant` or `tool` turns. Multi-turn
+ * conversations embed only the last user text, so different histories
+ * sharing the same final phrase would produce false hits.
+ */
+export function isSingleTurnUserRequest(messages: ChatMessageDto[]): boolean {
+  let userCount = 0;
+  for (const msg of messages) {
+    if (msg.role === 'assistant' || msg.role === 'tool') return false;
+    if (msg.role === 'user') userCount++;
+  }
+  return userCount === 1;
 }

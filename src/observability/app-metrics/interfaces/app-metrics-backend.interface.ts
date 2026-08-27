@@ -48,7 +48,12 @@ export interface AppProviderStreamScope {
   fail(error: unknown): void;
 }
 
-export type HealthComponent = 'config' | 'redis' | 'cache' | 'embeddings';
+export type HealthComponent =
+  | 'config'
+  | 'redis'
+  | 'cache'
+  | 'embeddings'
+  | 'vectorStore';
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
 /** Semantic cache lookup outcome (exact cache keeps recordCacheAccess). */
 export type SemanticCacheLookupResult = 'hit' | 'below-threshold' | 'error';

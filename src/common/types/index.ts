@@ -9,7 +9,6 @@ export {
   asProviderInstanceId,
   asModelAlias,
   asModelId,
-  // Faza 4: Configuration & Policy
   asTimeoutMs,
   asRateLimitRps,
   asRateLimitBurst,
@@ -19,6 +18,7 @@ export {
   asBaseUrl,
   asCacheKey,
   asCacheTtlSeconds,
+  asSemanticCacheTtlSeconds,
   asPort,
   asSchemaVersion,
   asSystemFingerprint,
@@ -32,7 +32,6 @@ export {
   type ProviderInstanceId,
   type ModelAlias,
   type ModelId,
-  // Faza 4: Configuration & Policy
   type TimeoutMs,
   type RateLimitRps,
   type RateLimitBurst,
@@ -42,6 +41,7 @@ export {
   type BaseUrl,
   type CacheKey,
   type CacheTtlSeconds,
+  type SemanticCacheTtlSeconds,
   type Port,
   type SchemaVersion,
   type SystemFingerprint,
@@ -62,6 +62,7 @@ export {
   isAttemptNumber,
   isBaseUrl,
   isCacheTtlSeconds,
+  isSemanticCacheTtlSeconds,
   isPort,
   isSchemaVersion,
 } from './branded.guards';

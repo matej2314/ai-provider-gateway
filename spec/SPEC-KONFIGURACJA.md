@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 7
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-26
+data_modyfikacji: 2026-08-27
 ---
 
 # SPEC — Konfiguracja (plug&play)
@@ -48,9 +48,15 @@ F-1b. *(Opcjonalnie — cache exact-match)* Zmienne `CACHE_ENABLED`, `CACHE_BACK
 
 F-1c. *(Opcjonalnie — smart rate limit)* `RATE_LIMIT_SMART_ENABLED` (domyślnie `false`) włącza egzekwowanie RPS/burst/streamów — `SPEC-PLATFORMA-I-KONTRAKTY.md` F-16. Domyślne limity env: `RATE_LIMIT_RPS_PER_KEY=10`, `RATE_LIMIT_BURST_PER_KEY=20`, `RATE_LIMIT_STREAMS_CONCURRENT=3`, `RATE_LIMIT_COOLDOWN_AFTER_429=60`. Redis jest wymagany także wtedy, gdy smart rate limit jest włączony przy wyłączonym cache (`isRedisRequiredFromEnv`).
 
-F-1d. *(Opcjonalnie — cache semantyczny)* `SEMANTIC_CACHE_ENABLED` (domyślnie `false`) oraz `EMBEDDING_*` / `SEMANTIC_CACHE_*` — tabela w `docs/pl/konfiguracja.md`. Zachowanie lookup i zapisu (co najwyżej jeden `embed` na żądanie JSON, `embedAttempted`) — `SPEC-CHAT.md` F-8b. Redis jest wymagany także gdy ta flaga jest `true` (`isRedisRequiredFromEnv`), nawet przy exact cache `noop`.
+F-1d. *(Opcjonalnie — cache semantyczny)* `SEMANTIC_CACHE_ENABLED` (domyślnie `false`) oraz `EMBEDDING_*` / `SEMANTIC_CACHE_*` — tabela w `docs/pl/konfiguracja.md`. Zachowanie lookup i zapisu (co najwyżej jeden `embed` na żądanie JSON, `embedAttempted`) — `SPEC-CHAT.md` F-8b. Redis jest wymagany także gdy ta flaga jest `true` (`isRedisRequiredFromEnv` / `isSemanticCacheEnabledFromEnv` — **jedno** źródło prawdy z `CacheModule.register({ semanticEnabled })`).
 
-Zmiana względem: poza zakresem „Cache semantyczny (env …) — poza tym zestawem SPEC”. Powód: zmienne i predykat Redis są w kodzie; kontrakt zachowania należy do czatu JSON.
+Nazwa indeksu Redis Search i filtr KNN `@embeddingModel` używają **pełnego** `EMBEDDING_MODEL` (znormalizowany) + `EMBEDDING_DIM` — szczegóły i przykład: `SPEC-CHAT.md` F-8b, `docs/pl/konfiguracja.md`. Zmiana `EMBEDDING_MODEL` przy stałym DIM izoluje przestrzeń KNN (osobny indeks).
+
+`SEMANTIC_CACHE_MIN_SIMILARITY`: zakres **0–1** egzekwowany walidatorem env (`@Max(1)`); wartości &gt; 1 **failują start**. `gateway config:validate` ostrzega przy wartości &lt; 0.85 (bez fail). `SEMANTIC_CACHE_K` (≥ 1) = rozmiar KNN + `LIMIT 0 k`; serwis bierze pierwszego kandydata ≥ progu.
+
+Klucze `clients` / `models` w YAML: bez przecinka i innych separatorów TAG (myślnik dozwolony) — `RedisSearchTagSafeIdSchema`.
+
+Zmiana względem: F-1d w wersji 6 (brak `@Max(1)` / warn &lt; 0.85 / jawnego `LIMIT` dla `k` / jednego predykatu toggle). Powód: S5/S19/S20 — spójny kontrakt `k`, jedno źródło `SEMANTIC_CACHE_ENABLED`, egzekwowany zakres podobieństwa.
 
 F-2. Plik konfiguracyjny musi wspierać:
 
@@ -113,4 +119,4 @@ NFR-3. Dostępny jest skrypt npm `config:validate` (wpis w `package.json`), któ
 - UI do zarządzania konfiguracją.
 - Pełny katalog aliasów wszystkich modeli API providerów oraz walidacja kompletności aliasów „zwyczajowych”.
 - Pełny kontrakt CLI (wizard, CRUD provider/model/client) — `SPEC-CLI.md`.
-- Infra Compose embedding / żywy Redis Search (Fazy 3–4 planu) oraz wizard pytań semantic (Faza 5.C).
+- Infra Compose embedding / provisioning żywego Redis Search w Compose (runbook `MODULE LIST`) oraz wizard pytań semantic (Faza 5.C). **Runtime probe** Search/indeksu (`checks.vectorStore` w `/ready`) należy do `SPEC-HEALTH.md` F-1b — poza zakresem konfiguracji pozostaje tylko warstwa Compose/provisioning, nie sonda aplikacji.

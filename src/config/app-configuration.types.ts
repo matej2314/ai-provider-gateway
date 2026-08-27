@@ -12,6 +12,7 @@ import type {
   ProviderInstanceId,
   RateLimitBurst,
   RateLimitRps,
+  SemanticCacheTtlSeconds,
 } from '../common/types/branded.types';
 
 export type CacheRuntimeConfig = {
@@ -43,7 +44,7 @@ export type SemanticCacheRuntimeConfig = {
   embeddingDim: number;
   embeddingTimeoutMs: number;
   minSimilarity: number;
-  ttl: CacheTtlSeconds;
+  ttl: SemanticCacheTtlSeconds;
   k: number;
 };
 

@@ -1,5 +1,9 @@
-import { lastUserMessageText } from './last-user-message';
+import {
+  lastUserMessageText,
+  isSingleTurnUserRequest,
+} from './last-user-message';
 import type { ChatRequestDto } from '../../chat/dto/chat-request.dto';
+import type { ChatMessageDto } from '../../chat/dto/chat-message.dto';
 import { TEST_MODEL_ALIAS } from '../../common/mocks/test-constants';
 
 describe('lastUserMessageText', () => {
@@ -50,5 +54,49 @@ describe('lastUserMessageText', () => {
 
     expect(result).toBe(raw);
     expect(result).not.toMatch(/^search_query:/);
+  });
+});
+
+describe('isSingleTurnUserRequest', () => {
+  it('should return true for a single user message', () => {
+    const msgs: ChatMessageDto[] = [{ role: 'user', content: 'Hi' }];
+    expect(isSingleTurnUserRequest(msgs)).toBe(true);
+  });
+
+  it('should return false when assistant message is present', () => {
+    const msgs: ChatMessageDto[] = [
+      { role: 'user', content: 'first' },
+      { role: 'assistant', content: 'reply' },
+      { role: 'user', content: 'second' },
+    ];
+    expect(isSingleTurnUserRequest(msgs)).toBe(false);
+  });
+
+  it('should return false when tool message is present', () => {
+    const msgs: ChatMessageDto[] = [
+      { role: 'user', content: 'use tool' },
+      { role: 'tool', content: '{"ok":true}', toolCallId: 'tc_1' },
+      { role: 'user', content: 'summarise' },
+    ];
+    expect(isSingleTurnUserRequest(msgs)).toBe(false);
+  });
+
+  it('should return false for multiple user messages without assistant', () => {
+    const msgs: ChatMessageDto[] = [
+      { role: 'user', content: 'first' },
+      { role: 'user', content: 'second' },
+    ];
+    expect(isSingleTurnUserRequest(msgs)).toBe(false);
+  });
+
+  it('should return false for empty messages array', () => {
+    expect(isSingleTurnUserRequest([])).toBe(false);
+  });
+
+  it('should return false for only assistant messages', () => {
+    const msgs: ChatMessageDto[] = [
+      { role: 'assistant', content: 'hello' },
+    ];
+    expect(isSingleTurnUserRequest(msgs)).toBe(false);
   });
 });

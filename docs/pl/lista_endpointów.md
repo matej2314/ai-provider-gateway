@@ -32,7 +32,7 @@ Ponadto przy starcie ładowany jest plik `gateway.config.yaml` (walidacja Zod + 
 
 | | |
 |--|--|
-| **200** | Readiness w body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.redis`, `checks.cache`, opcjonalnie `checks.embeddings`. **HTTP zawsze 200** — probe ocenia pole `status`, nie kod HTTP. `checks.redis: degraded`, `checks.cache: degraded` i `checks.embeddings: degraded` **nie** blokują `ready` (fail-open). `checks.embeddings` obecne tylko gdy `SEMANTIC_CACHE_ENABLED=true`. Po ewaluacji sync metryk Prometheus (`publishMetrics`). Szczegóły: `dokumentacja_api.md`. |
+| **200** | Readiness w body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.redis`, `checks.cache`, opcjonalnie `checks.embeddings` i `checks.vectorStore`. **HTTP zawsze 200** — probe ocenia pole `status`, nie kod HTTP. `checks.redis: degraded`, `checks.cache: degraded`, `checks.embeddings: degraded` i `checks.vectorStore: degraded` **nie** blokują `ready` (fail-open). `checks.embeddings` / `checks.vectorStore` obecne tylko gdy `SEMANTIC_CACHE_ENABLED=true`. Po ewaluacji sync metryk Prometheus (`publishMetrics`). Szczegóły: `dokumentacja_api.md`. |
 
 ---
 

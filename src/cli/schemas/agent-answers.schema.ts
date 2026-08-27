@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PROVIDER_TYPES } from '../../config/provider-types';
 import { GATEWAY_CLIENT_TYPES } from '../../config/configuration.types';
+import { RedisSearchTagSafeIdSchema } from '../../config/gateway-config.schema';
 
 function rejectSecretFields(
   data: Record<string, unknown>,
@@ -47,7 +48,7 @@ export const InitAnswersSchema = z
       .array(
         z
           .object({
-            alias: z.string().min(1),
+            alias: RedisSearchTagSafeIdSchema,
             providerInstance: z.string().min(1),
             modelId: z.string().min(1),
           })
@@ -58,7 +59,7 @@ export const InitAnswersSchema = z
       .array(
         z
           .object({
-            id: z.string().min(1),
+            id: RedisSearchTagSafeIdSchema,
             name: z.string().min(1),
             type: z.enum(GATEWAY_CLIENT_TYPES),
             generateKey: z.literal(true),
@@ -127,7 +128,7 @@ export const ProviderAddAnswersSchema = z
     deferSecret: z.literal(true),
     ensureModel: z
       .object({
-        alias: z.string().min(1),
+        alias: RedisSearchTagSafeIdSchema,
         modelId: z.string().min(1),
       })
       .strict(),
@@ -162,7 +163,7 @@ export const ProviderRemoveAnswersSchema = z
 export const ModelAddAnswersSchema = z
   .object({
     schemaVersion: z.literal(1),
-    alias: z.string().min(1),
+    alias: RedisSearchTagSafeIdSchema,
     providerInstance: z.string().min(1),
     modelId: z.string().min(1),
   })
@@ -220,7 +221,7 @@ export type ModelEditAnswers = z.infer<typeof ModelEditAnswersSchema>;
 export const ClientAddAnswersSchema = z
   .object({
     schemaVersion: z.literal(1),
-    id: z.string().min(1),
+    id: RedisSearchTagSafeIdSchema,
     name: z.string().min(1),
     type: z.enum(GATEWAY_CLIENT_TYPES),
     generateKey: z.literal(true),

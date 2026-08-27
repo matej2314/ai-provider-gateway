@@ -119,6 +119,24 @@ describe('PrometheusAppMetricsAdapter', () => {
         /gateway_health_status\{component="embeddings"\} 0\.5/,
       );
     });
+
+    it('should export vectorStore component when present in snapshot', async () => {
+      adapter.syncHealthMetrics({
+        ready: true,
+        components: {
+          config: 'healthy',
+          cache: 'healthy',
+          vectorStore: 'degraded',
+        },
+      });
+
+      const snapshot = await adapter.getMetricsSnapshot();
+
+      expect(snapshot).toMatch(/gateway_readiness 1/);
+      expect(snapshot).toMatch(
+        /gateway_health_status\{component="vectorStore"\} 0\.5/,
+      );
+    });
   });
 
   describe('setComponentHealth', () => {

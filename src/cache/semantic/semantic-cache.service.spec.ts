@@ -20,9 +20,12 @@ import {
   TEST_OUTPUT_TOKENS_SMALL,
   TEST_PROVIDER_INSTANCE_BRANDED,
 } from '../../common/mocks/test-constants';
-import { asClientId } from '../../common/types/branded.types';
+import { asClientId, asResponseId } from '../../common/types/branded.types';
+import { computeSystemSignature, hashCallParams } from '../cache-identity';
 import type { ChatRequestDto } from '../../chat/dto/chat-request.dto';
 import type { CachedChatResponse } from '../types/cached-chat-response.type';
+import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
+import type { TestResolvedSystemPromptsOptions } from '../../common/mocks/createMockConfigService';
 
 const TEST_CLIENT_ID = asClientId('test-client');
 const FIXED_VECTOR = [0.1, 0.2, 0.3];
@@ -47,7 +50,12 @@ const cachedReply: CachedChatResponse = {
 describe('SemanticCacheService', () => {
   let service: SemanticCacheService;
   let mockEmbedding: { isAvailable: jest.Mock; embed: jest.Mock };
-  let mockVectorStore: { knn: jest.Mock; upsert: jest.Mock };
+  let mockVectorStore: {
+    knn: jest.Mock;
+    upsert: jest.Mock;
+    ensureIndex: jest.Mock;
+    probeIndex: jest.Mock;
+  };
   let mockAppMetrics: { recordSemanticCacheLookup: jest.Mock };
   let mockLogger: Partial<LoggingService>;
 
@@ -62,12 +70,13 @@ describe('SemanticCacheService', () => {
   };
 
   async function initService(
-    semanticOverrides: {
+    overrides: {
       enabled?: boolean;
       minSimilarity?: number;
       embeddingTimeoutMs?: number;
       k?: number;
       ttl?: number;
+      resolvedSystemPrompts?: TestResolvedSystemPromptsOptions;
     } = {},
   ) {
     mockEmbedding = {
@@ -77,6 +86,11 @@ describe('SemanticCacheService', () => {
     mockVectorStore = {
       knn: jest.fn().mockResolvedValue([]),
       upsert: jest.fn().mockResolvedValue(undefined),
+      ensureIndex: jest.fn().mockResolvedValue(undefined),
+      probeIndex: jest.fn().mockResolvedValue({
+        available: true,
+        message: 'Redis Search index available',
+      }),
     };
     mockAppMetrics = {
       recordSemanticCacheLookup: jest.fn(),
@@ -85,12 +99,15 @@ describe('SemanticCacheService', () => {
 
     const mockConfig = createMockConfigService({
       semanticCache: {
-        enabled: semanticOverrides.enabled ?? true,
-        minSimilarity: semanticOverrides.minSimilarity ?? 0.9,
-        embeddingTimeoutMs: semanticOverrides.embeddingTimeoutMs,
-        k: semanticOverrides.k,
-        ttl: semanticOverrides.ttl,
+        enabled: overrides.enabled ?? true,
+        minSimilarity: overrides.minSimilarity ?? 0.9,
+        embeddingTimeoutMs: overrides.embeddingTimeoutMs,
+        k: overrides.k,
+        ttl: overrides.ttl,
       },
+      ...(overrides.resolvedSystemPrompts !== undefined && {
+        resolvedSystemPrompts: overrides.resolvedSystemPrompts,
+      }),
     });
 
     const module = await Test.createTestingModule({
@@ -136,6 +153,8 @@ describe('SemanticCacheService', () => {
         vector: FIXED_VECTOR,
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: TEST_CLIENT_ID,
+        systemSignature: expect.any(String),
+        callParams: expect.any(String),
         k: DEFAULT_K,
       });
       expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
@@ -144,7 +163,7 @@ describe('SemanticCacheService', () => {
       );
     });
 
-    it('should embed the last non-empty user message without a search_query prefix', async () => {
+    it('should skip embed for multi-turn request (B2: assistant in history)', async () => {
       const request: ChatRequestDto = {
         modelAlias: TEST_MODEL_ALIAS,
         messages: [
@@ -154,12 +173,15 @@ describe('SemanticCacheService', () => {
         ],
       };
 
-      await service.lookup(request, TEST_CLIENT_ID);
+      const result = await service.lookup(request, TEST_CLIENT_ID);
 
-      expect(mockEmbedding.embed).toHaveBeenCalledWith('second');
-      expect(mockEmbedding.embed).not.toHaveBeenCalledWith(
-        expect.stringMatching(/^search_query:/),
-      );
+      expect(result).toEqual({
+        reply: null,
+        vector: null,
+        embedAttempted: false,
+      });
+      expect(mockEmbedding.embed).not.toHaveBeenCalled();
+      expect(mockVectorStore.knn).not.toHaveBeenCalled();
     });
 
     it('should pass configured k to knn', async () => {
@@ -187,6 +209,23 @@ describe('SemanticCacheService', () => {
       expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
         TEST_MODEL_ALIAS_BRANDED,
         'below-threshold',
+      );
+    });
+
+    it('should use the first hit at or above minSimilarity among k candidates (S5)', async () => {
+      const weaker = { ...cachedReply, id: asResponseId('weaker') };
+      const stronger = cachedReply;
+      mockVectorStore.knn.mockResolvedValue([
+        { similarity: 0.85, reply: weaker },
+        { similarity: 0.92, reply: stronger },
+      ]);
+
+      const result = await service.lookup(userRequest, TEST_CLIENT_ID);
+
+      expect(result.reply).toEqual(stronger);
+      expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        'hit',
       );
     });
 
@@ -346,10 +385,13 @@ describe('SemanticCacheService', () => {
 
   describe('storeReply', () => {
     it('should upsert without embed when vector is provided', async () => {
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID, {
-        vector: FIXED_VECTOR,
-        embedAttempted: true,
-      });
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { vector: FIXED_VECTOR, embedAttempted: true },
+      );
 
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.upsert).toHaveBeenCalledWith({
@@ -357,16 +399,21 @@ describe('SemanticCacheService', () => {
         text: 'Hello semantic',
         modelAlias: TEST_MODEL_ALIAS_BRANDED,
         clientId: TEST_CLIENT_ID,
+        systemSignature: expect.any(String),
+        callParams: expect.any(String),
         reply: cachedReply,
         ttlSeconds: DEFAULT_TTL_SECONDS,
       });
     });
 
     it('should upsert provided vector even when embedAttempted is false', async () => {
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID, {
-        vector: FIXED_VECTOR,
-        embedAttempted: false,
-      });
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { vector: FIXED_VECTOR, embedAttempted: false },
+      );
 
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.upsert).toHaveBeenCalled();
@@ -375,18 +422,25 @@ describe('SemanticCacheService', () => {
     it('should pass configured ttl to upsert', async () => {
       await initService({ ttl: 120 });
 
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID, {
-        vector: FIXED_VECTOR,
-        embedAttempted: true,
-      });
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { vector: FIXED_VECTOR, embedAttempted: true },
+      );
 
       expect(mockVectorStore.upsert).toHaveBeenCalledWith(
         expect.objectContaining({ ttlSeconds: 120 }),
       );
     });
 
-    it('should embed once and upsert when the fourth argument is omitted', async () => {
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID);
+    it('should embed once and upsert when embedState is omitted', async () => {
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+      );
 
       expect(mockEmbedding.embed).toHaveBeenCalledTimes(1);
       expect(mockEmbedding.embed).toHaveBeenCalledWith('Hello semantic');
@@ -401,28 +455,42 @@ describe('SemanticCacheService', () => {
       mockEmbedding.embed.mockClear();
       mockEmbedding.embed.mockResolvedValue(FIXED_VECTOR);
 
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID, {
-        vector: lookup.vector ?? undefined,
-        embedAttempted: lookup.embedAttempted,
-      });
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        {
+          vector: lookup.vector ?? undefined,
+          embedAttempted: lookup.embedAttempted,
+        },
+      );
 
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.upsert).not.toHaveBeenCalled();
     });
 
     it('should not call embed when lookup already attempted embed', async () => {
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID, {
-        embedAttempted: true,
-      });
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { embedAttempted: true },
+      );
 
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.upsert).not.toHaveBeenCalled();
     });
 
     it('should embed once when embed was not attempted', async () => {
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID, {
-        embedAttempted: false,
-      });
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { embedAttempted: false },
+      );
 
       expect(mockEmbedding.embed).toHaveBeenCalledTimes(1);
       expect(mockVectorStore.upsert).toHaveBeenCalledWith(
@@ -436,20 +504,48 @@ describe('SemanticCacheService', () => {
     it('should skip store when semantic cache is disabled', async () => {
       await initService({ enabled: false });
 
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID, {
-        vector: FIXED_VECTOR,
-        embedAttempted: true,
-      });
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { vector: FIXED_VECTOR, embedAttempted: true },
+      );
 
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.upsert).not.toHaveBeenCalled();
     });
 
     it('should skip store when there is no last user message', async () => {
-      await service.storeReply(noUserRequest, cachedReply, TEST_CLIENT_ID, {
-        vector: FIXED_VECTOR,
-        embedAttempted: true,
-      });
+      await service.storeReply(
+        noUserRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { vector: FIXED_VECTOR, embedAttempted: true },
+      );
+
+      expect(mockEmbedding.embed).not.toHaveBeenCalled();
+      expect(mockVectorStore.upsert).not.toHaveBeenCalled();
+    });
+
+    it('should skip store for multi-turn request (B2)', async () => {
+      const multiTurn: ChatRequestDto = {
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [
+          { role: 'user', content: 'first' },
+          { role: 'assistant', content: 'ok' },
+          { role: 'user', content: 'second' },
+        ],
+      };
+
+      await service.storeReply(
+        multiTurn,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { vector: FIXED_VECTOR, embedAttempted: true },
+      );
 
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.upsert).not.toHaveBeenCalled();
@@ -460,9 +556,13 @@ describe('SemanticCacheService', () => {
       mockEmbedding.embed.mockClear();
       mockEmbedding.embed.mockResolvedValue(FIXED_VECTOR);
 
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID, {
-        embedAttempted: false,
-      });
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { embedAttempted: false },
+      );
 
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.upsert).not.toHaveBeenCalled();
@@ -471,9 +571,13 @@ describe('SemanticCacheService', () => {
     it('should fail-open on store embed throw without upsert', async () => {
       mockEmbedding.embed.mockRejectedValue(new Error('store embed down'));
 
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID, {
-        embedAttempted: false,
-      });
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { embedAttempted: false },
+      );
 
       expect(mockVectorStore.upsert).not.toHaveBeenCalled();
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -486,10 +590,13 @@ describe('SemanticCacheService', () => {
     it('should not open circuit when upsert throws', async () => {
       mockVectorStore.upsert.mockRejectedValue(new Error('upsert down'));
 
-      await service.storeReply(userRequest, cachedReply, TEST_CLIENT_ID, {
-        vector: FIXED_VECTOR,
-        embedAttempted: true,
-      });
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { vector: FIXED_VECTOR, embedAttempted: true },
+      );
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Semantic cache store failed (fail-open)'),
@@ -514,18 +621,21 @@ describe('SemanticCacheService', () => {
       expect(mockVectorStore.upsert).not.toHaveBeenCalled();
     });
 
-    it('should close the circuit after success following consecutive embed failures', async () => {
+    it('should not close the circuit after successful probes (S10)', async () => {
       await openCircuitViaLookup();
 
       mockEmbedding.embed.mockReset();
       mockEmbedding.embed.mockResolvedValue(FIXED_VECTOR);
 
       await expect(service.probeEmbedding()).resolves.toBe(true);
+      await expect(service.probeEmbedding()).resolves.toBe(true);
+      await expect(service.probeEmbedding()).resolves.toBe(true);
 
       mockEmbedding.embed.mockClear();
-      await service.lookup(userRequest, TEST_CLIENT_ID);
+      const result = await service.lookup(userRequest, TEST_CLIENT_ID);
 
-      expect(mockEmbedding.embed).toHaveBeenCalled();
+      expect(mockEmbedding.embed).not.toHaveBeenCalled();
+      expect(result.embedAttempted).toBe(false);
     });
 
     it('should probe even when the circuit is open (does not use shouldSkipEmbed)', async () => {
@@ -538,6 +648,10 @@ describe('SemanticCacheService', () => {
         'ping',
         embeddingProbeTimeoutMs(DEFAULT_EMBEDDING_TIMEOUT_MS),
       );
+
+      mockEmbedding.embed.mockClear();
+      await service.lookup(userRequest, TEST_CLIENT_ID);
+      expect(mockEmbedding.embed).not.toHaveBeenCalled();
     });
 
     it('should not exceed hot-path timeout when EMBEDDING_TIMEOUT_MS is 1000', async () => {
@@ -562,5 +676,251 @@ describe('SemanticCacheService', () => {
 
       expect(mockEmbedding.embed).toHaveBeenCalled();
     });
+  });
+
+  describe('partition by callParams (B1)', () => {
+    const optionsA: ProviderCallOptions = { temperature: 0.2 };
+    const optionsB: ProviderCallOptions = { temperature: 0.9 };
+
+    it('should pass different callParams signatures for different ProviderCallOptions', async () => {
+      await service.lookup(userRequest, TEST_CLIENT_ID, optionsA);
+      const callA = mockVectorStore.knn.mock.calls[0][0].callParams;
+
+      mockVectorStore.knn.mockClear();
+      await service.lookup(userRequest, TEST_CLIENT_ID, optionsB);
+      const callB = mockVectorStore.knn.mock.calls[0][0].callParams;
+
+      expect(callA).not.toBe(callB);
+      expect(callA).toBe(hashCallParams(optionsA));
+      expect(callB).toBe(hashCallParams(optionsB));
+    });
+
+    it('should pass identical callParams when options match', async () => {
+      await service.lookup(userRequest, TEST_CLIENT_ID, optionsA);
+      const callA = mockVectorStore.knn.mock.calls[0][0].callParams;
+
+      mockVectorStore.knn.mockClear();
+      await service.lookup(userRequest, TEST_CLIENT_ID, { temperature: 0.2 });
+      const callA2 = mockVectorStore.knn.mock.calls[0][0].callParams;
+
+      expect(callA).toBe(callA2);
+    });
+
+    it('should miss when identical last-user text but different temperature partition', async () => {
+      const optionsStore: ProviderCallOptions = { temperature: 0.2 };
+      const optionsLookup: ProviderCallOptions = { temperature: 0.9 };
+      const storedCallParams = hashCallParams(optionsStore);
+
+      mockVectorStore.knn.mockImplementation((input) => {
+        if (input.callParams === storedCallParams) {
+          return Promise.resolve([{ similarity: 0.95, reply: cachedReply }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        optionsStore,
+        { vector: FIXED_VECTOR, embedAttempted: true },
+      );
+
+      const result = await service.lookup(
+        userRequest,
+        TEST_CLIENT_ID,
+        optionsLookup,
+      );
+
+      expect(result.reply).toBeNull();
+      expect(result.embedAttempted).toBe(true);
+      expect(mockVectorStore.knn).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          callParams: hashCallParams(optionsLookup),
+        }),
+      );
+    });
+
+    it('should miss when identical last-user text but different responseFormat partition', async () => {
+      const optionsStore: ProviderCallOptions = {
+        responseFormat: { type: 'text' },
+      };
+      const optionsLookup: ProviderCallOptions = {
+        responseFormat: { type: 'json_object' },
+      };
+      const storedCallParams = hashCallParams(optionsStore);
+
+      mockVectorStore.knn.mockImplementation((input) => {
+        if (input.callParams === storedCallParams) {
+          return Promise.resolve([{ similarity: 0.95, reply: cachedReply }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        optionsStore,
+        { vector: FIXED_VECTOR, embedAttempted: true },
+      );
+
+      const result = await service.lookup(
+        userRequest,
+        TEST_CLIENT_ID,
+        optionsLookup,
+      );
+
+      expect(result.reply).toBeNull();
+      expect(result.embedAttempted).toBe(true);
+    });
+
+    it('should miss when identical last-user text but different systemSignature partition', async () => {
+      const promptsStore = {
+        master: 'master prompt A',
+        main: 'main prompt',
+        perModelByAlias: {},
+      };
+      const promptsLookup = {
+        master: 'master prompt B',
+        main: 'main prompt',
+        perModelByAlias: {},
+      };
+      const storedSystemSig = computeSystemSignature(
+        promptsStore,
+        TEST_MODEL_ALIAS,
+      );
+
+      await initService({ resolvedSystemPrompts: promptsStore });
+
+      mockVectorStore.knn.mockImplementation((input) => {
+        if (input.systemSignature === storedSystemSig) {
+          return Promise.resolve([{ similarity: 0.95, reply: cachedReply }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        undefined,
+        { vector: FIXED_VECTOR, embedAttempted: true },
+      );
+
+      await initService({ resolvedSystemPrompts: promptsLookup });
+
+      mockVectorStore.knn.mockImplementation((input) => {
+        if (input.systemSignature === storedSystemSig) {
+          return Promise.resolve([{ similarity: 0.95, reply: cachedReply }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await service.lookup(userRequest, TEST_CLIENT_ID);
+
+      expect(result.reply).toBeNull();
+      expect(result.embedAttempted).toBe(true);
+      expect(mockVectorStore.knn).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          systemSignature: computeSystemSignature(
+            promptsLookup,
+            TEST_MODEL_ALIAS,
+          ),
+        }),
+      );
+    });
+
+    it('should hit when params, prompt and last-user match (positive B1)', async () => {
+      const options: ProviderCallOptions = { temperature: 0.2 };
+
+      mockVectorStore.knn.mockResolvedValue([
+        { similarity: 0.95, reply: cachedReply },
+      ]);
+
+      await service.storeReply(
+        userRequest,
+        cachedReply,
+        TEST_CLIENT_ID,
+        options,
+        { vector: FIXED_VECTOR, embedAttempted: true },
+      );
+
+      mockVectorStore.knn.mockClear();
+      mockVectorStore.knn.mockResolvedValue([
+        { similarity: 0.95, reply: cachedReply },
+      ]);
+
+      const result = await service.lookup(
+        userRequest,
+        TEST_CLIENT_ID,
+        options,
+      );
+
+      expect(result.reply).toEqual(cachedReply);
+      expect(result.embedAttempted).toBe(true);
+    });
+  });
+
+  describe('multi-turn skip (B2)', () => {
+    it('should not embed when messages contain assistant turn', async () => {
+      const multiTurn: ChatRequestDto = {
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [
+          { role: 'user', content: 'explain X' },
+          { role: 'assistant', content: 'X means…' },
+          { role: 'user', content: 'continue' },
+        ],
+      };
+
+      const result = await service.lookup(multiTurn, TEST_CLIENT_ID);
+
+      expect(result.embedAttempted).toBe(false);
+      expect(mockEmbedding.embed).not.toHaveBeenCalled();
+    });
+
+    it('should not embed when messages contain tool turn', async () => {
+      const toolTurn: ChatRequestDto = {
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [
+          { role: 'user', content: 'use the tool' },
+          { role: 'tool', content: '{"ok":true}', toolCallId: 'tc_1' },
+          { role: 'user', content: 'now summarise' },
+        ],
+      };
+
+      const result = await service.lookup(toolTurn, TEST_CLIENT_ID);
+
+      expect(result.embedAttempted).toBe(false);
+      expect(mockEmbedding.embed).not.toHaveBeenCalled();
+    });
+
+    it('should embed for a single user message (positive case)', async () => {
+      const result = await service.lookup(userRequest, TEST_CLIENT_ID);
+
+      expect(result.embedAttempted).toBe(true);
+      expect(mockEmbedding.embed).toHaveBeenCalledWith('Hello semantic');
+    });
+
+    it.each(['kontynuuj', 'podsumuj to', 'przetłumacz'])(
+      'should not embed for multi-turn anaphora phrase "%s" (B2)',
+      async (phrase) => {
+        const multiTurn: ChatRequestDto = {
+          modelAlias: TEST_MODEL_ALIAS,
+          messages: [
+            { role: 'user', content: 'first topic' },
+            { role: 'assistant', content: 'long answer' },
+            { role: 'user', content: phrase },
+          ],
+        };
+
+        const result = await service.lookup(multiTurn, TEST_CLIENT_ID);
+
+        expect(result.embedAttempted).toBe(false);
+        expect(result.reply).toBeNull();
+        expect(mockEmbedding.embed).not.toHaveBeenCalled();
+        expect(mockVectorStore.knn).not.toHaveBeenCalled();
+      },
+    );
   });
 });

@@ -185,7 +185,7 @@ Liveness â `HealthService.getLiveness()`: `{ status: "healthy", timestamp }
 
 ## `GET /api/v1/health/ready`
 
-Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `redis`, `cache`, optionally `embeddings`).
+Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `redis`, `cache`, optionally `embeddings` and `vectorStore`).
 
 | Aspect              | Behavior in code                                                                                                                                                                                                                                                                                                                                                                  |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -193,7 +193,8 @@ Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), 
 | **`checks.config`** | **`healthy`** when **`gateway`** and **`resolvedSystemPrompts`** are loaded (typical start after valid YAML). **`unhealthy`** when either object is missing from config â then the body often has `status: not_ready`. Implementation: `HealthService.checkConfig`.                                                                                                                  |
 | **`checks.redis`**  | **`required: false`** → **`healthy`**, “Redis not required”, no probe. **`required: true`** → `RedisConnectionService.ping()`; **`healthy`** when PONG OK, **`degraded`** when connection/ping unavailable — does **not** block `ready`. **`consumers`** field: `cache`, `rate-limit`, `semantic-cache` (who requires Redis in this deployment). Implementation: `isRedisRequiredFromConfig()` + `checkRedis`. |
 | **`checks.cache`**  | Exact-cache **feature** state: disabled → **`healthy`** (“Cache disabled (noop)”). Backend **`redis`** → status depends on **`checks.redis`** (no separate probe via `CacheRegistryService`). Other backends → probe via registry as before. **`degraded`** does not block `ready`.                                                                                                   |
-| **`checks.embeddings`** | Present only when `SEMANTIC_CACHE_ENABLED=true`. Probes the Ollama embedding service (`EMBEDDING_BASE_URL`, default `qwen3-embedding:0.6b`). **`healthy`** on success, **`degraded`** when unavailable — **fail-open**: degraded does **not** block `ready`. Field absent when semantic cache is disabled. `consumers` in `checks.redis` includes `semantic-cache` when enabled. |
+| **`checks.embeddings`** | Present only when `SEMANTIC_CACHE_ENABLED=true`. Probes the Ollama embedding service (`EMBEDDING_BASE_URL`, default `qwen3-embedding:0.6b`). **`healthy`** on success, **`degraded`** when unavailable — **fail-open**: degraded does **not** block `ready`. Probe does **not** reset the embedding circuit breaker. Field absent when semantic cache is disabled. `consumers` in `checks.redis` includes `semantic-cache` when enabled. |
+| **`checks.vectorStore`** | Present only when `SEMANTIC_CACHE_ENABLED=true`. Probes Redis Search / the configured vector index (`FT.INFO` after lazy `ensureIndex`). **`healthy`** when the index is available; **`degraded`** when Search module or index is missing (plain Redis → operator-readable “FT.* commands missing”) — **fail-open**, does **not** block `ready`. `MODULE LIST` remains a Compose runbook check, not the only signal. |
 
 The orchestrator should treat an instance as ready only when `status === "ready"` in the JSON.
 
@@ -210,7 +211,7 @@ After each readiness evaluation (`getReadiness()` or the hook on `GET /metrics`)
 | **Format** | Prometheus text exposition (`Content-Type: text/plain; version=0.0.4`) |
 | **Backend** | `PrometheusAppMetricsAdapter` in production / `METRICS_BACKEND=prometheus`; in dev default noop (empty body) |
 | **Health gauges** | Before `getMetricsSnapshot()` â `PreMetricsScrapeRegistry.runAll()` â `HealthService.refreshMetricsForScrape()` (throttle 5s; full check without throttle on `GET /ready`) |
-| **Example metrics** | `gateway_readiness`, `gateway_health_status{component="config\|redis\|cache\|embeddings"}`, exact cache hit/miss, semantic hit / below-threshold / error, `gateway_requests_total`, `gateway_tokens_total`, `gateway_nodejs_*` |
+| **Example metrics** | `gateway_readiness`, `gateway_health_status{component="config\|redis\|cache\|embeddings\|vectorStore"}`, exact cache hit/miss, semantic hit / below-threshold / error, `gateway_requests_total`, `gateway_tokens_total`, `gateway_nodejs_*` |
 | **Monitoring stack** | `deployment/monitoring/prometheus.yml`, alerts: `alerts.yml` â `deployment.md` |
 
 ---

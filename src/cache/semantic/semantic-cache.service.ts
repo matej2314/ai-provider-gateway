@@ -5,8 +5,12 @@ import { AppMetricsService } from '../../observability/app-metrics/app-metrics.s
 import { LoggingService } from '../../logging/logging.service';
 import { asModelAlias, type ClientId } from '../../common/types/branded.types';
 import { EMBEDDING_BACKEND, VECTOR_STORE } from './semantic-cache.tokens';
-import { lastUserMessageText } from './last-user-message';
+import { lastUserMessageText, isSingleTurnUserRequest } from './last-user-message';
 import { EmbeddingCircuitBreaker } from './embedding-circuit-breaker';
+import {
+  computeSystemSignature,
+  hashCallParams,
+} from '../cache-identity';
 import {
   EMBEDDING_CIRCUIT_COOLDOWN_MS,
   EMBEDDING_CIRCUIT_OPEN_AFTER,
@@ -15,6 +19,7 @@ import {
 import type { ChatRequestDto } from '../../chat/dto/chat-request.dto';
 import type { CachedChatResponse } from '../types/cached-chat-response.type';
 import type { EmbeddingBackend } from './embedding-backend.interface';
+import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import type { VectorStore } from './vector-store.interface';
 
 export type SemanticLookupResult = {
@@ -55,9 +60,11 @@ export class SemanticCacheService {
   async lookup(
     request: ChatRequestDto,
     clientId: ClientId,
+    options?: ProviderCallOptions,
   ): Promise<SemanticLookupResult> {
     const cfg = getAppConfigOrThrow(this.config, 'semanticCache');
     if (!cfg.enabled) return EMBED_NOT_ATTEMPTED;
+    if (!isSingleTurnUserRequest(request.messages)) return EMBED_NOT_ATTEMPTED;
     const text = lastUserMessageText(request);
     if (!text) return EMBED_NOT_ATTEMPTED;
     if (this.circuit.shouldSkipEmbed()) {
@@ -82,15 +89,22 @@ export class SemanticCacheService {
       this.logger.warn(`Semantic cache lookup failed (fail-open): ${msg}`);
       return { reply: null, vector: null, embedAttempted: true };
     }
+
+    const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
+    const systemSig = computeSystemSignature(prompts, request.modelAlias);
+    const callParamsSig = hashCallParams(options);
+
     try {
       const hits = await this.vectorStore.knn({
         vector,
         modelAlias: asModelAlias(request.modelAlias),
         clientId,
+        systemSignature: systemSig,
+        callParams: callParamsSig,
         k: cfg.k,
       });
-      const best = hits[0];
-      if (!best || best.similarity < cfg.minSimilarity) {
+      const best = hits.find((hit) => hit.similarity >= cfg.minSimilarity);
+      if (!best) {
         this.appMetrics.recordSemanticCacheLookup(
           asModelAlias(request.modelAlias),
           'below-threshold',
@@ -103,7 +117,6 @@ export class SemanticCacheService {
       );
       return { reply: best.reply, vector, embedAttempted: true };
     } catch (err: unknown) {
-      // Redis Search — fail-open; NIE recordEmbedFailure; wektor zostaje na SET
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Semantic cache KNN failed (fail-open): ${msg}`);
       this.appMetrics.recordSemanticCacheLookup(
@@ -118,10 +131,12 @@ export class SemanticCacheService {
     request: ChatRequestDto,
     reply: CachedChatResponse,
     clientId: ClientId,
+    options?: ProviderCallOptions,
     embedState: SemanticStoreEmbedState = { embedAttempted: false },
   ): Promise<void> {
     const cfg = getAppConfigOrThrow(this.config, 'semanticCache');
     if (!cfg.enabled) return;
+    if (!isSingleTurnUserRequest(request.messages)) return;
     const text = lastUserMessageText(request);
     if (!text) return;
 
@@ -142,12 +157,18 @@ export class SemanticCacheService {
       }
     }
 
+    const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
+    const systemSig = computeSystemSignature(prompts, request.modelAlias);
+    const callParamsSig = hashCallParams(options);
+
     try {
       await this.vectorStore.upsert({
         vector,
         text,
         modelAlias: asModelAlias(request.modelAlias),
         clientId,
+        systemSignature: systemSig,
+        callParams: callParamsSig,
         reply,
         ttlSeconds: cfg.ttl,
       });
@@ -161,8 +182,8 @@ export class SemanticCacheService {
     const cfg = getAppConfigOrThrow(this.config, 'semanticCache');
     const budget = embeddingProbeTimeoutMs(cfg.embeddingTimeoutMs);
     try {
+      // Observation only — must not close the circuit or clear half-open trial.
       await this.embedding.embed('ping', budget);
-      this.circuit.recordEmbedSuccess();
       return true;
     } catch {
       return false;

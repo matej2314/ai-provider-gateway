@@ -7,6 +7,7 @@ import {
   IsIn,
   IsInt,
   Min,
+  Max,
   IsNumber,
   ValidateIf,
 } from 'class-validator';
@@ -178,6 +179,7 @@ class EnvironmentVariables {
   @Transform(({ value }: { value: unknown }) => toNumber(value))
   @IsNumber()
   @Min(0)
+  @Max(1)
   @IsOptional()
   SEMANTIC_CACHE_MIN_SIMILARITY?: number = 0.9;
 

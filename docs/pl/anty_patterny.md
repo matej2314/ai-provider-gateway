@@ -128,7 +128,7 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 **Nie rób**: oczekiwania, że **`requestId`** w odpowiedzi z cache zawsze odpowiada bieżącemu żądaniu — w implementacji zwracany jest identyfikator zapisany wraz z pierwszą odpowiedzią.
 
-**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji — tylko exact cache; semantic: pkt 20). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony wpis usuwany); streaming jest ścieżką bez cache (`spec/SPEC-CHAT-STREAMING.md`).
+**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu lub params zmienia klucz exact **oraz** partycję KNN semantic — pkt 20). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony wpis usuwany); streaming jest ścieżką bez cache (`spec/SPEC-CHAT-STREAMING.md`).
 
 ## 13) Mylenie trzech kontraktów API (natywny vs fasady oficjalnych kontraktów)
 
@@ -185,20 +185,26 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 
 **Rób:** przekazuj parametry Redis przez zmienna srodowiskowa **`REDIS_ARGS`** w serwisie Compose. Przyklad: `REDIS_ARGS: '--port 6380 --maxmemory 2gb --maxmemory-policy noeviction'`.
 
-## 18) Zle trafienie semantyczne — niski prog podobienstwa
+## 18) Złe trafienie semantyczne — niski próg lub oczekiwanie na wieloturze
 
-**Nie rób:** ustaw `SEMANTIC_CACHE_MIN_SIMILARITY` ponizej 0.85 w produkcji. Niski prog powoduje ze odpowiedzi na semantycznie rozne prompty sa serwowane z cache — tresciowo niepoprawne dla aktualnego zapytania.
+**Nie rób:** ustaw `SEMANTIC_CACHE_MIN_SIMILARITY` poniżej 0.85 w produkcji. Niski próg powoduje, że odpowiedzi na semantycznie różne prompty są serwowane z cache — treściowo niepoprawne dla aktualnego zapytania. Start **odrzuca** wartości poza 0–1; `gateway config:validate` **ostrzega** przy wartości &lt; 0.85.
 
-**Rób:** zachowaj domyślne 0.90 (podobieństwo cosinusowe) lub zwiększ dla domen wymagających wysokiej precyzji. Używaj partycjonowania per alias (`modelAlias` + `clientId`) aby ograniczyć trafienia cross-context. Monitoruj metryki semantic hit / below-threshold / error i próbkuj trafienia cache podczas strojenia.
+**Nie rób:** wstawiaj przecinka (ani innych znaków specjalnych RediSearch TAG poza myślnikiem) w kluczach `clients.<id>` lub `models.<alias>` — przecinek to domyślny separator TAG i psuje izolację klienta.
+
+**Nie rób:** oczekiwać semantic hit na żądaniach wieloturowych ani traktować anaforycznych fraz last-user (`kontynuuj`, `podsumuj to`, `przetłumacz`) jako bezpiecznego klucza cache przy różnych historiach. Cache semantyczny działa tylko dla body **jednoturowego** (dokładnie jedna `role: user`, bez `assistant` / `tool`).
+
+**Rób:** zachowaj domyślne 0.90 (podobieństwo cosinusowe) lub zwiększ dla domen wymagających wysokiej precyzji. Opieraj się na pełnej **case-sensitive** partycji KNN (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) i bramce jednoturowej. Monitoruj metryki semantic hit / below-threshold / error / skip i próbkuj trafienia cache podczas strojenia.
 
 ## 19) Prefiks nomic / mxbai przy embeddingu Qwen
 
 **Nie rób:** dodawaj prefiksu `search_query:` (ani `search_document:`) do tekstu embeddingu przy `qwen3-embedding:0.6b`. Ta instrukcja należy do `nomic-embed-text` / `mxbai`. Qwen 3 Embedding jej nie rozumie — niespójność store vs lookup wygląda jak fałszywe missy.
 
-**Rób:** embedduj gołą treść ostatniej wiadomości `role: user` (albo dedykowaną instrukcję Qwena) po **obu** stronach (zapis i lookup). Format musi być identyczny. Zmiana formatu albo przejście na `nomic-embed-text` wymaga nowego indeksu (np. `qwen3-1024`), nie hot-swapu.
+**Rób:** embedduj gołą treść last-user żądania **jednoturowego** (albo dedykowaną instrukcję Qwena) po **obu** stronach (zapis i lookup). Format musi być identyczny. Zmiana formatu albo przejście na `nomic-embed-text` (albo inny tag rozmiaru tej samej rodziny, np. `qwen3-embedding:4b`) wymaga nowego indeksu z **pełnej znormalizowanej** nazwy modelu + DIM (np. domyślny → `qwen3-embedding-0-6b-1024`), nie hot-swapu. **Nie** zakładaj, że krótki slug rodziny w stylu `qwen3` izoluje warianty modelu.
 
-## 20) Założenie, że zmiana system promptu unieważnia cache semantyczny
+## 20) Założenie, że zmiana promptu/params zostawia trafienia semantic w tej samej partycji
 
-**Nie rób:** zakładać, że edycja `MASTER_SYSTEM_PROMPT.md` / promptów per alias albo zmiana parametrów wywołania (`responseFormat`, `temperature`, `seed`, …) kasuje trafienia KNN. Exact cache hashuje `systemSignature` i efektywne params; indeks Redis Search partycjonuje tylko po `modelAlias` + `clientId`. Stare odpowiedzi semantyczne mogą być serwowane do końca TTL (`SEMANTIC_CACHE_TTL`). Nie ma hurtowej invalidacji semantic.
+**Nie rób:** zakładać, że edycja `MASTER_SYSTEM_PROMPT.md` / promptów per alias albo zmiana parametrów wywołania (`responseFormat`, `temperature`, `seed`, …) nadal serwuje poprzednie trafienia KNN. Exact i semantic dzielą tę samą tożsamość konfiguracji: Redis Search filtruje po `modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`. Zmiana promptu lub params → **inna partycja** → miss.
 
-**Rób:** traktuj to jako known limitation v1. Opisz obok kolejności lookup exact vs semantic. Skróć `SEMANTIC_CACHE_TTL`, gdy prompt/params często się zmieniają. Nie obniżaj progu podobieństwa, żeby „nadrobić” brak partycji. TAG `systemSignature` / params — osobna decyzja (poza v1).
+**Nie rób:** oczekiwać hurtowego `FT.DROPINDEX` / masowego czyszczenia przy zmianie promptu lub params. Stare wektory w poprzedniej partycji zostają do TTL (`SEMANTIC_CACHE_TTL`).
+
+**Rób:** traktuj rozdział partycji jak rozdział klucza exact. Skróć `SEMANTIC_CACHE_TTL`, jeśli stare partycje mają znikać szybciej. Nie obniżaj progu podobieństwa, żeby „nadrobić” missy partycji.

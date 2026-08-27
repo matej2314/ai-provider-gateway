@@ -6,6 +6,7 @@ import {
   asBaseUrl,
   asPort,
   asCacheTtlSeconds,
+  asSemanticCacheTtlSeconds,
   asRateLimitRps,
   asRateLimitBurst,
   asMaxConcurrentStreams,
@@ -23,6 +24,7 @@ import {
   isBaseUrl,
   isPort,
   isCacheTtlSeconds,
+  isSemanticCacheTtlSeconds,
   isRateLimitRps,
   isRateLimitBurst,
   isMaxConcurrentStreams,
@@ -192,6 +194,26 @@ describe('Configuration validators', () => {
     });
   });
 
+  describe('asSemanticCacheTtlSeconds', () => {
+    it('should accept values >= 1 and floor fractional values', () => {
+      expect(asSemanticCacheTtlSeconds(1)).toBe(1);
+      expect(asSemanticCacheTtlSeconds(3600)).toBe(3600);
+      expect(asSemanticCacheTtlSeconds(1.9)).toBe(1);
+    });
+
+    it('should throw when value < 1', () => {
+      expect(() => asSemanticCacheTtlSeconds(0)).toThrow(
+        /SemanticCacheTtlSeconds must be >= 1/,
+      );
+      expect(() => asSemanticCacheTtlSeconds(0.5)).toThrow(
+        /SemanticCacheTtlSeconds must be >= 1/,
+      );
+      expect(() => asSemanticCacheTtlSeconds(-1)).toThrow(
+        /SemanticCacheTtlSeconds must be >= 1/,
+      );
+    });
+  });
+
   describe('asRateLimitRps', () => {
     it('should accept values >= 1 and floor fractional values', () => {
       expect(asRateLimitRps(1)).toBe(1);
@@ -297,6 +319,13 @@ describe('Type guards', () => {
     expect(isCacheTtlSeconds(0)).toBe(true);
     expect(isCacheTtlSeconds(60)).toBe(true);
     expect(isCacheTtlSeconds(-1)).toBe(false);
+  });
+
+  it('isSemanticCacheTtlSeconds should mirror asSemanticCacheTtlSeconds', () => {
+    expect(isSemanticCacheTtlSeconds(1)).toBe(true);
+    expect(isSemanticCacheTtlSeconds(60)).toBe(true);
+    expect(isSemanticCacheTtlSeconds(0)).toBe(false);
+    expect(isSemanticCacheTtlSeconds(0.5)).toBe(false);
   });
 
   it('rate limit and concurrency guards should work', () => {

@@ -25,9 +25,16 @@ class HealthReadinessChecksDto {
   @ApiPropertyOptional({
     type: HealthCheckItemDto,
     description:
-      'Embedding service health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded state does not block ready status.',
+      'Embedding service health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded state does not block ready status. Probe does not reset the embedding circuit breaker.',
   })
   embeddings?: HealthCheckItemDto;
+
+  @ApiPropertyOptional({
+    type: HealthCheckItemDto,
+    description:
+      'Redis Search vector index health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded (missing Search module or index) does not block ready status.',
+  })
+  vectorStore?: HealthCheckItemDto;
 }
 
 export class HealthReadinessResponseDto {

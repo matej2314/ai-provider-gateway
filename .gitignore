@@ -82,8 +82,5 @@ coverage-security/*
 .env.test
 .env.example.old
 gateway.config.placeholder.yaml
-
-production-readiness-plan.md
-prometheus-grafana-implementation-plan.md
 semantic-cache-plan.md
 

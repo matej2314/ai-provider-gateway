@@ -339,7 +339,7 @@ Pełny szablon: `.env.example` (katalog główny; sparowany z `gateway.config.ex
 | `CACHE_BACKEND` | `noop` | `redis` wymaga Redis; cache semantyczny **nie** jest wartością `CACHE_BACKEND` |
 | `SEMANTIC_CACHE_ENABLED` | `false` (kod) / `true` (`.env` projektu) | Lookup semantyczny; wymaga Redis Stack + embeddingu |
 | `EMBEDDING_BASE_URL` | `http://localhost:11435` | Host vs `http://ollama-embedding:11434` w Dockerze |
-| `EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Zmiana = nowy indeks Redis Search |
+| `EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Zmiana = nowy indeks Redis Search (pełny znormalizowany model + DIM, np. `qwen3-embedding-0-6b-1024`) |
 | `RATE_LIMIT_SMART_ENABLED` | `false` | Smart rate limit per klucz (wymaga Redis) |
 | `SENTRY_DSN` | pusty | Error reporting / AI metrics (Sentry) |
 | `METRICS_BACKEND` | auto | `prometheus` / `noop` — w production domyślnie Prometheus |
@@ -543,7 +543,7 @@ docker ps | grep redis
 docker exec ai-gateway-redis redis-cli -p 6380 ping   # oczekiwane: PONG
 ```
 
-Gdy `RATE_LIMIT_SMART_ENABLED=true`, `CACHE_BACKEND=redis` albo `SEMANTIC_CACHE_ENABLED=true`, readiness może zgłaszać `checks.redis: degraded` bez działającego Redis. Cache semantyczny jest fail-open — czat idzie dalej; `checks.embeddings: degraded` nie blokuje `ready`.
+Gdy `RATE_LIMIT_SMART_ENABLED=true`, `CACHE_BACKEND=redis` albo `SEMANTIC_CACHE_ENABLED=true`, readiness może zgłaszać `checks.redis: degraded` bez działającego Redis. Cache semantyczny jest fail-open — czat idzie dalej; `checks.embeddings: degraded` i `checks.vectorStore: degraded` nie blokują `ready`. `/ready` pokazuje zdrowie Search/indeksu w `checks.vectorStore`; `MODULE LIST` pozostaje checklistą Compose, nie jedynym sygnałem.
 
 ### Prometheus / Grafana nie odpowiadają
 

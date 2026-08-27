@@ -10,6 +10,10 @@ import {
   asRateLimitRps,
   asTimeoutMs,
 } from 'src/common/types/branded.types';
+import {
+  isRedisSearchTagSafeId,
+  REDIS_SEARCH_TAG_ID_MESSAGE,
+} from '../cache/semantic/escape-tag';
 
 export const EXPECTED_SCHEMA_VERSION = 1;
 
@@ -22,6 +26,12 @@ export const optionalEnvRefSchema = z
   .min(1)
   .optional()
   .transform((value) => (value === undefined ? undefined : asEnvRef(value)));
+
+/** Keys used as RediSearch TAG partition fields (clients / model aliases). */
+export const RedisSearchTagSafeIdSchema = z
+  .string()
+  .min(1)
+  .refine(isRedisSearchTagSafeId, { message: REDIS_SEARCH_TAG_ID_MESSAGE });
 
 export const GatewayConfigSchema = z
   .object({
@@ -84,7 +94,7 @@ export const GatewayConfigSchema = z
       }),
     clients: z
       .record(
-        z.string(),
+        RedisSearchTagSafeIdSchema,
         z.object({
           name: z.string().min(1),
           type: z.enum(GATEWAY_CLIENT_TYPES),
@@ -104,7 +114,7 @@ export const GatewayConfigSchema = z
       )
       .default({}),
     models: z.record(
-      z.string(),
+      RedisSearchTagSafeIdSchema,
       z.object({
         providerInstance: z.string().transform(asProviderInstanceId),
         modelId: z.string(),

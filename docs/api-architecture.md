@@ -82,10 +82,10 @@ Contract (OpenAPI + `api-documentation.md`): **Server-Sent Events** (`text/event
 For `POST /api/v1/chat`, the gateway uses a two-stage cache lookup before calling the provider:
 
 1. **Exact hit** — deterministic hash of `(modelAlias, clientId, messages, system prompt, effective params)` matches a stored response → returned with `cached: true` and `cachedAt`. Semantically identical to a fresh provider call.
-2. **Semantic hit** — no exact match, but the last `role: user` message embeds close enough to a cached query (cosine similarity ≥ `SEMANTIC_CACHE_MIN_SIMILARITY`) → stored response returned. Also marked `cached: true`.
-3. **Miss** — provider is called; result stored for both lookup layers.
+2. **Semantic hit** — no exact match, but the request is **single-turn** and the last `role: user` message embeds close enough to a cached query in the **same** KNN partition (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`), cosine similarity ≥ `SEMANTIC_CACHE_MIN_SIMILARITY` → stored response returned with `cached: true`.
+3. **Miss** — provider is called; result stored for both lookup layers (semantic upsert only for single-turn).
 
-**Idempotency note:** an exact hit and a semantic hit are both valid substitutes — the client receives the same response shape. The field `cached: true` distinguishes a cached response from a live provider response. Streaming (`POST /api/v1/chat/stream`) does **not** use either cache layer.
+**Idempotency note:** exact and semantic hits share the same response shape (`cached: true`). They are **not** unrestricted substitutes: a semantic hit is valid only inside the same configuration partition and for a single-turn body. Streaming (`POST /api/v1/chat/stream`) does **not** use either cache layer.
 
 ## HTTP errors
 

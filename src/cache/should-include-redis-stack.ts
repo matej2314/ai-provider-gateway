@@ -54,8 +54,15 @@ export function isRedisRequiredFromEnv(
       backend: parseCacheBackend(env.CACHE_BACKEND, cacheEnabled),
     },
     rateLimitSmartEnabled: env.RATE_LIMIT_SMART_ENABLED === 'true',
-    semanticCacheEnabled: env.SEMANTIC_CACHE_ENABLED === 'true',
+    semanticCacheEnabled: isSemanticCacheEnabledFromEnv(env),
   });
+}
+
+/** Same predicate as Redis consumer `semantic-cache` and CacheModule semantic import. */
+export function isSemanticCacheEnabledFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return env.SEMANTIC_CACHE_ENABLED === 'true';
 }
 
 export function isRedisRequiredFromConfig(

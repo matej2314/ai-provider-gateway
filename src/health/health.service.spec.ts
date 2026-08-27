@@ -4,6 +4,7 @@ import { HealthService } from './health.service';
 import { CacheRegistryService } from '../cache/cache-registry.service';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
 import { SemanticCacheService } from '../cache/semantic/semantic-cache.service';
+import { VECTOR_STORE } from '../cache/semantic/semantic-cache.tokens';
 import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { PreMetricsScrapeRegistry } from '../observability/app-metrics/pre-metrics-scrape.registry';
 import { LoggingService } from '../logging/logging.service';
@@ -25,6 +26,12 @@ describe('HealthService', () => {
   let mockCacheRegistry: Partial<CacheRegistryService>;
   let mockRedisConnection: Partial<RedisConnectionService>;
   let mockSemanticCache: Partial<SemanticCacheService>;
+  let mockVectorStore: {
+    probeIndex: jest.Mock;
+    ensureIndex: jest.Mock;
+    knn: jest.Mock;
+    upsert: jest.Mock;
+  };
   let mockAppMetrics: Partial<AppMetricsService>;
   let mockLogger: Partial<LoggingService>;
   let preMetricsScrapeRegistry: PreMetricsScrapeRegistry;
@@ -32,6 +39,7 @@ describe('HealthService', () => {
   async function initService(
     configOptions: MockConfigServiceOptions = healthyReadinessConfig,
     semanticCache?: Partial<SemanticCacheService>,
+    vectorStore?: Partial<typeof mockVectorStore>,
   ) {
     const mockConfigService = createMockConfigService(configOptions);
 
@@ -45,6 +53,17 @@ describe('HealthService', () => {
     };
 
     mockSemanticCache = semanticCache ?? {};
+
+    mockVectorStore = {
+      probeIndex: jest.fn().mockResolvedValue({
+        available: true,
+        message: 'Redis Search index available',
+      }),
+      ensureIndex: jest.fn().mockResolvedValue(undefined),
+      knn: jest.fn().mockResolvedValue([]),
+      upsert: jest.fn().mockResolvedValue(undefined),
+      ...vectorStore,
+    };
 
     mockAppMetrics = {
       syncHealthMetrics: jest.fn(),
@@ -71,6 +90,13 @@ describe('HealthService', () => {
       providers.push({
         provide: SemanticCacheService,
         useValue: mockSemanticCache,
+      });
+    }
+
+    if (vectorStore !== undefined || semanticCache !== undefined) {
+      providers.push({
+        provide: VECTOR_STORE,
+        useValue: mockVectorStore,
       });
     }
 
@@ -464,6 +490,96 @@ describe('HealthService', () => {
         expect.objectContaining({
           components: expect.objectContaining({
             embeddings: 'degraded',
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('checkVectorStore', () => {
+    it('should omit vectorStore check when semantic cache disabled', async () => {
+      await initService(healthyReadinessConfig);
+
+      const result = await service.getReadiness();
+
+      expect(result.checks.vectorStore).toBeUndefined();
+    });
+
+    it('should be degraded when PING OK but FT.INFO unknown command', async () => {
+      await initService(
+        {
+          ...healthyReadinessConfig,
+          semanticCache: { enabled: true },
+          extra: { RATE_LIMIT_SMART_ENABLED: false },
+        },
+        { probeEmbedding: jest.fn().mockResolvedValue(true) },
+        {
+          probeIndex: jest.fn().mockResolvedValue({
+            available: false,
+            message:
+              'Redis Search module unavailable (FT.* commands missing — use Redis Stack)',
+          }),
+        },
+      );
+      (mockRedisConnection.ping as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.getReadiness();
+
+      expect(result.status).toBe('ready');
+      expect(result.checks.embeddings!.status).toBe('healthy');
+      expect(result.checks.vectorStore!.status).toBe('degraded');
+      expect(result.checks.vectorStore!.message).toContain(
+        'Redis Search module unavailable',
+      );
+      expect(result.checks.redis).toBeDefined();
+      expect(result.checks.redis!.status).toBe('healthy');
+      expect(result.checks.redis!.consumers).toContain('semantic-cache');
+    });
+
+    it('should be healthy when index exists', async () => {
+      await initService(
+        {
+          ...healthyReadinessConfig,
+          semanticCache: { enabled: true },
+        },
+        { probeEmbedding: jest.fn().mockResolvedValue(true) },
+        {
+          probeIndex: jest.fn().mockResolvedValue({
+            available: true,
+            message: 'Redis Search index available',
+          }),
+        },
+      );
+
+      const result = await service.getReadiness();
+
+      expect(result.checks.vectorStore).toEqual({
+        status: 'healthy',
+        message: 'Redis Search index available',
+      });
+    });
+
+    it('should include vectorStore in health metrics when present', async () => {
+      await initService(
+        {
+          ...healthyReadinessConfig,
+          semanticCache: { enabled: true },
+        },
+        { probeEmbedding: jest.fn().mockResolvedValue(true) },
+        {
+          probeIndex: jest.fn().mockResolvedValue({
+            available: false,
+            message: 'Vector index unavailable',
+          }),
+        },
+      );
+
+      await service.getReadiness();
+
+      expect(mockAppMetrics.syncHealthMetrics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          components: expect.objectContaining({
+            vectorStore: 'degraded',
           }),
         }),
       );

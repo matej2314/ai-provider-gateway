@@ -272,6 +272,7 @@ describe('ChatCacheGuardService', () => {
         expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
           baseRequest,
           TEST_CLIENT_ID,
+          providerOptions,
         );
       });
     });
@@ -380,6 +381,28 @@ describe('ChatCacheGuardService', () => {
         expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
       });
 
+      it('should skip semantic for multi-turn request (B2)', async () => {
+        (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
+        const multiTurn: ChatRequestDto = {
+          ...baseRequest,
+          messages: [
+            { role: 'user', content: 'explain' },
+            { role: 'assistant', content: 'sure' },
+            { role: 'user', content: 'continue' },
+          ],
+        };
+
+        const result = await service.getCachedIfAllowed(
+          multiTurn,
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+        );
+
+        expect(result).toEqual({ cached: null });
+        expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
+      });
+
       it('should skip semantic when SemanticCacheService is absent', async () => {
         await initService(cacheEnabledGatewayConfig, false);
         (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
@@ -396,12 +419,8 @@ describe('ChatCacheGuardService', () => {
     });
 
     describe('Policy rejection', () => {
-      it('should throw when gateway config is missing', async () => {
+      it('should throw when gateway config is missing before any cache I/O', async () => {
         await initService({ gateway: null });
-
-        (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(
-          cachedResponse,
-        );
 
         await expect(
           service.getCachedIfAllowed(
@@ -411,9 +430,11 @@ describe('ChatCacheGuardService', () => {
             TEST_GATEWAY_KEY_BRANDED,
           ),
         ).rejects.toThrow('Missing config key: gateway');
+        expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
       });
 
-      it('should return null when model alias not in gateway config', async () => {
+      it('should skip exact and semantic I/O when model alias not in gateway config', async () => {
         await initService({
           gatewayOptions: {
             models: {},
@@ -422,10 +443,6 @@ describe('ChatCacheGuardService', () => {
           },
         });
 
-        (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(
-          cachedResponse,
-        );
-
         const result = await service.getCachedIfAllowed(
           baseRequest,
           providerOptions,
@@ -433,16 +450,12 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toEqual({
-          cached: null,
-          embedState: {
-            vector: FIXED_VECTOR,
-            embedAttempted: true,
-          },
-        });
+        expect(result).toEqual({ cached: null });
+        expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
       });
 
-      it('should return null when provider is disabled', async () => {
+      it('should skip exact and semantic I/O when provider is disabled', async () => {
         await initService({
           gatewayOptions: {
             providers: {
@@ -455,10 +468,6 @@ describe('ChatCacheGuardService', () => {
           },
         });
 
-        (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(
-          cachedResponse,
-        );
-
         const result = await service.getCachedIfAllowed(
           baseRequest,
           providerOptions,
@@ -466,16 +475,12 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toEqual({
-          cached: null,
-          embedState: {
-            vector: FIXED_VECTOR,
-            embedAttempted: true,
-          },
-        });
+        expect(result).toEqual({ cached: null });
+        expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
       });
 
-      it('should return null when provider row missing', async () => {
+      it('should skip exact and semantic I/O when provider row missing', async () => {
         await initService({
           gatewayOptions: {
             models: cacheEnabledGatewayConfig.gatewayOptions!.models,
@@ -484,10 +489,6 @@ describe('ChatCacheGuardService', () => {
           },
         });
 
-        (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(
-          cachedResponse,
-        );
-
         const result = await service.getCachedIfAllowed(
           baseRequest,
           providerOptions,
@@ -495,13 +496,9 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toEqual({
-          cached: null,
-          embedState: {
-            vector: FIXED_VECTOR,
-            embedAttempted: true,
-          },
-        });
+        expect(result).toEqual({ cached: null });
+        expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
       });
     });
 
@@ -525,7 +522,7 @@ describe('ChatCacheGuardService', () => {
 
   describe('setCachedIfAllowed', () => {
     describe('Happy path', () => {
-      it('should call setCachedResponse and await storeReply with embedState', async () => {
+      it('should call setCachedResponse and await storeReply with options and embedState', async () => {
         await service.setCachedIfAllowed(
           baseRequest,
           chatResponse,
@@ -549,6 +546,7 @@ describe('ChatCacheGuardService', () => {
             output: chatResponse.output,
           }),
           TEST_CLIENT_ID,
+          providerOptions,
           { vector: FIXED_VECTOR, embedAttempted: true },
         );
       });
@@ -595,6 +593,80 @@ describe('ChatCacheGuardService', () => {
           providerOptions,
           TEST_CLIENT_ID,
           asGatewayKey(''),
+        );
+
+        expect(mockCache.setCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('Multi-turn skip (B2)', () => {
+      it('should skip storeReply for multi-turn request', async () => {
+        const multiTurn: ChatRequestDto = {
+          ...baseRequest,
+          messages: [
+            { role: 'user', content: 'first' },
+            { role: 'assistant', content: 'ok' },
+            { role: 'user', content: 'second' },
+          ],
+        };
+
+        await service.setCachedIfAllowed(
+          multiTurn,
+          chatResponse,
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          { vector: FIXED_VECTOR, embedAttempted: true },
+        );
+
+        expect(mockCache.setCachedResponse).toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('Policy rejection on store (S4)', () => {
+      it('should skip exact set and storeReply when provider is disabled', async () => {
+        await initService({
+          gatewayOptions: {
+            providers: {
+              [TEST_PROVIDER_INSTANCE]: {
+                type: 'anthropic',
+                apiKeyRef: asEnvRef(TEST_API_KEY_REF),
+                enabled: false,
+              },
+            },
+          },
+        });
+
+        await service.setCachedIfAllowed(
+          baseRequest,
+          chatResponse,
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          { vector: FIXED_VECTOR, embedAttempted: true },
+        );
+
+        expect(mockCache.setCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
+      });
+
+      it('should skip exact set and storeReply when model alias missing', async () => {
+        await initService({
+          gatewayOptions: {
+            models: {},
+            providers: cacheEnabledGatewayConfig.gatewayOptions!.providers,
+            replace: { models: true },
+          },
+        });
+
+        await service.setCachedIfAllowed(
+          baseRequest,
+          chatResponse,
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
         );
 
         expect(mockCache.setCachedResponse).not.toHaveBeenCalled();

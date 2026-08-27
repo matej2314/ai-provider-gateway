@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import { getAppConfigOrThrow } from '../../../config/typed-config';
+import { LoggingService } from '../../../logging/logging.service';
 import { RedisConnectionService } from '../../adapters/redis-cache/redis-connection.service';
 import { parseCachedChatResponse } from '../../schemas/cached-chat-response.schema';
 import { semanticIndexName } from '../index-name';
@@ -9,26 +10,56 @@ import type {
   VectorStore,
   VectorSearchHit,
   VectorStoreKnnInput,
+  VectorStoreProbeResult,
   VectorStoreUpsertInput,
 } from '../vector-store.interface';
+import { unbrand } from '../../../common/types/branded.types';
+import { isSemanticCacheTtlSeconds } from '../../../common/types/branded.guards';
+import { escapeRedisSearchTag } from '../escape-tag';
 
 @Injectable()
 export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
   private indexCreated = false;
+  private ensureIndexInFlight: Promise<void> | null = null;
+  private readonly logger: LoggingService;
 
   constructor(
     private readonly redis: RedisConnectionService,
     private readonly config: ConfigService,
-  ) {}
+    loggingService: LoggingService,
+  ) {
+    this.logger = loggingService.child({ module: 'RedisVectorStoreAdapter' });
+  }
 
   private indexName(): string {
     const semCache = getAppConfigOrThrow(this.config, 'semanticCache');
     return semanticIndexName(semCache.embeddingModel, semCache.embeddingDim);
   }
 
-  /** Escape RediSearch TAG special chars (e.g. `-` in modelAlias). */
+  /**
+   * Escape TAG specials for FT.SEARCH query syntax only.
+   * HASH field values stay raw (IDs are validated without commas / braces);
+   * escaping hyphens into the stored value would break KNN matching.
+   */
   private escapeTag(value: string): string {
-    return value.replace(/([,.<>{}[\]"':;!@#$%^&*()\-+=~|/\\ ])/g, '\\$1');
+    return escapeRedisSearchTag(value);
+  }
+
+  private errorMessage(err: unknown): string {
+    return err instanceof Error ? err.message : String(err);
+  }
+
+  private isIndexAlreadyExistsError(err: unknown): boolean {
+    return /already exists/i.test(this.errorMessage(err));
+  }
+
+  private isMissingIndexError(err: unknown): boolean {
+    const msg = this.errorMessage(err);
+    return /unknown index|no such index/i.test(msg);
+  }
+
+  private isSearchModuleMissingError(err: unknown): boolean {
+    return /unknown command/i.test(this.errorMessage(err));
   }
 
   private vectorBlob(vector: number[]): Buffer {
@@ -91,56 +122,144 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
 
   async ensureIndex(): Promise<void> {
     if (this.indexCreated) return;
+    if (this.ensureIndexInFlight) return this.ensureIndexInFlight;
+
+    this.ensureIndexInFlight = this.createIndexIfNeeded().finally(() => {
+      this.ensureIndexInFlight = null;
+    });
+    return this.ensureIndexInFlight;
+  }
+
+  private async createIndexIfNeeded(): Promise<void> {
+    if (this.indexCreated) return;
+
     const redisClient = this.redis.getClient();
-    if (!redisClient) throw new Error('Redis client unavailable.');
+    if (!redisClient) {
+      this.logger.warn(
+        'Redis client unavailable — skipping vector index ensure (fail-open)',
+      );
+      return;
+    }
+
     const semCache = getAppConfigOrThrow(this.config, 'semanticCache');
     const index = this.indexName();
+
     try {
       await redisClient.call('FT.INFO', index);
       this.indexCreated = true;
       return;
-    } catch {
-      /* missing index — create */
+    } catch (infoErr: unknown) {
+      if (this.isSearchModuleMissingError(infoErr)) {
+        this.logger.warn(
+          'Redis Search module unavailable (FT.* commands missing — use Redis Stack)',
+          { message: this.errorMessage(infoErr) },
+        );
+        return;
+      }
+      /* missing index — create below */
     }
-    await redisClient.call(
-      'FT.CREATE',
-      index,
-      'ON',
-      'HASH',
-      'PREFIX',
-      '1',
-      `aigw:sem:${index}:`,
-      'SCHEMA',
-      'modelAlias',
-      'TAG',
-      'clientId',
-      'TAG',
-      'embeddingModel',
-      'TAG',
-      'reply',
-      'TEXT',
-      'vector',
-      'VECTOR',
-      'FLAT',
-      '6',
-      'TYPE',
-      'FLOAT32',
-      'DIM',
-      String(semCache.embeddingDim),
-      'DISTANCE_METRIC',
-      'COSINE',
-    );
-    this.indexCreated = true;
+
+    try {
+      await redisClient.call(
+        'FT.CREATE',
+        index,
+        'ON',
+        'HASH',
+        'PREFIX',
+        '1',
+        `aigw:sem:${index}:`,
+        'SCHEMA',
+        'modelAlias',
+        'TAG',
+        'CASESENSITIVE',
+        'clientId',
+        'TAG',
+        'CASESENSITIVE',
+        'embeddingModel',
+        'TAG',
+        'CASESENSITIVE',
+        'systemSignature',
+        'TAG',
+        'CASESENSITIVE',
+        'callParams',
+        'TAG',
+        'CASESENSITIVE',
+        'reply',
+        'TEXT',
+        'vector',
+        'VECTOR',
+        'FLAT',
+        '6',
+        'TYPE',
+        'FLOAT32',
+        'DIM',
+        String(semCache.embeddingDim),
+        'DISTANCE_METRIC',
+        'COSINE',
+      );
+      this.indexCreated = true;
+    } catch (createErr: unknown) {
+      if (this.isIndexAlreadyExistsError(createErr)) {
+        this.indexCreated = true;
+        return;
+      }
+      this.logger.warn('Failed to create Redis Search vector index (fail-open)', {
+        index,
+        message: this.errorMessage(createErr),
+      });
+    }
   }
 
-  async knn(input: VectorStoreKnnInput): Promise<VectorSearchHit[]> {
+  async probeIndex(): Promise<VectorStoreProbeResult> {
     const redisClient = this.redis.getClient();
-    if (!redisClient) throw new Error('Redis client unavailable.');
+    if (!redisClient) {
+      return {
+        available: false,
+        message: 'Redis client unavailable for vector index probe',
+      };
+    }
 
-    const index = this.indexName();
+    try {
+      await this.ensureIndex();
+      const index = this.indexName();
+      await redisClient.call('FT.INFO', index);
+      return {
+        available: true,
+        message: 'Redis Search index available',
+      };
+    } catch (err: unknown) {
+      if (this.isSearchModuleMissingError(err)) {
+        return {
+          available: false,
+          message:
+            'Redis Search module unavailable (FT.* commands missing — use Redis Stack)',
+        };
+      }
+      return {
+        available: false,
+        message: `Vector index unavailable: ${this.errorMessage(err)}`,
+      };
+    }
+  }
+
+  private buildKnnQuery(input: VectorStoreKnnInput): string {
+    const semCache = getAppConfigOrThrow(this.config, 'semanticCache');
     const modelAlias = this.escapeTag(input.modelAlias);
     const clientId = this.escapeTag(input.clientId);
-    const query = `(@modelAlias:{${modelAlias}} @clientId:{${clientId}})=>[KNN ${input.k} @vector $blob AS dist]`;
+    const embeddingModel = this.escapeTag(semCache.embeddingModel);
+    const systemSig = this.escapeTag(input.systemSignature);
+    const callParams = this.escapeTag(input.callParams);
+    return `(@modelAlias:{${modelAlias}} @clientId:{${clientId}} @embeddingModel:{${embeddingModel}} @systemSignature:{${systemSig}} @callParams:{${callParams}})=>[KNN ${input.k} @vector $blob AS dist]`;
+  }
+
+  private async searchKnn(
+    input: VectorStoreKnnInput,
+  ): Promise<VectorSearchHit[]> {
+    const redisClient = this.redis.getClient();
+    if (!redisClient) return [];
+
+    const index = this.indexName();
+    const query = this.buildKnnQuery(input);
 
     const raw = await redisClient.call(
       'FT.SEARCH',
@@ -152,6 +271,9 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       this.vectorBlob(input.vector),
       'SORTBY',
       'dist',
+      'LIMIT',
+      '0',
+      String(input.k),
       'RETURN',
       '2',
       'reply',
@@ -163,11 +285,43 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     return this.parseKnnHits(raw);
   }
 
-  /**
-   * Klucz deterministyczny: hash(clientId + modelAlias + embeddingModel + text).
-   * Identyczny prompt = atomowy overwrite (brak duplikatów w KNN top-K).
-   */
-  private entryKey(clientId: string, modelAlias: string, text: string): string {
+  async knn(input: VectorStoreKnnInput): Promise<VectorSearchHit[]> {
+    const redisClient = this.redis.getClient();
+    if (!redisClient) {
+      this.logger.warn(
+        'Redis client unavailable — semantic KNN skipped (fail-open)',
+      );
+      return [];
+    }
+
+    await this.ensureIndex();
+
+    try {
+      return await this.searchKnn(input);
+    } catch (err: unknown) {
+      if (this.isMissingIndexError(err)) {
+        this.indexCreated = false;
+        await this.ensureIndex();
+        try {
+          return await this.searchKnn(input);
+        } catch (retryErr: unknown) {
+          this.logger.warn('Semantic KNN failed after index recreate (fail-open)', {
+            message: this.errorMessage(retryErr),
+          });
+          return [];
+        }
+      }
+      throw err;
+    }
+  }
+
+  private entryKey(
+    clientId: string,
+    modelAlias: string,
+    text: string,
+    systemSignature: string,
+    callParams: string,
+  ): string {
     const semCache = getAppConfigOrThrow(this.config, 'semanticCache');
     const hash = createHash('sha256')
       .update(clientId)
@@ -175,6 +329,10 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       .update(modelAlias)
       .update('|')
       .update(semCache.embeddingModel)
+      .update('|')
+      .update(systemSignature)
+      .update('|')
+      .update(callParams)
       .update('|')
       .update(text)
       .digest('hex')
@@ -184,21 +342,59 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
 
   async upsert(input: VectorStoreUpsertInput): Promise<void> {
     const redisClient = this.redis.getClient();
-    if (!redisClient) throw new Error('Redis client unavailable.');
+    if (!redisClient) {
+      this.logger.warn(
+        'Redis client unavailable — semantic upsert skipped (fail-open)',
+      );
+      return;
+    }
 
-    const semCache = getAppConfigOrThrow(this.config, 'semanticCache');
-    const key = this.entryKey(input.clientId, input.modelAlias, input.text);
+    const ttl = unbrand(input.ttlSeconds);
+    if (!isSemanticCacheTtlSeconds(ttl)) {
+      this.logger.warn(
+        'Semantic upsert skipped — ttlSeconds must be >= 1 (no eternal vectors)',
+        { ttlSeconds: ttl },
+      );
+      return;
+    }
 
-    await redisClient.hset(key, {
-      modelAlias: input.modelAlias,
-      clientId: input.clientId,
-      embeddingModel: semCache.embeddingModel,
-      reply: JSON.stringify(input.reply),
-      vector: this.vectorBlob(input.vector),
-    });
+    await this.ensureIndex();
 
-    if (input.ttlSeconds > 0) {
-      await redisClient.expire(key, input.ttlSeconds);
+    const write = async (): Promise<void> => {
+      const semCache = getAppConfigOrThrow(this.config, 'semanticCache');
+      const key = this.entryKey(
+        input.clientId,
+        input.modelAlias,
+        input.text,
+        input.systemSignature,
+        input.callParams,
+      );
+
+      await redisClient
+        .multi()
+        .hset(key, {
+          modelAlias: input.modelAlias,
+          clientId: input.clientId,
+          embeddingModel: semCache.embeddingModel,
+          systemSignature: input.systemSignature,
+          callParams: input.callParams,
+          reply: JSON.stringify(input.reply),
+          vector: this.vectorBlob(input.vector),
+        })
+        .expire(key, ttl)
+        .exec();
+    };
+
+    try {
+      await write();
+    } catch (err: unknown) {
+      if (this.isMissingIndexError(err)) {
+        this.indexCreated = false;
+        await this.ensureIndex();
+        await write();
+        return;
+      }
+      throw err;
     }
   }
 }

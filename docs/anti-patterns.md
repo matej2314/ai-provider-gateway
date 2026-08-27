@@ -128,7 +128,7 @@ Details: `dictionary.md`, `api-documentation.md`.
 
 **Don’t:** expect that **`requestId`** in a cached response always matches the current request — the implementation returns the identifier stored with the first response.
 
-**Do:** consciously enable cache only where response repeatability is acceptable; monitor TTL and invalidation (changing the system prompt changes the cache key in the current implementation — exact cache only; semantic: see 20). Read `configuration.md` (env `CACHE_*`, `REDIS_*`); Redis reads are validated with a Zod schema (`CachedChatResponseSchema` — corrupt entry removed); streaming is a cache-free path (`pl/spec/SPEC-CHAT-STREAMING.md`).
+**Do:** consciously enable cache only where response repeatability is acceptable; monitor TTL and invalidation (changing the system prompt or call params changes the exact cache key **and** the semantic KNN partition — see 20). Read `configuration.md` (env `CACHE_*`, `REDIS_*`); Redis reads are validated with a Zod schema (`CachedChatResponseSchema` — corrupt entry removed); streaming is a cache-free path (`pl/spec/SPEC-CHAT-STREAMING.md`).
 
 ## 13) Confusing three API contracts (native vs official contract facades)
 
@@ -185,20 +185,26 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 
 **Do:** pass Redis parameters through the **`REDIS_ARGS`** environment variable on the Compose service. Example: `REDIS_ARGS: '--port 6380 --maxmemory 2gb --maxmemory-policy noeviction'`.
 
-## 18) Bad semantic hit — similarity threshold too low
+## 18) Bad semantic hit — low threshold or multi-turn expectation
 
-**Don’t:** set `SEMANTIC_CACHE_MIN_SIMILARITY` below 0.85 in production. A low threshold serves cached answers for semantically different prompts — wrong content for the current query.
+**Don’t:** set `SEMANTIC_CACHE_MIN_SIMILARITY` below 0.85 in production. A low threshold serves cached answers for semantically different prompts — wrong content for the current query. Startup **rejects** values outside 0–1; `gateway config:validate` **warns** when the value is &lt; 0.85.
 
-**Do:** keep the default 0.90 (cosine similarity) or raise it for high-precision domains. Partition by alias (`modelAlias` + `clientId`) to limit cross-context hits. Monitor semantic hit / below-threshold / error metrics and sample cache hits while tuning.
+**Don’t:** put a comma (or other RediSearch TAG specials other than hyphen) in `clients.<id>` or `models.<alias>` keys — comma is the default TAG separator and would break client isolation.
+
+**Don’t:** expect a semantic hit on multi-turn requests, or treat anaphoric last-user phrases (`continue`, `summarize that`, `translate`) as a safe cache key across different histories. Semantic cache runs only for **single-turn** bodies (exactly one `role: user`, no `assistant` / `tool`).
+
+**Do:** keep the default 0.90 (cosine similarity) or raise it for high-precision domains. Rely on the full **case-sensitive** KNN partition (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) and the single-turn gate. Monitor semantic hit / below-threshold / error / skip metrics and sample cache hits while tuning.
 
 ## 19) Nomic / mxbai prefix on Qwen embeddings
 
 **Don’t:** prefix embedding text with `search_query:` (or `search_document:`) when using `qwen3-embedding:0.6b`. That instruction belongs to `nomic-embed-text` / `mxbai`. Qwen 3 Embedding does not understand it — store and lookup drift, which looks like false misses.
 
-**Do:** embed the bare last-user `content` (or a Qwen-specific instruction) on **both** store and lookup. The two sides must use the same format. Changing the format or switching to `nomic-embed-text` requires a new index (e.g. `qwen3-1024`), not a hot-swap.
+**Do:** embed the bare last-user `content` of a **single-turn** request (or a Qwen-specific instruction) on **both** store and lookup. The two sides must use the same format. Changing the format or switching to `nomic-embed-text` (or another size tag of the same family, e.g. `qwen3-embedding:4b`) requires a new index named from the **full normalized** model + DIM (e.g. default → `qwen3-embedding-0-6b-1024`), not a hot-swap. Do **not** assume a short family slug such as `qwen3` isolates model variants.
 
-## 20) Assuming a system-prompt change invalidates semantic cache
+## 20) Assuming prompt/params change leaves semantic hits in the same partition
 
-**Don’t:** assume that editing `MASTER_SYSTEM_PROMPT.md` / per-alias prompts, or changing call params (`responseFormat`, `temperature`, `seed`, …), drops semantic KNN hits. Exact cache hashes `systemSignature` and effective params; the Redis Search index partitions only on `modelAlias` + `clientId`. Old semantic replies can be served until TTL (`SEMANTIC_CACHE_TTL`). There is no bulk semantic invalidation.
+**Don’t:** assume that editing `MASTER_SYSTEM_PROMPT.md` / per-alias prompts, or changing call params (`responseFormat`, `temperature`, `seed`, …), still serves the previous semantic KNN hits. Exact and semantic now share the same configuration identity: Redis Search filters on `modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`. A prompt or params change → **different partition** → miss.
 
-**Do:** treat this as a v1 known limitation. Document it next to exact-vs-semantic lookup. Shorten `SEMANTIC_CACHE_TTL` if prompt/params churn is high. Do not lower the similarity threshold to “make up” for missing partitions. Adding `systemSignature` / params as TAG is a separate decision (out of v1).
+**Don’t:** expect a bulk `FT.DROPINDEX` / wholesale purge when prompt or params change. Old vectors in the previous partition remain until TTL (`SEMANTIC_CACHE_TTL`).
+
+**Do:** treat partition separation like exact-cache key separation. Shorten `SEMANTIC_CACHE_TTL` if you need old partitions to disappear faster. Do not lower the similarity threshold to “make up” for partition misses.

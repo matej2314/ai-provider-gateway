@@ -14,7 +14,7 @@ import configuration from './config/configuration';
 import { validateEnvironment } from './config/configuration-validation.service';
 import { HealthModule } from './health/health.module';
 import { CacheModule } from './cache/cache.module';
-import { isRedisRequiredFromEnv } from './cache/should-include-redis-stack';
+import { isRedisRequiredFromEnv, isSemanticCacheEnabledFromEnv } from './cache/should-include-redis-stack';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { HttpMetricsMiddleware } from './common/middleware/http-metrics.middleware';
@@ -39,6 +39,7 @@ import { ObservabilityModule } from './observability/observability.module';
     ProviderRegistryModule,
     CacheModule.register({
       includeRedisStack: isRedisRequiredFromEnv(),
+      semanticEnabled: isSemanticCacheEnabledFromEnv(),
     }),
     ChatModule,
     ModelsModule,
