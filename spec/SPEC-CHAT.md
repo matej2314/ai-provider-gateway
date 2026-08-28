@@ -1,5 +1,5 @@
 ---
-wersja: 12
+wersja: 15
 data_utworzenia: 2026-08-26
 data_modyfikacji: 2026-08-28
 ---
@@ -78,20 +78,28 @@ Zmiana względem: wcześniejsze F-7 („max 3000 znaków na wiadomość” bez r
 
 F-8. *(Opcjonalnie — cache exact-match)* Gateway może zwracać zapisaną odpowiedź dla `POST /api/v1/chat` z polami `cached: true`, `cachedAt` oraz `cacheSource: "exact"`, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Odczyt walidowany `CachedChatResponseSchema` — uszkodzony wpis usuwany. Pole `cacheSource` należy do **tej** odpowiedzi lookupu i **nie** jest zapisywane w Redis (`CachedChatResponse` / Zod bez tego pola). Przy missie (odpowiedź z providera) pola `cached`, `cachedAt` i `cacheSource` są nieobecne. Streaming v1 nie podlega temu cache (`SPEC-CHAT-STREAMING.md`).
 
-Hit native ma ten sam kształt co live: `finishReason`, opcjonalnie `thinkingContent`, `effectiveModelAlias`, `usageDetails`, `systemFingerprint`. `toolCalls` nie są zapisywane. `id` i `requestId` zostają z pierwszego zapisu.
+Hit native ma ten sam kształt co live: `finishReason`, opcjonalnie `thinkingContent`, `effectiveModelAlias`, `usageDetails`, `systemFingerprint`. `toolCalls` nie są zapisywane. `id` zostaje z pierwszego zapisu (tożsamość odpowiedzi w Redis). `requestId` **nie** jest w payloadzie Redis — hit stempluje bieżący `requestId` żądania (`ChatService.executeChat`, `toChatResponseDtoFromCache`). `conversationId` nie jest w magazynie — echo lub `conv_*` z bieżącego żądania (F-9).
 
-Zmiana względem: F-8 subset payloadu (bez finishReason / thinkingContent / effectiveModelAlias / usageDetails / systemFingerprint). Powód: hit native ma ten sam kształt co live, bez toolCalls (nigdy nie cache’owane).
+Zmiana względem: F-8 w wersji 13 („`id` i `requestId` zostają z pierwszego zapisu”). Powód: `requestId` z pierwszego zapisu psuł korelację z `x-request-id`; `id` zostaje tożsamością odpowiedzi.
 
-Klucz cache obejmuje m.in. `modelAlias`, `clientId`, `messages`, sygnaturę promptów systemowych oraz zserializowane parametry wywołania. Cache **pomija** żądania z toolingiem (F-2b) oraz alias, którego `providerInstance` ma `enabled !== true` (`isCachedChatAllowedForModelAlias`). Backendy i env — `SPEC-KONFIGURACJA.md` F-1b.
+Klucz cache obejmuje m.in. `modelAlias`, `clientId`, `messages`, sygnaturę promptów systemowych oraz zserializowane parametry wywołania. Pole **`metadata`** z body **nie** wchodzi do klucza exact ani partycji semantic — świadoma decyzja: metadata służy propagacji do adaptera (tracking/analityka) i **nie** wpływa na tożsamość odpowiedzi w gateway (`docs/pl/konfiguracja.md`). Cache **pomija** żądania z toolingiem (F-2b) oraz alias, którego `providerInstance` ma `enabled !== true` (`isCachedChatAllowedForModelAlias`). Brak flagi `cache` per alias w YAML — włączenie globalne (`CACHE_ENABLED`, `SEMANTIC_CACHE_ENABLED`) plus `providers[].enabled`; per-model toggle nie jest planowany (F-8c). Backendy i env — `SPEC-KONFIGURACJA.md` F-1b.
+
+Zmiana względem: F-8 w wersji 14 (klucz bez jawnego wyłączenia `metadata`; brak normy o braku per-model toggle). Powód: świadome rozstrzygnięcia projektowe — metadata to tracking, nie output; cache sterowany globalnie i przez `enabled` providera.
 
 Exact i semantic dzielą tożsamość **konfiguracji** żądania (`systemSignature`, efektywne params). Semantyka podobieństwa dotyczy wyłącznie tekstu last-user przy żądaniu jednoturowym — F-8b.
 
 Zmiana względem: wcześniejsze F-8 (wersja 5), które głosiło known limitation v1: „sygnatura promptu i params są w kluczu **tylko exact-match**; cache semantyczny partycjonuje wyłącznie `modelAlias` + `clientId`; zmiana promptu / `responseFormat` nie unieważnia KNN (granicą jest TTL)”. Powód: fałszywe trafienia przy zmianie promptu/params; kontrakt v1.1 = ta sama partycja konfiguracji co exact + skip wielotury.
 
-F-8b. *(Opcjonalnie — cache semantyczny)* Po missie exact, gdy `SEMANTIC_CACHE_ENABLED=true`, gateway może zwrócić hit HASH albo KNN z `cached: true`, `cachedAt` i `cacheSource: "semantic"`. Kolejność: polityka cache aliasu → exact → semantic → provider. Env: `SPEC-KONFIGURACJA.md` F-1d, `docs/pl/konfiguracja.md`.
+F-8b. *(Opcjonalnie — cache semantyczny)* Po missie exact, gdy `SEMANTIC_CACHE_ENABLED=true`, gateway może zwrócić hit HASH albo KNN z `cached: true`, `cachedAt` i `cacheSource: "semantic"`. Kolejność (kod): cooldown → polityka cache aliasu → exact KV → semantic HASH (trim last-user) → embed+KNN → provider → dual-write sync. Env: `SPEC-KONFIGURACJA.md` F-1d, `docs/pl/konfiguracja.md`. Semantic-only (`CACHE_ENABLED=false` + `SEMANTIC_CACHE_ENABLED=true`) jest wspierany. Brak promocji semantic→exact. Domyślny próg 0.85. TTL wektorów = `CACHE_TTL`.
 
 Lookup semantic: `VectorStore.getByTextIdentity` (HASH last-user + partycja, bez embed) → przy missie embed + KNN. Trafienie HASH: `cacheSource: "semantic"`, metryka `hash-hit`.
-Zmiana względem: F-8b tylko KNN po exact miss. Powód: koszt embedu przy identycznym tekście (P4).
+Zapis (`shouldStoreChatResponse`): wyłącznie `finishReason === 'stop'`, niepusty `output.text`, brak `toolCalls`. Nie zapisujemy `length`, `content_filter`, `tool_calls` ani zwrotki z narzędziami. Odczyt (`isUnservableCachedReply`): `finishReason !== 'stop'` albo pusty tekst → DEL.
+
+Zmiana względem: F-8b w wersji 13 (bramka zapisu/odczytu tylko `length` + pusty tekst + `toolCalls`). Powód: cache ma trzymać wyłącznie dokończoną odpowiedź tekstową, bez safety/refusal i bez wezwań do tool-call.
+
+Singleflight in-process na `buildIdentityKey` (także gdy exact noop) dla równoległych identycznych JSON (v1 — `createInProcessSingleflight`). v2 planowane: distributed lock w Redis na identity key (ograniczenie thundering herd między replikami; F-8c).
+Dual-write synchroniczny przed 201 — **wyłącznie** gdy brak fallbacku (`!didFallback`; F-10).
+Zmiana względem: F-8b tylko KNN po exact miss; subset payloadu. Powód: koszt embedu przy identycznym tekście; pełny kontrakt native.
 
 Zmiana względem: F-8 / F-8b w wersji 8 (hit exact i semantic miały ten sam kształt JSON bez rozróżnienia warstwy; F-8b: „ten sam kształt odpowiedzi co exact”). Powód: klient nie mógł odróżnić exact od semantic; `cacheSource` jest metadaną lookupu, nie payloadu w Redis.
 
@@ -103,15 +111,26 @@ Zmiana względem: F-8b w wersji 9 (nazwa = tylko znormalizowany model + DIM, np.
 
 **Jednotura:** lookup i store semantyczny **tylko** gdy `messages[]` zawiera dokładnie jedną wiadomość `role: user` i żadnych ról `assistant` / `tool`. Wielotura / frazy anaforyczne przy historii → skip (jak tooling).
 
-Na jednym żądaniu JSON **co najwyżej jeden** `embed`: lookup przekazuje do zapisu wektor oraz czy `embed` już był wołany. Jest wektor → tylko upsert. `embed` już był i brak wektora → zapis semantyczny **pomijany** (bez retry / bez drugiego timeoutu). `embed` nie był wołany (np. otwarty obwód) → zapis **może** zrobić pierwszy `embed`, jeśli obwód wpuszcza. Skip jak exact (tooling, brak klucza, `clientId === 'unknown'`, alias poza polityką cache) plus brak ostatniej wiadomości `user` z niepustym `content` **oraz** brak jednotury. Polityka `isCachedChatAllowedForModelAlias` jest sprawdzana **przed** I/O exact i semantic (odczyt i zapis).
+Na jednym żądaniu JSON **co najwyżej jeden** `embed`: lookup przekazuje do zapisu wektor oraz czy `embed` już był wołany. Jest wektor → tylko upsert. `embed` już był i brak wektora → zapis semantyczny **pomijany** (bez retry / bez drugiego timeoutu). `embed` nie był wołany (np. otwarty obwód) → zapis **może** zrobić pierwszy `embed`, jeśli obwód wpuszcza. Skip jak exact (tooling, brak klucza, `clientId === 'unknown'`, alias poza polityką cache, **sukces na fallbacku** — `didFallback`) plus brak ostatniej wiadomości `user` z niepustym `content` **oraz** brak jednotury. Polityka `isCachedChatAllowedForModelAlias` jest sprawdzana **przed** I/O exact i semantic (odczyt i zapis).
+
+Zmiana względem: F-8b w wersji 14 (brak jawnego skipu zapisu przy `didFallback`). Powód: odpowiedź fallbacku nie może być serwowana jako cache primary aliasu — F-10.
 
 Zmiana względem: F-8b w wersji 7 (kolejność exact→semantic bez jawnej polityki przed I/O; milczenie o CASESENSITIVE / zakazie przecinka w ID). Powód: S3/S4/S16/S17 — ta sama polityka przed I/O i na zapisie; izolacja TAG case-sensitive bez wycieku na przecinku.
+
+F-8c. *(Polityka cache — decyzje v1)* Uzupełnienie F-8 / F-8b:
+
+- **`metadata` wyłączone z tożsamości** — exact key i partycja semantic; szczegóły operacyjne: `docs/pl/konfiguracja.md`.
+- **Brak flagi `cache` per alias** — cache dozwolony gdy `providers[].enabled === true` dla instancji aliasu + globalne env; per-model toggle **nie** jest planowany.
+- **Invalidation odroczone** — `ResponseCacheService.invalidateCache()` istnieje w kodzie, lecz **nie** jest podpięte do ścieżek produkcyjnych (brak API operacyjnego). Wpisy wygasają przez TTL lub stają się niedostępne po zmianie `systemSignature` / params; semantic bez dedykowanego API invalidation.
+- **Singleflight v1 in-process**; **v2 planowane** — distributed lock w Redis na `buildIdentityKey` (między replikami).
 
 F-9. *(Conversation tracking i metryki LLM)* `conversationId` opcjonalne w żądaniu w formacie `conv_<uuid>`. Do Sentry trafia **tylko** ID z body klienta. Gateway **zawsze** zwraca `conversationId` w odpowiedzi (echo lub `conv_<uuid>`). Klient od tury 2+ z ID musi wysyłać pełną historię w `messages[]`.
 
 Adapter metryk LLM (`AiMetricsModule`): `AI_METRICS_BACKEND=noop` | `sentry`; brak override — w **production** Sentry gdy `SENTRY_DSN` ustawiony, w przeciwnym razie noop. `AI_METRICS_BACKEND=sentry` bez DSN → błąd startu. Spany `gen_ai.*`; `gen_ai.conversation.id` tylko przy ID z body. Treści wiadomości na spanie — `SENTRY_INCLUDE_PROMPTS=true`. Inicjalizacja SDK: `src/instrument.ts`. Szczegóły: `docs/pl/conversation_tracking.md` / `docs/conversation-tracking.md`. Error reporting (wyjątki procesu) — `SPEC-PLATFORMA-I-KONTRAKTY.md` F-22; scrape Prometheus — `SPEC-METRYKI.md`.
 
-F-10. *(Odporność)* Gateway stosuje `policy.retry` i `policy.timeoutMs` z YAML przez `ResilientExecutor`. Po wyczerpaniu prób na aliasie żądanym, gdy skonfigurowano `models[].fallback`, próbuje alias zapasowy. Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne `effectiveModelAlias`; pole `model` = żądany `modelAlias`.
+F-10. *(Odporność)* Gateway stosuje `policy.retry` i `policy.timeoutMs` z YAML przez `ResilientExecutor`. Po wyczerpaniu prób na aliasie żądanym, gdy skonfigurowano `models[].fallback`, próbuje alias zapasowy. Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne `effectiveModelAlias`; pole `model` = żądany `modelAlias`. Odpowiedź z sukcesu na fallbacku (`didFallback: true`) **nie** jest zapisywana do exact ani semantic cache — kolejne identyczne żądanie ponownie próbuje aliasu żądanego (`ChatService.completeChatAndStore`). Ten sam kontrakt obowiązuje przy przyszłym cache streamingu (`SPEC-CHAT-STREAMING.md`).
+
+Zmiana względem: F-10 w wersji 14 (brak normy o pominięciu cache przy fallbacku). Powód: uniknięcie serwowania odpowiedzi fallbacku z cache pod primary aliasem.
 
 F-11. *(Cooldown po 429 upstream)* Po błędzie providera 429 gateway może ustawić cooldown per klucz klienta + provider (`ChatErrorHandlerService` → `setCooldown`). Kolejne żądania — **JSON i streaming** — są odrzucane z `RATE_LIMITED` przez `checkCooldown` w wspólnym `prepareRequestForExecution`. Szczegóły env: `docs/pl/konfiguracja.md` (`RATE_LIMIT_COOLDOWN_AFTER_429`). Gdy Redis nie jest `ready` — fail-open (jak RPS — `SPEC-PLATFORMA-I-KONTRAKTY.md` F-17). Limit RPS/burst na brzegu (przed `ChatService`) — tamże F-16.
 
@@ -139,6 +158,10 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [x] Cache semantyczny: inne efektywne params albo inna `systemSignature` → brak semantic hit (ta sama ostatnia fraza user nie wystarcza).
 - [x] Cache semantyczny: wieloturowa `messages[]` (lub więcej niż jeden `user`) → brak lookupu/store semantic (brak wywołania `embed`).
 - [x] Cache semantyczny: identyczny przycięty last-user w tej samej partycji → HASH hit bez `embed` (`getByTextIdentity`, metryka `hash-hit`).
+- [x] Cache: zapis tylko `finishReason=stop` + niepusty tekst bez `toolCalls`; odczyt innego `finishReason` lub pustego tekstu → DEL. `requestId` nie w Redis; hit stempluje bieżący `requestId`; `id` z payloadu.
+- [x] Singleflight in-process na `buildIdentityKey` dla równoległych identycznych JSON (także gdy exact noop).
+- [x] Dual-write synchroniczny (`await` exact SET i semantic upsert) przed HTTP 201; brak promocji semantic→exact; **brak zapisu przy `didFallback`**.
+- [x] `metadata` nie wchodzi do klucza exact ani partycji semantic (F-8, F-8c).
 - [x] Cache semantyczny: indeks zaczyna się od `ai-provider-gateway:sem:idx:` i zawiera pełny `embeddingModel` + DIM + hash SCHEMA — zmiana `EMBEDDING_MODEL` / DIM / SCHEMA izoluje przestrzeń KNN (brak cross-hit między wariantami; brak cichego reuse przy zmianie pól indeksu).
 
 ## Poza zakresem (względem rdzenia MVP)

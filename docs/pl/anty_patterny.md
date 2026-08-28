@@ -126,9 +126,9 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 **Nie rób**: zakładania, że każda odpowiedź z **`POST /api/v1/chat`** jest “na żywo” z providera — przy włączonym cache możliwy jest zwrot z **`cached: true`**.
 
-**Nie rób**: oczekiwania, że **`requestId`** w odpowiedzi z cache zawsze odpowiada bieżącemu żądaniu — w implementacji zwracany jest identyfikator zapisany wraz z pierwszą odpowiedzią.
+**Nie rób**: oczekiwania, że **`id`** (`gw_*`) na hicie będzie nowy — to tożsamość zapisanej odpowiedzi. **`requestId`** na hicie **musi** zgadzać się z bieżącym żądaniem (`x-request-id`); nie jest trzymany w Redis.
 
-**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu lub params zmienia klucz exact **oraz** partycję KNN semantic — pkt 20). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony wpis usuwany); streaming jest ścieżką bez cache (`spec/SPEC-CHAT-STREAMING.md`).
+**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu lub params zmienia klucz exact **oraz** partycję KNN semantic — pkt 20). Zapis wyłącznie dokończonej odpowiedzi tekstowej (`finishReason=stop`, niepusty tekst, bez `toolCalls` / `content_filter` / `length`) — `shouldStoreChatResponse` / `isUnservableCachedReply`. Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony lub nieserwowalny wpis usuwany); streaming jest ścieżką bez cache (`spec/SPEC-CHAT-STREAMING.md`).
 
 ## 13) Mylenie trzech kontraktów API (natywny vs fasady oficjalnych kontraktów)
 
@@ -177,7 +177,7 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 
 **Nie rób:** dodawaj zapytan Redis Search / KNN do istniejacych adapterow `CacheBackend` / `noop` / `redis` w `src/cache/adapters/`. Interfejs KV `CacheBackend` jest zaprojektowany dla dokladnych lookupu klucz-wartosc i nie ma koncepcji wyszukiwania podobienstwa.
 
-**Rób:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (exact -> semantic HASH przyciętego last-user -> embed + KNN -> provider) jest orkiestrowana w `ChatCacheGuardService` / `SemanticCacheService`, nie wewnatrz istniejacych adapterow. Tani `VectorStore.getByTextIdentity` działa **przed** embed. Przy zapisie reuse wektora z lookupu; **nie** wołaj ponownie `embed`, gdy lookup już go próbował (sukces bez wektora albo błąd).
+**Rób:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (cooldown → polityka aliasu → exact KV → semantic HASH przyciętego last-user → embed + KNN → provider → dual-write sync) jest orkiestrowana w `ChatCacheGuardService` / `SemanticCacheService`, nie wewnatrz istniejacych adapterow. Tani `VectorStore.getByTextIdentity` działa **przed** embed. **Nie** promuj trafienia HASH/KNN do exact KV — magazyny zostają równoległe. Przy zapisie reuse wektora z lookupu; **nie** wołaj ponownie `embed`, gdy lookup już go próbował (sukces bez wektora albo błąd).
 
 ## 17) Nadpisywanie command: w Redis Stack Compose
 
@@ -205,8 +205,8 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 
 **Nie rób:** zakładać, że edycja `MASTER_SYSTEM_PROMPT.md` / promptów per alias albo zmiana parametrów wywołania (`responseFormat`, `temperature`, `seed`, …) nadal serwuje poprzednie trafienia KNN. Exact i semantic dzielą tę samą tożsamość konfiguracji: Redis Search filtruje po `modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`. Zmiana promptu lub params → **inna partycja** → miss.
 
-**Nie rób:** oczekiwać hurtowego `FT.DROPINDEX` / masowego czyszczenia przy zmianie promptu lub params. Stare wektory w poprzedniej partycji zostają do TTL (`SEMANTIC_CACHE_TTL`).
+**Nie rób:** oczekiwać hurtowego `FT.DROPINDEX` / masowego czyszczenia przy zmianie promptu lub params. Stare wektory w poprzedniej partycji zostają do TTL (`CACHE_TTL`). `SEMANTIC_CACHE_TTL` jest przestarzałe i ignorowane.
 
 **Nie rób:** traktować udanego `FT.INFO` na legacy nazwie indeksu (np. `qwen3-embedding-0-6b-1024` bez prefiksu `ai-provider-gateway:sem:idx:`, albo HASH-y pod `aigw:sem:…`) jako bieżącego indeksu gatewaya. Po zmianie SCHEMA / prefiksu projektu to **orphany** — zostaw je do TTL albo dropuj tylko indeksy zaczynające się od `ai-provider-gateway:` (nigdy `portfolio:*`).
 
-**Rób:** traktuj rozdział partycji jak rozdział klucza exact. Skróć `SEMANTIC_CACHE_TTL`, jeśli stare partycje mają znikać szybciej. Nie obniżaj progu podobieństwa, żeby „nadrobić” missy partycji.
+**Rób:** traktuj rozdział partycji jak rozdział klucza exact. Skróć `CACHE_TTL`, jeśli stare partycje mają znikać szybciej (TTL semantic zawsze = `CACHE_TTL`). Nie obniżaj progu podobieństwa, żeby „nadrobić” missy partycji.

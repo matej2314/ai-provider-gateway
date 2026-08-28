@@ -107,7 +107,6 @@ describe('ResponseCacheService', () => {
           inputTokens: TEST_INPUT_TOKENS,
           outputTokens: TEST_OUTPUT_TOKENS_SMALL,
         },
-        requestId: TEST_CACHED_REQUEST_ID,
         cached: true,
         cachedAt: new Date().toISOString(),
         finishReason: 'stop',
@@ -129,13 +128,37 @@ describe('ResponseCacheService', () => {
       );
     });
 
+    it('should delete unservable cached reply with finishReason content_filter', async () => {
+      const cached: CachedChatResponse = {
+        id: TEST_CACHED_RESPONSE_ID,
+        provider: TEST_PROVIDER_INSTANCE_BRANDED,
+        model: TEST_MODEL_ALIAS_BRANDED,
+        output: { type: 'text', text: 'I cannot help with that' },
+        cached: true,
+        cachedAt: new Date().toISOString(),
+        finishReason: 'content_filter',
+      };
+
+      (mockCacheBackend.get as jest.Mock).mockResolvedValue(
+        JSON.stringify(cached),
+      );
+      (mockCacheBackend.delete as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.getCachedResponse(request, TEST_CLIENT_ID);
+
+      expect(result).toBeNull();
+      expect(mockCacheBackend.delete).toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Unservable cached reply'),
+      );
+    });
+
     it('should delete unservable cached reply with finishReason length', async () => {
       const cached: CachedChatResponse = {
         id: TEST_CACHED_RESPONSE_ID,
         provider: TEST_PROVIDER_INSTANCE_BRANDED,
         model: TEST_MODEL_ALIAS_BRANDED,
         output: { type: 'text', text: 'truncated' },
-        requestId: TEST_CACHED_REQUEST_ID,
         cached: true,
         cachedAt: new Date().toISOString(),
         finishReason: 'length',
@@ -151,7 +174,7 @@ describe('ResponseCacheService', () => {
       expect(result).toBeNull();
       expect(mockCacheBackend.delete).toHaveBeenCalled();
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Unservable cached finishReason'),
+        expect.stringContaining('Unservable cached reply'),
       );
       expect(mockAppMetrics.recordCacheAccess).toHaveBeenCalledWith(
         TEST_MODEL_ALIAS_BRANDED,
@@ -380,6 +403,7 @@ describe('ResponseCacheService', () => {
       expect(parsed.cached).toBe(true);
       expect(parsed.cachedAt).toBeDefined();
       expect(parsed.cacheSource).toBeUndefined();
+      expect(parsed.requestId).toBeUndefined();
       expect(new Date(parsed.cachedAt).getTime()).toBeLessThanOrEqual(
         Date.now(),
       );
@@ -414,7 +438,6 @@ describe('ResponseCacheService', () => {
         model: fullResponse.model,
         output: fullResponse.output,
         usage: fullResponse.usage,
-        requestId: fullResponse.requestId,
         finishReason: 'stop',
         effectiveModelAlias: TEST_FALLBACK_MODEL_ALIAS,
         cached: true,
@@ -452,7 +475,7 @@ describe('ResponseCacheService', () => {
       const dto = toChatResponseDtoFromCache(
         parsed!,
         TEST_CACHED_CONVERSATION_ID,
-        { cacheSource: 'exact' },
+        { cacheSource: 'exact', requestId: TEST_CACHED_REQUEST_ID },
       );
       expect(dto.thinkingContent).toBe('step');
       expect(dto.cached).toBe(true);

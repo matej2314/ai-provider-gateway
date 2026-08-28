@@ -3,7 +3,6 @@ import type { CachedChatResponse } from '../types/cached-chat-response.type';
 import {
   asModelAlias,
   asProviderInstanceId,
-  asRequestId,
   asResponseId,
   asInputTokens,
   asOutputTokens,
@@ -39,7 +38,6 @@ export const CachedChatResponseSchema = z.object({
       outputTokens: z.number().int().min(0).transform(asOutputTokens),
     })
     .optional(),
-  requestId: z.string().transform(asRequestId),
   cached: z.literal(true),
   cachedAt: z.string(),
   finishReason: FinishReasonSchema,

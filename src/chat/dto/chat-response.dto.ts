@@ -192,10 +192,11 @@ export class ChatResponseDto {
   warnings?: ChatWarningDto[];
 }
 
-/** Cached response enriched with conversation context for API mapping. */
+/** Cached response enriched with per-request correlation for API mapping. */
 export type CachedChatResponseWithConversation = CachedChatResponse & {
   conversationId: ConversationId;
   cacheSource: ChatCacheSource;
+  requestId: RequestId;
 };
 
 export function toChatResponseDto(data: ChatResponseData): ChatResponseDto {
@@ -227,7 +228,7 @@ export function toChatResponseDto(data: ChatResponseData): ChatResponseDto {
 export function toChatResponseDtoFromCache(
   data: CachedChatResponse,
   conversationId: ConversationId,
-  options: { cacheSource: ChatCacheSource },
+  options: { cacheSource: ChatCacheSource; requestId: RequestId },
 ): ChatResponseDto {
   const usage = data.usage
     ? {
@@ -243,7 +244,7 @@ export function toChatResponseDtoFromCache(
     model: data.model,
     output: data.output,
     ...(usage && { usage }),
-    requestId: data.requestId,
+    requestId: options.requestId,
     conversationId,
     cached: true,
     cachedAt: data.cachedAt,

@@ -1,5 +1,5 @@
 ---
-wersja: 9
+wersja: 10
 data_utworzenia: 2026-08-26
 data_modyfikacji: 2026-08-28
 ---
@@ -42,14 +42,16 @@ Zmiana względem: wcześniejsze F-1a („niepusty env pod `apiKeyRef` dla każde
 
 Gdy ustawione — opcjonalne legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` mają walidację formatu w `env.validation.ts`.
 
-F-1b. *(Opcjonalnie — cache exact-match)* Zmienne `CACHE_ENABLED`, `CACHE_BACKEND`, `CACHE_TTL` (domyślnie 3600), `CACHE_KEY_PREFIX` (domyślnie `aigw:`) oraz `REDIS_*` włączają zapis/odczyt odpowiedzi czatu JSON (`SPEC-CHAT.md` F-8, `docs/pl/konfiguracja.md`).
+F-1b. *(Opcjonalnie — cache exact-match)* Zmienne `CACHE_ENABLED`, `CACHE_BACKEND`, `CACHE_TTL` (domyślnie 3600), `CACHE_KEY_PREFIX` (domyślnie `aigw:`) oraz `REDIS_*` włączają zapis/odczyt odpowiedzi czatu JSON (`SPEC-CHAT.md` F-8, `docs/pl/konfiguracja.md`). Tożsamość klucza, polityka włączenia, fallback, singleflight i invalidation — `SPEC-CHAT.md` F-8c.
 
-`CACHE_BACKEND`: wyłącznie `noop` | `redis`. Inna wartość → fail startu (`validate()`). Przy `CACHE_ENABLED=false` backend jest `noop`.
+`CACHE_BACKEND`: wyłącznie `noop` | `redis`. Inna wartość → fail startu (`validate()`). Przy `CACHE_ENABLED=false` backend jest `noop`. **Brak flagi `cache` per alias** w YAML — włączenie przez globalne env oraz `providers[].enabled` powiązanej instancji (`isCachedChatAllowedForModelAlias`).
+
+Zmiana względem: F-1b w wersji 9 (brak odesłania do F-8c i braku normy o braku per-model toggle). Powód: świadome rozstrzygnięcia projektowe cache zsynchronizowane ze `SPEC-CHAT.md`.
 Zmiana względem: F-1b dopuszczające `memory` | `other` i cichy fallback rejestru. Powód: martwy kontrakt bez adapterów.
 
 F-1c. *(Opcjonalnie — smart rate limit)* `RATE_LIMIT_SMART_ENABLED` (domyślnie `false`) włącza egzekwowanie RPS/burst/streamów — `SPEC-PLATFORMA-I-KONTRAKTY.md` F-16. Domyślne limity env: `RATE_LIMIT_RPS_PER_KEY=10`, `RATE_LIMIT_BURST_PER_KEY=20`, `RATE_LIMIT_STREAMS_CONCURRENT=3`, `RATE_LIMIT_COOLDOWN_AFTER_429=60`. Redis jest wymagany także wtedy, gdy smart rate limit jest włączony przy wyłączonym cache (`isRedisRequiredFromEnv`).
 
-F-1d. *(Opcjonalnie — cache semantyczny)* `SEMANTIC_CACHE_ENABLED` (domyślnie `false`) oraz `EMBEDDING_*` / `SEMANTIC_CACHE_*` — tabela w `docs/pl/konfiguracja.md`. Zachowanie lookup i zapisu (co najwyżej jeden `embed` na żądanie JSON, `embedAttempted`) — `SPEC-CHAT.md` F-8b. Redis jest wymagany także gdy ta flaga jest `true` (`isRedisRequiredFromEnv` / `isSemanticCacheEnabledFromEnv` — **jedno** źródło prawdy z `CacheModule.register({ semanticEnabled })`).
+F-1d. *(Opcjonalnie — cache semantyczny)* `SEMANTIC_CACHE_ENABLED` (domyślnie `false`) oraz `EMBEDDING_*` / `SEMANTIC_CACHE_*` — tabela w `docs/pl/konfiguracja.md`. Zachowanie lookup i zapisu (co najwyżej jeden `embed` na żądanie JSON, `embedAttempted`; brak zapisu przy `didFallback`) — `SPEC-CHAT.md` F-8b, F-8c, F-10. Redis jest wymagany także gdy ta flaga jest `true` (`isRedisRequiredFromEnv` / `isSemanticCacheEnabledFromEnv` — **jedno** źródło prawdy z `CacheModule.register({ semanticEnabled })`).
 
 Nazwa indeksu Redis Search i filtr KNN `@embeddingModel` używają **pełnego** `EMBEDDING_MODEL` (znormalizowany) + `EMBEDDING_DIM` — szczegóły i przykład: `SPEC-CHAT.md` F-8b, `docs/pl/konfiguracja.md`. Zmiana `EMBEDDING_MODEL` przy stałym DIM izoluje przestrzeń KNN (osobny indeks).
 
@@ -125,4 +127,6 @@ NFR-3. Dostępny jest skrypt npm `config:validate` (wpis w `package.json`), któ
 - Pełny katalog aliasów wszystkich modeli API providerów oraz walidacja kompletności aliasów „zwyczajowych”.
 - Pełny kontrakt CLI (wizard, CRUD provider/model/client) — `SPEC-CLI.md`.
 - Wizard pytań semantic w CLI (Faza 5.C planu semantic-cache) — nadal poza zakresem.
+- Aktywne API invalidation cache (exact / semantic) — odroczone; `invalidateCache()` w kodzie bez podpięcia produkcyjnego (`SPEC-CHAT.md` F-8c).
+- Distributed singleflight (Redis lock między replikami) — v2 planowane (`SPEC-CHAT.md` F-8c).
 - Zmiana względem: wcześniejszy zapis „Infra Compose embedding / provisioning żywego Redis Search w Compose … poza zakresem”. **Provisioning base stack** (Redis Stack + ollama-embedding, `infra:up` / `docker:up`, pin obrazu, runbook `MODULE LIST`) jest **domknięty** w `docs/deployment.md` / `docs/pl/deployment.md` i `deployment/docker/`. **Runtime probe** Search/indeksu (`checks.vectorStore` w `/ready`) należy do `SPEC-HEALTH.md` F-1b — poza zakresem tej normy konfiguracji YAML/env pozostaje tylko wizard CLI, nie sonda aplikacji ani Compose.

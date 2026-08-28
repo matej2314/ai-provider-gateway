@@ -82,7 +82,6 @@ describe('ChatCacheGuardService', () => {
     provider: asProviderInstanceId('anthropic'),
     model: TEST_MODEL_ALIAS_BRANDED,
     output: { type: 'text' as const, text: 'Cached answer' },
-    requestId: asRequestId('req-1'),
     conversationId: TEST_CONVERSATION_ID,
     cached: true as const,
     cachedAt: '2026-01-01T00:00:00.000Z',
@@ -95,6 +94,7 @@ describe('ChatCacheGuardService', () => {
     output: { type: 'text', text: 'Fresh answer' },
     requestId: asRequestId('req-2'),
     conversationId: asConversationId('conv_2'),
+    finishReason: 'stop',
   };
 
   const providerOptions: ProviderCallOptions = { temperature: 0.5 };
@@ -604,6 +604,20 @@ describe('ChatCacheGuardService', () => {
         await service.setCachedIfAllowed(
           baseRequest,
           { ...chatResponse, finishReason: 'length' },
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          { vector: FIXED_VECTOR, embedAttempted: true },
+        );
+
+        expect(mockCache.setCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
+      });
+
+      it('should skip cache I/O when finishReason is content_filter', async () => {
+        await service.setCachedIfAllowed(
+          baseRequest,
+          { ...chatResponse, finishReason: 'content_filter' },
           providerOptions,
           TEST_CLIENT_ID,
           TEST_GATEWAY_KEY_BRANDED,

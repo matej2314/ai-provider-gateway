@@ -157,6 +157,7 @@ export class ChatService {
           ...lookup.cached,
           conversationId: responseConversationId,
           cacheSource: lookup.cacheSource,
+          requestId,
         };
       }
     }
@@ -268,14 +269,17 @@ export class ChatService {
       const latency = Date.now() - startedAt;
 
       // Dual-write exact SET + semantic upsert must finish before HTTP 201 (P17x.D).
-      await this.cacheGuardService.setCachedIfAllowed(
-        requestBody,
-        chatResult,
-        options,
-        clientId,
-        gatewayKey,
-        embedState,
-      );
+      // Fallback responses are not cached — next request should retry the primary alias.
+      if (!didFallback) {
+        await this.cacheGuardService.setCachedIfAllowed(
+          requestBody,
+          chatResult,
+          options,
+          clientId,
+          gatewayKey,
+          embedState,
+        );
+      }
 
       log.info('Chat completed successfully', {
         provider: asProviderInstanceId(resolved.providerName),

@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-26
+data_modyfikacji: 2026-08-28
 ---
 
 ## Specyfikacje (Spec‑Driven Development)
@@ -11,7 +11,7 @@ Ten katalog (`spec/` w rootcie repozytorium) zawiera **specyfikacje obszarów** 
 **Kontrakt HTTP:** `openapi.json` (OpenAPI 3.1, v0.14.0, generowany: `npm run openapi:export`).
 **Dokumentacja:** kanoniczna EN w `docs/`; PL w `docs/pl/`. Opis HTTP: `docs/pl/dokumentacja_api.md` / `docs/api-documentation.md`. Lista tras: `docs/pl/lista_endpointów.md` / `docs/endpoints.md`.
 
-**Stan kodu vs ten zestaw:** obszary poniżej są **wdrożone** w `src/` i opisane w odpowiadających `SPEC-*.md`. Cache semantyczny JSON: `SPEC-CHAT.md` F-8b i `SPEC-KONFIGURACJA.md` F-1d (nie osobny plik SPEC). Stream v1 bez cache — `SPEC-CHAT-STREAMING.md`.
+**Stan kodu vs ten zestaw:** obszary poniżej są **wdrożone** w `src/` i opisane w odpowiadających `SPEC-*.md`. Cache semantyczny JSON: `SPEC-CHAT.md` F-8b, F-8c (polityka tożsamości i zapisu) i `SPEC-KONFIGURACJA.md` F-1d. Stream v1 bez cache — `SPEC-CHAT-STREAMING.md` (przy Fazie 5 — te same decyzje co F-8c / F-10).
 
 ### Jak czytać te pliki
 

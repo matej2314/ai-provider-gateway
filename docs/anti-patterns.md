@@ -126,9 +126,9 @@ Details: `dictionary.md`, `api-documentation.md`.
 
 **Don’t:** assume every response from **`POST /api/v1/chat`** is “live” from the provider — with cache enabled, a return with **`cached: true`** is possible.
 
-**Don’t:** expect that **`requestId`** in a cached response always matches the current request — the implementation returns the identifier stored with the first response.
+**Don’t:** expect that **`id`** (`gw_*`) on a cache hit is newly generated — it is the identity of the stored reply. **`requestId`** on a hit **must** match the current request (`x-request-id`); it is not stored in Redis.
 
-**Do:** consciously enable cache only where response repeatability is acceptable; monitor TTL and invalidation (changing the system prompt or call params changes the exact cache key **and** the semantic KNN partition — see 20). Read `configuration.md` (env `CACHE_*`, `REDIS_*`); Redis reads are validated with a Zod schema (`CachedChatResponseSchema` — corrupt entry removed); streaming is a cache-free path (`pl/spec/SPEC-CHAT-STREAMING.md`).
+**Do:** consciously enable cache only where response repeatability is acceptable; monitor TTL and invalidation (changing the system prompt or call params changes the exact cache key **and** the semantic KNN partition — see 20). Store only a completed text reply (`finishReason=stop`, non-empty text, no `toolCalls` / `content_filter` / `length`) — `shouldStoreChatResponse` / `isUnservableCachedReply`. Read `configuration.md` (env `CACHE_*`, `REDIS_*`); Redis reads are validated with a Zod schema (`CachedChatResponseSchema` — corrupt or unservable entry removed); streaming is a cache-free path (`spec/SPEC-CHAT-STREAMING.md`).
 
 ## 13) Confusing three API contracts (native vs official contract facades)
 
@@ -177,7 +177,7 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 
 **Don’t:** add Redis Search / KNN queries to the existing `CacheBackend` / `noop` / `redis` adapters in `src/cache/adapters/`. The KV `CacheBackend` interface is for exact key-value lookup and has no similarity-search concept.
 
-**Do:** implement semantic lookup as a **separate port** (`EmbeddingBackend`, `VectorStore`) in `src/cache/semantic/` — independent adapters wired by `SemanticCacheService`. Lookup order (exact → semantic HASH on trimmed last-user → embed + KNN → provider) is orchestrated in `ChatCacheGuardService` / `SemanticCacheService`, not inside the KV adapters. Cheap `VectorStore.getByTextIdentity` runs **before** embed. On store, reuse the lookup vector; do **not** call `embed` again when lookup already attempted it (failed or succeeded without a usable vector).
+**Do:** implement semantic lookup as a **separate port** (`EmbeddingBackend`, `VectorStore`) in `src/cache/semantic/` — independent adapters wired by `SemanticCacheService`. Lookup order (cooldown → alias policy → exact KV → semantic HASH on trimmed last-user → embed + KNN → provider → dual-write sync) is orchestrated in `ChatCacheGuardService` / `SemanticCacheService`, not inside the KV adapters. Cheap `VectorStore.getByTextIdentity` runs **before** embed. Do **not** promote a semantic HASH/KNN hit into exact KV — the stores stay parallel. On store, reuse the lookup vector; do **not** call `embed` again when lookup already attempted it (failed or succeeded without a usable vector).
 
 ## 17) Overriding `command:` on Redis Stack Compose
 
@@ -205,8 +205,8 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 
 **Don’t:** assume that editing `MASTER_SYSTEM_PROMPT.md` / per-alias prompts, or changing call params (`responseFormat`, `temperature`, `seed`, …), still serves the previous semantic KNN hits. Exact and semantic now share the same configuration identity: Redis Search filters on `modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`. A prompt or params change → **different partition** → miss.
 
-**Don’t:** expect a bulk `FT.DROPINDEX` / wholesale purge when prompt or params change. Old vectors in the previous partition remain until TTL (`SEMANTIC_CACHE_TTL`).
+**Don’t:** expect a bulk `FT.DROPINDEX` / wholesale purge when prompt or params change. Old vectors in the previous partition remain until TTL (`CACHE_TTL`). `SEMANTIC_CACHE_TTL` is deprecated and ignored.
 
 **Don’t:** treat a successful `FT.INFO` on a legacy index name (e.g. `qwen3-embedding-0-6b-1024` without the `ai-provider-gateway:sem:idx:` prefix, or HASH keys under `aigw:sem:…`) as the current gateway index. After a SCHEMA / project-prefix change those are **orphans** — leave them to TTL or drop only indexes whose name starts with `ai-provider-gateway:` (never `portfolio:*`).
 
-**Do:** treat partition separation like exact-cache key separation. Shorten `SEMANTIC_CACHE_TTL` if you need old partitions to disappear faster. Do not lower the similarity threshold to “make up” for partition misses.
+**Do:** treat partition separation like exact-cache key separation. Shorten `CACHE_TTL` if you need old partitions to disappear faster (semantic TTL always follows `CACHE_TTL`). Do not lower the similarity threshold to “make up” for partition misses.

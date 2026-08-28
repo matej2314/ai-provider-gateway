@@ -1,7 +1,7 @@
 ---
-wersja: 3
+wersja: 4
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-26
+data_modyfikacji: 2026-08-28
 ---
 
 # SPEC — Chat (streaming) — `POST /chat/stream`
@@ -14,7 +14,7 @@ Udostępnić endpoint streamingowy (SSE), który zwraca odpowiedź LLM w formie 
 
 Identycznie jak dla `POST /chat`: sekrety per instancja wg `SPEC-KONFIGURACJA.md`, poprawny `gateway.config.yaml`.
 
-**Stan implementacji:** `POST /api/v1/chat/stream` — `ChatStreamController`, `validateForStreaming` + `executeStream`, `StreamCleanupInterceptor`. Auth/limity: `@GatewayKeyAndSmartRateLimit()`. Cache exact **i** semantyczny **nie** dotyczą streamingu (v1) — `executeStream` nie woła guarda cache.
+**Stan implementacji:** `POST /api/v1/chat/stream` — `ChatStreamController`, `validateForStreaming` + `executeStream`, `StreamCleanupInterceptor`. Auth/limity: `@GatewayKeyAndSmartRateLimit()`. Cache exact **i** semantyczny **nie** dotyczą streamingu (v1) — `executeStream` nie woła guarda cache. Przy planowanym cache streamingu obowiązują te same decyzje tożsamości i polityki co JSON (`SPEC-CHAT.md` F-8, F-8b, F-8c, F-10): `metadata` wyłączone z klucza, brak zapisu przy `didFallback`, singleflight v1 in-process (v2 distributed lock planowany), invalidation odroczone, brak per-model cache flag.
 
 ## Użytkownicy i scenariusze
 
@@ -78,4 +78,4 @@ NFR-3. Gateway nie może emitować surowych payloadów SDK providerów jako SSE.
 ## Poza zakresem (względem rdzenia MVP)
 
 - Wznawianie streamingu, reconnect, exactly-once semantics.
-- Zapis exact + semantic po udanym streamie oraz replay SSE z cache. Zmiana względem: wcześniejsze poza zakresem tylko reconnect. Powód: v1 celowo bez cache na streamie; ten sam kontrakt co JSON (`SPEC-CHAT.md` F-8b — `embedAttempted`) wchodzi w planie Faza 5 (5.A: SET z `{ embedAttempted: false }` po `done`; 5.B: lookup na starcie, miss → SET ze stanem z lookupu). Szczegóły: `docs/pl/konfiguracja.md` (ścieżka miss), `semantic-cache-plan.md`.
+- Zapis exact + semantic po udanym streamie oraz replay SSE z cache. Zmiana względem: wcześniejsze poza zakresem tylko reconnect. Powód: v1 celowo bez cache na streamie; plan Faza 5 stosuje ten sam kontrakt co JSON (`SPEC-CHAT.md` F-8b — `embedAttempted`; F-8c — tożsamość i polityka; F-10 — brak zapisu przy `didFallback`). Szczegóły operacyjne: `docs/pl/konfiguracja.md` (ścieżka miss). Lookup na starcie musi poprzedzić `flushHeaders` SSE.

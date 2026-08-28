@@ -75,21 +75,32 @@ Variables are validated at startup by **`validateEnvironment()`** (facade → `E
 - **Implementation:** `CacheModule.register({ includeRedisStack: isRedisRequiredFromEnv(), semanticEnabled: isSemanticCacheEnabledFromEnv() })` in `src/app.module.ts`. The option name `includeRedisStack` is historical — it covers all Redis infrastructure, not only cache. `semanticEnabled` uses the **same** env predicate as the Redis `semantic-cache` consumer.
 - **When Redis is required but unavailable:** smart rate limit → fail-open (requests allowed through); readiness → `checks.redis: degraded` (details below).
 
-**Behavior:** `ChatService.executeChat` checks the cache before calling the provider (`ResponseCacheService`); on a hit — only when the alias and related provider are **enabled** in YAML (`isCachedChatAllowedForModelAlias` in `src/chat/helpers/cache-policy.ts`) — the stored response is returned with **`cached: true`**, **`cachedAt`** (ISO 8601), and **`cacheSource`** (`"exact"` or `"semantic"`). `cacheSource` is not written to Redis. Redis reads are parsed by **`parseCachedChatResponse`** (`CachedChatResponseSchema` in `src/cache/schemas/cached-chat-response.schema.ts`); invalid shape → key deletion and treat as MISS. Streaming (`POST /api/v1/chat/stream`) does **not** use this layer.
+**Behavior:** `ChatService.executeChat` checks the cache before calling the provider (`ResponseCacheService`); on a hit — only when the alias and related provider are **enabled** in YAML (`isCachedChatAllowedForModelAlias` in `src/chat/helpers/cache-policy.ts`) — the stored response is returned with **`cached: true`**, **`cachedAt`** (ISO 8601), and **`cacheSource`** (`"exact"` or `"semantic"`). `cacheSource` and **`requestId` are not** written to Redis; a hit stamps the current `requestId`. **`id`** (`gw_*`) comes from the payload. Store (`shouldStoreChatResponse`): only `finishReason=stop`, non-empty text, no `toolCalls`; `content_filter` / `length` / tool-invocation replies are not cached. Redis reads are parsed by **`parseCachedChatResponse`** (`CachedChatResponseSchema` in `src/cache/schemas/cached-chat-response.schema.ts`); invalid shape or unservable entry (`isUnservableCachedReply`) → key deletion and treat as MISS. Streaming (`POST /api/v1/chat/stream`) does **not** use this layer.
+
+**Cache identity (exact key and semantic partition):** the hash covers `modelAlias`, `clientId`, `messages[]`, system prompt signature (`systemSignature`), and serialized effective call params (`serializeCallParamsForCache`). Body **`metadata` is explicitly excluded** — by design: metadata is propagated to the adapter only (tracking/analytics, e.g. Anthropic `user_id`) and **does not** affect model output in the gateway. Two identical payloads with different `metadata` may share the same cache entry.
+
+**Cache enablement policy:** there is no per-alias `cache` flag in YAML. Cache is allowed when the provider instance linked to the alias has `enabled: true` (`isCachedChatAllowedForModelAlias`). A per-model toggle is not planned — enable/disable is global (`CACHE_ENABLED`, `SEMANTIC_CACHE_ENABLED`) plus `providers[].enabled`.
+
+**Fallback:** when `ResilientExecutor` succeeds on the fallback alias (`didFallback: true`), the response is **not** written to exact or semantic cache (`executeChat`; the same contract applies to future streaming cache). The next identical request retries the requested alias instead of serving a cached fallback answer.
+
+**Singleflight (concurrent misses):** v1 — in-process coalescing on `buildIdentityKey` (`createInProcessSingleflight` in `ChatService`); concurrent identical requests in the **same** process share one provider call. v2 (planned) — Redis distributed lock on the identity key to reduce thundering herd across replicas.
+
+**Invalidation:** `ResponseCacheService.invalidateCache()` exists in code but is **not** wired to production paths (no operational API). Entries expire via TTL or become unreachable after prompt/params signature changes. Intentionally deferred — no change in the current iteration.
 
 Variable template: `.env.example`.
 
 ### Semantic cache (`src/cache/semantic/`)
 
-Semantic cache sits **on top of** exact cache in the `POST /api/v1/chat` lookup chain: exact (hash) → semantic HASH (trimmed last-user) → embed + KNN → provider. It is independent of `CACHE_BACKEND` — `SEMANTIC_CACHE_ENABLED` is its own switch. Redis Search (part of Redis Stack) is required for the vector index.
+Semantic cache is a **parallel store** to exact KV (no promotion of a semantic hit into exact). Lookup after exact miss in the `POST /api/v1/chat` pipeline: cooldown → alias policy → exact (hash) → semantic HASH (trimmed last-user) → embed + KNN → provider → dual-write sync. It is independent of `CACHE_BACKEND` — `SEMANTIC_CACHE_ENABLED` is its own switch; semantic-only (`CACHE_ENABLED=false`) is supported. Redis Search (part of Redis Stack) is required for the vector index. Default similarity 0.85. Vector TTL = `CACHE_TTL`.
 
 **Lookup order:**
 
-1. **Exact hit** — hash of `(modelAlias, clientId, messages, system prompt, effective params)` → stored response returned immediately.
-2. **Semantic hit** — only for **single-turn** requests (exactly one `role: user` message and no `assistant` / `tool` roles): cheap Redis HASH lookup on trimmed last-user text in the same partition (`VectorStore.getByTextIdentity`, no embed); on miss, embed that user message, KNN query in Redis Search with partition TAG filter, cosine similarity ≥ threshold → stored response returned (`cacheSource: "semantic"`; HASH match is metric `hash-hit`).
-3. **Miss** — call the provider; store exact + upsert vector (semantic upsert only when the request is single-turn).
+1. **Cooldown** — `checkCooldown` in `prepareRequestForExecution` runs **before** any cache I/O; during cooldown the gateway returns 429 with **no** cache read/write.
+2. **Exact hit** — hash of `(modelAlias, clientId, messages, system prompt, effective params)` → stored response returned immediately.
+3. **Semantic hit** — only for **single-turn** requests (exactly one `role: user` message and no `assistant` / `tool` roles): cheap Redis HASH lookup on trimmed last-user text in the same partition (`VectorStore.getByTextIdentity`, no embed); on miss, embed that user message, KNN query in Redis Search with partition TAG filter, cosine similarity ≥ threshold → stored response returned (`cacheSource: "semantic"`; HASH match is metric `hash-hit`).
+4. **Miss** — call the provider; **await** exact SET **and** semantic upsert before HTTP 201 (semantic upsert only when the request is single-turn).
 
-**Skip conditions** (no semantic lookup / store): tooling requests, missing `gatewayKey`, `clientId === 'unknown'`, model alias not allowed by cache policy (`isCachedChatAllowedForModelAlias` — checked **before** exact Redis GET and before semantic I/O; also gates exact/semantic **store**), multi-turn history (any `assistant` / `tool` message, or more than one `user` message), no last user message with non-empty content, all streaming requests (`POST /api/v1/chat/stream`).
+**Skip conditions** (no semantic lookup / store): tooling requests, missing `gatewayKey`, `clientId === 'unknown'`, model alias not allowed by cache policy (`isCachedChatAllowedForModelAlias` — checked **before** exact Redis GET and before semantic I/O; also gates exact/semantic **store**), multi-turn history (any `assistant` / `tool` message, or more than one `user` message), no last user message with non-empty content, all streaming requests (`POST /api/v1/chat/stream`), **success on fallback** (`didFallback` — no exact/semantic store). Exact and semantic **store** also require `shouldStoreChatResponse` (`stop` + non-empty text, no `toolCalls`).
 
 **Fail-open:** when the embedding service or Redis Search is unavailable, the request is forwarded to the provider — the cache layer does not block chat. Degradation is **temporary**: the embedding circuit breaker recovers on the **hot path** only (half-open after cooldown; a successful chat `embed` closes the circuit). The `/ready` embeddings probe is **observation only** — it does **not** call `recordEmbedSuccess` / reset the breaker. `GET /api/v1/health/ready` may report `checks.embeddings: degraded` and/or `checks.vectorStore: degraded` without changing `status` to `not_ready`. Embedding probes are throttled and use `min(2000, EMBEDDING_TIMEOUT_MS)` — never at or above the gateway Docker HEALTHCHECK (3 s). When `EMBEDDING_TIMEOUT_MS` is above 2 s, the probe is strictly shorter; when it is ≤ 2 s, the probe uses the same budget as chat (not longer). `embeddings: healthy` means Ollama answered `'ping'`; breaker state is independent (`degraded` ≠ reset of failure counters).
 
@@ -165,11 +176,11 @@ When Redis is unavailable or not `ready`, `SmartRateLimiterService` **allows** r
 **Readiness and Redis:** `GET /api/v1/health/ready` returns:
 
 - **`checks.redis`** — shared Redis infrastructure state (PING probe only when `required: true`; fields `required`, `consumers`: `cache`, `rate-limit`, `semantic-cache`),
-- **`checks.cache`** — exact-cache feature state (when backend is `redis`, availability follows from `checks.redis`, without a separate probe),
+- **`checks.cache`** — aggregate of **enabled** pipeline layers (exact Redis KV and/or semantic embeddings + vectorStore); `healthy` only when all enabled layers work, otherwise `degraded` (`exact-redis`, `embeddings`, `vectorStore`). Both off → `Cache disabled (noop)`,
 - **`checks.embeddings`** — present only when `SEMANTIC_CACHE_ENABLED=true`; Ollama availability probe (fail-open; does not reset the embedding circuit),
 - **`checks.vectorStore`** — present only when `SEMANTIC_CACHE_ENABLED=true`; Redis Search / vector index probe (`FT.INFO` after lazy `ensureIndex`). Fail-open: missing Search module or index → `degraded`, does not block `ready`. Operator message when plain Redis lacks `FT.*` commands.
 
-With `CACHE_ENABLED=false` and `RATE_LIMIT_SMART_ENABLED=true` or `SEMANTIC_CACHE_ENABLED=true`, readiness **checks Redis** via `checks.redis`, not `checks.cache`.
+With `CACHE_ENABLED=false` and `RATE_LIMIT_SMART_ENABLED=true` or `SEMANTIC_CACHE_ENABLED=true`, readiness still reports **`checks.redis`** (PING of shared Redis). `checks.cache` then reflects only the enabled semantic layers (embeddings + vectorStore), not exact KV.
 
 ## 2) `gateway.config.yaml` file (models / instances / policies)
 

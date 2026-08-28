@@ -40,7 +40,6 @@ export function toCachedChatResponse(
     provider: asProviderInstanceId(response.provider),
     model: response.model,
     output: response.output,
-    requestId: response.requestId,
     finishReason: response.finishReason ?? 'stop',
     ...(response.usage && {
       usage: {
@@ -137,7 +136,7 @@ export class ResponseCacheService {
         return null;
       }
       if (isUnservableCachedReply(parsed)) {
-        this.logger.warn(`Unservable cached finishReason for key: ${key}`);
+        this.logger.warn(`Unservable cached reply for key: ${key}`);
         await this.cache.delete(key);
         this.recordCacheAccess(request, false);
         return null;

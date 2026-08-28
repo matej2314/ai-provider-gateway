@@ -2,7 +2,6 @@ import type { ChatWarningDto } from '../../chat/dto/chat-warning.dto';
 import type { GatewayFinishReason } from '../../chat/types/gateway-finish-reason.type';
 import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
 import type {
-  RequestId,
   ResponseId,
   ProviderInstanceId,
   ModelAlias,
@@ -23,7 +22,6 @@ export interface CachedChatResponse {
     inputTokens: InputTokens;
     outputTokens: OutputTokens;
   };
-  requestId: RequestId;
   cached: true;
   cachedAt: string;
   finishReason: GatewayFinishReason;

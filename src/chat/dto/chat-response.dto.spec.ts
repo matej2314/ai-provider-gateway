@@ -11,7 +11,6 @@ import {
   TEST_MODEL_ALIAS_BRANDED,
   TEST_OUTPUT_TOKENS_SMALL,
   TEST_PROVIDER_INSTANCE_BRANDED,
-  TEST_CACHED_REQUEST_ID,
   TEST_CACHED_RESPONSE_ID,
   TEST_PROMPT_CACHE_HIT_TOKENS,
   TEST_REQUEST_ID,
@@ -31,7 +30,6 @@ describe('chat-response.dto mappers', () => {
     provider: TEST_PROVIDER_INSTANCE_BRANDED,
     model: TEST_MODEL_ALIAS_BRANDED,
     output: { type: 'text', text: 'Cached answer' },
-    requestId: TEST_CACHED_REQUEST_ID,
     cached: true,
     cachedAt: '2026-01-01T00:00:00.000Z',
     finishReason: 'stop',
@@ -40,6 +38,7 @@ describe('chat-response.dto mappers', () => {
   it('sets cacheSource exact on exact cache hit mapping', () => {
     const dto = toChatResponseDtoFromCache(cached, TEST_CONVERSATION_ID, {
       cacheSource: 'exact',
+      requestId: TEST_REQUEST_ID,
     });
 
     expect(dto.cached).toBe(true);
@@ -47,11 +46,14 @@ describe('chat-response.dto mappers', () => {
     expect(dto.cacheSource).toBe('exact');
     expect(dto.conversationId).toBe(TEST_CONVERSATION_ID);
     expect(dto.finishReason).toBe('stop');
+    expect(dto.requestId).toBe(TEST_REQUEST_ID);
+    expect(dto.id).toBe(cached.id);
   });
 
   it('sets cacheSource semantic on semantic cache hit mapping', () => {
     const dto = toChatResponseDtoFromCache(cached, TEST_CONVERSATION_ID, {
       cacheSource: 'semantic',
+      requestId: TEST_REQUEST_ID,
     });
 
     expect(dto.cached).toBe(true);
@@ -90,6 +92,7 @@ describe('chat-response.dto mappers', () => {
 
     const dto = toChatResponseDtoFromCache(withExtras, TEST_CONVERSATION_ID, {
       cacheSource: 'exact',
+      requestId: TEST_REQUEST_ID,
     });
 
     expect(dto.thinkingContent).toBe('step');

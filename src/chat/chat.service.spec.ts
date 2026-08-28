@@ -355,6 +355,7 @@ describe('ChatService', () => {
         ...cachedResponse,
         conversationId: VALID_CONVERSATION_ID,
         cacheSource: 'exact',
+        requestId: TEST_REQUEST_ID,
       });
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
       expect(mockAppMetrics.recordCachePipelineAccess).not.toHaveBeenCalled();
@@ -387,6 +388,7 @@ describe('ChatService', () => {
         ...cachedResponse,
         conversationId: VALID_CONVERSATION_ID,
         cacheSource: 'semantic',
+        requestId: TEST_REQUEST_ID,
       });
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith('Chat cache hit', {
@@ -676,6 +678,7 @@ describe('ChatService', () => {
         expectedOptions,
         resolvedConfig.providerType,
       );
+      expect(mockCacheGuard.setCachedIfAllowed).not.toHaveBeenCalled();
     });
 
     it('should not set fallbackAlias for tooling requests', async () => {

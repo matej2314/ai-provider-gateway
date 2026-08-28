@@ -15,7 +15,6 @@ import {
 } from '../../common/types/branded.types';
 import {
   TEST_API_KEY_REF,
-  TEST_CACHED_REQUEST_ID,
   TEST_CACHED_RESPONSE_ID,
   TEST_CONVERSATION_ID,
   TEST_MASTER_KEY_REF,
@@ -209,6 +208,23 @@ describe('shouldStoreChatResponse', () => {
     );
   });
 
+  it('returns false when finishReason is content_filter', () => {
+    expect(
+      shouldStoreChatResponse({ ...base, finishReason: 'content_filter' }),
+    ).toBe(false);
+  });
+
+  it('returns false when finishReason is tool_calls', () => {
+    expect(
+      shouldStoreChatResponse({ ...base, finishReason: 'tool_calls' }),
+    ).toBe(false);
+  });
+
+  it('returns false when finishReason is missing', () => {
+    const { finishReason: _omit, ...withoutFinish } = base;
+    expect(shouldStoreChatResponse(withoutFinish)).toBe(false);
+  });
+
   it('returns false when output text is empty or whitespace', () => {
     expect(
       shouldStoreChatResponse({
@@ -240,16 +256,27 @@ describe('isUnservableCachedReply', () => {
     provider: TEST_PROVIDER_INSTANCE_BRANDED,
     model: TEST_MODEL_ALIAS_BRANDED,
     output: { type: 'text', text: 'Hello' },
-    requestId: TEST_CACHED_REQUEST_ID,
     cached: true,
     cachedAt: '2026-01-01T00:00:00.000Z',
     finishReason: 'stop',
   };
 
-  it('returns true only for finishReason length', () => {
+  it('returns false for a complete stop reply and true otherwise', () => {
     expect(isUnservableCachedReply(parsed)).toBe(false);
     expect(isUnservableCachedReply({ ...parsed, finishReason: 'length' })).toBe(
       true,
     );
+    expect(
+      isUnservableCachedReply({ ...parsed, finishReason: 'content_filter' }),
+    ).toBe(true);
+    expect(
+      isUnservableCachedReply({ ...parsed, finishReason: 'tool_calls' }),
+    ).toBe(true);
+    expect(
+      isUnservableCachedReply({
+        ...parsed,
+        output: { type: 'text', text: '   ' },
+      }),
+    ).toBe(true);
   });
 });

@@ -126,6 +126,7 @@ export class AnthropicMessagesController {
       'cached' in result && result.cached
         ? toChatResponseDtoFromCache(result, result.conversationId, {
             cacheSource: result.cacheSource,
+            requestId: result.requestId,
           })
         : toChatResponseDto(result);
 

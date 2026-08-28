@@ -8,7 +8,6 @@ import {
 import { createMockConfigService } from '../../../common/mocks/createMockConfigService';
 import { createMockLoggingService } from '../../../common/mocks/createMockLoggingService';
 import {
-  TEST_CACHED_REQUEST_ID,
   TEST_CACHED_RESPONSE_ID,
   TEST_INPUT_TOKENS,
   TEST_MODEL_ALIAS_BRANDED,
@@ -209,7 +208,6 @@ describe('RedisVectorStoreAdapter', () => {
         inputTokens: TEST_INPUT_TOKENS,
         outputTokens: TEST_OUTPUT_TOKENS_SMALL,
       },
-      requestId: TEST_CACHED_REQUEST_ID,
       cached: true,
       cachedAt: '2026-01-01T00:00:00.000Z',
       finishReason: 'stop',
@@ -509,7 +507,6 @@ describe('RedisVectorStoreAdapter', () => {
         inputTokens: TEST_INPUT_TOKENS,
         outputTokens: TEST_OUTPUT_TOKENS_SMALL,
       },
-      requestId: TEST_CACHED_REQUEST_ID,
       cached: true,
       cachedAt: '2026-01-01T00:00:00.000Z',
       finishReason: 'stop',
@@ -639,7 +636,6 @@ describe('RedisVectorStoreAdapter', () => {
         inputTokens: TEST_INPUT_TOKENS,
         outputTokens: TEST_OUTPUT_TOKENS_SMALL,
       },
-      requestId: TEST_CACHED_REQUEST_ID,
       cached: true,
       cachedAt: '2026-01-01T00:00:00.000Z',
       finishReason: 'stop',

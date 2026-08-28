@@ -10,14 +10,14 @@ Dokument uzupełnia `dokumentacja_api.md` i `architektura.md`: pokazuje kierunek
 |-------|-----------|
 | **Klient** | Dowolny klient HTTP (aplikacja, serwis, BFF). |
 | **HTTP** | Kontroler + walidacja DTO + odpowiedź. |
-| **ChatService** | Wspólne `prepareRequestForExecution` (ingress, tooling/thinking, cooldown check). Cache tylko w `executeChat` (exact, potem semantic; SET dostaje stan embed z lookupu). `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
+| **ChatService** | Wspólne `prepareRequestForExecution` (ingress, tooling/thinking, **cooldown przed cache**). Cache tylko w `executeChat`: polityka aliasu → exact KV → semantic HASH (trim last-user) → embed+KNN; na missie dual-write **await** exact SET + semantic upsert (bez promocji semantic→exact; **bez zapisu przy `didFallback`**). Singleflight in-process na identity key (v2: distributed lock w Redis — planowane). `ResilientExecutor`, budowa odpowiedzi gateway (`id`, `conversationId`, `effectiveModelAlias`). |
 | **ChatProviderCallService** | Pojedyncze wywołanie adaptera: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `AiMetricsService.observeProviderCall` / `observeProviderStream`, `AppMetricsService` (RED), emisja SSE `meta`/`delta`. |
 | **ResilientExecutor** | `src/chat/resilience/` — retry na aliasie żądanym (`policy.retry`, `policy.timeoutMs` → `buildRetryPolicyFromResolved`), potem opcjonalnie alias `fallback` z YAML (jeden hop). Przy timeout: `AbortSignal` do `completeOnce` / `streamOnce` → adapter SDK; odpowiedź `PROVIDER_TIMEOUT` (504). |
 | **Registry** | `ProviderRegistryService` — mapowanie aliasu z YAML na **`providerInstance`** → `AIProvider` + `modelId`. |
 | **Provider** | Instancja `AIProvider` (fabryka + klucz API per wpis w YAML). |
 | **LLM API** | Zewnętrzny serwis providera. |
-| **ResponseCache (ExactCache)** | `ResponseCacheService` — odczyt/zapis exact cache dla **`POST /api/v1/chat`** (klucz hash: `modelAlias`, `clientId`, `messages`, sygnatura system promptu, efektywne parametry); odczyt walidowany `CachedChatResponseSchema`; brak wpływu na streaming. |
-| **SemanticCache** | `SemanticCacheService` — embedding ostatniej wiadomości `role: user` (goły tekst, `qwen3-embedding:0.6b`) → zapytanie KNN w Redis Search → sprawdzenie progu podobieństwa cosinusowego. Fail-open: błąd embedding/Search → wywołanie providera. Pominięty dla tooling, `clientId === 'unknown'` i streamingu. Zapis reuse’uje wektor z lookupu albo — gdy `embed` nie był wołany — może zrobić pierwszy `embed` (bez retry po padniętym lookupie). |
+| **ResponseCache (ExactCache)** | `ResponseCacheService` — odczyt/zapis exact cache dla **`POST /api/v1/chat`** (klucz hash: `modelAlias`, `clientId`, `messages`, sygnatura system promptu, efektywne parametry; **`metadata` wyłączone**); odczyt walidowany `CachedChatResponseSchema`; brak wpływu na streaming. |
+| **SemanticCache** | `SemanticCacheService` — tani HASH po przyciętym last-user (`getByTextIdentity`, bez embed); przy missie embedding ostatniej wiadomości `role: user` (goły tekst, `qwen3-embedding:0.6b`) → KNN w Redis Search → próg podobieństwa cosinusowego (domyślnie 0.85). Magazyn równoległy do exact KV (bez promocji). TTL = `CACHE_TTL`. Fail-open: błąd embedding/Search → wywołanie providera. Pominięty dla tooling, `clientId === 'unknown'` i streamingu. Zapis reuse’uje wektor z lookupu albo — gdy `embed` nie był wołany — może zrobić pierwszy `embed` (bez retry po padniętym lookupie). |
 | **Metrics** | **`AiMetricsService`** (Sentry LLM spans) + **`AppMetricsService`** (Prometheus RED); span `gen_ai.chat` per wywołanie LLM; **`gen_ai.conversation.id`** tylko gdy klient poda `conversationId` (`conversation_tracking.md`). Health gauges odświeżane przy `GET /metrics`. |
 | **Fasada integracji** | Kontroler `src/integrations/openai` lub `anthropic` + mappery — tłumaczenie kontraktu vendora na `ChatRequestDto`, potem ten sam `ChatService` co natywny czat (`integracje.md`). |
 
@@ -38,6 +38,7 @@ sequenceDiagram
   H->>H: ValidationPipe (DTO)
   Note over H: RequestIdMiddleware (req.requestId + response header x-request-id); GatewayKeyGuard + SmartRateLimitGuard na czacie
   H->>+S: executeChat(request)
+  S->>S: prepareRequestForExecution (cooldown przed cache)
   S->>E: lookup exact (klucz hash)
   alt exact HIT
     E-->>S: zapisana odpowiedź (cached: true)
@@ -49,13 +50,14 @@ sequenceDiagram
       S-->>-H: 201 JSON (cached, semantyczny)
     else semantic MISS / wyłączony / fail-open
       Note over S: resolve + provider (szczegóły: sekcja 1)
+      Note over S: dual-write await exact SET + semantic upsert (bez promocji)
       S-->>-H: wynik lub wyjątek HTTP
     end
   end
   H-->>-K: 201 JSON lub błąd
 ```
 
-Przy missie semantycznym `executeChat` przekazuje do SET stan embed z lookupu: reuse wektora, brak retry albo pierwszy `embed`, gdy lookup go nie wołał (`konfiguracja.md`). Zapis semantyczny tylko dla żądań jednoturowych w tej samej partycji TAG co lookup (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`).
+Przy missie semantycznym `executeChat` dual-write **przed** HTTP 201: `await` exact SET **i** semantic upsert (bez promocji semantic→exact; SET dostaje stan embed z lookupu). Semantic-only (`CACHE_ENABLED=false`) jest wspierany. TTL wektorów = `CACHE_TTL`. Zapis semantyczny tylko dla żądań jednoturowych w tej samej partycji TAG co lookup (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`).
 
 ---
 
@@ -77,16 +79,16 @@ sequenceDiagram
   K->>+H: POST /api/v1/chat (modelAlias, messages, conversationId?, params?)
   H->>H: walidacja DTO
   H->>+S: executeChat
+  S->>S: prepareRequestForExecution (cooldown przed jakimkolwiek I/O cache)
   S->>S: conversationId response (echo/conv_*)
   S->>+R: resolve(modelAlias)
   R-->>-S: AIProvider + policy.params
   S->>S: resolveProviderCallOptions(policy, body.params)
-  S->>C: getCachedResponse (z efektywnymi params)
+  S->>C: getCachedIfAllowed (polityka aliasu → exact KV → semantic HASH → KNN)
   alt trafienie w cache (provider włączony w YAML; wpis przeszedł CachedChatResponseSchema)
     C-->>S: JSON (z cached/cachedAt/cacheSource)
     S-->>H: odpowiedź
   else brak wpisu
-    S->>S: checkCooldown (opcjonalnie, smart limit)
     S->>S: ResilientExecutor (retry / fallback / timeout + AbortSignal)
     S->>+PC: completeOnce (per alias w łańcuchu; signal)
     PC->>PC: buildProviderInputForAlias + resolveProviderCallOptions
@@ -97,13 +99,13 @@ sequenceDiagram
     P-->>-M: ProviderChatResponse
     M-->>-PC: wynik + span Sentry
     PC-->>-S: response + resolved
-    S->>C: setCachedResponse
+    S->>C: await setCachedIfAllowed (exact SET + semantic upsert)
     S-->>-H: ChatResponse (id, usage, requestId, conversationId, effectiveModelAlias?, …)
   end
   H-->>-K: 201 JSON (+ conversationId)
 ```
 
-**Uwagi:** opcjonalne **`params`** w body są scalane z `policy.params` w YAML (`resolveProviderCallOptions`) przed cache i wywołaniem providera. Odpowiedź z cache zawiera **`cached: true`**, **`cachedAt`** i **`cacheSource`** (`exact` | `semantic`); pole **`requestId`** pochodzi z żądania zapisanej w cache (nie jest nadpisywane na nowe ID per request). Błąd **`MODEL_NOT_ALLOWED`** może powstać już po `resolve`, przed wywołaniem LLM.
+**Uwagi:** opcjonalne **`params`** w body są scalane z `policy.params` w YAML (`resolveProviderCallOptions`) przed cache i wywołaniem providera. Odpowiedź z cache zawiera **`cached: true`**, **`cachedAt`** i **`cacheSource`** (`exact` | `semantic`); pole **`requestId`** jest stemplowane z **bieżącego** żądania (nie jest w Redis). **`id`** (`gw_*`) pochodzi z zapisanego payloadu. Zapis tylko przy `finishReason=stop`, niepustym tekście i bez `toolCalls` (`shouldStoreChatResponse`). Błąd **`MODEL_NOT_ALLOWED`** może powstać już po `resolve`, przed wywołaniem LLM.
 
 ---
 

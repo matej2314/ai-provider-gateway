@@ -565,7 +565,7 @@ docker ps | grep redis
 docker exec ai-gateway-redis redis-cli -p 6380 ping   # oczekiwane: PONG
 ```
 
-Gdy `RATE_LIMIT_SMART_ENABLED=true`, `CACHE_BACKEND=redis` albo `SEMANTIC_CACHE_ENABLED=true`, readiness może zgłaszać `checks.redis: degraded` bez działającego Redis. Cache semantyczny jest fail-open — czat idzie dalej; `checks.embeddings: degraded` i `checks.vectorStore: degraded` nie blokują `ready`. `/ready` pokazuje zdrowie Search/indeksu w `checks.vectorStore`; `MODULE LIST` pozostaje checklistą Compose, nie jedynym sygnałem.
+Gdy `RATE_LIMIT_SMART_ENABLED=true`, `CACHE_BACKEND=redis` albo `SEMANTIC_CACHE_ENABLED=true`, readiness może zgłaszać `checks.redis: degraded` bez działającego Redis. `checks.cache` to agregat **włączonych** warstw pipeline (exact Redis KV i/lub semantic embeddings + vectorStore); jest `degraded`, gdy któraś włączona warstwa pada (`exact-redis`, `embeddings`, `vectorStore`) i **nie** blokuje `ready`. Cache semantyczny jest fail-open — czat idzie dalej; `checks.embeddings: degraded` i `checks.vectorStore: degraded` nie blokują `ready`. `/ready` pokazuje zdrowie Search/indeksu w `checks.vectorStore`; `MODULE LIST` pozostaje checklistą Compose, nie jedynym sygnałem.
 
 ### Prometheus / Grafana nie odpowiadają
 

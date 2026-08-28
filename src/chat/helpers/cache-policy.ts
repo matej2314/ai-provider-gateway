@@ -18,12 +18,13 @@ export function isCachedChatAllowedForModelAlias(
 }
 
 export function shouldStoreChatResponse(response: ChatResponseData): boolean {
-  if (response.finishReason === 'length') return false;
+  if (response.finishReason !== 'stop') return false;
   if (response.output.text.trim().length === 0) return false;
   if ((response.toolCalls?.length ?? 0) > 0) return false;
   return true;
 }
 
 export function isUnservableCachedReply(parsed: CachedChatResponse): boolean {
-  return parsed.finishReason === 'length';
+  if (parsed.finishReason !== 'stop') return true;
+  return parsed.output.text.trim().length === 0;
 }
