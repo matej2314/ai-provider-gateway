@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getAppConfigOrThrow } from '../config/typed-config';
 import { LoggingService } from '../logging/logging.service';
-import { ProviderRegistryService } from '../providers/provider-registry.service';
+import {
+  ProviderRegistryService,
+  type ResolvedProviderConfig,
+} from '../providers/provider-registry.service';
 import { v4 as uuidv4 } from 'uuid';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
 import { ResilientExecutor } from './resilience/resilient-executor';
@@ -12,6 +15,8 @@ import { getOrCreateConversationIdForResponse } from './helpers/conversation-id'
 import { getResolvedSystemPrompts } from './helpers/system-prompt';
 import { buildRetryPolicyFromResolved } from './helpers/retry-policy';
 import { isToolingRequest } from './helpers/tooling-request';
+import { isCachedChatAllowedForModelAlias } from './helpers/cache-policy';
+import { createInProcessSingleflight } from './helpers/in-process-singleflight';
 
 import { ChatProviderCallService } from './services/chat-provider-call.service';
 import { ChatCacheGuardService } from './services/chat-cache-guard.service';
@@ -22,14 +27,18 @@ import { ActiveStreamsTracker } from '../observability/app-metrics/active-stream
 import { validateChatIngress } from './validation/chat-ingress.validator';
 import type { ChatIngressProfile } from './validation/chat-ingress.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
+import type { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
+import type { ResolvedSystemPrompts } from '../config/configuration.types';
 import {
+  asClientId,
   asProviderInstanceId,
   asModelAlias,
   asResponseId,
   type GatewayKey,
   type RequestId,
   type ModelAlias,
-  ClientId,
+  type ClientId,
+  type ConversationId,
 } from '../common/types/branded.types';
 import type { SemanticStoreEmbedState } from '../cache/semantic/semantic-cache.service';
 import type {
@@ -39,6 +48,10 @@ import type {
 
 @Injectable()
 export class ChatService {
+  private readonly singleflightChat = createInProcessSingleflight<
+    ChatResponseData | CachedChatResponseWithConversation
+  >();
+
   constructor(
     private readonly registry: ProviderRegistryService,
     private readonly config: ConfigService,
@@ -146,6 +159,53 @@ export class ChatService {
       }
     }
 
+    const runMissPath = (): Promise<ChatResponseData> =>
+      this.completeChatAndStore(
+        requestBody,
+        clientId,
+        requestId,
+        gatewayKey,
+        primaryResolved,
+        options,
+        responseConversationId,
+        resolvedPrompts,
+        embedState,
+        log,
+      );
+
+    const mayCoalesce =
+      Boolean(gatewayKey) &&
+      clientId !== asClientId('unknown') &&
+      !isToolingRequest(requestBody) &&
+      isCachedChatAllowedForModelAlias(
+        getAppConfigOrThrow(this.config, 'gateway'),
+        requestBody.modelAlias,
+      );
+
+    if (mayCoalesce) {
+      const key = this.cacheGuardService.buildIdentityKey(
+        requestBody,
+        clientId,
+        options,
+      );
+      return this.singleflightChat(key, runMissPath);
+    }
+
+    return runMissPath();
+  }
+
+  private async completeChatAndStore(
+    requestBody: ChatRequestDto,
+    clientId: ClientId,
+    requestId: RequestId,
+    gatewayKey: GatewayKey,
+    primaryResolved: ResolvedProviderConfig,
+    options: ProviderCallOptions,
+    responseConversationId: ConversationId,
+    resolvedPrompts: ResolvedSystemPrompts,
+    embedState: SemanticStoreEmbedState | undefined,
+    log: LoggingService,
+  ): Promise<ChatResponseData> {
     const startedAt = Date.now();
 
     const runOnce = async (
@@ -199,6 +259,7 @@ export class ChatService {
 
       const latency = Date.now() - startedAt;
 
+      // Dual-write exact SET + semantic upsert must finish before HTTP 201 (P17x.D).
       await this.cacheGuardService.setCachedIfAllowed(
         requestBody,
         chatResult,

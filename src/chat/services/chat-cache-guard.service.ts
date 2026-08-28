@@ -143,6 +143,14 @@ export class ChatCacheGuardService {
     };
   }
 
+  buildIdentityKey(
+    requestBody: ChatRequestDto,
+    clientId: ClientId,
+    options: ProviderCallOptions,
+  ) {
+    return this.cacheService.buildIdentityKey(requestBody, clientId, options);
+  }
+
   async setCachedIfAllowed(
     requestBody: ChatRequestDto,
     response: ChatResponseData,

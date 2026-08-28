@@ -80,7 +80,7 @@ export class ResponseCacheService {
     this.logger = logger;
   }
 
-  private generateCacheKey(
+  buildIdentityKey(
     request: ChatRequestDto,
     clientId: ClientId,
     effectiveCallParams?: ProviderCallOptions,
@@ -114,7 +114,7 @@ export class ResponseCacheService {
   ): Promise<CachedChatResponse | null> {
     if (!this.cache.isAvailable()) return null;
 
-    const key = this.generateCacheKey(
+    const key = this.buildIdentityKey(
       request,
       asClientId(clientId),
       effectiveCallParams,
@@ -166,7 +166,7 @@ export class ResponseCacheService {
   ): Promise<void> {
     if (!this.cache.isAvailable()) return;
 
-    const key = this.generateCacheKey(
+    const key = this.buildIdentityKey(
       request,
       asClientId(clientId),
       effectiveCallParams,
@@ -194,7 +194,7 @@ export class ResponseCacheService {
     clientId: string,
     effectiveCallParams?: ProviderCallOptions,
   ): Promise<void> {
-    const key = this.generateCacheKey(
+    const key = this.buildIdentityKey(
       request,
       asClientId(clientId),
       effectiveCallParams,

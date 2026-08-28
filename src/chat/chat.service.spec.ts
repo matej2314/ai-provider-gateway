@@ -106,12 +106,6 @@ describe('ChatService', () => {
     (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
 
     mockConfig = createMockConfigService({
-      gatewayOptions: {
-        replace: { clients: true, providers: true, models: true },
-        clients: {},
-        providers: {},
-        models: {},
-      },
       resolvedSystemPrompts: { master: 'you are helpful', main: undefined },
     });
 
@@ -122,6 +116,10 @@ describe('ChatService', () => {
       checkRateLimit: jest.fn().mockResolvedValue(undefined),
       getCachedIfAllowed: jest.fn().mockResolvedValue({ cached: null }),
       setCachedIfAllowed: jest.fn().mockResolvedValue(undefined),
+      buildIdentityKey: jest.fn(
+        (req: { modelAlias: string; messages: unknown }) =>
+          `id:${req.modelAlias}:${JSON.stringify(req.messages)}`,
+      ),
     };
 
     mockValidation = {
@@ -737,6 +735,172 @@ describe('ChatService', () => {
         'anthropic',
         TEST_GATEWAY_KEY_BRANDED,
       );
+    });
+
+    it('should coalesce parallel identical misses into one completeOnce', async () => {
+      (
+        mockExecutor.executeWithRetryAndFallback as jest.Mock
+      ).mockImplementation(
+        async (opts: {
+          runOnce: (
+            alias: ModelAlias,
+            attemptNo: number,
+            signal: AbortSignal,
+          ) => Promise<unknown>;
+          primaryAlias: ModelAlias;
+        }) => {
+          await new Promise((r) => setTimeout(r, 20));
+          const value = await opts.runOnce(
+            opts.primaryAlias,
+            1,
+            new AbortController().signal,
+          );
+          return {
+            value,
+            usedAlias: opts.primaryAlias,
+            attempts: asAttemptNumber(1),
+            didFallback: false,
+          };
+        },
+      );
+
+      const [first, second] = await Promise.all([
+        service.executeChat(
+          baseRequest,
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+        service.executeChat(
+          baseRequest,
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+      ]);
+
+      expect(first).toEqual(second);
+      expect(mockProviderCall.completeOnce).toHaveBeenCalledTimes(1);
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not coalesce requests that differ only by trailing space', async () => {
+      (
+        mockExecutor.executeWithRetryAndFallback as jest.Mock
+      ).mockImplementation(
+        async (opts: {
+          runOnce: (
+            alias: ModelAlias,
+            attemptNo: number,
+            signal: AbortSignal,
+          ) => Promise<unknown>;
+          primaryAlias: ModelAlias;
+        }) => {
+          await new Promise((r) => setTimeout(r, 20));
+          const value = await opts.runOnce(
+            opts.primaryAlias,
+            1,
+            new AbortController().signal,
+          );
+          return {
+            value,
+            usedAlias: opts.primaryAlias,
+            attempts: asAttemptNumber(1),
+            didFallback: false,
+          };
+        },
+      );
+
+      await Promise.all([
+        service.executeChat(
+          {
+            ...baseRequest,
+            messages: [{ role: 'user', content: 'hello' }],
+          },
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+        service.executeChat(
+          {
+            ...baseRequest,
+            messages: [{ role: 'user', content: 'hello ' }],
+          },
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+      ]);
+
+      expect(mockProviderCall.completeOnce).toHaveBeenCalledTimes(2);
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledTimes(2);
+    });
+
+    it('should propagate leader failure to waiters and allow a later retry', async () => {
+      const boom = new Error('fail');
+      (
+        mockExecutor.executeWithRetryAndFallback as jest.Mock
+      ).mockImplementation(async () => {
+        await new Promise((r) => setTimeout(r, 20));
+        throw boom;
+      });
+
+      await expect(
+        Promise.all([
+          service.executeChat(
+            baseRequest,
+            TEST_CLIENT_ID,
+            TEST_REQUEST_ID,
+            TEST_GATEWAY_KEY_BRANDED,
+            'native',
+          ),
+          service.executeChat(
+            baseRequest,
+            TEST_CLIENT_ID,
+            TEST_REQUEST_ID,
+            TEST_GATEWAY_KEY_BRANDED,
+            'native',
+          ),
+        ]),
+      ).rejects.toThrow('fail');
+
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledTimes(1);
+
+      mockExecutorChatSuccess();
+      await expect(
+        service.executeChat(
+          baseRequest,
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+      ).resolves.toMatchObject({ output: { text: 'Hello!' } });
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledTimes(2);
+    });
+
+    it('should check cooldown before cache lookup', async () => {
+      const rateLimitError = new HttpException('Rate limited', 429);
+      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+        rateLimitError,
+      );
+
+      await expect(
+        service.executeChat(
+          baseRequest,
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+      ).rejects.toBe(rateLimitError);
+
+      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCacheGuard.buildIdentityKey).not.toHaveBeenCalled();
     });
   });
 

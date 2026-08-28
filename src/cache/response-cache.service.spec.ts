@@ -558,4 +558,35 @@ describe('ResponseCacheService', () => {
       ).resolves.not.toThrow();
     });
   });
+
+  describe('buildIdentityKey', () => {
+    const request: ChatRequestDto = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [{ role: 'user', content: 'Hello' }],
+    };
+    const params: ProviderCallOptions = { temperature: 0.7 };
+
+    it('returns the same key for the same request, client and params', () => {
+      const first = service.buildIdentityKey(request, TEST_CLIENT_ID, params);
+      const second = service.buildIdentityKey(request, TEST_CLIENT_ID, params);
+
+      expect(first).toBe(second);
+    });
+
+    it('returns a different key for a different clientId', () => {
+      const first = service.buildIdentityKey(request, TEST_CLIENT_ID);
+      const second = service.buildIdentityKey(request, OTHER_CLIENT_ID);
+
+      expect(first).not.toBe(second);
+    });
+
+    it('matches the key used by getCachedResponse', async () => {
+      (mockCacheBackend.get as jest.Mock).mockResolvedValue(null);
+
+      const identity = service.buildIdentityKey(request, TEST_CLIENT_ID);
+      await service.getCachedResponse(request, TEST_CLIENT_ID);
+
+      expect(mockCacheBackend.get).toHaveBeenCalledWith(identity);
+    });
+  });
 });

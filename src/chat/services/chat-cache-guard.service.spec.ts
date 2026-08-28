@@ -794,4 +794,23 @@ describe('ChatCacheGuardService', () => {
       });
     });
   });
+
+  describe('buildIdentityKey', () => {
+    it('delegates to ResponseCacheService', () => {
+      (mockCache.buildIdentityKey as jest.Mock).mockReturnValue('identity-key');
+
+      const key = service.buildIdentityKey(
+        baseRequest,
+        TEST_CLIENT_ID,
+        providerOptions,
+      );
+
+      expect(key).toBe('identity-key');
+      expect(mockCache.buildIdentityKey).toHaveBeenCalledWith(
+        baseRequest,
+        TEST_CLIENT_ID,
+        providerOptions,
+      );
+    });
+  });
 });
