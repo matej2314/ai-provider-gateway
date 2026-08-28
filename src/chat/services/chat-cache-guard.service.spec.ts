@@ -23,6 +23,7 @@ import {
   TEST_PROVIDER_INSTANCE,
   TEST_PROVIDER_INSTANCE_BRANDED,
   TEST_REQUEST_ID,
+  TEST_TOOL_CALL_ID,
 } from '../../common/mocks/test-constants';
 import {
   asClientId,
@@ -579,6 +580,53 @@ describe('ChatCacheGuardService', () => {
           providerOptions,
           { vector: FIXED_VECTOR, embedAttempted: true },
         );
+      });
+    });
+
+    describe('Write gate (P12)', () => {
+      it('should skip cache I/O when finishReason is length', async () => {
+        await service.setCachedIfAllowed(
+          baseRequest,
+          { ...chatResponse, finishReason: 'length' },
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          { vector: FIXED_VECTOR, embedAttempted: true },
+        );
+
+        expect(mockCache.setCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
+      });
+
+      it('should skip cache I/O when output text is empty', async () => {
+        await service.setCachedIfAllowed(
+          baseRequest,
+          { ...chatResponse, output: { type: 'text', text: '  ' } },
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+        );
+
+        expect(mockCache.setCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
+      });
+
+      it('should skip cache I/O when the reply contains toolCalls', async () => {
+        await service.setCachedIfAllowed(
+          baseRequest,
+          {
+            ...chatResponse,
+            toolCalls: [
+              { id: TEST_TOOL_CALL_ID, name: 'search', arguments: '{}' },
+            ],
+          },
+          providerOptions,
+          TEST_CLIENT_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+        );
+
+        expect(mockCache.setCachedResponse).not.toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
       });
     });
 

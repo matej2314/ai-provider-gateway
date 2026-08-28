@@ -137,6 +137,13 @@ export function validateGatewayConfig(
     }
   }
 
+  const rawSemanticTtl = env.SEMANTIC_CACHE_TTL;
+  if (rawSemanticTtl !== undefined && String(rawSemanticTtl).trim() !== '') {
+    warnings.push(
+      'WARN: SEMANTIC_CACHE_TTL is deprecated and ignored — semantic entry TTL always follows CACHE_TTL',
+    );
+  }
+
   return {
     success: true,
     effectiveConfig,

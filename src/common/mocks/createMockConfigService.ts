@@ -225,7 +225,7 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
             options.semanticCache?.embeddingModel ?? 'qwen3-embedding:0.6b',
           embeddingDim: options.semanticCache?.embeddingDim ?? 1024,
           embeddingTimeoutMs: options.semanticCache?.embeddingTimeoutMs ?? 5000,
-          minSimilarity: options.semanticCache?.minSimilarity ?? 0.9,
+          minSimilarity: options.semanticCache?.minSimilarity ?? 0.85,
           ttl: asSemanticCacheTtlSeconds(options.semanticCache?.ttl ?? 3600),
           k: options.semanticCache?.k ?? 3,
         };

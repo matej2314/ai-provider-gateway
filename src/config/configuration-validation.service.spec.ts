@@ -17,6 +17,7 @@ describe('ConfigurationValidationService', () => {
       const result = service.validateEnvironment({});
       expect(result.CACHE_ENABLED).toBe(false);
       expect(result.CACHE_BACKEND).toBe('noop');
+      expect(result.SEMANTIC_CACHE_MIN_SIMILARITY).toBe(0.85);
     });
   });
 

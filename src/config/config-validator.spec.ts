@@ -493,5 +493,21 @@ describe('validateGatewayConfig', () => {
         /SEMANTIC_CACHE_MIN_SIMILARITY=0\.7/,
       );
     });
+
+    it('warns when SEMANTIC_CACHE_TTL is set (deprecated and ignored)', () => {
+      const configPath = writeTempConfig(tempDir, minimalValidConfig());
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        ANTHROPIC_PRIMARY_API_KEY: 'sk-ant-test-key',
+        SEMANTIC_CACHE_TTL: '1200',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(true);
+      expect(result.warnings.join('\n')).toMatch(
+        /SEMANTIC_CACHE_TTL is deprecated and ignored/,
+      );
+    });
   });
 });

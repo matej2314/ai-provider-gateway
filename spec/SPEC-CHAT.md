@@ -1,7 +1,7 @@
 ---
-wersja: 10
+wersja: 11
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-27
+data_modyfikacji: 2026-08-28
 ---
 
 # SPEC — Chat (standard) — `POST /chat`
@@ -77,6 +77,10 @@ F-7. Limity DTO: `messages` — **1..150** elementów; `content` — max **3000*
 Zmiana względem: wcześniejsze F-7 („max 3000 znaków na wiadomość” bez rozróżnienia roli). Powód: treść `tool` ma wyższy limit w DTO.
 
 F-8. *(Opcjonalnie — cache exact-match)* Gateway może zwracać zapisaną odpowiedź dla `POST /api/v1/chat` z polami `cached: true`, `cachedAt` oraz `cacheSource: "exact"`, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Odczyt walidowany `CachedChatResponseSchema` — uszkodzony wpis usuwany. Pole `cacheSource` należy do **tej** odpowiedzi lookupu i **nie** jest zapisywane w Redis (`CachedChatResponse` / Zod bez tego pola). Przy missie (odpowiedź z providera) pola `cached`, `cachedAt` i `cacheSource` są nieobecne. Streaming v1 nie podlega temu cache (`SPEC-CHAT-STREAMING.md`).
+
+Hit native ma ten sam kształt co live: `finishReason`, opcjonalnie `thinkingContent`, `effectiveModelAlias`, `usageDetails`, `systemFingerprint`. `toolCalls` nie są zapisywane. `id` i `requestId` zostają z pierwszego zapisu.
+
+Zmiana względem: F-8 subset payloadu (bez finishReason / thinkingContent / effectiveModelAlias / usageDetails / systemFingerprint). Powód: hit native ma ten sam kształt co live, bez toolCalls (nigdy nie cache’owane).
 
 Klucz cache obejmuje m.in. `modelAlias`, `clientId`, `messages`, sygnaturę promptów systemowych oraz zserializowane parametry wywołania. Cache **pomija** żądania z toolingiem (F-2b) oraz alias, którego `providerInstance` ma `enabled !== true` (`isCachedChatAllowedForModelAlias`). Backendy i env — `SPEC-KONFIGURACJA.md` F-1b.
 

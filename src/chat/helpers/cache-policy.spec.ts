@@ -1,14 +1,29 @@
-import { isCachedChatAllowedForModelAlias } from './cache-policy';
-import type { GatewayConfig } from '../../config/configuration';
 import {
+  isCachedChatAllowedForModelAlias,
+  isUnservableCachedReply,
+  shouldStoreChatResponse,
+} from './cache-policy';
+import type { GatewayConfig } from '../../config/configuration';
+import type { ChatResponseData } from '../dto/chat-response.dto';
+import type { CachedChatResponse } from '../../cache/types/cached-chat-response.type';
+import {
+  asConversationId,
   asEnvRef,
   asProviderInstanceId,
+  asRequestId,
+  asResponseId,
 } from '../../common/types/branded.types';
 import {
   TEST_API_KEY_REF,
+  TEST_CACHED_REQUEST_ID,
+  TEST_CACHED_RESPONSE_ID,
+  TEST_CONVERSATION_ID,
   TEST_MASTER_KEY_REF,
   TEST_MODEL_ALIAS,
+  TEST_MODEL_ALIAS_BRANDED,
   TEST_PROVIDER_INSTANCE,
+  TEST_PROVIDER_INSTANCE_BRANDED,
+  TEST_TOOL_CALL_ID,
 } from '../../common/mocks/test-constants';
 
 describe('isCachedChatAllowedForModelAlias', () => {
@@ -170,5 +185,71 @@ describe('isCachedChatAllowedForModelAlias', () => {
     const result = isCachedChatAllowedForModelAlias(config, 'gpt-model');
 
     expect(result).toBe(false);
+  });
+});
+
+describe('shouldStoreChatResponse', () => {
+  const base: ChatResponseData = {
+    id: asResponseId('gw_store'),
+    provider: TEST_PROVIDER_INSTANCE_BRANDED,
+    model: TEST_MODEL_ALIAS_BRANDED,
+    output: { type: 'text', text: 'Hello' },
+    requestId: asRequestId('req-store'),
+    conversationId: asConversationId(TEST_CONVERSATION_ID),
+    finishReason: 'stop',
+  };
+
+  it('returns true for a complete text reply', () => {
+    expect(shouldStoreChatResponse(base)).toBe(true);
+  });
+
+  it('returns false when finishReason is length', () => {
+    expect(shouldStoreChatResponse({ ...base, finishReason: 'length' })).toBe(
+      false,
+    );
+  });
+
+  it('returns false when output text is empty or whitespace', () => {
+    expect(
+      shouldStoreChatResponse({
+        ...base,
+        output: { type: 'text', text: '' },
+      }),
+    ).toBe(false);
+    expect(
+      shouldStoreChatResponse({
+        ...base,
+        output: { type: 'text', text: '   ' },
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when the reply contains toolCalls', () => {
+    expect(
+      shouldStoreChatResponse({
+        ...base,
+        toolCalls: [{ id: TEST_TOOL_CALL_ID, name: 'search', arguments: '{}' }],
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('isUnservableCachedReply', () => {
+  const parsed: CachedChatResponse = {
+    id: TEST_CACHED_RESPONSE_ID,
+    provider: TEST_PROVIDER_INSTANCE_BRANDED,
+    model: TEST_MODEL_ALIAS_BRANDED,
+    output: { type: 'text', text: 'Hello' },
+    requestId: TEST_CACHED_REQUEST_ID,
+    cached: true,
+    cachedAt: '2026-01-01T00:00:00.000Z',
+    finishReason: 'stop',
+  };
+
+  it('returns true only for finishReason length', () => {
+    expect(isUnservableCachedReply(parsed)).toBe(false);
+    expect(isUnservableCachedReply({ ...parsed, finishReason: 'length' })).toBe(
+      true,
+    );
   });
 });

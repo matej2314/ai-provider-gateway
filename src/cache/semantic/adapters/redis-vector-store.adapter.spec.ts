@@ -211,6 +211,7 @@ describe('RedisVectorStoreAdapter', () => {
       requestId: TEST_CACHED_REQUEST_ID,
       cached: true,
       cachedAt: '2026-01-01T00:00:00.000Z',
+      finishReason: 'stop',
     });
 
     it('should include @embeddingModel in FT.SEARCH query', async () => {
@@ -386,6 +387,31 @@ describe('RedisVectorStoreAdapter', () => {
       );
     });
 
+    it('should delete unservable length replies like corrupt keys', async () => {
+      const lengthReplyJson = JSON.stringify({
+        ...JSON.parse(validReplyJson),
+        finishReason: 'length',
+      });
+      mockCall.mockResolvedValueOnce(['index_name', indexName]);
+      mockCall.mockResolvedValueOnce([
+        1,
+        'too-long',
+        ['reply', lengthReplyJson, 'dist', '0.05'],
+      ]);
+
+      const hits = await adapter.knn({
+        vector: [0.1],
+        modelAlias: asModelAlias('test-model'),
+        clientId: asClientId('client-a'),
+        systemSignature: 'sys',
+        callParams: 'params',
+        k: 1,
+      });
+
+      expect(hits).toEqual([]);
+      expect(mockDel).toHaveBeenCalledWith('too-long');
+    });
+
     it('should fail-open when DEL of corrupt key throws', async () => {
       mockDel.mockRejectedValue(new Error('DEL error'));
       mockCall.mockResolvedValueOnce(['index_name', indexName]);
@@ -485,6 +511,7 @@ describe('RedisVectorStoreAdapter', () => {
       requestId: TEST_CACHED_REQUEST_ID,
       cached: true,
       cachedAt: '2026-01-01T00:00:00.000Z',
+      finishReason: 'stop',
     };
 
     const baseUpsert = {

@@ -12,7 +12,10 @@ import {
 } from '../../cache/response-cache.service';
 import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
 import { ApiErrorCode } from '../../common/errors/api-error.code';
-import { isCachedChatAllowedForModelAlias } from '../helpers/cache-policy';
+import {
+  isCachedChatAllowedForModelAlias,
+  shouldStoreChatResponse,
+} from '../helpers/cache-policy';
 import { isToolingRequest } from '../helpers/tooling-request';
 import { asProviderInstanceId } from '../../common/types/branded.types';
 import {
@@ -158,6 +161,10 @@ export class ChatCacheGuardService {
 
     const gateway = getAppConfigOrThrow(this.config, 'gateway');
     if (!isCachedChatAllowedForModelAlias(gateway, requestBody.modelAlias)) {
+      return;
+    }
+
+    if (!shouldStoreChatResponse(response)) {
       return;
     }
 

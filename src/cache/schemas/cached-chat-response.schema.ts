@@ -7,6 +7,9 @@ import {
   asResponseId,
   asInputTokens,
   asOutputTokens,
+  asSystemFingerprint,
+  asPromptCacheHitTokens,
+  asPromptCacheCreationTokens,
 } from 'src/common/types/branded.types';
 
 const ChatWarningSchema = z.object({
@@ -14,6 +17,13 @@ const ChatWarningSchema = z.object({
   message: z.string(),
   field: z.string().optional(),
 });
+
+const FinishReasonSchema = z.enum([
+  'stop',
+  'tool_calls',
+  'length',
+  'content_filter',
+]);
 
 export const CachedChatResponseSchema = z.object({
   id: z.string().transform(asResponseId),
@@ -32,7 +42,27 @@ export const CachedChatResponseSchema = z.object({
   requestId: z.string().transform(asRequestId),
   cached: z.literal(true),
   cachedAt: z.string(),
+  finishReason: FinishReasonSchema,
   warnings: z.array(ChatWarningSchema).optional(),
+  thinkingContent: z.string().optional(),
+  effectiveModelAlias: z.string().transform(asModelAlias).optional(),
+  usageDetails: z
+    .object({
+      promptCacheHitTokens: z
+        .number()
+        .int()
+        .min(0)
+        .transform(asPromptCacheHitTokens)
+        .optional(),
+      promptCacheCreationTokens: z
+        .number()
+        .int()
+        .min(0)
+        .transform(asPromptCacheCreationTokens)
+        .optional(),
+    })
+    .optional(),
+  systemFingerprint: z.string().transform(asSystemFingerprint).optional(),
 });
 
 export function parseCachedChatResponse(

@@ -5,6 +5,7 @@ import { getAppConfigOrThrow } from '../../../config/typed-config';
 import { LoggingService } from '../../../logging/logging.service';
 import { RedisConnectionService } from '../../adapters/redis-cache/redis-connection.service';
 import { parseCachedChatResponse } from '../../schemas/cached-chat-response.schema';
+import { isUnservableCachedReply } from '../../../chat/helpers/cache-policy';
 import { semanticIndexName } from '../index-name';
 import { semanticSchemaFtCreateArgs } from '../semantic-cache.constants';
 import type {
@@ -120,7 +121,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       }
 
       const reply = parseCachedChatResponse(parsedJson);
-      if (!reply) {
+      if (!reply || isUnservableCachedReply(reply)) {
         if (key) corruptKeys.push(key);
         continue;
       }

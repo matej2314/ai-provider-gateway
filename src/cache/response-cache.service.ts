@@ -7,6 +7,7 @@ import { CACHE_BACKEND } from './cache.tokens';
 import { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
 import { LoggingService } from '../logging/logging.service';
 import { parseCachedChatResponse } from './schemas/cached-chat-response.schema';
+import { isUnservableCachedReply } from '../chat/helpers/cache-policy';
 import {
   computeSystemSignature,
   serializeCallParamsForCache,
@@ -40,6 +41,7 @@ export function toCachedChatResponse(
     model: response.model,
     output: response.output,
     requestId: response.requestId,
+    finishReason: response.finishReason ?? 'stop',
     ...(response.usage && {
       usage: {
         inputTokens: asInputTokens(response.usage.inputTokens ?? 0),
@@ -47,6 +49,16 @@ export function toCachedChatResponse(
       },
     }),
     ...(response.warnings?.length && { warnings: response.warnings }),
+    ...(response.thinkingContent && {
+      thinkingContent: response.thinkingContent,
+    }),
+    ...(response.effectiveModelAlias && {
+      effectiveModelAlias: response.effectiveModelAlias,
+    }),
+    ...(response.usageDetails && { usageDetails: response.usageDetails }),
+    ...(response.systemFingerprint && {
+      systemFingerprint: response.systemFingerprint,
+    }),
     cached: true,
     cachedAt: new Date().toISOString(),
   };
@@ -120,6 +132,12 @@ export class ResponseCacheService {
       const parsed = parseCachedChatResponse(raw);
       if (!parsed) {
         this.logger.warn(`Invalid cached response shape for key: ${key}`);
+        await this.cache.delete(key);
+        this.recordCacheAccess(request, false);
+        return null;
+      }
+      if (isUnservableCachedReply(parsed)) {
+        this.logger.warn(`Unservable cached finishReason for key: ${key}`);
         await this.cache.delete(key);
         this.recordCacheAccess(request, false);
         return null;

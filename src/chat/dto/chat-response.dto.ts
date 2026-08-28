@@ -229,17 +229,34 @@ export function toChatResponseDtoFromCache(
   conversationId: ConversationId,
   options: { cacheSource: ChatCacheSource },
 ): ChatResponseDto {
+  const usage = data.usage
+    ? {
+        ...data.usage,
+        totalTokens:
+          (data.usage.inputTokens ?? 0) + (data.usage.outputTokens ?? 0),
+      }
+    : undefined;
+
   return {
     id: data.id,
     provider: data.provider,
     model: data.model,
     output: data.output,
-    ...(data.usage && { usage: data.usage }),
+    ...(usage && { usage }),
     requestId: data.requestId,
     conversationId,
     cached: true,
     cachedAt: data.cachedAt,
     cacheSource: options.cacheSource,
+    finishReason: data.finishReason,
     ...(data.warnings?.length && { warnings: data.warnings }),
+    ...(data.thinkingContent && { thinkingContent: data.thinkingContent }),
+    ...(data.effectiveModelAlias && {
+      effectiveModelAlias: data.effectiveModelAlias,
+    }),
+    ...(data.usageDetails && { usageDetails: data.usageDetails }),
+    ...(data.systemFingerprint && {
+      systemFingerprint: data.systemFingerprint,
+    }),
   };
 }

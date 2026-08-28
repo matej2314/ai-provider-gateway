@@ -39,4 +39,16 @@ describe('EnvironmentVariables SEMANTIC_CACHE_MIN_SIMILARITY', () => {
       validate({ ...base, SEMANTIC_CACHE_MIN_SIMILARITY: '5' }),
     ).toThrow(/Config validation error/);
   });
+
+  it('rejects CACHE_BACKEND=memory', () => {
+    expect(() => validate({ ...base, CACHE_BACKEND: 'memory' })).toThrow(
+      /Config validation error/,
+    );
+  });
+
+  it('rejects CACHE_BACKEND=other', () => {
+    expect(() => validate({ ...base, CACHE_BACKEND: 'other' })).toThrow(
+      /Config validation error/,
+    );
+  });
 });

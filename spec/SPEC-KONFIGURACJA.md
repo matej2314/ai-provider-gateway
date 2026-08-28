@@ -1,5 +1,5 @@
 ---
-wersja: 8
+wersja: 9
 data_utworzenia: 2026-08-26
 data_modyfikacji: 2026-08-28
 ---
@@ -44,7 +44,8 @@ Gdy ustawione — opcjonalne legacy `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` mają
 
 F-1b. *(Opcjonalnie — cache exact-match)* Zmienne `CACHE_ENABLED`, `CACHE_BACKEND`, `CACHE_TTL` (domyślnie 3600), `CACHE_KEY_PREFIX` (domyślnie `aigw:`) oraz `REDIS_*` włączają zapis/odczyt odpowiedzi czatu JSON (`SPEC-CHAT.md` F-8, `docs/pl/konfiguracja.md`).
 
-`CACHE_BACKEND`: `noop` | `redis` | `memory` | `other`. Adaptery runtime: **noop** i **redis**. Nieznany albo `memory` / `other` bez zarejestrowanego adaptera → `CacheRegistryService` loguje ostrzeżenie i używa **noop**. Przy `CACHE_ENABLED=false` backend jest `noop`.
+`CACHE_BACKEND`: wyłącznie `noop` | `redis`. Inna wartość → fail startu (`validate()`). Przy `CACHE_ENABLED=false` backend jest `noop`.
+Zmiana względem: F-1b dopuszczające `memory` | `other` i cichy fallback rejestru. Powód: martwy kontrakt bez adapterów.
 
 F-1c. *(Opcjonalnie — smart rate limit)* `RATE_LIMIT_SMART_ENABLED` (domyślnie `false`) włącza egzekwowanie RPS/burst/streamów — `SPEC-PLATFORMA-I-KONTRAKTY.md` F-16. Domyślne limity env: `RATE_LIMIT_RPS_PER_KEY=10`, `RATE_LIMIT_BURST_PER_KEY=20`, `RATE_LIMIT_STREAMS_CONCURRENT=3`, `RATE_LIMIT_COOLDOWN_AFTER_429=60`. Redis jest wymagany także wtedy, gdy smart rate limit jest włączony przy wyłączonym cache (`isRedisRequiredFromEnv`).
 
@@ -52,11 +53,15 @@ F-1d. *(Opcjonalnie — cache semantyczny)* `SEMANTIC_CACHE_ENABLED` (domyślnie
 
 Nazwa indeksu Redis Search i filtr KNN `@embeddingModel` używają **pełnego** `EMBEDDING_MODEL` (znormalizowany) + `EMBEDDING_DIM` — szczegóły i przykład: `SPEC-CHAT.md` F-8b, `docs/pl/konfiguracja.md`. Zmiana `EMBEDDING_MODEL` przy stałym DIM izoluje przestrzeń KNN (osobny indeks).
 
-`SEMANTIC_CACHE_MIN_SIMILARITY`: zakres **0–1** egzekwowany walidatorem env (`@Max(1)`); wartości &gt; 1 **failują start**. `gateway config:validate` ostrzega przy wartości &lt; 0.85 (bez fail). `SEMANTIC_CACHE_K` (≥ 1) = rozmiar KNN + `LIMIT 0 k`; serwis bierze pierwszego kandydata ≥ progu.
+`SEMANTIC_CACHE_MIN_SIMILARITY`: domyślnie **0.85**; zakres **0–1** egzekwowany walidatorem env (`@Max(1)`); wartości &gt; 1 **failują start**. `gateway config:validate` ostrzega przy wartości &lt; 0.85 (bez fail). `SEMANTIC_CACHE_K` (≥ 1) = rozmiar KNN + `LIMIT 0 k`; serwis bierze pierwszego kandydata ≥ progu.
+
+`SEMANTIC_CACHE_TTL` jest **przestarzałe i ignorowane** (pole zostaje w env, żeby istniejące `.env` nie psuły startu). TTL wpisów semantycznych **zawsze** = `CACHE_TTL`. `gateway config:validate` ostrzega, gdy zmienna jest ustawiona.
 
 Klucze `clients` / `models` w YAML: bez przecinka i innych separatorów TAG (myślnik dozwolony) — `RedisSearchTagSafeIdSchema`.
 
 Zmiana względem: F-1d w wersji 6 (brak `@Max(1)` / warn &lt; 0.85 / jawnego `LIMIT` dla `k` / jednego predykatu toggle). Powód: S5/S19/S20 — spójny kontrakt `k`, jedno źródło `SEMANTIC_CACHE_ENABLED`, egzekwowany zakres podobieństwa.
+
+Zmiana względem: F-1d, w którym `SEMANTIC_CACHE_TTL` było aktywnym TTL wektorów (osobnym od `CACHE_TTL`). Powód: P6x.C — jeden TTL partycji wektorowej, bez drugiego źródła prawdy.
 
 F-2. Plik konfiguracyjny musi wspierać:
 

@@ -46,9 +46,9 @@ class EnvironmentVariables {
   @IsOptional()
   CACHE_ENABLED?: boolean = false;
 
-  @IsIn(['noop', 'redis', 'memory', 'other'])
+  @IsIn(['noop', 'redis'])
   @IsOptional()
-  CACHE_BACKEND?: 'noop' | 'redis' | 'memory' | 'other' = 'noop';
+  CACHE_BACKEND?: 'noop' | 'redis' = 'noop';
 
   @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()
@@ -196,7 +196,7 @@ class EnvironmentVariables {
   SEMANTIC_CACHE_K?: number = 3;
 }
 
-const CACHE_BACKEND_VALUES = ['noop', 'redis', 'memory', 'other'] as const;
+const CACHE_BACKEND_VALUES = ['noop', 'redis'] as const;
 
 export function parseCacheBackend(
   raw: string | undefined,

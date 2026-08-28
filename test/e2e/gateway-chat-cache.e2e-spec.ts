@@ -54,7 +54,7 @@ async function createE2eAppWithCache(
     .overrideProvider(ConfigService)
     .useValue(
       createMockConfigService({
-        cache: { enabled: true, backend: 'memory', ttl: 3600 },
+        cache: { enabled: true, backend: 'noop', ttl: 3600 },
         semanticCache: { enabled: false },
         gatewayKey: createE2eGatewayKeyRuntime(),
       }),
