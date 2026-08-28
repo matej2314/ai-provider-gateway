@@ -43,7 +43,7 @@ export type SemanticCacheRuntimeConfig = {
   embeddingModel: string;
   embeddingDim: number;
   embeddingTimeoutMs: number;
-  minSimilarity: number | undefined;
+  minSimilarity: number;
   ttl: SemanticCacheTtlSeconds;
   k: number;
 };
