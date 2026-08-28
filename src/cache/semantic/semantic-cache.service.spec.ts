@@ -36,12 +36,12 @@ const cachedReply: CachedChatResponse = {
   id: TEST_CACHED_RESPONSE_ID,
   provider: TEST_PROVIDER_INSTANCE_BRANDED,
   model: TEST_MODEL_ALIAS_BRANDED,
-    output: { type: 'text', text: 'Semantic hit' },
-    usage: {
-      inputTokens: TEST_INPUT_TOKENS,
-      outputTokens: TEST_OUTPUT_TOKENS_SMALL,
-    },
-    cached: true,
+  output: { type: 'text', text: 'Semantic hit' },
+  usage: {
+    inputTokens: TEST_INPUT_TOKENS,
+    outputTokens: TEST_OUTPUT_TOKENS_SMALL,
+  },
+  cached: true,
   cachedAt: '2026-01-01T00:00:00.000Z',
   finishReason: 'stop',
 };

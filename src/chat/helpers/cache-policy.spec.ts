@@ -221,8 +221,9 @@ describe('shouldStoreChatResponse', () => {
   });
 
   it('returns false when finishReason is missing', () => {
-    const { finishReason: _omit, ...withoutFinish } = base;
-    expect(shouldStoreChatResponse(withoutFinish)).toBe(false);
+    expect(shouldStoreChatResponse({ ...base, finishReason: undefined })).toBe(
+      false,
+    );
   });
 
   it('returns false when output text is empty or whitespace', () => {
