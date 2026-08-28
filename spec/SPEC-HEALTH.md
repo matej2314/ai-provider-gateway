@@ -1,7 +1,7 @@
 ---
-wersja: 4
+wersja: 5
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-27
+data_modyfikacji: 2026-08-28
 ---
 
 # SPEC — Health (liveness/readiness)
@@ -39,7 +39,8 @@ Uwagi:
 F-1b. `GET /api/v1/health/ready` zwraca readiness: `status` (`ready` | `not_ready`), `timestamp`, `version`, `uptime`, `checks.config`, `checks.cache`, oraz **warunkowo** `checks.redis`, `checks.embeddings`, `checks.vectorStore`. Implementacja: `HealthService.evaluateReadiness` / `getReadiness`. **HTTP zawsze 200**. Bez `X-Gateway-Key` i bez smart rate limitu (jak liveness).
 
 - **`checks.config`**: zawsze obecny.
-- **`checks.cache`**: zawsze obecny — stan feature cache odpowiedzi (noop / inny backend / zależność od Redis gdy backend to redis).
+- **`checks.cache`**: zawsze obecny — agregat **włączonych** warstw pipeline (exact Redis KV i/lub semantic embeddings + vectorStore). `healthy` tylko gdy wszystkie włączone warstwy działają; w przeciwnym razie `degraded` z listą (`exact-redis`, `embeddings`, `vectorStore`). Gdy obie warstwy wyłączone → `Cache disabled (noop)`. Status `degraded` **nie** blokuje `ready`.
+Zmiana względem: F-1b opisujące `checks.cache` wyłącznie jako stan exact/noop / zależność od Redis. Powód: P25x.C — operator ma widzieć cały włączony pipeline, nie tylko KV.
 - **`checks.redis`**: pole **obecne tylko gdy Redis jest wymagany** (`isRedisRequiredFromConfig` — m.in. cache z backendem redis i/lub smart rate limit i/lub semantic cache). Gdy Redis **nie** jest wymagany, pole jest **pomijane** (brak `ping()`). Gdy obecne: `RedisConnectionService.ping()`, `required: true`, `consumers` (co najmniej `cache` i/lub `rate-limit` i/lub `semantic-cache`). Status `degraded` **nie** blokuje `ready` (fail-open).
 - **`checks.embeddings`**: obecne tylko gdy `SEMANTIC_CACHE_ENABLED=true` (walidowane). Probe Ollamy (`SemanticCacheService.probeEmbedding`). Fail-open: `degraded` nie blokuje `ready`. Sonda **nie** resetuje embedding circuit breakera.
 - **`checks.vectorStore`**: obecne tylko gdy semantic włączony. Probe Redis Search / indeksu (`VectorStore.probeIndex` → `FT.INFO` po leniwym `ensureIndex`). Brak modułu Search (`unknown command`) lub indeksu → `degraded` z czytelnych komunikatem operatorskim; **nie** blokuje `ready`.

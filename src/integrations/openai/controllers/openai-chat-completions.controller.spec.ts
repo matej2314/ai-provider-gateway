@@ -16,6 +16,7 @@ import { asClientId } from '../../../common/types/branded.types';
 import { OpenAiBearerAuthGuard } from '../guards/openai-bearer-auth.guard';
 import { SmartRateLimitGuard } from '../../../guards/smart-rate-limit-guard';
 import { createOpenAiStreamState } from '../mappers/openai-stream.mapper';
+import { GATEWAY_CACHE_HEADER } from '../../../cache/types/chat-cache-source.type';
 import type { Request, Response } from 'express';
 import type { OpenAiChatCompletionRequestDto } from '../dtos/openai-chat-completion-request.dto';
 
@@ -121,7 +122,7 @@ describe('OpenAiChatCompletionsController', () => {
       requestId: REQ_ID,
       gatewayKey: GW_APP_KEY,
     }) as Request;
-    const { res, json } = mockResponse();
+    const { res, json, setHeader } = mockResponse();
     executeChatMock.mockResolvedValue({
       id: 'gw_abc',
       output: { text: 'Hi there!' },
@@ -152,6 +153,43 @@ describe('OpenAiChatCompletionsController', () => {
         choices: [{ message: { content: 'Hi there!' }, finish_reason: 'stop' }],
       }),
     );
+    expect(setHeader).not.toHaveBeenCalledWith(
+      GATEWAY_CACHE_HEADER,
+      expect.anything(),
+    );
+  });
+
+  it('should set X-Gateway-Cache on semantic cache hit', async () => {
+    const req = createMockExpressRequest({
+      requestId: REQ_ID,
+      gatewayKey: GW_APP_KEY,
+    }) as Request;
+    const { res, json, setHeader } = mockResponse();
+    executeChatMock.mockResolvedValue({
+      id: 'gw_cached',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5',
+      output: { type: 'text', text: 'From cache' },
+      requestId: REQ_ID,
+      conversationId: 'conv_1',
+      cached: true,
+      cachedAt: '2026-08-28T00:00:00.000Z',
+      cacheSource: 'semantic',
+      finishReason: 'stop',
+    });
+
+    await controller.completions(
+      req,
+      {
+        model: 'claude-sonnet-4-5',
+        messages: baseMessages,
+        stream: false,
+      },
+      res,
+    );
+
+    expect(setHeader).toHaveBeenCalledWith(GATEWAY_CACHE_HEADER, 'semantic');
+    expect(json).toHaveBeenCalled();
   });
 
   it('should throw 401 when gateway key is missing on non-streaming request', async () => {
@@ -227,6 +265,10 @@ describe('OpenAiChatCompletionsController', () => {
       expect(write).toHaveBeenCalled();
       expect(releaseStreamMock).toHaveBeenCalledWith(GW_KEY);
       expect(end).toHaveBeenCalled();
+      expect(setHeader).not.toHaveBeenCalledWith(
+        GATEWAY_CACHE_HEADER,
+        expect.anything(),
+      );
     });
 
     it('should pass includeUsage true when stream_options.include_usage is set', async () => {

@@ -1,7 +1,7 @@
 ---
-wersja: 2
+wersja: 3
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-26
+data_modyfikacji: 2026-08-28
 ---
 
 # SPEC — Metryki operacyjne — `GET /metrics`
@@ -46,10 +46,14 @@ F-6. Przy backendzie Prometheus eksport obejmuje co najmniej (prefiks `gateway_`
 - transport: `gateway_http_requests_total`, `gateway_http_request_duration_seconds`,
 - LLM: requesty, czas, błędy, tokeny,
 - `gateway_rate_limits_total`,
-- cache **exact**: `gateway_cache_access_total`, `gateway_cache_hit_rate`,
+- cache exact KV: `gateway_cache_access_total`,
+- cache semantic: `gateway_semantic_cache_lookup_total` (`hit|hash-hit|below-threshold|error|skip`),
+- cache **pipeline**: `gateway_cache_hit_rate` (in-process hits/(hits+misses) per model; hit = exact lub semantic, w tym hash-hit),
 - `gateway_active_streams`,
 - zdrowie: `gateway_readiness`, `gateway_health_status{component=...}`, `gateway_process_uptime_seconds`,
 - domyślne metryki procesu Node z prefiksem `gateway_`.
+
+Zmiana względem: F-6 łączyło `gateway_cache_hit_rate` z cache exact; semantyka była poza zakresem. Powód: counter semantic już jest w kodzie; hit-rate musi liczyć pipeline.
 
 F-7. Snapshot **nie** zawiera sekretów (kluczy API, wartości `X-Gateway-Key`, treści promptów / wiadomości).
 
@@ -75,5 +79,4 @@ NFR-3. Noop w dev nie może zrywać kontraktu HTTP (200, ten sam content-type).
 - JSON liveness/readiness — `SPEC-HEALTH.md`.
 - Metryki LLM w Sentry (`AiMetricsModule`, `conversationId`, `AI_METRICS_BACKEND`, `SENTRY_INCLUDE_PROMPTS`) — kontrakt w `SPEC-CHAT.md` F-9, `docs/pl/conversation_tracking.md` (ten plik = wyłącznie ekspozycja Prometheus).
 - Error reporting procesu (`ERROR_REPORTING_ADAPTER`) — `SPEC-PLATFORMA-I-KONTRAKTY.md` F-22.
-- Semantyka i nazwy metryk cache semantycznego.
 - Grafana dashboards / alert rules (artefakty w `deployment/monitoring/`, nie kontrakt aplikacji).

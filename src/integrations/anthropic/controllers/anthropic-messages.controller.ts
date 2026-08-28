@@ -26,6 +26,11 @@ import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-he
 import { mapAnthropicRequestToGateway } from '../mappers/anthropic-request.mapper';
 import { mapGatewayResponseToAnthropicFormat } from '../mappers/anthropic-response.mapper';
 import {
+  toChatResponseDto,
+  toChatResponseDtoFromCache,
+} from '../../../chat/dto/chat-response.dto';
+import { GATEWAY_CACHE_HEADER } from '../../../cache/types/chat-cache-source.type';
+import {
   createAnthropicStreamState,
   mapSseEventToAnthropic,
 } from '../mappers/anthropic-stream.mapper';
@@ -37,7 +42,6 @@ import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { asRequestId, asClientId } from '../../../common/types/branded.types';
 import type { SseEvent } from '../../../chat/sse/sse-event.type';
 import type { Request, Response } from 'express';
-import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
 import type { GatewayKey } from '../../../common/types';
 
 @ApiTags('Anthropic API')
@@ -61,6 +65,13 @@ export class AnthropicMessagesController {
     status: 201,
     type: AnthropicMessagesResponseDto,
     description: 'Non-streaming response.',
+    headers: {
+      [GATEWAY_CACHE_HEADER]: {
+        description:
+          'Present on cache hit: `exact` or `semantic`. Omitted on miss and on stream.',
+        schema: { type: 'string', enum: ['exact', 'semantic'] },
+      },
+    },
   })
   @ApiProduces('text/event-stream')
   @ApiResponse({
@@ -99,14 +110,26 @@ export class AnthropicMessagesController {
     }
 
     const gatewayRequest = mapAnthropicRequestToGateway(body);
-    const result = (await this.chatService.executeChat(
+    const result = await this.chatService.executeChat(
       gatewayRequest,
       req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
       asRequestId(req.requestId),
       gatewayKey,
       'facade-anthropic',
-    )) as ChatResponseDto;
-    res.json(mapGatewayResponseToAnthropicFormat(result, body.model));
+    );
+
+    if ('cached' in result && result.cached && result.cacheSource) {
+      res.setHeader(GATEWAY_CACHE_HEADER, result.cacheSource);
+    }
+
+    const dto =
+      'cached' in result && result.cached
+        ? toChatResponseDtoFromCache(result, result.conversationId, {
+            cacheSource: result.cacheSource,
+          })
+        : toChatResponseDto(result);
+
+    res.json(mapGatewayResponseToAnthropicFormat(dto, body.model));
   }
 
   private async handleStream(

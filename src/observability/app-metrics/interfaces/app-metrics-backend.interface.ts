@@ -113,6 +113,11 @@ export interface AppMetricsBackend {
     model: ModelAlias,
     result: SemanticCacheLookupResult,
   ): void;
+  /**
+   * Pipeline access (exact or semantic hit vs provider miss).
+   * Hit-rate aggregation lives in AppMetricsService; adapters may no-op.
+   */
+  recordCachePipelineAccess(model: ModelAlias, hit: boolean): void;
   updateCacheHitRate(model: ModelAlias, rate: number): void;
   // --- Gauges ---
   setActiveStreams(client: ClientId, count: number): void;

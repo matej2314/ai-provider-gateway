@@ -6,6 +6,7 @@ import { ResponseCacheService } from '../../cache/response-cache.service';
 import { SemanticCacheService } from '../../cache/semantic/semantic-cache.service';
 import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
 import { LoggingService } from '../../logging/logging.service';
+import { AppMetricsService } from '../../observability/app-metrics/app-metrics.service';
 import { ApiErrorCode } from '../../common/errors/api-error.code';
 import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
 import { createMockResponseCacheService } from '../../common/mocks/createMockResponseCacheService';
@@ -69,6 +70,7 @@ describe('ChatCacheGuardService', () => {
   };
   let mockRateLimiter: Partial<SmartRateLimiterService>;
   let mockLogger: Partial<LoggingService>;
+  let mockAppMetrics: { recordCachePipelineAccess: jest.Mock };
 
   const baseRequest: ChatRequestDto = {
     modelAlias: TEST_MODEL_ALIAS,
@@ -104,6 +106,9 @@ describe('ChatCacheGuardService', () => {
     mockCache = createMockResponseCacheService();
     mockRateLimiter = createMockSmartRateLimiter();
     mockLogger = createMockLoggingService();
+    mockAppMetrics = {
+      recordCachePipelineAccess: jest.fn(),
+    };
     mockSemanticCache = {
       lookup: jest.fn().mockResolvedValue({
         reply: null,
@@ -123,6 +128,7 @@ describe('ChatCacheGuardService', () => {
       { provide: ConfigService, useValue: mockConfig },
       { provide: SmartRateLimiterService, useValue: mockRateLimiter },
       { provide: LoggingService, useValue: mockLogger },
+      { provide: AppMetricsService, useValue: mockAppMetrics },
     ];
 
     if (withSemantic) {
@@ -255,6 +261,10 @@ describe('ChatCacheGuardService', () => {
           providerOptions,
         );
         expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
+        expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledWith(
+          TEST_MODEL_ALIAS_BRANDED,
+          true,
+        );
       });
 
       it('should fall through to semantic on exact miss', async () => {
@@ -281,6 +291,10 @@ describe('ChatCacheGuardService', () => {
           TEST_CLIENT_ID,
           providerOptions,
         );
+        expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledWith(
+          TEST_MODEL_ALIAS_BRANDED,
+          true,
+        );
       });
     });
 
@@ -303,6 +317,7 @@ describe('ChatCacheGuardService', () => {
         expect(result).toEqual({ cached: null });
         expect(mockCache.getCachedResponse).not.toHaveBeenCalled();
         expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
+        expect(mockAppMetrics.recordCachePipelineAccess).not.toHaveBeenCalled();
       });
 
       it('should return null when clientId is unknown', async () => {
@@ -347,6 +362,7 @@ describe('ChatCacheGuardService', () => {
           },
         });
         expect(mockSemanticCache.lookup).toHaveBeenCalled();
+        expect(mockAppMetrics.recordCachePipelineAccess).not.toHaveBeenCalled();
       });
 
       it('should pass embedAttempted false when lookup skipped embed', async () => {

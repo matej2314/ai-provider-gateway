@@ -24,13 +24,17 @@ import { OpenAiChatCompletionRequestDto } from '../dtos/openai-chat-completion-r
 import { mapOpenAiChatRequestToGateway } from '../mappers/openai-request.mapper';
 import { mapChatResponseToOpenAi } from '../mappers/openai-response.mapper';
 import {
+  toChatResponseDto,
+  toChatResponseDtoFromCache,
+} from '../../../chat/dto/chat-response.dto';
+import { GATEWAY_CACHE_HEADER } from '../../../cache/types/chat-cache-source.type';
+import {
   createOpenAiStreamState,
   mapSseEventToOpenAi,
 } from '../mappers/openai-stream.mapper';
 import { OPENAI_STREAM_API_DESCRIPTION } from '../helpers/openai-stream-api-description';
 
 import type { Request, Response } from 'express';
-import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
 import type { SseEvent } from '../../../chat/sse/sse-event.type';
 
 import { OPENAI_INTEGRATION_PATH } from '../../../integrations/integrations.constants';
@@ -122,6 +126,13 @@ export class OpenAiChatCompletionsController {
     status: 201,
     type: OpenAiChatCompletionResponseDto,
     description: 'Non-streaming response.',
+    headers: {
+      [GATEWAY_CACHE_HEADER]: {
+        description:
+          'Present on cache hit: `exact` or `semantic`. Omitted on miss and on stream.',
+        schema: { type: 'string', enum: ['exact', 'semantic'] },
+      },
+    },
   })
   @ApiProduces('text/event-stream')
   @ApiResponse({
@@ -161,14 +172,25 @@ export class OpenAiChatCompletionsController {
     }
 
     const gatewayRequest = mapOpenAiChatRequestToGateway(body);
-    const result = (await this.chatService.executeChat(
+    const result = await this.chatService.executeChat(
       gatewayRequest,
       req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
       asRequestId(req.requestId),
       gatewayKey,
       'facade-openai',
-    )) as ChatResponseDto;
+    );
 
-    res.json(mapChatResponseToOpenAi(result, body.model));
+    if ('cached' in result && result.cached && result.cacheSource) {
+      res.setHeader(GATEWAY_CACHE_HEADER, result.cacheSource);
+    }
+
+    const dto =
+      'cached' in result && result.cached
+        ? toChatResponseDtoFromCache(result, result.conversationId, {
+            cacheSource: result.cacheSource,
+          })
+        : toChatResponseDto(result);
+
+    res.json(mapChatResponseToOpenAi(dto, body.model));
   }
 }

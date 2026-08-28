@@ -94,6 +94,10 @@ export class NoopAppMetricsAdapter implements AppMetricsBackend {
     return;
   }
 
+  recordCachePipelineAccess(_model: ModelAlias, _hit: boolean): void {
+    return;
+  }
+
   updateCacheHitRate(_model: ModelAlias, _rate: number): void {
     return;
   }

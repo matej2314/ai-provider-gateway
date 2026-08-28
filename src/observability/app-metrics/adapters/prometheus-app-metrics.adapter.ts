@@ -201,6 +201,10 @@ export class PrometheusAppMetricsAdapter implements AppMetricsBackend {
     this.prometheus.metrics.semanticCacheLookupTotal.inc({ model, result });
   }
 
+  recordCachePipelineAccess(_model: ModelAlias, _hit: boolean): void {
+    return;
+  }
+
   updateCacheHitRate(model: ModelAlias, rate: number): void {
     this.prometheus.metrics.cacheHitRate.set({ model }, rate);
   }

@@ -819,6 +819,16 @@
           },
           "201": {
             "description": "Non-streaming response.",
+            "headers": {
+              "X-Gateway-Cache": {
+                "description": "Present on cache hit: `exact` or `semantic`. Omitted on miss and on stream.",
+                "required": false,
+                "schema": {
+                  "type": "string",
+                  "enum": ["exact", "semantic"]
+                }
+              }
+            },
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -1228,6 +1238,16 @@
           },
           "201": {
             "description": "Non-streaming response.",
+            "headers": {
+              "X-Gateway-Cache": {
+                "description": "Present on cache hit: `exact` or `semantic`. Omitted on miss and on stream.",
+                "required": false,
+                "schema": {
+                  "type": "string",
+                  "enum": ["exact", "semantic"]
+                }
+              }
+            },
             "content": {
               "text/event-stream": {
                 "schema": {

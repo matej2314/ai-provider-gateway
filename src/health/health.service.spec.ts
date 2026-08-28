@@ -1,7 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { HealthService } from './health.service';
-import { CacheRegistryService } from '../cache/cache-registry.service';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
 import { SemanticCacheService } from '../cache/semantic/semantic-cache.service';
 import { VECTOR_STORE } from '../cache/semantic/semantic-cache.tokens';
@@ -23,7 +22,6 @@ const healthyReadinessConfig: MockConfigServiceOptions = {
 
 describe('HealthService', () => {
   let service: HealthService;
-  let mockCacheRegistry: Partial<CacheRegistryService>;
   let mockRedisConnection: Partial<RedisConnectionService>;
   let mockSemanticCache: Partial<SemanticCacheService>;
   let mockVectorStore: {
@@ -43,10 +41,6 @@ describe('HealthService', () => {
     vectorStore?: Partial<typeof mockVectorStore>,
   ) {
     const mockConfigService = createMockConfigService(configOptions);
-
-    mockCacheRegistry = {
-      resolve: jest.fn(),
-    };
 
     mockRedisConnection = {
       isReady: jest.fn().mockReturnValue(false),
@@ -78,7 +72,6 @@ describe('HealthService', () => {
     const providers: any[] = [
       HealthService,
       { provide: ConfigService, useValue: mockConfigService },
-      { provide: CacheRegistryService, useValue: mockCacheRegistry },
       { provide: RedisConnectionService, useValue: mockRedisConnection },
       { provide: AppMetricsService, useValue: mockAppMetrics },
       {
@@ -172,7 +165,6 @@ describe('HealthService', () => {
 
       expect(result.status).toBe('ready');
       expect(result.checks.cache.status).toBe('degraded');
-      expect(mockCacheRegistry.resolve).not.toHaveBeenCalled();
     });
 
     it('should sync health metrics after evaluation', async () => {
@@ -365,9 +357,8 @@ describe('HealthService', () => {
 
       expect(result.checks.cache.status).toBe('healthy');
       expect(result.checks.cache.message).toBe(
-        'Cache enabled (redis backend).',
+        'Cache pipeline healthy (exact=true, semantic=false)',
       );
-      expect(mockCacheRegistry.resolve).not.toHaveBeenCalled();
     });
 
     it('should be degraded when cache enabled but redis unavailable', async () => {
@@ -384,9 +375,8 @@ describe('HealthService', () => {
 
       expect(result.checks.cache.status).toBe('degraded');
       expect(result.checks.cache.message).toBe(
-        'Cache enabled (redis backend unavailable).',
+        'Cache pipeline degraded (exact-redis)',
       );
-      expect(mockCacheRegistry.resolve).not.toHaveBeenCalled();
     });
 
     it('should default to noop when backend undefined', async () => {
@@ -400,6 +390,60 @@ describe('HealthService', () => {
       const result = await service.getReadiness();
 
       expect(result.checks.cache.status).toBe('healthy');
+    });
+
+    it('should be degraded when redis is down and exact cache is enabled', async () => {
+      await initService({
+        gatewayOptions: { models: {} },
+        resolvedSystemPrompts: { master: 'prompt' },
+        cache: { enabled: true, backend: 'redis' },
+        extra: { RATE_LIMIT_SMART_ENABLED: false },
+      });
+      (mockRedisConnection.ping as jest.Mock).mockResolvedValue(false);
+      (mockRedisConnection.isReady as jest.Mock).mockReturnValue(false);
+
+      const result = await service.getReadiness();
+
+      expect(result.checks.cache.status).toBe('degraded');
+      expect(result.checks.cache.message).toBe(
+        'Cache pipeline degraded (exact-redis)',
+      );
+      expect(result.status).toBe('ready');
+    });
+
+    it('should be degraded when embeddings are down and semantic is enabled', async () => {
+      await initService(
+        {
+          ...healthyReadinessConfig,
+          semanticCache: { enabled: true },
+        },
+        { probeEmbedding: jest.fn().mockResolvedValue(false) },
+      );
+
+      const result = await service.getReadiness();
+
+      expect(result.checks.cache.status).toBe('degraded');
+      expect(result.checks.cache.message).toBe(
+        'Cache pipeline degraded (embeddings)',
+      );
+      expect(result.status).toBe('ready');
+    });
+
+    it('should be healthy for semantic-only when embeddings and vectorStore are up', async () => {
+      await initService(
+        {
+          ...healthyReadinessConfig,
+          semanticCache: { enabled: true },
+        },
+        { probeEmbedding: jest.fn().mockResolvedValue(true) },
+      );
+
+      const result = await service.getReadiness();
+
+      expect(result.checks.cache.status).toBe('healthy');
+      expect(result.checks.cache.message).toBe(
+        'Cache pipeline healthy (exact=false, semantic=true)',
+      );
     });
   });
 

@@ -24,6 +24,7 @@ import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
 import { ActiveStreamsTracker } from '../observability/app-metrics/active-streams.tracker';
+import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { validateChatIngress } from './validation/chat-ingress.validator';
 import type { ChatIngressProfile } from './validation/chat-ingress.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
@@ -63,6 +64,7 @@ export class ChatService {
     private readonly responseBuilderService: ChatResponseBuilderService,
     private readonly validationService: ChatValidationService,
     private readonly activeStreams: ActiveStreamsTracker,
+    private readonly appMetrics: AppMetricsService,
   ) {}
 
   validateForStreaming(modelAlias: string) {
@@ -188,7 +190,13 @@ export class ChatService {
         clientId,
         options,
       );
-      return this.singleflightChat(key, runMissPath);
+      return this.singleflightChat(key, () => {
+        this.appMetrics.recordCachePipelineAccess(
+          asModelAlias(requestBody.modelAlias),
+          false,
+        );
+        return runMissPath();
+      });
     }
 
     return runMissPath();

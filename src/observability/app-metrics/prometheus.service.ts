@@ -104,7 +104,7 @@ export class PrometheusService implements OnModuleInit {
 
     const cacheHitRate = new Gauge({
       name: 'gateway_cache_hit_rate',
-      help: 'Cache hit rate (0-1)',
+      help: 'Pipeline cache hit rate (0-1): exact or semantic hit vs provider miss',
       labelNames: ['model'],
       registers: [this.registry],
     });

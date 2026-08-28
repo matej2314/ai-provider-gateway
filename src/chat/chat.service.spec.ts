@@ -20,6 +20,7 @@ import {
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
 import { ResilientExecutor } from './resilience/resilient-executor';
 import { ActiveStreamsTracker } from '../observability/app-metrics/active-streams.tracker';
+import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockResilientExecutor } from '../common/mocks/createMockResilientExecutor';
 import { createMockProviderRegistryService } from '../common/mocks/createMockProviderRegistryService';
@@ -59,6 +60,7 @@ describe('ChatService', () => {
   let mockErrorHandler: Partial<ChatErrorHandlerService>;
   let mockResponseBuilder: Partial<ChatResponseBuilderService>;
   let mockActiveStreams: Partial<ActiveStreamsTracker>;
+  let mockAppMetrics: { recordCachePipelineAccess: jest.Mock };
   let resolvedConfig: ResolvedProviderConfig;
 
   const TEST_CLIENT_ID = asClientId('test-client');
@@ -179,6 +181,10 @@ describe('ChatService', () => {
       ) as unknown as ActiveStreamsTracker['trackStream'],
     };
 
+    mockAppMetrics = {
+      recordCachePipelineAccess: jest.fn(),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         ChatService,
@@ -192,6 +198,7 @@ describe('ChatService', () => {
         { provide: ChatErrorHandlerService, useValue: mockErrorHandler },
         { provide: ChatResponseBuilderService, useValue: mockResponseBuilder },
         { provide: ActiveStreamsTracker, useValue: mockActiveStreams },
+        { provide: AppMetricsService, useValue: mockAppMetrics },
       ],
     }).compile();
 
@@ -314,6 +321,10 @@ describe('ChatService', () => {
       );
       expect(result.output.text).toBe('Hello!');
       expect(result.id).toBe(TEST_RESPONSE_ID_PREFIX);
+      expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledWith(
+        asModelAlias(TEST_MODEL_ALIAS),
+        false,
+      );
     });
 
     it('should return cached response without calling executor', async () => {
@@ -346,6 +357,7 @@ describe('ChatService', () => {
         cacheSource: 'exact',
       });
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordCachePipelineAccess).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith('Chat cache hit', {
         cacheSource: 'exact',
       });
@@ -421,6 +433,7 @@ describe('ChatService', () => {
         toolingRequest,
         resolvedConfig,
       );
+      expect(mockAppMetrics.recordCachePipelineAccess).not.toHaveBeenCalled();
     });
 
     it('should propagate validateTooling errors', async () => {
@@ -618,6 +631,7 @@ describe('ChatService', () => {
 
       expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
       expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordCachePipelineAccess).not.toHaveBeenCalled();
     });
 
     it('should pass effectiveModelAlias to builder when fallback occurred', async () => {
@@ -784,6 +798,11 @@ describe('ChatService', () => {
       expect(first).toEqual(second);
       expect(mockProviderCall.completeOnce).toHaveBeenCalledTimes(1);
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledTimes(1);
+      expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledTimes(1);
+      expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledWith(
+        asModelAlias(TEST_MODEL_ALIAS),
+        false,
+      );
     });
 
     it('should not coalesce requests that differ only by trailing space', async () => {

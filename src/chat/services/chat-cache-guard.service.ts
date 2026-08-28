@@ -17,7 +17,11 @@ import {
   shouldStoreChatResponse,
 } from '../helpers/cache-policy';
 import { isToolingRequest } from '../helpers/tooling-request';
-import { asProviderInstanceId } from '../../common/types/branded.types';
+import {
+  asModelAlias,
+  asProviderInstanceId,
+} from '../../common/types/branded.types';
+import { AppMetricsService } from '../../observability/app-metrics/app-metrics.service';
 import {
   SemanticCacheService,
   type SemanticStoreEmbedState,
@@ -54,6 +58,7 @@ export class ChatCacheGuardService {
     private readonly config: ConfigService,
     private readonly rateLimiter: SmartRateLimiterService,
     private readonly loggingService: LoggingService,
+    private readonly appMetrics: AppMetricsService,
     @Optional() private readonly semanticCache?: SemanticCacheService,
   ) {
     const logger = this.loggingService.child({
@@ -112,12 +117,14 @@ export class ChatCacheGuardService {
       return { cached: null };
     }
 
+    const alias = asModelAlias(modelAlias);
     const exact = await this.cacheService.getCachedResponse(
       requestBody,
       clientId,
       options,
     );
     if (exact) {
+      this.appMetrics.recordCachePipelineAccess(alias, true);
       return { cached: exact, cacheSource: 'exact' };
     }
 
@@ -132,6 +139,7 @@ export class ChatCacheGuardService {
       options,
     );
     if (semantic.reply) {
+      this.appMetrics.recordCachePipelineAccess(alias, true);
       return { cached: semantic.reply, cacheSource: 'semantic' };
     }
     return {

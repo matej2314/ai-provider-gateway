@@ -656,7 +656,7 @@
           "refId": "A"
         }
       ],
-      "title": "Cache Access (Hit / Miss)",
+      "title": "Exact Cache Access (Hit / Miss)",
       "type": "timeseries"
     },
     {
@@ -700,7 +700,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
       "id": 12,
       "options": {
         "legend": {
@@ -715,12 +715,70 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by (model) (rate(gateway_cache_access_total{hit=\"true\"}[5m])) / clamp_min(sum by (model) (rate(gateway_cache_access_total[5m])), 0.001)",
+          "expr": "gateway_cache_hit_rate",
           "legendFormat": "{{model}}",
           "refId": "A"
         }
       ],
-      "title": "Cache Hit Rate by Model",
+      "title": "Pipeline Cache Hit Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": ["sum"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (model, result) (increase(gateway_semantic_cache_lookup_total[5m]))",
+          "legendFormat": "{{model}} {{result}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Semantic Cache Lookups",
       "type": "timeseries"
     }
   ],
@@ -733,6 +791,6 @@
   "timezone": "browser",
   "title": "AI Gateway — Technical",
   "uid": "ai-gateway-technical",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

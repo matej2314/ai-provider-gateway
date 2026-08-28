@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
 import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { PreMetricsScrapeRegistry } from '../observability/app-metrics/pre-metrics-scrape.registry';
-import { CacheRegistryService } from '../cache/cache-registry.service';
 import { RedisConnectionService } from '../cache/adapters/redis-cache/redis-connection.service';
 import { SemanticCacheService } from '../cache/semantic/semantic-cache.service';
 import { VECTOR_STORE } from '../cache/semantic/semantic-cache.tokens';
@@ -46,7 +45,6 @@ export class HealthService implements OnModuleInit {
 
   constructor(
     private readonly config: ConfigService,
-    private readonly cacheRegistry: CacheRegistryService,
     @Optional()
     @Inject(RedisConnectionService)
     private readonly redisConnection: RedisConnectionService | undefined,
@@ -80,9 +78,13 @@ export class HealthService implements OnModuleInit {
     const configCheck = this.checkConfig();
     const redisRequired = isRedisRequiredFromConfig(this.config);
     const redisCheck = redisRequired ? await this.checkRedis() : undefined;
-    const cacheCheck = this.checkCache(redisCheck);
     const embeddingsCheck = await this.checkEmbeddings();
     const vectorStoreCheck = await this.checkVectorStore();
+    const cacheCheck = this.checkCache(
+      redisCheck,
+      embeddingsCheck,
+      vectorStoreCheck,
+    );
 
     const checks: HealthReadinessResponseDto['checks'] = {
       config: configCheck,
@@ -198,44 +200,46 @@ export class HealthService implements OnModuleInit {
     };
   }
 
-  private checkCache(redisCheck?: HealthRedisCheckResult): HealthCheckResult {
+  private checkCache(
+    redisCheck?: HealthRedisCheckResult,
+    embeddingsCheck?: HealthCheckResult,
+    vectorStoreCheck?: HealthCheckResult,
+  ): HealthCheckResult {
     const cacheConfig = getAppConfig(this.config, 'cache');
-
+    const semanticEnabled =
+      getAppConfig(this.config, 'semanticCache')?.enabled === true;
     const backendId = (cacheConfig?.backend ?? 'noop').toLowerCase();
+    const exactEnabled = cacheConfig?.enabled === true && backendId === 'redis';
 
-    if (!cacheConfig?.enabled || backendId === 'noop') {
+    if (!exactEnabled && !semanticEnabled) {
       return {
         status: 'healthy',
         message: 'Cache disabled (noop)',
       };
     }
 
-    if (backendId === 'redis') {
-      if (redisCheck?.status === 'healthy') {
-        return {
-          status: 'healthy',
-          message: 'Cache enabled (redis backend).',
-        };
-      }
+    const failed: string[] = [];
 
-      return {
-        status: 'degraded',
-        message: 'Cache enabled (redis backend unavailable).',
-      };
+    if (exactEnabled) {
+      const exactOk = redisCheck?.status === 'healthy';
+      if (!exactOk) failed.push('exact-redis');
     }
 
-    const backend = this.cacheRegistry.resolve();
+    if (semanticEnabled) {
+      if (embeddingsCheck?.status !== 'healthy') failed.push('embeddings');
+      if (vectorStoreCheck?.status !== 'healthy') failed.push('vectorStore');
+    }
 
-    if (!backend.isAvailable()) {
+    if (failed.length === 0) {
       return {
-        status: 'degraded',
-        message: `Cache backend ${backendId} unavailable`,
+        status: 'healthy',
+        message: `Cache pipeline healthy (exact=${exactEnabled}, semantic=${semanticEnabled})`,
       };
     }
 
     return {
-      status: 'healthy',
-      message: `Cache backend ${backendId} available`,
+      status: 'degraded',
+      message: `Cache pipeline degraded (${failed.join(', ')})`,
     };
   }
 

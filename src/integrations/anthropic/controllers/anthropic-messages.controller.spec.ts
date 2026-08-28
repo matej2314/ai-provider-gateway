@@ -16,6 +16,7 @@ import { SmartRateLimitGuard } from '../../../guards/smart-rate-limit-guard';
 import { createMockExpressRequest } from '../../../common/mocks/http-mocks';
 import { asGatewayKey, asRequestId } from '../../../common/types';
 import { asClientId } from '../../../common/types/branded.types';
+import { GATEWAY_CACHE_HEADER } from '../../../cache/types/chat-cache-source.type';
 
 jest.mock('../mappers/anthropic-request.mapper', () => ({
   mapAnthropicRequestToGateway: jest.fn((body) => ({
@@ -111,7 +112,7 @@ describe('AnthropicMessagesController', () => {
       requestId: REQ_ID,
       gatewayKey: GW_KEY,
     }) as Request;
-    const { res, json } = mockResponse();
+    const { res, json, setHeader } = mockResponse();
     executeChatMock.mockResolvedValue({
       id: 'gw_abc',
       output: { text: 'Hi' },
@@ -137,6 +138,40 @@ describe('AnthropicMessagesController', () => {
         content: [{ type: 'text', text: 'Hi' }],
       }),
     );
+    expect(setHeader).not.toHaveBeenCalledWith(
+      GATEWAY_CACHE_HEADER,
+      expect.anything(),
+    );
+  });
+
+  it('should set X-Gateway-Cache on semantic cache hit', async () => {
+    const req = createMockExpressRequest({
+      requestId: REQ_ID,
+      gatewayKey: GW_KEY,
+    }) as Request;
+    const { res, json, setHeader } = mockResponse();
+    executeChatMock.mockResolvedValue({
+      id: 'gw_cached',
+      provider: 'anthropic',
+      model: 'claude-3',
+      output: { type: 'text', text: 'From cache' },
+      requestId: REQ_ID,
+      conversationId: 'conv_1',
+      cached: true,
+      cachedAt: '2026-08-28T00:00:00.000Z',
+      cacheSource: 'semantic',
+      finishReason: 'stop',
+    });
+
+    await controller.createMessage(req, res, {
+      model: 'claude-3',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello' }] }],
+      stream: false,
+    });
+
+    expect(setHeader).toHaveBeenCalledWith(GATEWAY_CACHE_HEADER, 'semantic');
+    expect(json).toHaveBeenCalled();
   });
 
   it('should throw 401 when gateway key is missing', async () => {
@@ -206,6 +241,10 @@ describe('AnthropicMessagesController', () => {
       expect(write).toHaveBeenCalled();
       expect(releaseStreamMock).toHaveBeenCalledWith(GW_KEY);
       expect(end).toHaveBeenCalled();
+      expect(setHeader).not.toHaveBeenCalledWith(
+        GATEWAY_CACHE_HEADER,
+        expect.anything(),
+      );
     });
 
     it('should throw 429 when concurrent stream limit exceeded', async () => {
