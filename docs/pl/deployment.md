@@ -488,7 +488,7 @@ Istotne zmienne: `DEPLOY_DIR`, `LAST_GOOD_SHA_FILE`, `SKIP_VAULT_FETCH`, `HEALTH
 - **Logi kontenera:** `docker logs ai-gateway -f` lub `make docker-logs`
 - **Prometheus:** http://localhost:9090 (po włączeniu rozszerzenia monitoring)
 - **Grafana:** http://localhost:3001 — `make dashboard`
-- **Metryki aplikacji:** `GET /metrics` (publiczne, **bez** prefiksu `/api/v1`) — format Prometheus text; przed exportem odświeżane są gauge'e readiness (`gateway_readiness`, `gateway_health_status{component="config|redis|cache|embeddings"}`) oraz `gateway_process_uptime_seconds`. Cache semantyczny dodaje też liczniki exact hit/miss oraz semantic hit / below-threshold / error / skip (fail-open).
+- **Metryki aplikacji:** `GET /metrics` (publiczne, **bez** prefiksu `/api/v1`) — format Prometheus text; przed exportem odświeżane są gauge'e readiness (`gateway_readiness`, `gateway_health_status{component="config|redis|cache|embeddings"}`) oraz `gateway_process_uptime_seconds`. Cache semantyczny dodaje też liczniki exact hit/miss oraz semantic hit / hash-hit / below-threshold / error / skip (fail-open).
 - **Health HTTP:**
   - Liveness: `GET /api/v1/health`
   - Readiness: `GET /api/v1/health/ready` (Docker HEALTHCHECK parsuje `body.status`)

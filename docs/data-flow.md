@@ -43,8 +43,8 @@ sequenceDiagram
     E-->>S: stored response (cached: true)
     S-->>-H: 201 JSON (cached, exact)
   else exact MISS / disabled
-    S->>SC: semantic lookup (embedding + KNN) — skipped for tooling / unknown clientId / multi-turn / stream
-    alt semantic HIT (similarity >= threshold, same partition)
+    S->>SC: semantic lookup (HASH last-user, then embedding + KNN) — skipped for tooling / unknown clientId / multi-turn / stream
+    alt semantic HIT (HASH or similarity >= threshold, same partition)
       SC-->>S: stored response (cached: true)
       S-->>-H: 201 JSON (cached, semantic)
     else semantic MISS / disabled / fail-open

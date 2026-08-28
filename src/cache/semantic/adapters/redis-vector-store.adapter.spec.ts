@@ -39,6 +39,7 @@ describe('RedisVectorStoreAdapter', () => {
       multi?: jest.Mock;
       hset?: jest.Mock;
       expire?: jest.Mock;
+      hget?: jest.Mock;
     } | null,
   ) {
     if (client) {
@@ -495,6 +496,136 @@ describe('RedisVectorStoreAdapter', () => {
       expect(
         mockCall.mock.calls.filter((c) => c[0] === 'FT.SEARCH'),
       ).toHaveLength(2);
+    });
+  });
+
+  describe('getByTextIdentity', () => {
+    const validReply: CachedChatResponse = {
+      id: TEST_CACHED_RESPONSE_ID,
+      provider: TEST_PROVIDER_INSTANCE_BRANDED,
+      model: TEST_MODEL_ALIAS_BRANDED,
+      output: { type: 'text', text: 'from-hash' },
+      usage: {
+        inputTokens: TEST_INPUT_TOKENS,
+        outputTokens: TEST_OUTPUT_TOKENS_SMALL,
+      },
+      requestId: TEST_CACHED_REQUEST_ID,
+      cached: true,
+      cachedAt: '2026-01-01T00:00:00.000Z',
+      finishReason: 'stop',
+    };
+    const validReplyJson = JSON.stringify(validReply);
+
+    const identity = {
+      text: 'hi',
+      modelAlias: asModelAlias('test-model'),
+      clientId: asClientId('client-a'),
+      systemSignature: 'sys',
+      callParams: 'params',
+    };
+
+    it('should return parsed reply on HASH hit', async () => {
+      const hget = jest.fn().mockResolvedValue(validReplyJson);
+      await initAdapter({
+        call: jest.fn().mockResolvedValue([0]),
+        del: jest.fn().mockResolvedValue(1),
+        hget,
+      });
+
+      await expect(adapter.getByTextIdentity(identity)).resolves.toEqual(
+        expect.objectContaining({
+          output: { type: 'text', text: 'from-hash' },
+          finishReason: 'stop',
+        }),
+      );
+      expect(hget).toHaveBeenCalledWith(
+        expect.stringMatching(new RegExp(`^${indexName}:[a-f0-9]{32}$`)),
+        'reply',
+      );
+    });
+
+    it('should return null on HASH miss', async () => {
+      const hget = jest.fn().mockResolvedValue(null);
+      await initAdapter({
+        call: jest.fn().mockResolvedValue([0]),
+        del: jest.fn().mockResolvedValue(1),
+        hget,
+      });
+
+      await expect(adapter.getByTextIdentity(identity)).resolves.toBeNull();
+      expect(mockDel).not.toHaveBeenCalled();
+    });
+
+    it('should delete corrupt reply and return null', async () => {
+      const hget = jest
+        .fn()
+        .mockResolvedValue(JSON.stringify({ cached: false }));
+      await initAdapter({
+        call: jest.fn().mockResolvedValue([0]),
+        del: jest.fn().mockResolvedValue(1),
+        hget,
+      });
+
+      await expect(adapter.getByTextIdentity(identity)).resolves.toBeNull();
+      expect(mockDel).toHaveBeenCalledWith(
+        expect.stringMatching(new RegExp(`^${indexName}:[a-f0-9]{32}$`)),
+      );
+    });
+
+    it('should delete unservable length replies and return null', async () => {
+      const hget = jest
+        .fn()
+        .mockResolvedValue(
+          JSON.stringify({ ...validReply, finishReason: 'length' }),
+        );
+      await initAdapter({
+        call: jest.fn().mockResolvedValue([0]),
+        del: jest.fn().mockResolvedValue(1),
+        hget,
+      });
+
+      await expect(adapter.getByTextIdentity(identity)).resolves.toBeNull();
+      expect(mockDel).toHaveBeenCalled();
+    });
+
+    it('should return null when Redis client is missing', async () => {
+      await initAdapter(null);
+
+      await expect(adapter.getByTextIdentity(identity)).resolves.toBeNull();
+    });
+
+    it('should use the same entryKey as upsert for identical identity fields', async () => {
+      const multiChain = {
+        hset: jest.fn().mockReturnThis(),
+        expire: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([
+          [null, 'OK'],
+          [null, 1],
+        ]),
+      };
+      const hget = jest.fn().mockResolvedValue(validReplyJson);
+      const multi = jest.fn().mockReturnValue(multiChain);
+      await initAdapter({
+        call: jest.fn().mockResolvedValue([0]),
+        del: jest.fn().mockResolvedValue(1),
+        multi,
+        hget,
+      });
+
+      await adapter.upsert({
+        vector: [0.1],
+        text: identity.text,
+        modelAlias: identity.modelAlias,
+        clientId: identity.clientId,
+        systemSignature: identity.systemSignature,
+        callParams: identity.callParams,
+        reply: validReply,
+        ttlSeconds: asSemanticCacheTtlSeconds(60),
+      });
+      await adapter.getByTextIdentity(identity);
+
+      const upsertKey = multiChain.hset.mock.calls[0]![0] as string;
+      expect(hget).toHaveBeenCalledWith(upsertKey, 'reply');
     });
   });
 

@@ -428,13 +428,13 @@ describe('ResponseCacheService', () => {
     it('should persist thinkingContent and map it on HTTP cache hit', async () => {
       let stored: string | undefined;
       (mockCacheBackend.set as jest.Mock).mockImplementation(
-        async (_key: string, value: string) => {
+        (_key: string, value: string) => {
           stored = value;
           return true;
         },
       );
       (mockCacheBackend.get as jest.Mock).mockImplementation(
-        async () => stored ?? null,
+        () => stored ?? null,
       );
 
       const withThinking: ChatResponseData = {

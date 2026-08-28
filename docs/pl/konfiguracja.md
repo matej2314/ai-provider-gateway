@@ -78,12 +78,12 @@ Szablon zmiennych: `.env.example`.
 
 ### Cache semantyczny (`src/cache/semantic/`)
 
-Cache semantyczny stoi **powyżej** cache'u exact w łańcuchu lookupów dla `POST /api/v1/chat`: exact (hash) → semantic (embedding + KNN) → provider. Jest niezależny od `CACHE_BACKEND` — ma własny przełącznik `SEMANTIC_CACHE_ENABLED`. Do indeksu wektorowego wymagany jest Redis Search (część Redis Stack).
+Cache semantyczny stoi **powyżej** cache'u exact w łańcuchu lookupów dla `POST /api/v1/chat`: exact (hash) → semantic HASH (przycięty last-user) → embed + KNN → provider. Jest niezależny od `CACHE_BACKEND` — ma własny przełącznik `SEMANTIC_CACHE_ENABLED`. Do indeksu wektorowego wymagany jest Redis Search (część Redis Stack).
 
 **Kolejność lookup:**
 
 1. **Trafienie exact** — hash `(modelAlias, clientId, messages, system prompt, efektywne parametry)` → zwracana jest zapisana odpowiedź.
-2. **Trafienie semantyczne** — tylko dla żądań **jednoturowych** (dokładnie jedna wiadomość `role: user` i brak ról `assistant` / `tool`): embedding tej wiadomości, zapytanie KNN w Redis Search z filtrem TAG partycji, podobieństwo cosinusowe ≥ próg → zwracana jest zapisana odpowiedź.
+2. **Trafienie semantyczne** — tylko dla żądań **jednoturowych** (dokładnie jedna wiadomość `role: user` i brak ról `assistant` / `tool`): tani lookup Redis HASH po przyciętym last-user w tej samej partycji (`VectorStore.getByTextIdentity`, bez embed); przy missie embedding tej wiadomości, zapytanie KNN w Redis Search z filtrem TAG partycji, podobieństwo cosinusowe ≥ próg → zwracana jest zapisana odpowiedź (`cacheSource: "semantic"`; trafienie HASH to metryka `hash-hit`).
 3. **Miss** — wywołanie providera; zapis exact + upsert wektora (upsert semantyczny tylko przy żądaniu jednoturowym).
 
 **Warunki pominięcia** (bez lookupu / zapisu semantycznego): żądania tooling, brak `gatewayKey`, `clientId === 'unknown'`, alias modelu niedozwolony przez politykę cache (`isCachedChatAllowedForModelAlias` — sprawdzane **przed** Redis GET exact i przed I/O semantic; także bramkuje zapis exact/semantic), historia wieloturowa (dowolna wiadomość `assistant` / `tool` albo więcej niż jedna `user`), brak ostatniej wiadomości użytkownika z niepustym `content`, wszystkie żądania streamingowe (`POST /api/v1/chat/stream`).

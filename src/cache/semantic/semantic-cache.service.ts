@@ -74,6 +74,26 @@ export class SemanticCacheService {
     }
     const text = lastUserMessageText(request);
     if (!text) return this.recordLookupSkip(request.modelAlias);
+
+    const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
+    const systemSig = computeSystemSignature(prompts, request.modelAlias);
+    const callParamsSig = hashCallParams(options);
+
+    const identityReply = await this.vectorStore.getByTextIdentity({
+      text,
+      modelAlias: asModelAlias(request.modelAlias),
+      clientId,
+      systemSignature: systemSig,
+      callParams: callParamsSig,
+    });
+    if (identityReply) {
+      this.appMetrics.recordSemanticCacheLookup(
+        asModelAlias(request.modelAlias),
+        'hash-hit',
+      );
+      return { reply: identityReply, vector: null, embedAttempted: false };
+    }
+
     if (this.circuit.shouldSkipEmbed()) {
       return this.recordLookupSkip(request.modelAlias);
     }
@@ -92,10 +112,6 @@ export class SemanticCacheService {
       this.logger.warn(`Semantic cache lookup failed (fail-open): ${msg}`);
       return { reply: null, vector: null, embedAttempted: true };
     }
-
-    const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
-    const systemSig = computeSystemSignature(prompts, request.modelAlias);
-    const callParamsSig = hashCallParams(options);
 
     try {
       const hits = await this.vectorStore.knn({

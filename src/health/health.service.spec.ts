@@ -31,6 +31,7 @@ describe('HealthService', () => {
     ensureIndex: jest.Mock;
     knn: jest.Mock;
     upsert: jest.Mock;
+    getByTextIdentity: jest.Mock;
   };
   let mockAppMetrics: Partial<AppMetricsService>;
   let mockLogger: Partial<LoggingService>;
@@ -62,6 +63,7 @@ describe('HealthService', () => {
       ensureIndex: jest.fn().mockResolvedValue(undefined),
       knn: jest.fn().mockResolvedValue([]),
       upsert: jest.fn().mockResolvedValue(undefined),
+      getByTextIdentity: jest.fn().mockResolvedValue(null),
       ...vectorStore,
     };
 

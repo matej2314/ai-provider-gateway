@@ -43,8 +43,8 @@ sequenceDiagram
     E-->>S: zapisana odpowiedź (cached: true)
     S-->>-H: 201 JSON (cached, exact)
   else exact MISS / wyłączony
-    S->>SC: lookup semantyczny (embedding + KNN) — pominięty dla tooling / unknown clientId / wielotury / stream
-    alt semantic HIT (similarity >= próg, ta sama partycja)
+    S->>SC: lookup semantyczny (HASH last-user, potem embedding + KNN) — pominięty dla tooling / unknown clientId / wielotury / stream
+    alt semantic HIT (HASH albo similarity >= próg, ta sama partycja)
       SC-->>S: zapisana odpowiedź (cached: true)
       S-->>-H: 201 JSON (cached, semantyczny)
     else semantic MISS / wyłączony / fail-open

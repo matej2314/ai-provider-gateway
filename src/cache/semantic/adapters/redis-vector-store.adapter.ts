@@ -8,11 +8,13 @@ import { parseCachedChatResponse } from '../../schemas/cached-chat-response.sche
 import { isUnservableCachedReply } from '../../../chat/helpers/cache-policy';
 import { semanticIndexName } from '../index-name';
 import { semanticSchemaFtCreateArgs } from '../semantic-cache.constants';
+import type { CachedChatResponse } from '../../types/cached-chat-response.type';
 import type {
   VectorStore,
   VectorSearchHit,
   VectorStoreKnnInput,
   VectorStoreProbeResult,
+  VectorStoreTextIdentityInput,
   VectorStoreUpsertInput,
 } from '../vector-store.interface';
 import { unbrand } from '../../../common/types/branded.types';
@@ -358,6 +360,35 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       .digest('hex')
       .slice(0, 32);
     return `${this.indexName()}:${hash}`;
+  }
+
+  async getByTextIdentity(
+    input: VectorStoreTextIdentityInput,
+  ): Promise<CachedChatResponse | null> {
+    const redisClient = this.redis.getClient();
+    if (!redisClient) return null;
+
+    const key = this.entryKey(
+      input.clientId,
+      input.modelAlias,
+      input.text,
+      input.systemSignature,
+      input.callParams,
+    );
+
+    try {
+      const replyRaw = await redisClient.hget(key, 'reply');
+      if (!replyRaw) return null;
+      const parsedJson: unknown = JSON.parse(this.asString(replyRaw));
+      const reply = parseCachedChatResponse(parsedJson);
+      if (!reply || isUnservableCachedReply(reply)) {
+        await this.deleteCorruptEntry(key);
+        return null;
+      }
+      return reply;
+    } catch {
+      return null;
+    }
   }
 
   async upsert(input: VectorStoreUpsertInput): Promise<void> {

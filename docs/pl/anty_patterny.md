@@ -177,7 +177,7 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 
 **Nie rób:** dodawaj zapytan Redis Search / KNN do istniejacych adapterow `CacheBackend` / `noop` / `redis` w `src/cache/adapters/`. Interfejs KV `CacheBackend` jest zaprojektowany dla dokladnych lookupu klucz-wartosc i nie ma koncepcji wyszukiwania podobienstwa.
 
-**Rób:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (exact -> semantic -> provider) jest orkiestrowana w `ChatCacheGuardService`, nie wewnatrz istniejacych adapterow. Przy zapisie reuse wektora z lookupu; **nie** wołaj ponownie `embed`, gdy lookup już go próbował (sukces bez wektora albo błąd).
+**Rób:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (exact -> semantic HASH przyciętego last-user -> embed + KNN -> provider) jest orkiestrowana w `ChatCacheGuardService` / `SemanticCacheService`, nie wewnatrz istniejacych adapterow. Tani `VectorStore.getByTextIdentity` działa **przed** embed. Przy zapisie reuse wektora z lookupu; **nie** wołaj ponownie `embed`, gdy lookup już go próbował (sukces bez wektora albo błąd).
 
 ## 17) Nadpisywanie command: w Redis Stack Compose
 
@@ -193,7 +193,7 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 
 **Nie rób:** oczekiwać semantic hit na żądaniach wieloturowych ani traktować anaforycznych fraz last-user (`kontynuuj`, `podsumuj to`, `przetłumacz`) jako bezpiecznego klucza cache przy różnych historiach. Cache semantyczny działa tylko dla body **jednoturowego** (dokładnie jedna `role: user`, bez `assistant` / `tool`).
 
-**Rób:** zachowaj domyślne 0.85 (podobieństwo cosinusowe) lub zwiększ dla domen wymagających wysokiej precyzji. Opieraj się na pełnej **case-sensitive** partycji KNN (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) i bramce jednoturowej. Monitoruj `hit` / `below-threshold` / `error` / `skip` na `gateway_semantic_cache_lookup_total` (`skip` = early-return bez embed/KNN, w tym otwarty circuit lub wyłączony/multi-turn; `error` = wyłącznie nieudany I/O embed/KNN). Uszkodzony `reply` w HASH semantycznym jest kasowany przy KNN (jak exact). Próbkuj trafienia cache podczas strojenia.
+**Rób:** zachowaj domyślne 0.85 (podobieństwo cosinusowe) lub zwiększ dla domen wymagających wysokiej precyzji. Opieraj się na pełnej **case-sensitive** partycji KNN (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) i bramce jednoturowej. Monitoruj `hit` / `hash-hit` / `below-threshold` / `error` / `skip` na `gateway_semantic_cache_lookup_total` (`hash-hit` = trafienie HASH bez embed; `skip` = early-return bez embed/KNN, w tym otwarty circuit po missie HASH lub wyłączony/multi-turn; `error` = wyłącznie nieudany I/O embed/KNN). Uszkodzony `reply` w HASH semantycznym jest kasowany przy odczycie HASH i przy KNN (jak exact). Próbkuj trafienia cache podczas strojenia.
 
 ## 19) Prefiks nomic / mxbai przy embeddingu Qwen
 

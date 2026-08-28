@@ -21,15 +21,11 @@ describe('createInProcessSingleflight', () => {
     const boom = new Error('fail');
     await expect(
       Promise.all([
-        run('k', async () => {
-          throw boom;
-        }),
-        run('k', async () => {
-          throw boom;
-        }),
+        run('k', () => Promise.reject(boom)),
+        run('k', () => Promise.reject(boom)),
       ]),
     ).rejects.toThrow('fail');
 
-    await expect(run('k', async () => 1)).resolves.toBe(1);
+    await expect(run('k', () => Promise.resolve(1))).resolves.toBe(1);
   });
 });

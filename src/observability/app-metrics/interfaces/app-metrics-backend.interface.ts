@@ -57,11 +57,13 @@ export type HealthComponent =
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
 /**
  * Semantic cache lookup outcome (exact cache keeps recordCacheAccess).
- * `skip` = early-return without embed/KNN I/O (disabled, multi-turn, no text, circuit open).
+ * `hash-hit` = Redis HASH identity match on trimmed last-user (no embed/KNN).
+ * `skip` = early-return without embed/KNN I/O (disabled, multi-turn, no text, circuit open after HASH miss).
  * `error` = failed embed or KNN I/O after an attempt.
  */
 export type SemanticCacheLookupResult =
   | 'hit'
+  | 'hash-hit'
   | 'below-threshold'
   | 'error'
   | 'skip';

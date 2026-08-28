@@ -165,7 +165,7 @@ export class AppMetricsService {
 
   /**
    * Records a semantic cache lookup outcome.
-   * Captures: model and result (hit / below-threshold / error / skip).
+   * Captures: model and result (hit / hash-hit / below-threshold / error / skip).
    */
   recordSemanticCacheLookup(
     model: ModelAlias,

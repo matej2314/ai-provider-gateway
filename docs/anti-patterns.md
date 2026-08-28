@@ -177,7 +177,7 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 
 **Don’t:** add Redis Search / KNN queries to the existing `CacheBackend` / `noop` / `redis` adapters in `src/cache/adapters/`. The KV `CacheBackend` interface is for exact key-value lookup and has no similarity-search concept.
 
-**Do:** implement semantic lookup as a **separate port** (`EmbeddingBackend`, `VectorStore`) in `src/cache/semantic/` — independent adapters wired by `SemanticCacheService`. Lookup order (exact → semantic → provider) is orchestrated in `ChatCacheGuardService`, not inside the KV adapters. On store, reuse the lookup vector; do **not** call `embed` again when lookup already attempted it (failed or succeeded without a usable vector).
+**Do:** implement semantic lookup as a **separate port** (`EmbeddingBackend`, `VectorStore`) in `src/cache/semantic/` — independent adapters wired by `SemanticCacheService`. Lookup order (exact → semantic HASH on trimmed last-user → embed + KNN → provider) is orchestrated in `ChatCacheGuardService` / `SemanticCacheService`, not inside the KV adapters. Cheap `VectorStore.getByTextIdentity` runs **before** embed. On store, reuse the lookup vector; do **not** call `embed` again when lookup already attempted it (failed or succeeded without a usable vector).
 
 ## 17) Overriding `command:` on Redis Stack Compose
 
@@ -193,7 +193,7 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 
 **Don’t:** expect a semantic hit on multi-turn requests, or treat anaphoric last-user phrases (`continue`, `summarize that`, `translate`) as a safe cache key across different histories. Semantic cache runs only for **single-turn** bodies (exactly one `role: user`, no `assistant` / `tool`).
 
-**Do:** keep the default 0.85 (cosine similarity) or raise it for high-precision domains. Rely on the full **case-sensitive** KNN partition (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) and the single-turn gate. Monitor semantic `hit` / `below-threshold` / `error` / `skip` on `gateway_semantic_cache_lookup_total` (`skip` = early-return without embed/KNN, including open circuit or disabled/multi-turn; `error` = failed embed/KNN I/O only). Corrupt semantic HASH `reply` values are deleted on KNN (exact-cache hygiene parity). Sample cache hits while tuning.
+**Do:** keep the default 0.85 (cosine similarity) or raise it for high-precision domains. Rely on the full **case-sensitive** KNN partition (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) and the single-turn gate. Monitor semantic `hit` / `hash-hit` / `below-threshold` / `error` / `skip` on `gateway_semantic_cache_lookup_total` (`hash-hit` = Redis HASH identity match without embed; `skip` = early-return without embed/KNN, including open circuit after HASH miss or disabled/multi-turn; `error` = failed embed/KNN I/O only). Corrupt semantic HASH `reply` values are deleted on HASH read and KNN (exact-cache hygiene parity). Sample cache hits while tuning.
 
 ## 19) Nomic / mxbai prefix on Qwen embeddings
 

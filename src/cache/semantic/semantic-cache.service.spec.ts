@@ -56,6 +56,7 @@ describe('SemanticCacheService', () => {
     upsert: jest.Mock;
     ensureIndex: jest.Mock;
     probeIndex: jest.Mock;
+    getByTextIdentity: jest.Mock;
   };
   let mockAppMetrics: { recordSemanticCacheLookup: jest.Mock };
   let mockLogger: Partial<LoggingService>;
@@ -92,6 +93,7 @@ describe('SemanticCacheService', () => {
         available: true,
         message: 'Redis Search index available',
       }),
+      getByTextIdentity: jest.fn().mockResolvedValue(null),
     };
     mockAppMetrics = {
       recordSemanticCacheLookup: jest.fn(),
@@ -164,6 +166,51 @@ describe('SemanticCacheService', () => {
       );
     });
 
+    it('should return hash-hit without embed when getByTextIdentity finds a reply', async () => {
+      mockVectorStore.getByTextIdentity.mockResolvedValue(cachedReply);
+
+      const result = await service.lookup(userRequest, TEST_CLIENT_ID);
+
+      expect(result).toEqual({
+        reply: cachedReply,
+        vector: null,
+        embedAttempted: false,
+      });
+      expect(mockEmbedding.embed).not.toHaveBeenCalled();
+      expect(mockVectorStore.knn).not.toHaveBeenCalled();
+      expect(mockVectorStore.getByTextIdentity).toHaveBeenCalledWith({
+        text: 'Hello semantic',
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        clientId: TEST_CLIENT_ID,
+        systemSignature: expect.any(String),
+        callParams: expect.any(String),
+      });
+      expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        'hash-hit',
+      );
+    });
+
+    it('should HASH lookup trimmed last-user text (P16: trailing space)', async () => {
+      mockVectorStore.getByTextIdentity.mockResolvedValue(cachedReply);
+      const padded: ChatRequestDto = {
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user', content: 'hello ' }],
+      };
+
+      const result = await service.lookup(padded, TEST_CLIENT_ID);
+
+      expect(result.reply).toEqual(cachedReply);
+      expect(mockEmbedding.embed).not.toHaveBeenCalled();
+      expect(mockVectorStore.getByTextIdentity).toHaveBeenCalledWith(
+        expect.objectContaining({ text: 'hello' }),
+      );
+      expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        'hash-hit',
+      );
+    });
+
     it('should skip embed for multi-turn request and record skip (B2)', async () => {
       const request: ChatRequestDto = {
         modelAlias: TEST_MODEL_ALIAS,
@@ -183,6 +230,7 @@ describe('SemanticCacheService', () => {
       });
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.knn).not.toHaveBeenCalled();
+      expect(mockVectorStore.getByTextIdentity).not.toHaveBeenCalled();
       expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
         TEST_MODEL_ALIAS_BRANDED,
         'skip',
@@ -347,9 +395,31 @@ describe('SemanticCacheService', () => {
       });
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.knn).not.toHaveBeenCalled();
+      expect(mockVectorStore.getByTextIdentity).toHaveBeenCalled();
       expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
         TEST_MODEL_ALIAS_BRANDED,
         'skip',
+      );
+    });
+
+    it('should still HASH-hit when the embedding circuit is open', async () => {
+      await openCircuitViaLookup();
+      mockEmbedding.embed.mockClear();
+      mockAppMetrics.recordSemanticCacheLookup.mockClear();
+      mockVectorStore.getByTextIdentity.mockResolvedValue(cachedReply);
+
+      const result = await service.lookup(userRequest, TEST_CLIENT_ID);
+
+      expect(result).toEqual({
+        reply: cachedReply,
+        vector: null,
+        embedAttempted: false,
+      });
+      expect(mockEmbedding.embed).not.toHaveBeenCalled();
+      expect(mockVectorStore.knn).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        'hash-hit',
       );
     });
 
@@ -935,6 +1005,7 @@ describe('SemanticCacheService', () => {
         expect(result.reply).toBeNull();
         expect(mockEmbedding.embed).not.toHaveBeenCalled();
         expect(mockVectorStore.knn).not.toHaveBeenCalled();
+        expect(mockVectorStore.getByTextIdentity).not.toHaveBeenCalled();
         expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
           TEST_MODEL_ALIAS_BRANDED,
           'skip',

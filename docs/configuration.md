@@ -81,12 +81,12 @@ Variable template: `.env.example`.
 
 ### Semantic cache (`src/cache/semantic/`)
 
-Semantic cache sits **on top of** exact cache in the `POST /api/v1/chat` lookup chain: exact (hash) → semantic (embedding + KNN) → provider. It is independent of `CACHE_BACKEND` — `SEMANTIC_CACHE_ENABLED` is its own switch. Redis Search (part of Redis Stack) is required for the vector index.
+Semantic cache sits **on top of** exact cache in the `POST /api/v1/chat` lookup chain: exact (hash) → semantic HASH (trimmed last-user) → embed + KNN → provider. It is independent of `CACHE_BACKEND` — `SEMANTIC_CACHE_ENABLED` is its own switch. Redis Search (part of Redis Stack) is required for the vector index.
 
 **Lookup order:**
 
 1. **Exact hit** — hash of `(modelAlias, clientId, messages, system prompt, effective params)` → stored response returned immediately.
-2. **Semantic hit** — only for **single-turn** requests (exactly one `role: user` message and no `assistant` / `tool` roles): embed that user message, KNN query in Redis Search with partition TAG filter, cosine similarity ≥ threshold → stored response returned.
+2. **Semantic hit** — only for **single-turn** requests (exactly one `role: user` message and no `assistant` / `tool` roles): cheap Redis HASH lookup on trimmed last-user text in the same partition (`VectorStore.getByTextIdentity`, no embed); on miss, embed that user message, KNN query in Redis Search with partition TAG filter, cosine similarity ≥ threshold → stored response returned (`cacheSource: "semantic"`; HASH match is metric `hash-hit`).
 3. **Miss** — call the provider; store exact + upsert vector (semantic upsert only when the request is single-turn).
 
 **Skip conditions** (no semantic lookup / store): tooling requests, missing `gatewayKey`, `clientId === 'unknown'`, model alias not allowed by cache policy (`isCachedChatAllowedForModelAlias` — checked **before** exact Redis GET and before semantic I/O; also gates exact/semantic **store**), multi-turn history (any `assistant` / `tool` message, or more than one `user` message), no last user message with non-empty content, all streaming requests (`POST /api/v1/chat/stream`).

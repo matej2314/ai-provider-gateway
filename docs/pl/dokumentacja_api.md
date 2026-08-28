@@ -211,7 +211,7 @@ Po każdej ewaluacji readiness (`getReadiness()` lub hook przy `GET /metrics`) w
 | **Format** | Prometheus text exposition (`Content-Type: text/plain; version=0.0.4`) |
 | **Backend** | `PrometheusAppMetricsAdapter` w production / `METRICS_BACKEND=prometheus`; dev domyślnie noop (pusty body) |
 | **Health gauges** | Przed `getMetricsSnapshot()` — `PreMetricsScrapeRegistry.runAll()` → `HealthService.refreshMetricsForScrape()` (throttle 5s; pełny check bez throttle na `GET /ready`) |
-| **Przykładowe metryki** | `gateway_readiness`, `gateway_health_status{component="config\|redis\|cache\|embeddings\|vectorStore"}`, exact cache hit/miss, semantic hit / below-threshold / error / skip, `gateway_requests_total`, `gateway_tokens_total`, `gateway_nodejs_*` |
+| **Przykładowe metryki** | `gateway_readiness`, `gateway_health_status{component="config\|redis\|cache\|embeddings\|vectorStore"}`, exact cache hit/miss, semantic hit / hash-hit / below-threshold / error / skip, `gateway_requests_total`, `gateway_tokens_total`, `gateway_nodejs_*` |
 | **Monitoring stack** | `deployment/monitoring/prometheus.yml`, alerty: `alerts.yml` — `deployment.md` |
 
 ---

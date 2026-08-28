@@ -15,10 +15,12 @@ import {
   EMBEDDING_BACKEND,
   VECTOR_STORE,
 } from '../../src/cache/semantic/semantic-cache.tokens';
+import type { CachedChatResponse } from '../../src/cache/types/cached-chat-response.type';
 import type {
   VectorSearchHit,
   VectorStore,
   VectorStoreKnnInput,
+  VectorStoreTextIdentityInput,
   VectorStoreUpsertInput,
 } from '../../src/cache/semantic/vector-store.interface';
 import { createMockConfigService } from '../../src/common/mocks/createMockConfigService';
@@ -106,6 +108,21 @@ function createInMemoryVectorStore(): VectorStore & { clear(): void } {
         entries.push(input);
       }
       return Promise.resolve();
+    },
+
+    getByTextIdentity(
+      input: VectorStoreTextIdentityInput,
+    ): Promise<CachedChatResponse | null> {
+      const found = entries.find(
+        (e) =>
+          e.clientId === input.clientId &&
+          e.modelAlias === input.modelAlias &&
+          e.systemSignature === input.systemSignature &&
+          e.callParams === input.callParams &&
+          e.text === input.text,
+      );
+      if (!found) return Promise.resolve(null);
+      return Promise.resolve({ ...found.reply, cached: true as const });
     },
 
     knn(input: VectorStoreKnnInput): Promise<VectorSearchHit[]> {

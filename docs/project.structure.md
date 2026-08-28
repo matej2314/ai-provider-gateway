@@ -481,7 +481,7 @@ ai-provider-gateway/
 │   │   ├── semantic/                       # EmbeddingBackend + VectorStore ports (not CacheBackend)
 │   │   │   ├── embedding-backend.interface.ts
 │   │   │   ├── vector-store.interface.ts
-│   │   │   ├── semantic-cache.service.ts   # embed last-user, KNN, threshold, reuse vector on SET
+│   │   │   ├── semantic-cache.service.ts   # HASH last-user, then embed + KNN, threshold, reuse vector on SET
 │   │   │   └── adapters/                   # Ollama POST /api/embed; Redis Search FT.CREATE / KNN
 │   │   └── adapters/
 │   │       ├── noop-cache/

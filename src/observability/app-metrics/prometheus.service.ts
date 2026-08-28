@@ -97,7 +97,7 @@ export class PrometheusService implements OnModuleInit {
 
     const semanticCacheLookupTotal = new Counter({
       name: 'gateway_semantic_cache_lookup_total',
-      help: 'Semantic cache lookup outcomes (hit|below-threshold|error|skip)',
+      help: 'Semantic cache lookup outcomes (hit|hash-hit|below-threshold|error|skip)',
       labelNames: ['model', 'result'],
       registers: [this.registry],
     });

@@ -31,7 +31,8 @@ describe('parseCachedChatResponse', () => {
   });
 
   it('returns null for a legacy payload without finishReason', () => {
-    const { finishReason: _omitted, ...legacy } = stored;
+    const legacy: Record<string, unknown> = { ...stored };
+    delete legacy.finishReason;
     expect(parseCachedChatResponse(legacy)).toBeNull();
   });
 

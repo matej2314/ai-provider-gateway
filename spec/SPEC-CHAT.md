@@ -1,5 +1,5 @@
 ---
-wersja: 11
+wersja: 12
 data_utworzenia: 2026-08-26
 data_modyfikacji: 2026-08-28
 ---
@@ -88,7 +88,10 @@ Exact i semantic dzielą tożsamość **konfiguracji** żądania (`systemSignatu
 
 Zmiana względem: wcześniejsze F-8 (wersja 5), które głosiło known limitation v1: „sygnatura promptu i params są w kluczu **tylko exact-match**; cache semantyczny partycjonuje wyłącznie `modelAlias` + `clientId`; zmiana promptu / `responseFormat` nie unieważnia KNN (granicą jest TTL)”. Powód: fałszywe trafienia przy zmianie promptu/params; kontrakt v1.1 = ta sama partycja konfiguracji co exact + skip wielotury.
 
-F-8b. *(Opcjonalnie — cache semantyczny)* Po missie exact, gdy `SEMANTIC_CACHE_ENABLED=true`, gateway może zwrócić hit KNN z `cached: true`, `cachedAt` i `cacheSource: "semantic"`. Kolejność: polityka cache aliasu → exact → semantic → provider. Env: `SPEC-KONFIGURACJA.md` F-1d, `docs/pl/konfiguracja.md`.
+F-8b. *(Opcjonalnie — cache semantyczny)* Po missie exact, gdy `SEMANTIC_CACHE_ENABLED=true`, gateway może zwrócić hit HASH albo KNN z `cached: true`, `cachedAt` i `cacheSource: "semantic"`. Kolejność: polityka cache aliasu → exact → semantic → provider. Env: `SPEC-KONFIGURACJA.md` F-1d, `docs/pl/konfiguracja.md`.
+
+Lookup semantic: `VectorStore.getByTextIdentity` (HASH last-user + partycja, bez embed) → przy missie embed + KNN. Trafienie HASH: `cacheSource: "semantic"`, metryka `hash-hit`.
+Zmiana względem: F-8b tylko KNN po exact miss. Powód: koszt embedu przy identycznym tekście (P4).
 
 Zmiana względem: F-8 / F-8b w wersji 8 (hit exact i semantic miały ten sam kształt JSON bez rozróżnienia warstwy; F-8b: „ten sam kształt odpowiedzi co exact”). Powód: klient nie mógł odróżnić exact od semantic; `cacheSource` jest metadaną lookupu, nie payloadu w Redis.
 
@@ -135,6 +138,7 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [x] Cache semantyczny: co najwyżej jeden `embed` na żądanie JSON; brak retry `embed` przy zapisie, gdy lookup już go wołał; stream v1 bez tej warstwy.
 - [x] Cache semantyczny: inne efektywne params albo inna `systemSignature` → brak semantic hit (ta sama ostatnia fraza user nie wystarcza).
 - [x] Cache semantyczny: wieloturowa `messages[]` (lub więcej niż jeden `user`) → brak lookupu/store semantic (brak wywołania `embed`).
+- [x] Cache semantyczny: identyczny przycięty last-user w tej samej partycji → HASH hit bez `embed` (`getByTextIdentity`, metryka `hash-hit`).
 - [x] Cache semantyczny: indeks zaczyna się od `ai-provider-gateway:sem:idx:` i zawiera pełny `embeddingModel` + DIM + hash SCHEMA — zmiana `EMBEDDING_MODEL` / DIM / SCHEMA izoluje przestrzeń KNN (brak cross-hit między wariantami; brak cichego reuse przy zmianie pól indeksu).
 
 ## Poza zakresem (względem rdzenia MVP)
