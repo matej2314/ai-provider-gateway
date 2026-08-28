@@ -57,22 +57,28 @@ export class SemanticCacheService {
     this.logger = this.loggingService.child({ module: 'SemanticCacheService' });
   }
 
+  private recordLookupSkip(modelAlias: string): SemanticLookupResult {
+    this.appMetrics.recordSemanticCacheLookup(
+      asModelAlias(modelAlias),
+      'skip',
+    );
+    return EMBED_NOT_ATTEMPTED;
+  }
+
   async lookup(
     request: ChatRequestDto,
     clientId: ClientId,
     options?: ProviderCallOptions,
   ): Promise<SemanticLookupResult> {
     const cfg = getAppConfigOrThrow(this.config, 'semanticCache');
-    if (!cfg.enabled) return EMBED_NOT_ATTEMPTED;
-    if (!isSingleTurnUserRequest(request.messages)) return EMBED_NOT_ATTEMPTED;
+    if (!cfg.enabled) return this.recordLookupSkip(request.modelAlias);
+    if (!isSingleTurnUserRequest(request.messages)) {
+      return this.recordLookupSkip(request.modelAlias);
+    }
     const text = lastUserMessageText(request);
-    if (!text) return EMBED_NOT_ATTEMPTED;
+    if (!text) return this.recordLookupSkip(request.modelAlias);
     if (this.circuit.shouldSkipEmbed()) {
-      this.appMetrics.recordSemanticCacheLookup(
-        asModelAlias(request.modelAlias),
-        'error',
-      );
-      return EMBED_NOT_ATTEMPTED;
+      return this.recordLookupSkip(request.modelAlias);
     }
     let vector: number[];
 

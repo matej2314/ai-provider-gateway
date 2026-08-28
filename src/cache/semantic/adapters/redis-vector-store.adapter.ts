@@ -75,15 +75,28 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     return '';
   }
 
-  private parseKnnHits(raw: unknown): VectorSearchHit[] {
-    if (!Array.isArray(raw) || raw.length < 3) return [];
+  /**
+   * Parse FT.SEARCH RESP2 hits. Corrupt reply payloads are collected for DEL
+   * (same hygiene as exact cache invalid entries) — missing dist alone does not delete.
+   */
+  private parseKnnHits(raw: unknown): {
+    hits: VectorSearchHit[];
+    corruptKeys: string[];
+  } {
+    if (!Array.isArray(raw) || raw.length < 3) {
+      return { hits: [], corruptKeys: [] };
+    }
 
     const items = raw as unknown[];
     const count = Number(raw[0]);
-    if (!Number.isFinite(count) || count < 1) return [];
+    if (!Number.isFinite(count) || count < 1) {
+      return { hits: [], corruptKeys: [] };
+    }
 
     const hits: VectorSearchHit[] = [];
+    const corruptKeys: string[] = [];
     for (let i = 1; i + 1 < items.length; i += 2) {
+      const key = this.asString(items[i]);
       const fields = items[i + 1];
       if (!Array.isArray(fields)) continue;
 
@@ -93,17 +106,24 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       }
 
       const replyRaw = map.get('reply');
-      if (!replyRaw) continue;
+      if (!replyRaw) {
+        if (key) corruptKeys.push(key);
+        continue;
+      }
 
       let parsedJson: unknown;
       try {
         parsedJson = JSON.parse(replyRaw);
       } catch {
+        if (key) corruptKeys.push(key);
         continue;
       }
 
       const reply = parseCachedChatResponse(parsedJson);
-      if (!reply) continue;
+      if (!reply) {
+        if (key) corruptKeys.push(key);
+        continue;
+      }
 
       const dist = Number.parseFloat(map.get('dist') ?? '');
       if (!Number.isFinite(dist)) continue;
@@ -114,7 +134,21 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       });
     }
 
-    return hits;
+    return { hits, corruptKeys };
+  }
+
+  /** Fail-open delete of a semantic HASH with invalid reply (exact-cache parity). */
+  private async deleteCorruptEntry(key: string): Promise<void> {
+    const redisClient = this.redis.getClient();
+    if (!redisClient || !key) return;
+    try {
+      await redisClient.del(key);
+      this.logger.warn(`Invalid semantic cache reply — deleted key: ${key}`);
+    } catch (err: unknown) {
+      this.logger.warn(
+        `Semantic cache DEL failed for key ${key}: ${this.errorMessage(err)}`,
+      );
+    }
   }
 
   async onModuleInit(): Promise<void> {
@@ -260,7 +294,11 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       '2',
     );
 
-    return this.parseKnnHits(raw);
+    const { hits, corruptKeys } = this.parseKnnHits(raw);
+    for (const key of corruptKeys) {
+      await this.deleteCorruptEntry(key);
+    }
+    return hits;
   }
 
   async knn(input: VectorStoreKnnInput): Promise<VectorSearchHit[]> {

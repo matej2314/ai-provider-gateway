@@ -181,7 +181,7 @@ class EnvironmentVariables {
   @Min(0)
   @Max(1)
   @IsOptional()
-  SEMANTIC_CACHE_MIN_SIMILARITY?: number = 0.9;
+  SEMANTIC_CACHE_MIN_SIMILARITY?: number = 0.85;
 
   @Transform(({ value }: { value: unknown }) => toInt(value))
   @IsInt()

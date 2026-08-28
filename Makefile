@@ -87,9 +87,9 @@ docker-up-monitoring:
 docker-up-full:
 	$(COMPOSE) -p ai-provider-gateway -f $(COMPOSE_BASE) -f $(COMPOSE_REDIS) -f $(COMPOSE_EMBEDDING) -f $(COMPOSE_MONITORING) up -d
 
-## infra-up: Redis Stack + embedding (for start:dev)
+## infra-up: Redis Stack + embedding (for start:dev; no gateway container)
 infra-up:
-	$(COMPOSE) -p ai-provider-gateway -f $(COMPOSE_REDIS) -f $(COMPOSE_EMBEDDING) up -d
+	$(COMPOSE) -p ai-provider-gateway -f $(COMPOSE_REDIS) -f $(COMPOSE_EMBEDDING) up -d redis ollama-pull ollama-embedding
 
 ## docker-up-ollama: Start gateway + Ollama local LLM
 docker-up-ollama:
@@ -99,9 +99,9 @@ docker-up-ollama:
 docker-up-dev:
 	$(COMPOSE) -f $(COMPOSE_BASE) -f $(COMPOSE_DEV) up -d
 
-## docker-up-dev-full: Start full development stack (gateway + redis + monitoring, hot reload)
+## docker-up-dev-full: Start full development stack (gateway + Redis Stack + embedding + monitoring, hot reload)
 docker-up-dev-full:
-	$(COMPOSE) -f $(COMPOSE_BASE) -f $(COMPOSE_REDIS) -f $(COMPOSE_MONITORING) -f $(COMPOSE_DEV) up -d
+	$(COMPOSE) -p ai-provider-gateway -f $(COMPOSE_BASE) -f $(COMPOSE_REDIS) -f $(COMPOSE_EMBEDDING) -f $(COMPOSE_MONITORING) -f $(COMPOSE_DEV) up -d
 
 ## docker-down: Stop all services
 docker-down:
@@ -121,7 +121,7 @@ docker-clean:
 
 ## redis-up: Start only Redis service
 redis-up:
-	$(COMPOSE) -f $(COMPOSE_REDIS) up -d
+	$(COMPOSE) -f $(COMPOSE_REDIS) up -d redis
 
 ## redis-down: Stop only Redis service
 redis-down:
@@ -207,4 +207,5 @@ dev: docker-up-dev-full
 	@echo "🚀 Gateway: http://localhost:3000 (hot reload)"
 	@echo "📊 Prometheus: http://localhost:9090"
 	@echo "📈 Grafana: http://localhost:3001"
-	@echo "💾 Redis: localhost:6379"
+	@echo "💾 Redis Stack: localhost:6380"
+	@echo "🧠 Ollama embedding: http://localhost:11435"

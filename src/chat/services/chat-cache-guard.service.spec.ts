@@ -369,8 +369,13 @@ describe('ChatCacheGuardService', () => {
         });
       });
 
-      it('should skip semantic when no last user message', async () => {
+      it('should call semantic lookup when no last user message (skip owned by service)', async () => {
         (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
+        mockSemanticCache.lookup.mockResolvedValue({
+          reply: null,
+          vector: null,
+          embedAttempted: false,
+        });
         const request: ChatRequestDto = {
           ...baseRequest,
           messages: [{ role: 'assistant', content: 'Hello' }],
@@ -383,12 +388,24 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toEqual({ cached: null });
-        expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
+        expect(result).toEqual({
+          cached: null,
+          embedState: { vector: undefined, embedAttempted: false },
+        });
+        expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
+          request,
+          TEST_CLIENT_ID,
+          providerOptions,
+        );
       });
 
-      it('should skip semantic for multi-turn request (B2)', async () => {
+      it('should call semantic lookup for multi-turn request (B2 skip in service)', async () => {
         (mockCache.getCachedResponse as jest.Mock).mockResolvedValue(null);
+        mockSemanticCache.lookup.mockResolvedValue({
+          reply: null,
+          vector: null,
+          embedAttempted: false,
+        });
         const multiTurn: ChatRequestDto = {
           ...baseRequest,
           messages: [
@@ -405,8 +422,15 @@ describe('ChatCacheGuardService', () => {
           TEST_GATEWAY_KEY_BRANDED,
         );
 
-        expect(result).toEqual({ cached: null });
-        expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
+        expect(result).toEqual({
+          cached: null,
+          embedState: { vector: undefined, embedAttempted: false },
+        });
+        expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
+          multiTurn,
+          TEST_CLIENT_ID,
+          providerOptions,
+        );
       });
 
       it('should skip semantic when SemanticCacheService is absent', async () => {
@@ -607,7 +631,7 @@ describe('ChatCacheGuardService', () => {
     });
 
     describe('Multi-turn skip (B2)', () => {
-      it('should skip storeReply for multi-turn request', async () => {
+      it('should still call storeReply for multi-turn (gate owned by service)', async () => {
         const multiTurn: ChatRequestDto = {
           ...baseRequest,
           messages: [
@@ -627,7 +651,13 @@ describe('ChatCacheGuardService', () => {
         );
 
         expect(mockCache.setCachedResponse).toHaveBeenCalled();
-        expect(mockSemanticCache.storeReply).not.toHaveBeenCalled();
+        expect(mockSemanticCache.storeReply).toHaveBeenCalledWith(
+          multiTurn,
+          expect.objectContaining({ cached: true }),
+          TEST_CLIENT_ID,
+          providerOptions,
+          { vector: FIXED_VECTOR, embedAttempted: true },
+        );
       });
     });
 

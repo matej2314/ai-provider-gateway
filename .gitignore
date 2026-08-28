@@ -82,6 +82,5 @@ coverage-security/*
 .env.test
 .env.example.old
 gateway.config.placeholder.yaml
-semantic-cache-plan.md
-last_fix_plan.md
+bug_fix.md
 

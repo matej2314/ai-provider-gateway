@@ -55,8 +55,16 @@ export type HealthComponent =
   | 'embeddings'
   | 'vectorStore';
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
-/** Semantic cache lookup outcome (exact cache keeps recordCacheAccess). */
-export type SemanticCacheLookupResult = 'hit' | 'below-threshold' | 'error';
+/**
+ * Semantic cache lookup outcome (exact cache keeps recordCacheAccess).
+ * `skip` = early-return without embed/KNN I/O (disabled, multi-turn, no text, circuit open).
+ * `error` = failed embed or KNN I/O after an attempt.
+ */
+export type SemanticCacheLookupResult =
+  | 'hit'
+  | 'below-threshold'
+  | 'error'
+  | 'skip';
 
 export interface HealthMetricsSnapshot {
   ready: boolean;

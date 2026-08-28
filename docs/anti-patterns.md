@@ -193,7 +193,7 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 
 **Don’t:** expect a semantic hit on multi-turn requests, or treat anaphoric last-user phrases (`continue`, `summarize that`, `translate`) as a safe cache key across different histories. Semantic cache runs only for **single-turn** bodies (exactly one `role: user`, no `assistant` / `tool`).
 
-**Do:** keep the default 0.90 (cosine similarity) or raise it for high-precision domains. Rely on the full **case-sensitive** KNN partition (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) and the single-turn gate. Monitor semantic hit / below-threshold / error / skip metrics and sample cache hits while tuning.
+**Do:** keep the default 0.90 (cosine similarity) or raise it for high-precision domains. Rely on the full **case-sensitive** KNN partition (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) and the single-turn gate. Monitor semantic `hit` / `below-threshold` / `error` / `skip` on `gateway_semantic_cache_lookup_total` (`skip` = early-return without embed/KNN, including open circuit or disabled/multi-turn; `error` = failed embed/KNN I/O only). Corrupt semantic HASH `reply` values are deleted on KNN (exact-cache hygiene parity). Sample cache hits while tuning.
 
 ## 19) Nomic / mxbai prefix on Qwen embeddings
 

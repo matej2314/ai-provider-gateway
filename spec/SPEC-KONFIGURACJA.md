@@ -1,7 +1,7 @@
 ---
-wersja: 7
+wersja: 8
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-27
+data_modyfikacji: 2026-08-28
 ---
 
 # SPEC — Konfiguracja (plug&play)
@@ -119,4 +119,5 @@ NFR-3. Dostępny jest skrypt npm `config:validate` (wpis w `package.json`), któ
 - UI do zarządzania konfiguracją.
 - Pełny katalog aliasów wszystkich modeli API providerów oraz walidacja kompletności aliasów „zwyczajowych”.
 - Pełny kontrakt CLI (wizard, CRUD provider/model/client) — `SPEC-CLI.md`.
-- Infra Compose embedding / provisioning żywego Redis Search w Compose (runbook `MODULE LIST`) oraz wizard pytań semantic (Faza 5.C). **Runtime probe** Search/indeksu (`checks.vectorStore` w `/ready`) należy do `SPEC-HEALTH.md` F-1b — poza zakresem konfiguracji pozostaje tylko warstwa Compose/provisioning, nie sonda aplikacji.
+- Wizard pytań semantic w CLI (Faza 5.C planu semantic-cache) — nadal poza zakresem.
+- Zmiana względem: wcześniejszy zapis „Infra Compose embedding / provisioning żywego Redis Search w Compose … poza zakresem”. **Provisioning base stack** (Redis Stack + ollama-embedding, `infra:up` / `docker:up`, pin obrazu, runbook `MODULE LIST`) jest **domknięty** w `docs/deployment.md` / `docs/pl/deployment.md` i `deployment/docker/`. **Runtime probe** Search/indeksu (`checks.vectorStore` w `/ready`) należy do `SPEC-HEALTH.md` F-1b — poza zakresem tej normy konfiguracji YAML/env pozostaje tylko wizard CLI, nie sonda aplikacji ani Compose.

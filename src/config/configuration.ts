@@ -278,7 +278,7 @@ export function buildAppConfiguration(
     embeddingModel: env.EMBEDDING_MODEL ?? 'qwen3-embedding:0.6b',
     embeddingDim: env.EMBEDDING_DIM ?? 1024,
     embeddingTimeoutMs: env.EMBEDDING_TIMEOUT_MS ?? 5000,
-    minSimilarity: env.SEMANTIC_CACHE_MIN_SIMILARITY ?? 0.9,
+    minSimilarity: env.SEMANTIC_CACHE_MIN_SIMILARITY,
     ttl: asSemanticCacheTtlSeconds(
       env.SEMANTIC_CACHE_TTL ?? env.CACHE_TTL ?? 3600,
     ),

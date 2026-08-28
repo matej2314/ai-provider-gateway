@@ -28,12 +28,14 @@ describe('RedisVectorStoreAdapter', () => {
 
   let adapter: RedisVectorStoreAdapter;
   let mockCall: jest.Mock;
+  let mockDel: jest.Mock;
   let getClient: jest.Mock;
   let mockLogger: ReturnType<typeof createMockLoggingService>;
 
   async function initAdapter(
     client: {
       call: jest.Mock;
+      del?: jest.Mock;
       multi?: jest.Mock;
       hset?: jest.Mock;
       expire?: jest.Mock;
@@ -41,8 +43,11 @@ describe('RedisVectorStoreAdapter', () => {
   ) {
     if (client) {
       mockCall = client.call;
+      mockDel = client.del ?? jest.fn().mockResolvedValue(1);
+      client.del = mockDel;
     } else {
       mockCall = jest.fn();
+      mockDel = jest.fn();
     }
     getClient = jest.fn().mockReturnValue(client);
     mockLogger = createMockLoggingService();
@@ -75,7 +80,10 @@ describe('RedisVectorStoreAdapter', () => {
   }
 
   beforeEach(async () => {
-    await initAdapter({ call: jest.fn().mockResolvedValue([0]) });
+    await initAdapter({
+      call: jest.fn().mockResolvedValue([0]),
+      del: jest.fn().mockResolvedValue(1),
+    });
   });
 
   describe('ensureIndex', () => {
@@ -338,10 +346,10 @@ describe('RedisVectorStoreAdapter', () => {
       });
     });
 
-    it('should skip hits with damaged JSON, invalid Zod shape, or missing dist', async () => {
+    it('should delete corrupt reply keys and keep valid hits', async () => {
       mockCall.mockResolvedValueOnce(['index_name', indexName]);
       mockCall.mockResolvedValueOnce([
-        3,
+        4,
         'bad-json',
         ['reply', '{not-json', 'dist', '0.05'],
         'bad-zod',
@@ -369,6 +377,58 @@ describe('RedisVectorStoreAdapter', () => {
       expect(hits).toHaveLength(1);
       expect(hits[0].similarity).toBeCloseTo(0.8);
       expect(hits[0].reply.output.text).toBe('from-redis');
+      expect(mockDel).toHaveBeenCalledWith('bad-json');
+      expect(mockDel).toHaveBeenCalledWith('bad-zod');
+      expect(mockDel).not.toHaveBeenCalledWith('no-dist');
+      expect(mockDel).not.toHaveBeenCalledWith('ok');
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid semantic cache reply — deleted key:'),
+      );
+    });
+
+    it('should fail-open when DEL of corrupt key throws', async () => {
+      mockDel.mockRejectedValue(new Error('DEL error'));
+      mockCall.mockResolvedValueOnce(['index_name', indexName]);
+      mockCall.mockResolvedValueOnce([
+        1,
+        'bad-json',
+        ['reply', '{not-json', 'dist', '0.05'],
+      ]);
+
+      const hits = await adapter.knn({
+        vector: [0.1],
+        modelAlias: asModelAlias('test-model'),
+        clientId: asClientId('client-a'),
+        systemSignature: 'sys',
+        callParams: 'params',
+        k: 1,
+      });
+
+      expect(hits).toEqual([]);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Semantic cache DEL failed for key bad-json'),
+      );
+    });
+
+    it('should delete key when reply field is missing', async () => {
+      mockCall.mockResolvedValueOnce(['index_name', indexName]);
+      mockCall.mockResolvedValueOnce([
+        1,
+        'missing-reply',
+        ['dist', '0.05'],
+      ]);
+
+      const hits = await adapter.knn({
+        vector: [0.1],
+        modelAlias: asModelAlias('test-model'),
+        clientId: asClientId('client-a'),
+        systemSignature: 'sys',
+        callParams: 'params',
+        k: 1,
+      });
+
+      expect(hits).toEqual([]);
+      expect(mockDel).toHaveBeenCalledWith('missing-reply');
     });
 
     it('should return empty hits when Redis client is null (fail-open)', async () => {

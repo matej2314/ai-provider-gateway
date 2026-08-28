@@ -163,7 +163,7 @@ describe('SemanticCacheService', () => {
       );
     });
 
-    it('should skip embed for multi-turn request (B2: assistant in history)', async () => {
+    it('should skip embed for multi-turn request and record skip (B2)', async () => {
       const request: ChatRequestDto = {
         modelAlias: TEST_MODEL_ALIAS,
         messages: [
@@ -182,6 +182,10 @@ describe('SemanticCacheService', () => {
       });
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.knn).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        'skip',
+      );
     });
 
     it('should pass configured k to knn', async () => {
@@ -257,7 +261,10 @@ describe('SemanticCacheService', () => {
       });
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
       expect(mockVectorStore.knn).not.toHaveBeenCalled();
-      expect(mockAppMetrics.recordSemanticCacheLookup).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        'skip',
+      );
     });
 
     it('should return empty without calling embed when no last user message', async () => {
@@ -269,7 +276,10 @@ describe('SemanticCacheService', () => {
         embedAttempted: false,
       });
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
-      expect(mockAppMetrics.recordSemanticCacheLookup).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        'skip',
+      );
     });
 
     it('should return empty without calling embed when last user content is whitespace', async () => {
@@ -286,6 +296,10 @@ describe('SemanticCacheService', () => {
         embedAttempted: false,
       });
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        'skip',
+      );
     });
 
     it('should fail-open on embed throw and record error without calling knn', async () => {
@@ -334,7 +348,7 @@ describe('SemanticCacheService', () => {
       expect(mockVectorStore.knn).not.toHaveBeenCalled();
       expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
         TEST_MODEL_ALIAS_BRANDED,
-        'error',
+        'skip',
       );
     });
 
@@ -869,6 +883,10 @@ describe('SemanticCacheService', () => {
 
       expect(result.embedAttempted).toBe(false);
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        'skip',
+      );
     });
 
     it('should not embed when messages contain tool turn', async () => {
@@ -885,6 +903,10 @@ describe('SemanticCacheService', () => {
 
       expect(result.embedAttempted).toBe(false);
       expect(mockEmbedding.embed).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        'skip',
+      );
     });
 
     it('should embed for a single user message (positive case)', async () => {
@@ -912,6 +934,10 @@ describe('SemanticCacheService', () => {
         expect(result.reply).toBeNull();
         expect(mockEmbedding.embed).not.toHaveBeenCalled();
         expect(mockVectorStore.knn).not.toHaveBeenCalled();
+        expect(mockAppMetrics.recordSemanticCacheLookup).toHaveBeenCalledWith(
+          TEST_MODEL_ALIAS_BRANDED,
+          'skip',
+        );
       },
     );
   });

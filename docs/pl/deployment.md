@@ -25,7 +25,7 @@ deployment/
 ├── docker/
 │   ├── Dockerfile                         # Multi-stage build (production)
 │   ├── docker-compose.yml                      # Serwis gateway (w bazie stacku łączony z Redis + embedding)
-│   ├── docker-compose.redis.yml                # Rozszerzenie: + Redis Stack (port 6380, redis/redis-stack-server, REDIS_ARGS)
+│   ├── docker-compose.redis.yml                # Rozszerzenie: + Redis Stack (port 6380, redis/redis-stack-server:7.4.0-v8, REDIS_ARGS)
 │   ├── docker-compose.monitoring.yml           # Rozszerzenie: + Prometheus + Grafana
 │   ├── docker-compose.ollama.yml               # Opcjonalnie: + Ollama czat LLM (poza bazą)
 │   ├── docker-compose.ollama-embedding.yml     # Rozszerzenie: + Ollama embedding (qwen3-embedding:0.6b, port 11435, CPU)
@@ -157,22 +157,44 @@ Wybierz wariant stacku:
 
 | Wariant | Makefile | npm |
 |---------|----------|-----|
-| **Baza** (gateway + Redis Stack + ollama-embedding) | `make docker-up` | `npm run docker:up` *(cel — Faza 3)* |
+| **Baza** (gateway + Redis Stack + ollama-embedding) | `make docker-up` | `npm run docker:up` |
 | Gateway + Redis Stack (bez embeddingu) | `make docker-up-redis` | `npm run docker:up:redis` |
 | Gateway + monitoring | `make docker-up-monitoring` | `npm run docker:up:monitoring` |
-| Pełny stack (baza + Prometheus + Grafana) | `make docker-up-full` | `npm run docker:up:full` *(cel — Faza 3 obejmuje embedding)* |
-| Tylko infra (Redis Stack + embedding, do `start:dev`) | — | `npm run infra:up` *(Faza 3)* |
+| Pełny stack (baza + Prometheus + Grafana) | `make docker-up-full` | `npm run docker:up:full` |
+| Tylko infra (Redis Stack + embedding, do `start:dev`) | `make infra-up` | `npm run infra:up` |
 | Ollama czat (opcjonalny lokalny LLM — **poza** bazą) | `make docker-up-ollama` | `npm run docker:up:ollama` |
 | Dev (hot reload) | `make docker-up-dev` | `npm run docker:up:dev` |
-| Dev + pełny stack | `make docker-up-dev-full` | `npm run docker:up:dev:full` |
+| Dev + pełny stack (baza + monitoring, hot reload) | `make docker-up-dev-full` | `npm run docker:up:dev:full` |
 
-**Bazowy stack produktu (cel):** gateway + Redis Stack + ollama-embedding. Plik Compose `docker-compose.ollama-embedding.yml`, obraz Redis Stack/`REDIS_ARGS` oraz skrypty npm `infra:up` / bazowy `docker:up` wchodzą w **Fazie 3 planu semantic-cache** — do tego czasu obecne skrypty startują gateway (± alpine Redis przez `docker:up:redis`). `npm run start:dev` **nie** startuje Dockera. Czatowa Ollama (`llama3.1:8b`) zostaje na `docker:up:ollama`.
+**Bazowy stack produktu:** gateway + Redis Stack + ollama-embedding. Dostarczany przez `deployment/docker/docker-compose.ollama-embedding.yml`, obraz Redis Stack/`REDIS_ARGS` oraz skrypty npm `infra:up` / bazowy `docker:up` (także `docker:up:full` i `docker:up:dev:full`). `npm run start:dev` **nie** startuje Dockera — lokalnie pod semantic cache najpierw `npm run infra:up`. Czatowa Ollama (`llama3.1:8b`) zostaje na `docker:up:ollama`.
 
 **Wymagania RAM:** baza stacku (gateway + Redis Stack + ollama-embedding z `qwen3-embedding:0.6b` na CPU) wymaga minimum **16 GB RAM**. Czatowa Ollama to osobny opcjonalny serwis i **nie** wchodzi w tę liczbę.
 
-**Redis Stack:** obraz `redis/redis-stack-server` (z przypiętym tagiem), port **6380**, polityka `noeviction` (przez **`REDIS_ARGS`** — **nie** nadpisuj `command:` w pliku Compose, bo zniknie moduł Redis Search). Health check: `redis-cli -p 6380 ping`. Sanity: `MODULE LIST` zawiera `search`.
+**Redis Stack:** obraz `redis/redis-stack-server:7.4.0-v8` (przypięty tag — nie używaj `:latest`), port **6380**, polityka `noeviction` (przez **`REDIS_ARGS`** — **nie** nadpisuj `command:` w pliku Compose, bo zniknie moduł Redis Search). Health check: `redis-cli -p 6380 ping`. Sanity: `MODULE LIST` zawiera `search`. Gdy w plikach Compose jest gateway, czeka na healthy `redis`.
 
-**Ollama embedding (`docker-compose.ollama-embedding.yml`):** reuse `Dockerfile.ollama` z `OLLAMA_MODEL=qwen3-embedding:0.6b` (DIM **1024**), tylko CPU (bez GPU), port hosta **11435** → kontener 11434, `OLLAMA_KEEP_ALIVE=-1`, **osobny wolumen** od Ollama czat, sieć `ai-gateway-network`, API `POST /api/embed`. Ustaw `EMBEDDING_BASE_URL=http://localhost:11435` na hoście (`start:dev`) albo `http://ollama-embedding:11434` w sieci Dockera.
+**Ollama embedding (`docker-compose.ollama-embedding.yml`):** oficjalny obraz `ollama/ollama` z one-shot `ollama-pull` modelu `qwen3-embedding:0.6b` (DIM **1024**), tylko CPU (bez GPU), port hosta **11435** → kontener 11434, `OLLAMA_KEEP_ALIVE=-1`, **osobny wolumen** od Ollama czat, sieć `ai-gateway-network`, API `POST /api/embed`. Gdy w plikach Compose jest gateway, czeka na healthy `ollama-embedding`. Ustaw `EMBEDDING_BASE_URL=http://localhost:11435` na hoście (`start:dev`) albo `http://ollama-embedding:11434` w sieci Dockera.
+
+### Pierwszy semantic cache lokalnie
+
+Minimalna ścieżka bez konteneryzacji gatewaya:
+
+```bash
+docker network create ai-gateway-network   # raz; błąd przy istniejącej sieci jest OK
+cp .env.example .env                       # REDIS_PORT=6380, EMBEDDING_BASE_URL=http://localhost:11435, SEMANTIC_CACHE_ENABLED=true
+npm run infra:up                           # Redis Stack :6380 + Ollama embedding :11435
+npm run start:dev
+```
+
+Smoke po `infra:up`:
+
+```bash
+docker exec ai-gateway-redis redis-cli -p 6380 MODULE LIST   # oczekiwane: name=search
+curl -s http://localhost:11435/api/embed -H 'Content-Type: application/json' \
+  -d '{"model":"qwen3-embedding:0.6b","input":"ping"}'       # niepusty embedding
+curl -s http://localhost:3000/api/v1/health/ready            # przy SEMANTIC_CACHE_ENABLED=true: checks.embeddings + checks.vectorStore (healthy lub degraded fail-open)
+```
+
+Zatrzymanie infra: `npm run infra:down`.
 
 Build obrazu (opcjonalnie osobno):
 
@@ -466,7 +488,7 @@ Istotne zmienne: `DEPLOY_DIR`, `LAST_GOOD_SHA_FILE`, `SKIP_VAULT_FETCH`, `HEALTH
 - **Logi kontenera:** `docker logs ai-gateway -f` lub `make docker-logs`
 - **Prometheus:** http://localhost:9090 (po włączeniu rozszerzenia monitoring)
 - **Grafana:** http://localhost:3001 — `make dashboard`
-- **Metryki aplikacji:** `GET /metrics` (publiczne, **bez** prefiksu `/api/v1`) — format Prometheus text; przed exportem odświeżane są gauge'e readiness (`gateway_readiness`, `gateway_health_status{component="config|redis|cache|embeddings"}`) oraz `gateway_process_uptime_seconds`. Cache semantyczny dodaje też liczniki exact hit/miss oraz semantic hit / below-threshold / error (fail-open).
+- **Metryki aplikacji:** `GET /metrics` (publiczne, **bez** prefiksu `/api/v1`) — format Prometheus text; przed exportem odświeżane są gauge'e readiness (`gateway_readiness`, `gateway_health_status{component="config|redis|cache|embeddings"}`) oraz `gateway_process_uptime_seconds`. Cache semantyczny dodaje też liczniki exact hit/miss oraz semantic hit / below-threshold / error / skip (fail-open).
 - **Health HTTP:**
   - Liveness: `GET /api/v1/health`
   - Readiness: `GET /api/v1/health/ready` (Docker HEALTHCHECK parsuje `body.status`)

@@ -193,7 +193,7 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 
 **Nie rób:** oczekiwać semantic hit na żądaniach wieloturowych ani traktować anaforycznych fraz last-user (`kontynuuj`, `podsumuj to`, `przetłumacz`) jako bezpiecznego klucza cache przy różnych historiach. Cache semantyczny działa tylko dla body **jednoturowego** (dokładnie jedna `role: user`, bez `assistant` / `tool`).
 
-**Rób:** zachowaj domyślne 0.90 (podobieństwo cosinusowe) lub zwiększ dla domen wymagających wysokiej precyzji. Opieraj się na pełnej **case-sensitive** partycji KNN (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) i bramce jednoturowej. Monitoruj metryki semantic hit / below-threshold / error / skip i próbkuj trafienia cache podczas strojenia.
+**Rób:** zachowaj domyślne 0.90 (podobieństwo cosinusowe) lub zwiększ dla domen wymagających wysokiej precyzji. Opieraj się na pełnej **case-sensitive** partycji KNN (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) i bramce jednoturowej. Monitoruj `hit` / `below-threshold` / `error` / `skip` na `gateway_semantic_cache_lookup_total` (`skip` = early-return bez embed/KNN, w tym otwarty circuit lub wyłączony/multi-turn; `error` = wyłącznie nieudany I/O embed/KNN). Uszkodzony `reply` w HASH semantycznym jest kasowany przy KNN (jak exact). Próbkuj trafienia cache podczas strojenia.
 
 ## 19) Prefiks nomic / mxbai przy embeddingu Qwen
 

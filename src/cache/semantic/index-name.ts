@@ -15,7 +15,9 @@ export type SemanticIndexNameOptions = {
  * Normalize embedding model for the middle segment of the index name.
  * `qwen3-embedding:0.6b` → `qwen3-embedding-0-6b`.
  */
-export function normalizeEmbeddingModelForIndex(embeddingModel: string): string {
+export function normalizeEmbeddingModelForIndex(
+  embeddingModel: string,
+): string {
   return embeddingModel
     .trim()
     .toLowerCase()

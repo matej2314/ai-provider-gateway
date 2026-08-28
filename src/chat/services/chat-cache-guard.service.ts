@@ -19,10 +19,6 @@ import {
   SemanticCacheService,
   type SemanticStoreEmbedState,
 } from '../../cache/semantic/semantic-cache.service';
-import {
-  lastUserMessageText,
-  isSingleTurnUserRequest,
-} from '../../cache/semantic/last-user-message';
 import { getAppConfigOrThrow } from '../../config/typed-config';
 import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
@@ -122,11 +118,8 @@ export class ChatCacheGuardService {
       return { cached: exact, cacheSource: 'exact' };
     }
 
-    if (
-      !lastUserMessageText(requestBody) ||
-      !isSingleTurnUserRequest(requestBody.messages) ||
-      !this.semanticCache
-    ) {
+    // Single-turn / last-user gates live in SemanticCacheService (skip metrics owner).
+    if (!this.semanticCache) {
       return { cached: null };
     }
 
@@ -174,11 +167,8 @@ export class ChatCacheGuardService {
       clientId,
       options,
     );
-    if (
-      this.semanticCache &&
-      lastUserMessageText(requestBody) &&
-      isSingleTurnUserRequest(requestBody.messages)
-    ) {
+    // Single-turn / last-user gates live in SemanticCacheService.
+    if (this.semanticCache) {
       await this.semanticCache.storeReply(
         requestBody,
         toCachedChatResponse(response),

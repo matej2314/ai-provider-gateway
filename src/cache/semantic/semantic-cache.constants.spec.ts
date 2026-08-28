@@ -36,7 +36,9 @@ describe('canonicalSemanticSchema / semanticSchemaFtCreateArgs', () => {
   });
 
   it('should change when dim changes', () => {
-    expect(canonicalSemanticSchema(1024)).not.toBe(canonicalSemanticSchema(768));
+    expect(canonicalSemanticSchema(1024)).not.toBe(
+      canonicalSemanticSchema(768),
+    );
   });
 });
 
