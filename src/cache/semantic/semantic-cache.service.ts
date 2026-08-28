@@ -58,10 +58,7 @@ export class SemanticCacheService {
   }
 
   private recordLookupSkip(modelAlias: string): SemanticLookupResult {
-    this.appMetrics.recordSemanticCacheLookup(
-      asModelAlias(modelAlias),
-      'skip',
-    );
+    this.appMetrics.recordSemanticCacheLookup(asModelAlias(modelAlias), 'skip');
     return EMBED_NOT_ATTEMPTED;
   }
 

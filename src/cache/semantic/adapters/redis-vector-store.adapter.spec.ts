@@ -412,11 +412,7 @@ describe('RedisVectorStoreAdapter', () => {
 
     it('should delete key when reply field is missing', async () => {
       mockCall.mockResolvedValueOnce(['index_name', indexName]);
-      mockCall.mockResolvedValueOnce([
-        1,
-        'missing-reply',
-        ['dist', '0.05'],
-      ]);
+      mockCall.mockResolvedValueOnce([1, 'missing-reply', ['dist', '0.05']]);
 
       const hits = await adapter.knn({
         vector: [0.1],
