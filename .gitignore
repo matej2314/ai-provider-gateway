@@ -83,4 +83,6 @@ coverage-security/*
 .env.example.old
 gateway.config.placeholder.yaml
 bug_fix.md
+streaming_*
+#!streaming_cache_layer-plan.md
 

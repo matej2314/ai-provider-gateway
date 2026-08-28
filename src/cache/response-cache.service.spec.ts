@@ -491,6 +491,16 @@ describe('ResponseCacheService', () => {
       );
     });
 
+    it('should not warn Failed to cache when set returns true (NX noop path)', async () => {
+      (mockCacheBackend.set as jest.Mock).mockResolvedValue(true);
+
+      await service.setCachedResponse(request, response, TEST_CLIENT_ID);
+
+      expect(mockLogger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('Failed to cache response'),
+      );
+    });
+
     it('should log warn when cache set fails', async () => {
       (mockCacheBackend.set as jest.Mock).mockResolvedValue(false);
 

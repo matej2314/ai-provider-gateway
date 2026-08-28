@@ -26,7 +26,6 @@ describe('RedisCacheAdapter', () => {
   let mockRedisClient: {
     get: jest.Mock;
     set: jest.Mock;
-    setex: jest.Mock;
     del: jest.Mock;
   };
 
@@ -34,7 +33,6 @@ describe('RedisCacheAdapter', () => {
     mockRedisClient = {
       get: jest.fn(),
       set: jest.fn(),
-      setex: jest.fn(),
       del: jest.fn(),
     };
 
@@ -140,8 +138,8 @@ describe('RedisCacheAdapter', () => {
   });
 
   describe('set', () => {
-    it('should set value with TTL using SETEX', async () => {
-      mockRedisClient.setex.mockResolvedValue('OK');
+    it('should SET with EX + NX when ttl > 0', async () => {
+      mockRedisClient.set.mockResolvedValue('OK');
 
       const result = await adapter.set(
         TEST_CACHE_KEY,
@@ -150,16 +148,17 @@ describe('RedisCacheAdapter', () => {
       );
 
       expect(result).toBe(true);
-      expect(mockRedisClient.setex).toHaveBeenCalledWith(
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
         TEST_CACHE_KEY,
-        TEST_CACHE_TTL_SECONDS,
         'value',
+        'EX',
+        TEST_CACHE_TTL_SECONDS,
+        'NX',
       );
-      expect(mockRedisClient.set).not.toHaveBeenCalled();
     });
 
     it('should set value with default TTL from config', async () => {
-      mockRedisClient.setex.mockResolvedValue('OK');
+      mockRedisClient.set.mockResolvedValue('OK');
       (mockConfig.get as jest.Mock).mockImplementation((key: string) => {
         if (key === 'cache') {
           return { ttl: 7200 };
@@ -170,14 +169,16 @@ describe('RedisCacheAdapter', () => {
       const result = await adapter.set(TEST_CACHE_KEY, 'value');
 
       expect(result).toBe(true);
-      expect(mockRedisClient.setex).toHaveBeenCalledWith(
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
         TEST_CACHE_KEY,
-        TEST_CACHE_TTL_CUSTOM,
         'value',
+        'EX',
+        TEST_CACHE_TTL_CUSTOM,
+        'NX',
       );
     });
 
-    it('should use SET without TTL when TTL is 0', async () => {
+    it('should SET with NX only when ttl <= 0', async () => {
       mockRedisClient.set.mockResolvedValue('OK');
 
       const result = await adapter.set(
@@ -187,11 +188,14 @@ describe('RedisCacheAdapter', () => {
       );
 
       expect(result).toBe(true);
-      expect(mockRedisClient.set).toHaveBeenCalledWith(TEST_CACHE_KEY, 'value');
-      expect(mockRedisClient.setex).not.toHaveBeenCalled();
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
+        TEST_CACHE_KEY,
+        'value',
+        'NX',
+      );
     });
 
-    it('should use SET without TTL when TTL is negative', async () => {
+    it('should SET with NX only when TTL is negative', async () => {
       mockRedisClient.set.mockResolvedValue('OK');
 
       const result = await adapter.set(
@@ -201,7 +205,26 @@ describe('RedisCacheAdapter', () => {
       );
 
       expect(result).toBe(true);
-      expect(mockRedisClient.set).toHaveBeenCalledWith(TEST_CACHE_KEY, 'value');
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
+        TEST_CACHE_KEY,
+        'value',
+        'NX',
+      );
+    });
+
+    it('should return true and log debug on NX noop (null)', async () => {
+      mockRedisClient.set.mockResolvedValue(null);
+
+      const result = await adapter.set(
+        TEST_CACHE_KEY,
+        'value',
+        TEST_CACHE_TTL_SECONDS,
+      );
+
+      expect(result).toBe(true);
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('SET NX noop'),
+      );
     });
 
     it('should return false when client not available', async () => {
@@ -210,12 +233,11 @@ describe('RedisCacheAdapter', () => {
       const result = await adapter.set(TEST_CACHE_KEY, 'value');
 
       expect(result).toBe(false);
-      expect(mockRedisClient.setex).not.toHaveBeenCalled();
+      expect(mockRedisClient.set).not.toHaveBeenCalled();
     });
 
     it('should return false and log warn on Redis error', async () => {
-      const error = new Error('Redis write error');
-      mockRedisClient.setex.mockRejectedValue(error);
+      mockRedisClient.set.mockRejectedValue(new Error('Redis write error'));
 
       const result = await adapter.set(
         TEST_CACHE_KEY,
@@ -225,7 +247,7 @@ describe('RedisCacheAdapter', () => {
 
       expect(result).toBe(false);
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Redis SET failed for key test-key'),
+        expect.stringContaining('Redis SET failed'),
       );
     });
   });
@@ -273,7 +295,7 @@ describe('RedisCacheAdapter', () => {
   describe('error handling', () => {
     it('should handle all operation errors gracefully', async () => {
       mockRedisClient.get.mockRejectedValue(new Error('GET error'));
-      mockRedisClient.setex.mockRejectedValue(new Error('SET error'));
+      mockRedisClient.set.mockRejectedValue(new Error('SET error'));
       mockRedisClient.del.mockRejectedValue(new Error('DEL error'));
 
       await expect(adapter.get(TEST_CACHE_KEY)).resolves.toBeNull();

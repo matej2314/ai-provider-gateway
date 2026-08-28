@@ -37,6 +37,7 @@ describe('RedisVectorStoreAdapter', () => {
       del?: jest.Mock;
       multi?: jest.Mock;
       hset?: jest.Mock;
+      hsetnx?: jest.Mock;
       expire?: jest.Mock;
       hget?: jest.Mock;
     } | null,
@@ -601,11 +602,13 @@ describe('RedisVectorStoreAdapter', () => {
         ]),
       };
       const hget = jest.fn().mockResolvedValue(validReplyJson);
+      const hsetnx = jest.fn().mockResolvedValue(1);
       const multi = jest.fn().mockReturnValue(multiChain);
       await initAdapter({
         call: jest.fn().mockResolvedValue([0]),
         del: jest.fn().mockResolvedValue(1),
         multi,
+        hsetnx,
         hget,
       });
 
@@ -621,7 +624,7 @@ describe('RedisVectorStoreAdapter', () => {
       });
       await adapter.getByTextIdentity(identity);
 
-      const upsertKey = multiChain.hset.mock.calls[0]![0] as string;
+      const upsertKey = hsetnx.mock.calls[0]![0] as string;
       expect(hget).toHaveBeenCalledWith(upsertKey, 'reply');
     });
   });
@@ -662,23 +665,46 @@ describe('RedisVectorStoreAdapter', () => {
       };
       const hset = jest.fn();
       const expire = jest.fn();
+      const hsetnx = jest.fn().mockResolvedValue(1);
       const multi = jest.fn().mockReturnValue(multiChain);
       const call = jest.fn().mockResolvedValue([0]);
-      return { call, multi, multiChain, hset, expire };
+      return { call, multi, multiChain, hset, expire, hsetnx };
     }
 
-    it('should skip when Redis client is null (fail-open)', async () => {
-      await initAdapter(null);
+    it('should HSETNX reply then MULTI hset+expire on first write', async () => {
+      const client = mockMultiClient();
+      await initAdapter(client);
 
-      await expect(
-        adapter.upsert({
-          ...baseUpsert,
-          ttlSeconds: asSemanticCacheTtlSeconds(60),
-        }),
-      ).resolves.toBeUndefined();
+      await adapter.upsert({
+        ...baseUpsert,
+        ttlSeconds: asSemanticCacheTtlSeconds(60),
+      });
+
+      expect(client.hsetnx).toHaveBeenCalledWith(
+        expect.any(String),
+        'reply',
+        expect.any(String),
+      );
+      expect(client.multi).toHaveBeenCalled();
     });
 
-    it('should HSET + EXPIRE in one MULTI (B8)', async () => {
+    it('should log and return without overwrite when HSETNX returns 0', async () => {
+      const client = mockMultiClient();
+      client.hsetnx.mockResolvedValue(0);
+      await initAdapter(client);
+
+      await adapter.upsert({
+        ...baseUpsert,
+        ttlSeconds: asSemanticCacheTtlSeconds(60),
+      });
+
+      expect(client.multi).not.toHaveBeenCalled();
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Semantic upsert NX noop'),
+      );
+    });
+
+    it('should HSET remaining fields + EXPIRE in MULTI after HSETNX (B8)', async () => {
       const client = mockMultiClient();
       await initAdapter(client);
 
@@ -698,6 +724,11 @@ describe('RedisVectorStoreAdapter', () => {
           callParams: 'params',
         }),
       );
+      const hsetFields = client.multiChain.hset.mock.calls[0]![1] as Record<
+        string,
+        unknown
+      >;
+      expect(hsetFields).not.toHaveProperty('reply');
       expect(client.multiChain.expire).toHaveBeenCalledWith(
         expect.stringMatching(new RegExp(`^${indexName}:`)),
         60,
@@ -705,6 +736,17 @@ describe('RedisVectorStoreAdapter', () => {
       expect(client.multiChain.exec).toHaveBeenCalledTimes(1);
       expect(client.hset).not.toHaveBeenCalled();
       expect(client.expire).not.toHaveBeenCalled();
+    });
+
+    it('should skip when Redis client is null (fail-open)', async () => {
+      await initAdapter(null);
+
+      await expect(
+        adapter.upsert({
+          ...baseUpsert,
+          ttlSeconds: asSemanticCacheTtlSeconds(60),
+        }),
+      ).resolves.toBeUndefined();
     });
 
     it('should store raw TAG values and Float32 vector blob (not query-escaped)', async () => {
@@ -740,16 +782,18 @@ describe('RedisVectorStoreAdapter', () => {
         ...baseUpsert,
         ttlSeconds: asSemanticCacheTtlSeconds(60),
       });
+      client.hsetnx.mockResolvedValue(0);
       await adapter.upsert({
         ...baseUpsert,
         ttlSeconds: asSemanticCacheTtlSeconds(60),
       });
 
-      const key1 = client.multiChain.hset.mock.calls[0]![0] as string;
-      const key2 = client.multiChain.hset.mock.calls[1]![0] as string;
+      const key1 = client.hsetnx.mock.calls[0]![0] as string;
+      const key2 = client.hsetnx.mock.calls[1]![0] as string;
       expect(key1).toBe(key2);
       expect(key1).toMatch(new RegExp(`^${indexName}:[a-f0-9]{32}$`));
       expect(key1.startsWith('aigw:sem:')).toBe(false);
+      expect(client.multi).toHaveBeenCalledTimes(1);
     });
 
     it('should use a different entryKey when text or callParams change', async () => {
@@ -771,7 +815,7 @@ describe('RedisVectorStoreAdapter', () => {
         ttlSeconds: asSemanticCacheTtlSeconds(60),
       });
 
-      const keys = client.multiChain.hset.mock.calls.map((c) => c[0] as string);
+      const keys = client.hsetnx.mock.calls.map((c) => c[0] as string);
       expect(new Set(keys).size).toBe(3);
     });
 

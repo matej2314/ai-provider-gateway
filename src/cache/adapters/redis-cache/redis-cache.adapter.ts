@@ -63,10 +63,14 @@ export class RedisCacheAdapter implements CacheBackend, OnModuleInit {
     );
 
     try {
-      if (ttl > 0) {
-        await client.setex(key, ttl, value);
-      } else {
-        await client.set(key, value);
+      // First-writer-wins: NX. null = klucz już istnieje → sukces ścieżki (nie „Failed to cache”).
+      const result =
+        ttl > 0
+          ? await client.set(key, value, 'EX', ttl, 'NX')
+          : await client.set(key, value, 'NX');
+
+      if (result === null) {
+        this.logger.debug(`Redis SET NX noop (key already exists): ${key}`);
       }
       return true;
     } catch (err) {

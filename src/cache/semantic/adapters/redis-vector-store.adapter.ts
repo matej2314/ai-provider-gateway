@@ -421,6 +421,20 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
         input.callParams,
       );
 
+      // First-writer-wins na entryKey: pole `reply` jako wartownik tożsamości treści.
+      const claimed = await redisClient.hsetnx(
+        key,
+        'reply',
+        JSON.stringify(input.reply),
+      );
+
+      if (claimed === 0) {
+        this.logger.debug(
+          `Semantic upsert NX noop (entry already exists): ${key}`,
+        );
+        return;
+      }
+
       await redisClient
         .multi()
         .hset(key, {
@@ -429,8 +443,8 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
           embeddingModel: semCache.embeddingModel,
           systemSignature: input.systemSignature,
           callParams: input.callParams,
-          reply: JSON.stringify(input.reply),
           vector: this.vectorBlob(input.vector),
+          // `reply` już ustawione przez HSETNX — nie nadpisujemy w HSET
         })
         .expire(key, ttl)
         .exec();
