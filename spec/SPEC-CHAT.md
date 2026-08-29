@@ -1,5 +1,5 @@
 ---
-wersja: 18
+wersja: 19
 data_utworzenia: 2026-08-26
 data_modyfikacji: 2026-08-29
 ---
@@ -16,7 +16,9 @@ Gateway musi działać na poprawnie zwalidowanym środowisku: sekrety włączony
 
 **Stan implementacji:** nagłówek **`X-Gateway-Key`** — wymagany (`@GatewayKeyAndSmartRateLimit()`, `openapi.json`). Allowlista i RPS: `SPEC-PLATFORMA-I-KONTRAKTY.md`, `SPEC-KONFIGURACJA.md`. Body: `modelAlias`, `messages`, opcjonalne `conversationId` (`docs/pl/conversation_tracking.md`), opcjonalne `metadata`, opcjonalne `params` i `tooling`. Cache **exact-match** i opcjonalny **semantyczny** — wspólny magazyn `CachedChatResponse` dla JSON (`executeChat`) i streamingu (`resolveStreamCache` / `executeStreamMiss`) — `src/cache/`, `ChatCachePipelineService`; kontrakt SSE — `SPEC-CHAT-STREAMING.md` F-10.
 
-Zmiana względem: w wersji 17 dokumentu ten sam serwis aplikacyjny nazywał się `ChatCacheGuardService`. Obowiązuje `ChatCachePipelineService` (`src/chat/services/chat-cache-pipeline.service.ts`) — ta sama odpowiedzialność (lookup/store exact + semantic, `checkRateLimit`); nazwa nie jest Nest Guard.
+Zmiana względem: w wersji 17 dokumentu ten sam serwis aplikacyjny nazywał się `ChatCacheGuardService`. Obowiązuje `ChatCachePipelineService` (`src/chat/services/chat-cache-pipeline.service.ts`) — lookup/store exact + semantic. Nazwa nie jest Nest Guard.
+
+Zmiana względem: w wersji 18 dokumentu pipeline obejmował także `checkRateLimit` (mapowanie `checkCooldown` → HTTP 429). Cooldown po 429 upstream należy do `ChatProviderCooldownService.assertNotInCooldown` w `prepareRequestForExecution` (para z `ChatErrorHandlerService.setCooldown`); pipeline nie wstrzykuje limitera.
 
 ## Użytkownicy i scenariusze
 
@@ -140,7 +142,7 @@ F-10. *(Odporność)* Gateway stosuje `policy.retry` i `policy.timeoutMs` z YAML
 
 Zmiana względem: F-10 w wersji 15 („przy przyszłym cache streamingu”). Powód: zapis po stream miss jest wdrożony; nadal bez cache przy `didFallback`.
 
-F-11. *(Cooldown po 429 upstream)* Po błędzie providera 429 gateway może ustawić cooldown per klucz klienta + provider (`ChatErrorHandlerService` → `setCooldown`). Kolejne żądania — **JSON i streaming** — są odrzucane z `RATE_LIMITED` przez `checkCooldown` w wspólnym `prepareRequestForExecution`. Szczegóły env: `docs/pl/konfiguracja.md` (`RATE_LIMIT_COOLDOWN_AFTER_429`). Gdy Redis nie jest `ready` — fail-open (jak RPS — `SPEC-PLATFORMA-I-KONTRAKTY.md` F-17). Limit RPS/burst na brzegu (przed `ChatService`) — tamże F-16.
+F-11. *(Cooldown po 429 upstream)* Po błędzie providera 429 gateway może ustawić cooldown per klucz klienta + provider (`ChatErrorHandlerService` → `setCooldown`). Kolejne żądania — **JSON i streaming** — są odrzucane z `RATE_LIMITED` przez `ChatProviderCooldownService.assertNotInCooldown` (`checkCooldown`) w wspólnym `prepareRequestForExecution` **po** `registry.resolve` (potrzebny `providerName`) i **przed** lookupiem cache. Szczegóły env: `docs/pl/konfiguracja.md` (`RATE_LIMIT_COOLDOWN_AFTER_429`). Gdy Redis nie jest `ready` — fail-open (jak RPS — `SPEC-PLATFORMA-I-KONTRAKTY.md` F-17). Limit RPS/burst na brzegu (przed `ChatService`) — tamże F-16.
 
 ## Wymagania niefunkcjonalne
 

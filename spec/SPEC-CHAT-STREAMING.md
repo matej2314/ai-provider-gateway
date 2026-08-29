@@ -1,5 +1,5 @@
 ---
-wersja: 6
+wersja: 7
 data_utworzenia: 2026-08-26
 data_modyfikacji: 2026-08-29
 ---
@@ -58,7 +58,9 @@ F-7. W przypadku błędu po rozpoczęciu streamingu zachowanie musi być spójne
 - zamknięcie połączenia w sposób przewidywalny (`res.end()` w `finally`), oraz
 - log z `requestId` i `code` błędu.
 
-F-8. *(Cooldown po 429 upstream)* Ta sama polityka co czat JSON: `checkCooldown` w `prepareRequestForExecution` (wołane z `resolveStreamCache` / ścieżki miss **przed** `flushHeaders` w happy-path kontrolera) oraz `setCooldown` w `ChatErrorHandlerService.handleProviderError`. Kod błędu: `RATE_LIMITED` — odpowiedź JSON `ErrorEnvelope`, **bez** startu SSE.
+F-8. *(Cooldown po 429 upstream)* Ta sama polityka co czat JSON: `ChatProviderCooldownService.assertNotInCooldown` w `prepareRequestForExecution` (wołane z `resolveStreamCache` / ścieżki miss **przed** `flushHeaders` w happy-path kontrolera) oraz `setCooldown` w `ChatErrorHandlerService.handleProviderError`. Kod błędu: `RATE_LIMITED` — odpowiedź JSON `ErrorEnvelope`, **bez** startu SSE.
+
+Zmiana względem: F-8 w wersji 6 (`checkRateLimit` na `ChatCachePipelineService` mapujące `checkCooldown` → 429). Cooldown nie należy do pipeline.
 
 Zmiana względem: F-8 w wersji 4 (`checkCooldown` w `executeStream` **po** `flushHeaders`; „Cooldown providera — **po** wysłaniu nagłówków SSE”). Powód: kontroler woła `resolveStreamCache` przed `flushHeaders` — cooldown blokuje także serwowanie hitu cache (jak JSON).
 

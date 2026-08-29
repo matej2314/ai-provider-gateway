@@ -1,14 +1,6 @@
-import {
-  Injectable,
-  HttpException,
-  HttpStatus,
-  Optional,
-} from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { LoggingService } from '../../logging/logging.service';
 import { ResponseCacheService } from '../../cache/response-cache.service';
-import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
-import { ApiErrorCode } from '../../common/errors/api-error.code';
 import {
   isCachedChatAllowedForModelAlias,
   shouldStoreChatResponse,
@@ -16,10 +8,7 @@ import {
 import { toChatCacheIdentity } from '../helpers/to-chat-cache-identity';
 import { toCachedChatResponse } from '../helpers/to-cached-chat-response';
 import { isToolingRequest } from '../helpers/tooling-request';
-import {
-  asModelAlias,
-  asProviderInstanceId,
-} from '../../common/types/branded.types';
+import { asModelAlias } from '../../common/types/branded.types';
 import { AppMetricsService } from '../../observability/app-metrics/app-metrics.service';
 import {
   SemanticCacheService,
@@ -30,11 +19,7 @@ import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import type { CachedChatResponse } from '../../cache/response-cache.service';
 import type { ChatCacheSource } from '../../cache/types/chat-cache-source.type';
-import type {
-  ClientId,
-  GatewayKey,
-  RequestId,
-} from '../../common/types/branded.types';
+import type { ClientId, GatewayKey } from '../../common/types/branded.types';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
 
 export type ChatCacheLookupResult =
@@ -50,51 +35,12 @@ export type ChatCacheLookupResult =
 
 @Injectable()
 export class ChatCachePipelineService {
-  private readonly logger: LoggingService;
-
   constructor(
     private readonly cacheService: ResponseCacheService,
     private readonly config: ConfigService,
-    private readonly rateLimiter: SmartRateLimiterService,
-    private readonly loggingService: LoggingService,
     private readonly appMetrics: AppMetricsService,
     @Optional() private readonly semanticCache?: SemanticCacheService,
-  ) {
-    const logger = this.loggingService.child({
-      module: 'ChatCachePipelineService',
-    });
-    this.logger = logger;
-  }
-
-  async checkRateLimit(
-    gatewayKey: GatewayKey,
-    providerName: string,
-    requestId: RequestId,
-  ): Promise<void> {
-    const cooldownResult = await this.rateLimiter.checkCooldown(
-      gatewayKey,
-      providerName,
-    );
-
-    if (!cooldownResult.allowed) {
-      this.logger.warn('Rate limit exceeded', {
-        provider: asProviderInstanceId(providerName),
-        status: 429,
-        code: ApiErrorCode.RATE_LIMITED,
-      });
-
-      throw new HttpException(
-        {
-          statusCode: 429,
-          code: ApiErrorCode.RATE_LIMITED,
-          message: cooldownResult.reason || 'Rate limit exceeded',
-          requestId,
-          details: [],
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-  }
+  ) {}
 
   async getCachedIfAllowed(
     requestBody: ChatRequestDto,

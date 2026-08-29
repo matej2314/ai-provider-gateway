@@ -1,16 +1,10 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { HttpStatus } from '@nestjs/common';
 import { ChatCachePipelineService } from './chat-cache-pipeline.service';
 import { ResponseCacheService } from '../../cache/response-cache.service';
 import { SemanticCacheService } from '../../cache/semantic/semantic-cache.service';
-import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
-import { LoggingService } from '../../logging/logging.service';
 import { AppMetricsService } from '../../observability/app-metrics/app-metrics.service';
-import { ApiErrorCode } from '../../common/errors/api-error.code';
-import { createMockLoggingService } from '../../common/mocks/createMockLoggingService';
 import { createMockResponseCacheService } from '../../common/mocks/createMockResponseCacheService';
-import { createMockSmartRateLimiter } from '../../common/mocks/createMockSmartRateLimiter';
 import {
   createMockConfigService,
   type MockConfigServiceOptions,
@@ -23,7 +17,6 @@ import {
   TEST_MODEL_ALIAS_BRANDED,
   TEST_PROVIDER_INSTANCE,
   TEST_PROVIDER_INSTANCE_BRANDED,
-  TEST_REQUEST_ID,
   TEST_TOOL_CALL_ID,
 } from '../../common/mocks/test-constants';
 import {
@@ -69,8 +62,6 @@ describe('ChatCachePipelineService', () => {
     lookup: jest.Mock;
     storeReply: jest.Mock;
   };
-  let mockRateLimiter: Partial<SmartRateLimiterService>;
-  let mockLogger: Partial<LoggingService>;
   let mockAppMetrics: { recordCachePipelineAccess: jest.Mock };
 
   const baseRequest: ChatRequestDto = {
@@ -105,8 +96,6 @@ describe('ChatCachePipelineService', () => {
     withSemantic = true,
   ) {
     mockCache = createMockResponseCacheService();
-    mockRateLimiter = createMockSmartRateLimiter();
-    mockLogger = createMockLoggingService();
     mockAppMetrics = {
       recordCachePipelineAccess: jest.fn(),
     };
@@ -127,8 +116,6 @@ describe('ChatCachePipelineService', () => {
       ChatCachePipelineService,
       { provide: ResponseCacheService, useValue: mockCache },
       { provide: ConfigService, useValue: mockConfig },
-      { provide: SmartRateLimiterService, useValue: mockRateLimiter },
-      { provide: LoggingService, useValue: mockLogger },
       { provide: AppMetricsService, useValue: mockAppMetrics },
     ];
 
@@ -148,94 +135,6 @@ describe('ChatCachePipelineService', () => {
 
   beforeEach(async () => {
     await initService();
-  });
-
-  describe('checkRateLimit', () => {
-    describe('Happy path', () => {
-      it('should resolve when cooldown allows request', async () => {
-        await expect(
-          service.checkRateLimit(
-            TEST_GATEWAY_KEY_BRANDED,
-            'anthropic',
-            TEST_REQUEST_ID,
-          ),
-        ).resolves.toBeUndefined();
-
-        expect(mockRateLimiter.checkCooldown).toHaveBeenCalledWith(
-          TEST_GATEWAY_KEY_BRANDED,
-          'anthropic',
-        );
-      });
-    });
-
-    describe('Errors', () => {
-      it('should throw 429 RATE_LIMITED when cooldown denies request', async () => {
-        (mockRateLimiter.checkCooldown as jest.Mock).mockResolvedValue({
-          allowed: false,
-          reason: 'Cooldown active for provider',
-        });
-
-        await expect(
-          service.checkRateLimit(
-            TEST_GATEWAY_KEY_BRANDED,
-            'anthropic',
-            TEST_REQUEST_ID,
-          ),
-        ).rejects.toMatchObject({
-          status: HttpStatus.TOO_MANY_REQUESTS,
-          response: {
-            statusCode: 429,
-            code: ApiErrorCode.RATE_LIMITED,
-            message: 'Cooldown active for provider',
-            requestId: TEST_REQUEST_ID,
-            details: [],
-          },
-        });
-
-        expect(mockLogger.warn).toHaveBeenCalledWith(
-          'Rate limit exceeded',
-          expect.objectContaining({
-            provider: 'anthropic',
-            status: 429,
-            code: ApiErrorCode.RATE_LIMITED,
-          }),
-        );
-      });
-
-      it('should use default message when cooldown reason is empty', async () => {
-        (mockRateLimiter.checkCooldown as jest.Mock).mockResolvedValue({
-          allowed: false,
-        });
-
-        await expect(
-          service.checkRateLimit(
-            TEST_GATEWAY_KEY_BRANDED,
-            'anthropic',
-            asRequestId('req-456'),
-          ),
-        ).rejects.toMatchObject({
-          response: expect.objectContaining({
-            message: 'Rate limit exceeded',
-          }),
-        });
-      });
-    });
-
-    describe('Edge cases', () => {
-      it('should propagate rateLimiter.checkCooldown rejection', async () => {
-        (mockRateLimiter.checkCooldown as jest.Mock).mockRejectedValue(
-          new Error('Redis unavailable'),
-        );
-
-        await expect(
-          service.checkRateLimit(
-            TEST_GATEWAY_KEY_BRANDED,
-            'anthropic',
-            asRequestId('req-789'),
-          ),
-        ).rejects.toThrow('Redis unavailable');
-      });
-    });
   });
 
   describe('getCachedIfAllowed', () => {

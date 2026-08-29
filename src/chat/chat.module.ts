@@ -11,6 +11,7 @@ import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
 import { ChatCachePipelineService } from './services/chat-cache-pipeline.service';
+import { ChatProviderCooldownService } from './services/chat-provider-cooldown.service';
 import { StreamCacheReplayService } from './services/stream-cache-replay.service';
 
 @Module({
@@ -26,6 +27,7 @@ import { StreamCacheReplayService } from './services/stream-cache-replay.service
     ChatValidationService,
     ChatResponseBuilderService,
     ChatCachePipelineService,
+    ChatProviderCooldownService,
     StreamCacheReplayService,
   ],
   exports: [ChatService, SmartRateLimitGuard],

@@ -40,8 +40,8 @@
     "semantic_hash": "8f962574b2929b0841ad2ca4c42f0e63"
   },
   "src/cache/adapters/redis-cache/redis-connection.service.ts": {
-    "mtime": 1787999751.9489586,
-    "ast_hash": "c59a292dfe514f785fc06c5060e2170e",
+    "mtime": 1788004684.9606273,
+    "ast_hash": "89d6ff58bbd6f474752b8158d4fa9f0c",
     "semantic_hash": ""
   },
   "src/cache/cache-registry.service.spec.ts": {
@@ -120,18 +120,18 @@
     "semantic_hash": ""
   },
   "src/chat/chat.module.ts": {
-    "mtime": 1788003218.5544167,
-    "ast_hash": "9258265e9d8b0ce43b2a91bfc3418c91",
+    "mtime": 1788006213.063237,
+    "ast_hash": "dc812a2dfe79098913ef7c8c60e8dca7",
     "semantic_hash": ""
   },
   "src/chat/chat.service.spec.ts": {
-    "mtime": 1788003544.9177482,
-    "ast_hash": "be09c35e43493e15b8aeb12f77506691",
+    "mtime": 1788006226.6848745,
+    "ast_hash": "c4ad93bd29efe2dbf115d9e137f0c919",
     "semantic_hash": ""
   },
   "src/chat/chat.service.ts": {
-    "mtime": 1788003260.560958,
-    "ast_hash": "e8206a921f912ee62c4711f399dfeb94",
+    "mtime": 1788006210.9605658,
+    "ast_hash": "d9e1cac72515fafe15a9142f5d3a21eb",
     "semantic_hash": ""
   },
   "src/chat/dto/chat-message.dto.ts": {
@@ -205,8 +205,8 @@
     "semantic_hash": ""
   },
   "src/chat/helpers/cache-policy.ts": {
-    "mtime": 1788001174.5094433,
-    "ast_hash": "33d2d5a8a1fa96678e596a41ab520d6c",
+    "mtime": 1788005038.2339036,
+    "ast_hash": "2323ab4e4b39c514e4903db47e9f84ce",
     "semantic_hash": ""
   },
   "src/chat/helpers/conversation-id.spec.ts": {
@@ -2055,8 +2055,8 @@
     "semantic_hash": "1e9cd2c2d916cb449662463020fa6a64"
   },
   "test/e2e/helpers/e2e-provider-registry.ts": {
-    "mtime": 1787995220.9070034,
-    "ast_hash": "530b650a8a139272a0851a2cc6b030eb",
+    "mtime": 1788005038.2339036,
+    "ast_hash": "a19d020167cf3dac1b44b1711f368728",
     "semantic_hash": ""
   },
   "test/e2e/helpers/e2e-rate-limiter.ts": {
@@ -2555,13 +2555,13 @@
     "semantic_hash": ""
   },
   "src/cache/semantic/index-name.ts": {
-    "mtime": 1787848712.621201,
-    "ast_hash": "2225544ce772ce52ad2881b53d713da6",
+    "mtime": 1788004727.1829398,
+    "ast_hash": "3be19ef7cfb46e745e63f367d0f15150",
     "semantic_hash": ""
   },
   "src/cache/semantic/last-user-message.ts": {
-    "mtime": 1788001870.1412053,
-    "ast_hash": "89d2fcf58abf26f745a4b8199fda450c",
+    "mtime": 1788004740.230688,
+    "ast_hash": "7f3c094ed59b09da52e6a6810473cd4e",
     "semantic_hash": ""
   },
   "src/cache/semantic/semantic-cache.tokens.ts": {
@@ -2600,8 +2600,8 @@
     "semantic_hash": ""
   },
   "src/cache/semantic/semantic-cache.service.spec.ts": {
-    "mtime": 1788002288.6091006,
-    "ast_hash": "0b4a951edac708a204d86dfcc2d41f08",
+    "mtime": 1788005038.2339036,
+    "ast_hash": "3fa76d5941bf27b3c422a20716e6b2e6",
     "semantic_hash": ""
   },
   "src/cache/semantic/semantic-cache.constants.spec.ts": {
@@ -2710,8 +2710,8 @@
     "semantic_hash": ""
   },
   "test/e2e/gateway-stream-cache.e2e-spec.ts": {
-    "mtime": 1787995220.9824643,
-    "ast_hash": "08cc30dd5d2378f9d9f3c616dd8da61a",
+    "mtime": 1788005070.6213686,
+    "ast_hash": "2630f351a564a67efcced550ba77023c",
     "semantic_hash": ""
   },
   "test/e2e/helpers/e2e-in-memory-cache.ts": {
@@ -2725,8 +2725,8 @@
     "semantic_hash": ""
   },
   "src/cache/adapters/redis-cache/redis-connection.service.spec.ts": {
-    "mtime": 1787999839.753429,
-    "ast_hash": "582afed7642f7022302fc42ffabd0369",
+    "mtime": 1788005069.3728726,
+    "ast_hash": "95a5a74f6d1ce06bd639f2c243d1886a",
     "semantic_hash": ""
   },
   "src/cache/helpers/is-unservable-cached-reply.spec.ts": {
@@ -2760,18 +2760,18 @@
     "semantic_hash": ""
   },
   "src/chat/helpers/to-chat-cache-identity.ts": {
-    "mtime": 1788001874.168701,
-    "ast_hash": "cc82a8f184aaa52228141547da6ab3de",
+    "mtime": 1788005038.2339036,
+    "ast_hash": "2504a2d526c5be1e651966b9ca815614",
     "semantic_hash": ""
   },
   "src/chat/services/chat-cache-pipeline.service.spec.ts": {
-    "mtime": 1788003544.4497888,
-    "ast_hash": "8012dbf674ac79f1968a5b7ddbf5f96e",
+    "mtime": 1788006256.7903566,
+    "ast_hash": "853d24b27a732d056abfe660213a9fae",
     "semantic_hash": ""
   },
   "src/chat/services/chat-cache-pipeline.service.ts": {
-    "mtime": 1788003202.43936,
-    "ast_hash": "f2a198014847b70be2640cffe2056c21",
+    "mtime": 1788006252.6817324,
+    "ast_hash": "baf3316fa8169eb06fb2e60f3fd91bef",
     "semantic_hash": ""
   },
   "src/cache/semantic/parse-knn-hits.spec.ts": {
@@ -2792,6 +2792,16 @@
   "src/cache/semantic/redis-search-error.ts": {
     "mtime": 1788004304.4068282,
     "ast_hash": "1bf98f1976d07176916cdfbf8c485617",
+    "semantic_hash": ""
+  },
+  "src/chat/services/chat-provider-cooldown.service.spec.ts": {
+    "mtime": 1788006170.4289482,
+    "ast_hash": "f85ba83c0b2827b2f44f565966e2404c",
+    "semantic_hash": ""
+  },
+  "src/chat/services/chat-provider-cooldown.service.ts": {
+    "mtime": 1788006170.4289482,
+    "ast_hash": "ca437f8387193aa92df527d929f7894d",
     "semantic_hash": ""
   }
 }

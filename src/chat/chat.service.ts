@@ -20,6 +20,7 @@ import { createInProcessSingleflight } from './helpers/in-process-singleflight';
 
 import { ChatProviderCallService } from './services/chat-provider-call.service';
 import { ChatCachePipelineService } from './services/chat-cache-pipeline.service';
+import { ChatProviderCooldownService } from './services/chat-provider-cooldown.service';
 import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
@@ -66,6 +67,7 @@ export class ChatService {
     private readonly resilientExecutor: ResilientExecutor,
     private readonly providerCallService: ChatProviderCallService,
     private readonly cachePipelineService: ChatCachePipelineService,
+    private readonly providerCooldown: ChatProviderCooldownService,
     private readonly errorHandlerService: ChatErrorHandlerService,
     private readonly responseBuilderService: ChatResponseBuilderService,
     private readonly streamCacheReplay: StreamCacheReplayService,
@@ -105,7 +107,7 @@ export class ChatService {
     this.validationService.validateThinking(primaryResolved, options);
 
     if (gatewayKey) {
-      await this.cachePipelineService.checkRateLimit(
+      await this.providerCooldown.assertNotInCooldown(
         gatewayKey,
         primaryResolved.providerName,
         requestId,
