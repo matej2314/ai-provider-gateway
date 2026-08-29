@@ -18,6 +18,7 @@ import {
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseSerializer } from './sse/sse.serializer';
 import { ChatService } from './chat.service';
+import { StreamCacheReplayService } from './services/stream-cache-replay.service';
 import { GatewayKeyAndSmartRateLimit } from '../common/decorators/gateway-key-and-smart-rate-limit.decorator';
 import { StreamCleanupInterceptor } from '../common/interceptors/stream-cleanup.interceptor';
 import { ApiGatewayChatErrorResponses } from '../common/decorators/api-gateway-error-responses.decorator';
@@ -26,6 +27,7 @@ import { ApiRequestIdHeader } from '../common/decorators/api-request-id-header.d
 import { CHAT_STREAM_API_DESCRIPTION } from './dto/sse-stream-description';
 import { requireClientGatewayKey } from '../common/requireClientGatewayKey';
 import { asClientId, asRequestId } from 'src/common/types/branded.types';
+import type { SseEvent } from './sse/sse-event.type';
 
 @ApiTags('Chat')
 @ApiSecurity('GatewayKeyAuth')
@@ -34,7 +36,10 @@ import { asClientId, asRequestId } from 'src/common/types/branded.types';
 export class ChatStreamController {
   private readonly sse = new SseSerializer();
 
-  constructor(private readonly chatService: ChatService) {}
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly streamCacheReplay: StreamCacheReplayService,
+  ) {}
 
   @Post('stream')
   @UseInterceptors(StreamCleanupInterceptor)
@@ -64,6 +69,18 @@ export class ChatStreamController {
               conversationId: 'conv_...',
             } satisfies SseMetaPayloadDto)}`,
           },
+          metaCacheHit: {
+            value: `event: meta\ndata: ${JSON.stringify({
+              id: 'gw_...',
+              provider: 'anthropic',
+              model: 'chat-default',
+              requestId: 'req_...',
+              conversationId: 'conv_...',
+              cached: true,
+              cachedAt: '2026-01-01T00:00:00.000Z',
+              cacheSource: 'exact',
+            } satisfies SseMetaPayloadDto)}`,
+          },
         },
       },
     },
@@ -77,23 +94,53 @@ export class ChatStreamController {
   ) {
     const gatewayKey = requireClientGatewayKey(req);
     this.chatService.validateForStreaming(requestBody.modelAlias);
+
+    const requestId = asRequestId(req.requestId);
+    const clientId = req.clientId
+      ? asClientId(req.clientId)
+      : asClientId('unknown');
+
+    // Cooldown + cache lookup before headers → 429 as JSON ErrorEnvelope (D3)
+    const decision = await this.chatService.resolveStreamCache(
+      requestBody,
+      requestId,
+      clientId,
+      'native',
+      gatewayKey,
+    );
+
     res.status(200);
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
+    const emit = (event: SseEvent) => {
+      if (!res.writableEnded) {
+        res.write(this.sse.serialize(event));
+      }
+    };
+
     try {
-      await this.chatService.executeStream(
-        requestBody,
-        asRequestId(req.requestId),
-        req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
-        (event) => {
-          res.write(this.sse.serialize(event));
-        },
-        'native',
-        gatewayKey,
-      );
+      if (decision.outcome === 'hit') {
+        this.streamCacheReplay.replay({
+          cached: decision.cached,
+          cacheSource: decision.cacheSource,
+          requestId,
+          conversationId: decision.prep.responseConversationId,
+          emit,
+          shouldAbort: () => res.writableEnded,
+        });
+      } else {
+        await this.chatService.executeStreamMiss(
+          requestBody,
+          requestId,
+          clientId,
+          emit,
+          gatewayKey,
+          decision,
+        );
+      }
     } finally {
       res.end();
     }

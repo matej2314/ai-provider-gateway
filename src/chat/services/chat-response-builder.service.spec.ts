@@ -23,6 +23,7 @@ import {
   asModelAlias,
   asOutputTokens,
   asPromptCacheHitTokens,
+  asResponseId,
   asSystemFingerprint,
   asToolCallId,
 } from '../../common/types/branded.types';
@@ -252,6 +253,23 @@ describe('ChatResponseBuilderService', () => {
         );
 
         expect(result.id).toMatch(/^gw_/);
+      });
+
+      it('should use provided responseId instead of generating one', () => {
+        const streamMetaId = asResponseId('gw_stream_meta_id');
+        const result = service.buildChatResponse(
+          baseProviderResponse,
+          'anthropic',
+          TEST_MODEL_ALIAS_BRANDED,
+          TEST_REQUEST_ID,
+          TEST_CONVERSATION_ID,
+          undefined,
+          undefined,
+          undefined,
+          streamMetaId,
+        );
+
+        expect(result.id).toBe(streamMetaId);
       });
     });
 

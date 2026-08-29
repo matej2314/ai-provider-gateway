@@ -139,7 +139,7 @@
     },
     "/api/v1/chat/stream": {
       "post": {
-        "description": "SSE (`text/event-stream`): event sequence `meta` → `delta`* → `done` (empty `{}`).\n\n`done` may include `toolCalls` and `finishReason` when tooling is used.\n\nSame body as POST /chat. JSON errors (ErrorEnvelope) only **before** flushHeaders.\n\nAfter stream starts, errors may be partial SSE.",
+        "description": "SSE (`text/event-stream`): event sequence `meta` → `delta`* → `done` (empty `{}`).\n\n`done` may include `toolCalls` and `finishReason` when tooling is used.\n\nOn cache hit, `meta` includes `cached`, `cachedAt`, and `cacheSource`; omitted on miss.\n\nSame body as POST /chat. JSON errors (ErrorEnvelope) only **before** flushHeaders.\n\nAfter stream starts, errors may be partial SSE.",
         "operationId": "ChatStreamController_streamChat",
         "parameters": [
           {
@@ -175,6 +175,9 @@
                 "examples": {
                   "meta": {
                     "value": "event: meta\ndata: {\"id\":\"gw_...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\",\"conversationId\":\"conv_...\"}"
+                  },
+                  "metaCacheHit": {
+                    "value": "event: meta\ndata: {\"id\":\"gw_...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\",\"conversationId\":\"conv_...\",\"cached\":true,\"cachedAt\":\"2026-01-01T00:00:00.000Z\",\"cacheSource\":\"exact\"}"
                   }
                 }
               }
@@ -3017,6 +3020,25 @@
           },
           "conversationId": {
             "type": "string"
+          },
+          "cached": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Present on cache hit"
+          },
+          "cachedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cacheSource": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "semantic"
+            ],
+            "description": "Which cache layer served this stream. Present only on a cache hit; omitted on a provider miss."
           }
         },
         "required": [

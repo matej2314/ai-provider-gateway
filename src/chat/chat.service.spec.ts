@@ -37,6 +37,7 @@ import {
   type RequestId,
   type ConversationId,
   type ProviderInstanceId,
+  type ResponseId,
 } from '../common/types/branded.types';
 import {
   TEST_CONVERSATION_ID,
@@ -143,8 +144,11 @@ describe('ChatService', () => {
           requestId: RequestId,
           conversationId: ConversationId,
           effectiveModelAlias?: ModelAlias,
+          _options?: unknown,
+          _providerType?: unknown,
+          responseId?: ResponseId,
         ) => ({
-          id: asResponseId(TEST_RESPONSE_ID_PREFIX),
+          id: responseId ?? asResponseId(TEST_RESPONSE_ID_PREFIX),
           provider: providerName,
           model: modelAlias,
           ...(effectiveModelAlias && { effectiveModelAlias }),
@@ -926,6 +930,244 @@ describe('ChatService', () => {
     });
   });
 
+  describe('resolveStreamCache', () => {
+    const baseRequest = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [{ role: 'user' as const, content: 'Hi' }],
+      params: {},
+    };
+
+    it('should return miss without lookup when gatewayKey is empty', async () => {
+      const decision = await service.resolveStreamCache(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        'native',
+        asGatewayKey(''),
+      );
+
+      expect(decision).toMatchObject({ outcome: 'miss' });
+      expect(decision.prep.primaryResolved).toBe(resolvedConfig);
+      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
+    });
+
+    it('should return hit with cached payload and cacheSource', async () => {
+      const cachedResponse = {
+        id: 'cached-stream-123',
+        output: { type: 'text' as const, text: 'Cached stream' },
+      };
+      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: cachedResponse,
+        cacheSource: 'exact',
+      });
+
+      const decision = await service.resolveStreamCache(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+
+      expect(decision).toEqual({
+        outcome: 'hit',
+        prep: expect.objectContaining({
+          primaryResolved: resolvedConfig,
+        }),
+        cached: cachedResponse,
+        cacheSource: 'exact',
+      });
+      expect(mockCacheGuard.getCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
+        expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+    });
+
+    it('should return semantic hit with cacheSource', async () => {
+      const cachedResponse = {
+        id: 'cached-sem-stream',
+        output: { type: 'text' as const, text: 'Semantic stream' },
+        cached: true as const,
+        cachedAt: '2026-01-01T00:00:00.000Z',
+      };
+      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: cachedResponse,
+        cacheSource: 'semantic',
+      });
+
+      const decision = await service.resolveStreamCache(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+
+      expect(decision).toEqual({
+        outcome: 'hit',
+        prep: expect.objectContaining({
+          primaryResolved: resolvedConfig,
+        }),
+        cached: cachedResponse,
+        cacheSource: 'semantic',
+      });
+    });
+
+    it('should return miss with embedState from lookup', async () => {
+      const embedState = { vector: [0.1, 0.2], embedAttempted: true };
+      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: null,
+        embedState,
+      });
+
+      const decision = await service.resolveStreamCache(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+
+      expect(decision).toEqual({
+        outcome: 'miss',
+        prep: expect.objectContaining({
+          primaryResolved: resolvedConfig,
+        }),
+        embedState,
+      });
+    });
+
+    it('should propagate cooldown errors before cache lookup', async () => {
+      const rateLimitError = new HttpException('Rate limited', 429);
+      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+        rateLimitError,
+      );
+
+      await expect(
+        service.resolveStreamCache(
+          baseRequest,
+          TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
+          'native',
+          TEST_GATEWAY_KEY_BRANDED,
+        ),
+      ).rejects.toBe(rateLimitError);
+
+      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('executeStreamMiss', () => {
+    const baseRequest = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [{ role: 'user' as const, content: 'Hi' }],
+      params: {},
+    };
+
+    it('should stream from passed prep without a second prepare or cooldown', async () => {
+      const prep = await service.prepareRequestForExecution(
+        baseRequest,
+        TEST_REQUEST_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+      (mockCacheGuard.checkRateLimit as jest.Mock).mockClear();
+      (mockValidation.validateTooling as jest.Mock).mockClear();
+      mockStreamExecutorSuccess();
+
+      await service.executeStreamMiss(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        jest.fn(),
+        TEST_GATEWAY_KEY_BRANDED,
+        { outcome: 'miss', prep },
+      );
+
+      expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
+      expect(mockValidation.validateTooling).not.toHaveBeenCalled();
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
+      expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalled();
+    });
+
+    it('should cache assembledText with stream meta id after a successful miss', async () => {
+      const prep = await service.prepareRequestForExecution(
+        baseRequest,
+        TEST_REQUEST_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+      const embedState = { vector: [0.4, 0.5], embedAttempted: true };
+      mockStreamExecutorSuccess({ assembledText: 'Hello streamed' });
+
+      await service.executeStreamMiss(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        jest.fn(),
+        TEST_GATEWAY_KEY_BRANDED,
+        { outcome: 'miss', prep, embedState },
+      );
+
+      expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
+        expect.objectContaining({ text: 'Hello streamed' }),
+        'anthropic',
+        TEST_MODEL_ALIAS,
+        TEST_REQUEST_ID,
+        expect.any(String),
+        undefined,
+        expect.any(Object),
+        resolvedConfig.providerType,
+        asResponseId(TEST_RESPONSE_ID_PREFIX),
+      );
+      expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
+        expect.objectContaining({
+          id: TEST_RESPONSE_ID_PREFIX,
+          output: { type: 'text', text: 'Hello streamed' },
+        }),
+        expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        embedState,
+      );
+    });
+
+    it('should not cache when stream used fallback', async () => {
+      const prep = await service.prepareRequestForExecution(
+        baseRequest,
+        TEST_REQUEST_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue({
+        value: {
+          resolved: resolvedConfig,
+          assembledText: 'Fallback stream',
+          usageMetadata: { inputTokens: 5, outputTokens: 10 },
+          stopReason: 'end_turn',
+        },
+        usedAlias: asModelAlias('fallback-model'),
+        attempts: asAttemptNumber(2),
+        didFallback: true,
+      });
+
+      await service.executeStreamMiss(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        jest.fn(),
+        TEST_GATEWAY_KEY_BRANDED,
+        { outcome: 'miss', prep },
+      );
+
+      expect(mockResponseBuilder.buildChatResponse).not.toHaveBeenCalled();
+      expect(mockCacheGuard.setCachedIfAllowed).not.toHaveBeenCalled();
+    });
+  });
+
   describe('executeStream', () => {
     const baseRequest = {
       modelAlias: TEST_MODEL_ALIAS,
@@ -962,7 +1204,16 @@ describe('ChatService', () => {
         TEST_REQUEST_ID,
       );
       expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
-      expect(mockCacheGuard.setCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
+        expect.objectContaining({
+          output: { type: 'text', text: 'Hello' },
+        }),
+        expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        undefined,
+      );
       expect(mockValidation.validateThinking).toHaveBeenCalledWith(
         resolvedConfig,
         expectedOptions,
@@ -1149,6 +1400,7 @@ describe('ChatService', () => {
         undefined,
         asModelAlias('fallback-model'),
       );
+      expect(mockCacheGuard.setCachedIfAllowed).not.toHaveBeenCalled();
     });
 
     it('should use primary fallbackAlias for streaming', async () => {

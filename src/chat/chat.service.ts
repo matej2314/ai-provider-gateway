@@ -28,6 +28,10 @@ import { AppMetricsService } from '../observability/app-metrics/app-metrics.serv
 import { validateChatIngress } from './validation/chat-ingress.validator';
 import type { ChatIngressProfile } from './validation/chat-ingress.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
+import type {
+  StreamCacheDecision,
+  StreamCacheMiss,
+} from './types/stream-cache-decision.types';
 import type { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
 import type { ResolvedSystemPrompts } from '../config/configuration.types';
 import {
@@ -110,6 +114,47 @@ export class ChatService {
       options,
       responseConversationId,
       resolvedPrompts,
+    };
+  }
+
+  async resolveStreamCache(
+    requestBody: ChatRequestDto,
+    requestId: RequestId,
+    clientId: ClientId,
+    ingressProfile: ChatIngressProfile,
+    gatewayKey: GatewayKey,
+  ): Promise<StreamCacheDecision> {
+    const prep = await this.prepareRequestForExecution(
+      requestBody,
+      requestId,
+      ingressProfile,
+      gatewayKey,
+    );
+
+    if (!gatewayKey) {
+      return { outcome: 'miss', prep };
+    }
+
+    const lookup = await this.cacheGuardService.getCachedIfAllowed(
+      requestBody,
+      prep.options,
+      clientId,
+      gatewayKey,
+    );
+
+    if (lookup.cached) {
+      return {
+        outcome: 'hit',
+        prep,
+        cached: lookup.cached,
+        cacheSource: lookup.cacheSource,
+      };
+    }
+
+    return {
+      outcome: 'miss',
+      prep,
+      embedState: lookup.embedState,
     };
   }
 
@@ -316,17 +361,37 @@ export class ChatService {
     ingressProfile: ChatIngressProfile,
     gatewayKey: GatewayKey,
   ): Promise<void> {
-    const {
-      primaryResolved,
-      options,
-      responseConversationId,
-      resolvedPrompts,
-    } = await this.prepareRequestForExecution(
+    const prep = await this.prepareRequestForExecution(
       requestBody,
       requestId,
       ingressProfile,
       gatewayKey,
     );
+
+    await this.executeStreamMiss(
+      requestBody,
+      requestId,
+      clientId,
+      emit,
+      gatewayKey,
+      { outcome: 'miss', prep },
+    );
+  }
+
+  async executeStreamMiss(
+    requestBody: ChatRequestDto,
+    requestId: RequestId,
+    clientId: ClientId,
+    emit: (event: SseEvent) => void,
+    gatewayKey: GatewayKey,
+    decision: StreamCacheMiss,
+  ): Promise<void> {
+    const {
+      primaryResolved,
+      options,
+      responseConversationId,
+      resolvedPrompts,
+    } = decision.prep;
 
     const log = this.loggingService.child({
       module: 'ChatService',
@@ -379,36 +444,65 @@ export class ChatService {
         }),
       );
 
-      const {
-        resolved,
-        toolCalls,
-        stopReason,
-        usageMetadata,
-        systemFingerprint,
-        thinkingContent,
-        usageDetails,
-      } = result.value;
+      const streamValue = result.value;
       const usedAlias = result.usedAlias;
       const didFallback = result.didFallback;
 
       const doneEvent = this.responseBuilderService.buildStreamDoneEvent(
-        usageMetadata,
-        toolCalls,
-        stopReason,
-        systemFingerprint,
-        thinkingContent,
+        streamValue.usageMetadata,
+        streamValue.toolCalls,
+        streamValue.stopReason,
+        streamValue.systemFingerprint,
+        streamValue.thinkingContent,
         options,
-        resolved.providerType,
-        usageDetails,
+        streamValue.resolved.providerType,
+        streamValue.usageDetails,
         didFallback ? usedAlias : undefined,
       );
       emit(doneEvent);
 
+      // Dual-write before SSE close (P17x.D analog). No cache on fallback (F-10).
+      if (!didFallback) {
+        const chatResult = this.responseBuilderService.buildChatResponse(
+          {
+            text: streamValue.assembledText,
+            usage: streamValue.usageMetadata
+              ? {
+                  inputTokens: streamValue.usageMetadata.inputTokens,
+                  outputTokens: streamValue.usageMetadata.outputTokens,
+                }
+              : undefined,
+            toolCalls: streamValue.toolCalls,
+            stopReason: streamValue.stopReason,
+            usageDetails: streamValue.usageDetails,
+            systemFingerprint: streamValue.systemFingerprint,
+            thinkingContent: streamValue.thinkingContent,
+          },
+          streamValue.resolved.providerName,
+          asModelAlias(requestBody.modelAlias),
+          requestId,
+          responseConversationId,
+          didFallback ? usedAlias : undefined,
+          options,
+          streamValue.resolved.providerType,
+          id,
+        );
+
+        await this.cacheGuardService.setCachedIfAllowed(
+          requestBody,
+          chatResult,
+          options,
+          clientId,
+          gatewayKey,
+          decision.embedState,
+        );
+      }
+
       const latency = Date.now() - startedAt;
 
       log.info('Chat stream completed', {
-        provider: asProviderInstanceId(resolved.providerName),
-        modelId: resolved.modelId,
+        provider: asProviderInstanceId(streamValue.resolved.providerName),
+        modelId: streamValue.resolved.modelId,
         latency,
         conversationId: responseConversationId,
         ...(didFallback && { effectiveModelAlias: usedAlias }),
