@@ -213,7 +213,10 @@ describe('ChatService', () => {
         { provide: ResilientExecutor, useValue: mockExecutor },
         { provide: ChatProviderCallService, useValue: mockProviderCall },
         { provide: ChatCachePipelineService, useValue: mockCachePipeline },
-        { provide: ChatProviderCooldownService, useValue: mockProviderCooldown },
+        {
+          provide: ChatProviderCooldownService,
+          useValue: mockProviderCooldown,
+        },
         { provide: ChatValidationService, useValue: mockValidation },
         { provide: ChatErrorHandlerService, useValue: mockErrorHandler },
         { provide: ChatResponseBuilderService, useValue: mockResponseBuilder },
