@@ -123,9 +123,9 @@ describe('ChatStreamController', () => {
 
     it('should look up cache before flushing SSE headers', async () => {
       const order: string[] = [];
-      mockChatService.resolveStreamCache.mockImplementation(async () => {
+      mockChatService.resolveStreamCache.mockImplementation(() => {
         order.push('lookup');
-        return missDecision;
+        return Promise.resolve(missDecision);
       });
       mockResponse.flushHeaders = jest.fn(() => {
         order.push('flush');

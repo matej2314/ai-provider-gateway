@@ -1142,17 +1142,19 @@ describe('ChatService', () => {
         'native',
         TEST_GATEWAY_KEY_BRANDED,
       );
-      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue({
-        value: {
-          resolved: resolvedConfig,
-          assembledText: 'Fallback stream',
-          usageMetadata: { inputTokens: 5, outputTokens: 10 },
-          stopReason: 'end_turn',
+      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue(
+        {
+          value: {
+            resolved: resolvedConfig,
+            assembledText: 'Fallback stream',
+            usageMetadata: { inputTokens: 5, outputTokens: 10 },
+            stopReason: 'end_turn',
+          },
+          usedAlias: asModelAlias('fallback-model'),
+          attempts: asAttemptNumber(2),
+          didFallback: true,
         },
-        usedAlias: asModelAlias('fallback-model'),
-        attempts: asAttemptNumber(2),
-        didFallback: true,
-      });
+      );
 
       await service.executeStreamMiss(
         baseRequest,
