@@ -50,14 +50,15 @@ The description below defines product scope as understood in this repository. HT
 | Anthropic facade (official Anthropic Messages contract) | `/api/v1/anthropic/*` — IDEs and other clients |
 | Tool calling | Tool definitions and invocations in chat |
 | Extended thinking (reasoning models) | Thinking / reasoning parameters |
-| Response caching (Redis) | Response cache for `POST /chat` |
+| Response caching — exact (Redis KV) | Exact hash lookup for `POST /chat`; `cached: true` on hit |
+| Response caching — semantic (Redis Search + Ollama) | Embedding + KNN for `POST /chat` (`qwen3-embedding:0.6b`); fail-open; `SEMANTIC_CACHE_ENABLED` |
 | Smart rate limiting | Limits per client key |
 
 **Summary:** The listed features are part of the product. Architecture and integrations: `architecture.md`, `integrations.md`, `testing.md`.
 
 ### Functional scope (summary)
 
-- **Standard chat endpoint** `POST /api/v1/chat` — optionally **response cache** (`src/cache/`, read validation `CachedChatResponseSchema`, env — `configuration.md`).
+- **Standard chat endpoint** `POST /api/v1/chat` — optionally **response cache** in two layers: exact (hash + `clientId`) and semantic (embedding + KNN); same store for streaming (`src/cache/`, read validation `CachedChatResponseSchema`, env — `configuration.md`).
 - **Streaming** (`POST /api/v1/chat/stream`, SSE) — `ErrorEnvelope` envelope. **Gateway key** + optional **smart rate limit** (`@GatewayKeyAndSmartRateLimit()`; codes **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** — `dictionary.md`). **Readiness**, **logging/metrics** (Pino, Sentry), **graceful shutdown**. **`params` in body**, **`timeoutMs` / `retry` policy + fallback**, **response header `x-request-id`**. **OpenAPI / Swagger** — `@nestjs/swagger` decorators on chat, health, and official contract facades; one [`openapi.json`](../openapi.json) (tags Health, Chat, OpenAI API, Anthropic API); export `npm run openapi:export`, UI `/api/v1/api-docs`. **Official contract facades** (`src/integrations/`) — `IntegrationsModule`; routes `/api/v1/openai/…`, `/api/v1/anthropic/…` (`integrations.md`). **Offline configuration validation:** `npm run config:validate` and **`gateway config:validate`** (`configuration.md`). **CLI** — `config:init` wizard + commands for managing config, providers, models, clients, SDK tests, `key:generate` (`command_line_interface.md`).
 - **Official contract facades** — module `src/integrations/` (OpenAI API contract and Anthropic Messages contract — for IDEs and other clients that expect those shapes); shared engine `ChatService` — see `integrations.md`.
 - **Providers** Anthropic, Google Gemini, and OpenAI (`openai`, `openai-compatible`) — SDK factories, bootstrap per `providerInstance` and registry.

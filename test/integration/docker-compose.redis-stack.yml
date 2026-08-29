@@ -1,0 +1,18 @@
+# Vector integration only — NIE używać z test:integration (alpine).
+# npm run test:integration:semantic:redis:up
+
+services:
+  redis-stack-integration:
+    image: redis/redis-stack-server:7.4.0-v8
+    container_name: integration-redis-stack-test
+    ports:
+      - '6381:6380'
+    environment:
+      REDIS_ARGS: '--port 6380 --maxmemory 128mb --maxmemory-policy noeviction'
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-p', '6380', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    tmpfs:
+      - /data

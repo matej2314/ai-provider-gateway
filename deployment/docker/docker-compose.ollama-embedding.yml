@@ -1,0 +1,61 @@
+name: ai-provider-gateway-ollama-embedding
+
+# Embedding only (npm run infra:up / część bazy docker:up)
+# NIE współdziel volume z docker-compose.ollama.yml (czat llama3.1:8b)
+# Model: one-shot ollama-pull → wspólny volume → kontener usuwany po sukcesie
+# W sieci Dockera: EMBEDDING_BASE_URL=http://ollama-embedding:11434
+# Na hoście (start:dev):  EMBEDDING_BASE_URL=http://localhost:11435
+# RAM: ~4–6 GB na model qwen3-embedding:0.6b; minimum 16 GB całego stacka
+# CPU, bez GPU — nie dodawaj deploy.resources.reservations.devices
+# Obraz ollama/ollama:latest — pin Stack jest obowiązkowy; pin Ollama = decyzja ops (drift mniejszy niż Stack SCHEMA)
+
+services:
+  gateway:
+    depends_on:
+      ollama-embedding:
+        condition: service_healthy
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ai-gateway-ollama-pull
+    volumes:
+      - ollama-embedding-data:/root/.ollama
+    networks:
+      - ai-gateway-network
+    entrypoint: ['/bin/sh', '-c']
+    command: >
+      ollama serve &
+      until ollama list >/dev/null 2>&1; do sleep 1; done &&
+      ollama pull qwen3-embedding:0.6b &&
+      ollama list | grep -Fq qwen3-embedding:0.6b
+    restart: 'no'
+
+  ollama-embedding:
+    image: ollama/ollama:latest
+    container_name: ai-gateway-ollama-embedding
+    restart: unless-stopped
+    depends_on:
+      ollama-pull:
+        condition: service_completed_successfully
+    environment:
+      OLLAMA_KEEP_ALIVE: '-1'
+    ports:
+      - '11435:11434'
+    networks:
+      - ai-gateway-network
+    volumes:
+      - ollama-embedding-data:/root/.ollama
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+volumes:
+  ollama-embedding-data:
+
+networks:
+  ai-gateway-network:
+    external: true
+    name: ai-gateway-network

@@ -72,6 +72,7 @@ compose_files() {
   )
   if [[ "${DEPLOY_MODE}" == "production" ]]; then
     files+=(-f deployment/docker/docker-compose.redis.yml)
+    files+=(-f deployment/docker/docker-compose.ollama-embedding.yml)
   fi
   files+=(
     -f deployment/docker/docker-compose.monitoring.yml

@@ -2,22 +2,21 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { createHash } from 'crypto';
-import { ChatRequestDto } from '../chat/dto/chat-request.dto';
 import { CACHE_BACKEND } from './cache.tokens';
-import { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
 import { LoggingService } from '../logging/logging.service';
 import { parseCachedChatResponse } from './schemas/cached-chat-response.schema';
+import { isUnservableCachedReply } from './helpers/is-unservable-cached-reply';
+import {
+  computeSystemSignature,
+  serializeCallParamsForCache,
+} from './cache-identity';
 import type { CacheBackend } from './interfaces/cache-backend-interface';
 import { getAppConfig, getAppConfigOrThrow } from '../config/typed-config';
-import type { ChatResponseData } from '../chat/services/chat-response-builder.service';
 import type { CachedChatResponse } from './types/cached-chat-response.type';
+import type { ChatCacheIdentity } from './types/chat-cache-identity.type';
 import {
-  asProviderInstanceId,
-  asInputTokens,
-  asOutputTokens,
   asCacheKey,
   asCacheTtlSeconds,
-  asModelAlias,
   type CacheKey,
   type CacheTtlSeconds,
 } from '../common/types/branded.types';
@@ -40,24 +39,19 @@ export class ResponseCacheService {
     this.logger = logger;
   }
 
-  private generateCacheKey(
-    request: ChatRequestDto,
-    effectiveCallParams?: ProviderCallOptions,
-  ): CacheKey {
+  buildIdentityKey(identity: ChatCacheIdentity): CacheKey {
     const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
-    const systemSignature = createHash('sha256')
-      .update(prompts.master)
-      .update('|')
-      .update(prompts.main ?? '')
-      .update('|')
-      .update(prompts.perModelByAlias[request.modelAlias] ?? '')
-      .digest('hex');
+    const systemSignature = computeSystemSignature(
+      prompts,
+      identity.modelAlias,
+    );
 
     const payload = JSON.stringify({
-      modelAlias: request.modelAlias,
-      messages: request.messages,
+      modelAlias: identity.modelAlias,
+      clientId: identity.clientId,
+      messages: identity.messages,
       systemSignature,
-      callParams: this.serializeCallParamsForCache(effectiveCallParams),
+      callParams: serializeCallParamsForCache(identity.callParams),
     });
     const hash = createHash('sha256').update(payload).digest('hex');
     const prefix =
@@ -67,38 +61,21 @@ export class ResponseCacheService {
     return asCacheKey(`${prefix}cache:chat:${hash}`);
   }
 
-  private recordCacheAccess(request: ChatRequestDto, hit: boolean): void {
-    this.appMetrics.recordCacheAccess(asModelAlias(request.modelAlias), hit);
-  }
-
-  private serializeCallParamsForCache(
-    effectiveCallParams?: ProviderCallOptions,
-  ): Record<string, unknown> {
-    const stop = effectiveCallParams?.stop;
-    return {
-      temperature: effectiveCallParams?.temperature ?? null,
-      maxOutputTokens: effectiveCallParams?.maxOutputTokens ?? null,
-      topP: effectiveCallParams?.topP ?? null,
-      stop: stop === undefined ? null : stop,
-      frequencyPenalty: effectiveCallParams?.frequencyPenalty ?? null,
-      presencePenalty: effectiveCallParams?.presencePenalty ?? null,
-      seed: effectiveCallParams?.seed ?? null,
-      responseFormat: effectiveCallParams?.responseFormat ?? null,
-    };
+  private recordCacheAccess(identity: ChatCacheIdentity, hit: boolean): void {
+    this.appMetrics.recordCacheAccess(identity.modelAlias, hit);
   }
 
   async getCachedResponse(
-    request: ChatRequestDto,
-    effectiveCallParams?: ProviderCallOptions,
+    identity: ChatCacheIdentity,
   ): Promise<CachedChatResponse | null> {
     if (!this.cache.isAvailable()) return null;
 
-    const key = this.generateCacheKey(request, effectiveCallParams);
+    const key = this.buildIdentityKey(identity);
     const cached = await this.cache.get(key);
 
     if (!cached) {
       this.logger.debug(`Cache MISS for key: ${key}`);
-      this.recordCacheAccess(request, false);
+      this.recordCacheAccess(identity, false);
       return null;
     }
 
@@ -108,11 +85,17 @@ export class ResponseCacheService {
       if (!parsed) {
         this.logger.warn(`Invalid cached response shape for key: ${key}`);
         await this.cache.delete(key);
-        this.recordCacheAccess(request, false);
+        this.recordCacheAccess(identity, false);
+        return null;
+      }
+      if (isUnservableCachedReply(parsed)) {
+        this.logger.warn(`Unservable cached reply for key: ${key}`);
+        await this.cache.delete(key);
+        this.recordCacheAccess(identity, false);
         return null;
       }
       this.logger.info(`Cache HIT for key: ${key}`);
-      this.recordCacheAccess(request, true);
+      this.recordCacheAccess(identity, true);
       return parsed;
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -121,37 +104,19 @@ export class ResponseCacheService {
         err,
       );
       await this.cache.delete(key);
-      this.recordCacheAccess(request, false);
+      this.recordCacheAccess(identity, false);
       return null;
     }
   }
 
   async setCachedResponse(
-    request: ChatRequestDto,
-    response: ChatResponseData,
-    effectiveCallParams?: ProviderCallOptions,
+    identity: ChatCacheIdentity,
+    cachedResponse: CachedChatResponse,
     ttlSeconds?: CacheTtlSeconds,
   ): Promise<void> {
     if (!this.cache.isAvailable()) return;
 
-    const key = this.generateCacheKey(request, effectiveCallParams);
-    const cachedResponse: CachedChatResponse = {
-      id: response.id,
-      provider: asProviderInstanceId(response.provider),
-      model: response.model,
-      output: response.output,
-      requestId: response.requestId,
-      ...(response.usage && {
-        usage: {
-          inputTokens: asInputTokens(response.usage.inputTokens ?? 0),
-          outputTokens: asOutputTokens(response.usage.outputTokens ?? 0),
-        },
-      }),
-      ...(response.warnings?.length && { warnings: response.warnings }),
-      cached: true,
-      cachedAt: new Date().toISOString(),
-    };
-
+    const key = this.buildIdentityKey(identity);
     const serialized = JSON.stringify(cachedResponse);
     const configuredTtl = getAppConfig(this.config, 'cache')?.ttl;
     const defaultTtl = configuredTtl ?? asCacheTtlSeconds(3600);
@@ -168,11 +133,8 @@ export class ResponseCacheService {
     }
   }
 
-  async invalidateCache(
-    request: ChatRequestDto,
-    effectiveCallParams?: ProviderCallOptions,
-  ): Promise<void> {
-    const key = this.generateCacheKey(request, effectiveCallParams);
+  async invalidateCache(identity: ChatCacheIdentity): Promise<void> {
+    const key = this.buildIdentityKey(identity);
     const success = await this.cache.delete(key);
 
     if (success) {

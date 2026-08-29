@@ -17,7 +17,11 @@ import {
   TEST_API_KEY_REF,
   TEST_PROVIDER_INSTANCE,
 } from '../../../src/common/mocks/test-constants';
-import { asEnvRef, asProviderApiKey } from '../../../src/common/types';
+import {
+  asEnvRef,
+  asProviderApiKey,
+  asProviderInstanceId,
+} from '../../../src/common/types';
 import {
   createE2eProviderRegistry,
   type E2eProviderRegistryMock,
@@ -43,14 +47,30 @@ export type E2eAppContext = {
   providerRegistry: E2eProviderRegistryMock;
 };
 
+/** Maps E2E_GATEWAY_KEY → client so cache guards do not see `clientId === 'unknown'`. */
+export function createE2eGatewayKeyRuntime() {
+  return {
+    allowList: [E2E_GATEWAY_KEY],
+    masterKey: E2E_GATEWAY_KEY,
+    clients: [
+      {
+        instanceId: asProviderInstanceId('e2e-client'),
+        name: 'E2E Client',
+        type: 'ide' as const,
+        gatewayKeyRef: asEnvRef('E2E_GATEWAY_KEY'),
+        gatewayKey: E2E_GATEWAY_KEY,
+      },
+    ],
+  };
+}
+
 function createDefaultE2eConfigOptions(): MockConfigServiceOptions {
   return {
     cache: { enabled: false, backend: 'noop' },
     redis: null,
-    gatewayKey: {
-      allowList: [E2E_GATEWAY_KEY],
-      masterKey: E2E_GATEWAY_KEY,
-    },
+    /** Explicit off — suite must not require Redis Stack / Ollama. */
+    semanticCache: { enabled: false },
+    gatewayKey: createE2eGatewayKeyRuntime(),
     providers: {
       [TEST_PROVIDER_INSTANCE]: {
         type: 'anthropic',
@@ -60,6 +80,7 @@ function createDefaultE2eConfigOptions(): MockConfigServiceOptions {
     },
     extra: {
       RATE_LIMIT_SMART_ENABLED: false,
+      SEMANTIC_CACHE_ENABLED: false,
     },
   };
 }

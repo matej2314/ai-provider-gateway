@@ -1,12 +1,24 @@
-import type { ChatWarningDto } from '../../chat/dto/chat-warning.dto';
+import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
 import type {
-  RequestId,
   ResponseId,
   ProviderInstanceId,
   ModelAlias,
   InputTokens,
   OutputTokens,
+  SystemFingerprint,
 } from '../../common/types/branded.types';
+
+export type CachedFinishReason =
+  | 'stop'
+  | 'tool_calls'
+  | 'length'
+  | 'content_filter';
+
+export type CachedChatWarning = {
+  code: string;
+  message: string;
+  field?: string;
+};
 
 export interface CachedChatResponse {
   id: ResponseId;
@@ -20,8 +32,12 @@ export interface CachedChatResponse {
     inputTokens: InputTokens;
     outputTokens: OutputTokens;
   };
-  requestId: RequestId;
   cached: true;
   cachedAt: string;
-  warnings?: ChatWarningDto[];
+  finishReason: CachedFinishReason;
+  warnings?: CachedChatWarning[];
+  thinkingContent?: string;
+  effectiveModelAlias?: ModelAlias;
+  usageDetails?: ProviderUsageDetails;
+  systemFingerprint?: SystemFingerprint;
 }

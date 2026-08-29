@@ -12,6 +12,7 @@ import type {
   HealthStatus,
   HttpRequestLabels,
   HttpMethod,
+  SemanticCacheLookupResult,
 } from '../interfaces/app-metrics-backend.interface';
 import type {
   ClientId,
@@ -83,6 +84,17 @@ export class NoopAppMetricsAdapter implements AppMetricsBackend {
   }
 
   recordCacheAccess(_model: ModelAlias, _hit: boolean): void {
+    return;
+  }
+
+  recordSemanticCacheLookup(
+    _model: ModelAlias,
+    _result: SemanticCacheLookupResult,
+  ): void {
+    return;
+  }
+
+  recordCachePipelineAccess(_model: ModelAlias, _hit: boolean): void {
     return;
   }
 

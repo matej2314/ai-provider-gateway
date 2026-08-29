@@ -25,11 +25,23 @@ Testy OpenAI provider (`*openai*integration-spec.ts`) wymagają dodatkowo `INTEG
 
 Brak Redis → `globalSetup` rzuca błąd (exit ≠ 0). Brak klucza API → testy live padną przy wywołaniu providera.
 
+## Semantic cache (Redis Stack, wektory)
+
+Osobny stack — **nie** używa alpine z kroku powyżej:
+
+1. `npm run test:integration:semantic` — podnosi Redis Stack na hoście **6381**, uruchamia `gateway-semantic-cache.integration-spec.ts`, potem zdejmuje kontener
+2. Embedding = stały wektor (fake); **bez** żywej Ollamy / kluczy API
+3. Spec pomija się przy `npm run test:integration` (wymaga `SEMANTIC_CACHE_ENABLED=true` + `REDIS_PORT=6381`)
+
+Compose: `test/integration/docker-compose.redis-stack.yml`.
+
 ## Co jest prawdziwe vs mock
 
 | Prawdziwe                                      | Mock                                                                 |
 | ---------------------------------------------- | -------------------------------------------------------------------- |
 | Redis, fabryki providerów, registry, bootstrap | Graf gateway (`configuration.ts`), `ConfigService`, `LoggingService` |
+
+Stream cache exact (cross-endpoint stream ↔ JSON, tooling, cooldown, fasada Anthropic): `gateway-stream-cache.integration-spec.ts` — wymaga Redis + klucza API jak pozostałe suite chat cache.
 
 ## Pliki konfiguracyjne
 

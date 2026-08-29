@@ -14,6 +14,7 @@ import type {
   TokenDirection,
   HttpRequestLabels,
   HttpMethod,
+  SemanticCacheLookupResult,
 } from './interfaces/app-metrics-backend.interface';
 import type {
   ClientId,
@@ -32,6 +33,9 @@ import type {
  */
 @Injectable()
 export class AppMetricsService {
+  private readonly pipelineHits = new Map<string, number>();
+  private readonly pipelineTotal = new Map<string, number>();
+
   constructor(
     @Inject(APP_METRICS_BACKEND)
     private readonly backend: AppMetricsBackend,
@@ -160,6 +164,30 @@ export class AppMetricsService {
    */
   recordCacheAccess(model: ModelAlias, hit: boolean): void {
     this.backend.recordCacheAccess(model, hit);
+  }
+
+  /**
+   * Records a semantic cache lookup outcome.
+   * Captures: model and result (hit / hash-hit / below-threshold / error / skip).
+   */
+  recordSemanticCacheLookup(
+    model: ModelAlias,
+    result: SemanticCacheLookupResult,
+  ): void {
+    this.backend.recordSemanticCacheLookup(model, result);
+  }
+
+  /**
+   * Records a pipeline cache access (exact or semantic hit vs provider miss)
+   * and updates `gateway_cache_hit_rate`.
+   */
+  recordCachePipelineAccess(model: ModelAlias, hit: boolean): void {
+    const key = String(model);
+    this.pipelineTotal.set(key, (this.pipelineTotal.get(key) ?? 0) + 1);
+    if (hit) this.pipelineHits.set(key, (this.pipelineHits.get(key) ?? 0) + 1);
+    const total = this.pipelineTotal.get(key) ?? 0;
+    const hits = this.pipelineHits.get(key) ?? 0;
+    this.backend.updateCacheHitRate(model, total === 0 ? 0 : hits / total);
   }
 
   /**

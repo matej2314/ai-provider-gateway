@@ -10,4 +10,4 @@ export interface CacheBackend {
   delete(key: CacheKey): Promise<boolean>;
 }
 
-export type CACHE_BACKEND_TYPE = 'noop' | 'redis' | 'memory' | 'other';
+export type CACHE_BACKEND_TYPE = 'noop' | 'redis';

@@ -10,16 +10,19 @@ import { ProviderRegistryService } from '../providers/provider-registry.service'
 import { LoggingService } from '../logging/logging.service';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { ChatProviderCallService } from './services/chat-provider-call.service';
-import { ChatCacheGuardService } from './services/chat-cache-guard.service';
+import { ChatCachePipelineService } from './services/chat-cache-pipeline.service';
+import { ChatProviderCooldownService } from './services/chat-provider-cooldown.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import {
   ChatResponseBuilderService,
   type ProviderResponse,
 } from './services/chat-response-builder.service';
+import { StreamCacheReplayService } from './services/stream-cache-replay.service';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
 import { ResilientExecutor } from './resilience/resilient-executor';
 import { ActiveStreamsTracker } from '../observability/app-metrics/active-streams.tracker';
+import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { createMockLoggingService } from '../common/mocks/createMockLoggingService';
 import { createMockResilientExecutor } from '../common/mocks/createMockResilientExecutor';
 import { createMockProviderRegistryService } from '../common/mocks/createMockProviderRegistryService';
@@ -30,12 +33,14 @@ import {
   asClientId,
   asModelAlias,
   asResponseId,
+  asProviderInstanceId,
   asAttemptNumber,
   type ClientId,
   type ModelAlias,
   type RequestId,
   type ConversationId,
   type ProviderInstanceId,
+  type ResponseId,
 } from '../common/types/branded.types';
 import {
   TEST_CONVERSATION_ID,
@@ -46,6 +51,9 @@ import {
   VALID_CONVERSATION_ID,
 } from '../common/mocks/test-constants';
 import type { ResolvedProviderConfig } from '../providers/provider-registry.service';
+import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
+import type { StreamCacheHit } from './types/stream-cache-decision.types';
+import type { CachedChatResponse } from '../cache/types/cached-chat-response.type';
 
 describe('ChatService', () => {
   let service: ChatService;
@@ -54,11 +62,14 @@ describe('ChatService', () => {
   let mockProviderCall: Partial<ChatProviderCallService>;
   let mockExecutor: Partial<ResilientExecutor>;
   let mockLogger: Partial<LoggingService>;
-  let mockCacheGuard: Partial<ChatCacheGuardService>;
+  let mockCachePipeline: Partial<ChatCachePipelineService>;
+  let mockProviderCooldown: Partial<ChatProviderCooldownService>;
   let mockValidation: Partial<ChatValidationService>;
   let mockErrorHandler: Partial<ChatErrorHandlerService>;
   let mockResponseBuilder: Partial<ChatResponseBuilderService>;
+  let mockStreamCacheReplay: { replay: jest.Mock };
   let mockActiveStreams: Partial<ActiveStreamsTracker>;
+  let mockAppMetrics: { recordCachePipelineAccess: jest.Mock };
   let resolvedConfig: ResolvedProviderConfig;
 
   const TEST_CLIENT_ID = asClientId('test-client');
@@ -106,22 +117,23 @@ describe('ChatService', () => {
     (mockRegistry.resolve as jest.Mock).mockReturnValue(resolvedConfig);
 
     mockConfig = createMockConfigService({
-      gatewayOptions: {
-        replace: { clients: true, providers: true, models: true },
-        clients: {},
-        providers: {},
-        models: {},
-      },
       resolvedSystemPrompts: { master: 'you are helpful', main: undefined },
     });
 
     mockLogger = createMockLoggingService();
     mockExecutor = createMockResilientExecutor();
 
-    mockCacheGuard = {
-      checkRateLimit: jest.fn().mockResolvedValue(undefined),
-      getCachedIfAllowed: jest.fn().mockResolvedValue(null),
+    mockCachePipeline = {
+      getCachedIfAllowed: jest.fn().mockResolvedValue({ cached: null }),
       setCachedIfAllowed: jest.fn().mockResolvedValue(undefined),
+      buildIdentityKey: jest.fn(
+        (req: { modelAlias: string; messages: unknown }) =>
+          `id:${req.modelAlias}:${JSON.stringify(req.messages)}`,
+      ),
+    };
+
+    mockProviderCooldown = {
+      assertNotInCooldown: jest.fn().mockResolvedValue(undefined),
     };
 
     mockValidation = {
@@ -143,8 +155,11 @@ describe('ChatService', () => {
           requestId: RequestId,
           conversationId: ConversationId,
           effectiveModelAlias?: ModelAlias,
+          _options?: unknown,
+          _providerType?: unknown,
+          responseId?: ResponseId,
         ) => ({
-          id: asResponseId(TEST_RESPONSE_ID_PREFIX),
+          id: responseId ?? asResponseId(TEST_RESPONSE_ID_PREFIX),
           provider: providerName,
           model: modelAlias,
           ...(effectiveModelAlias && { effectiveModelAlias }),
@@ -175,10 +190,18 @@ describe('ChatService', () => {
       streamOnce: jest.fn(),
     };
 
+    mockStreamCacheReplay = {
+      replay: jest.fn(),
+    };
+
     mockActiveStreams = {
       trackStream: jest.fn((_client: ClientId, fn: () => Promise<unknown>) =>
         fn(),
       ) as unknown as ActiveStreamsTracker['trackStream'],
+    };
+
+    mockAppMetrics = {
+      recordCachePipelineAccess: jest.fn(),
     };
 
     const module = await Test.createTestingModule({
@@ -189,11 +212,17 @@ describe('ChatService', () => {
         { provide: LoggingService, useValue: mockLogger },
         { provide: ResilientExecutor, useValue: mockExecutor },
         { provide: ChatProviderCallService, useValue: mockProviderCall },
-        { provide: ChatCacheGuardService, useValue: mockCacheGuard },
+        { provide: ChatCachePipelineService, useValue: mockCachePipeline },
+        {
+          provide: ChatProviderCooldownService,
+          useValue: mockProviderCooldown,
+        },
         { provide: ChatValidationService, useValue: mockValidation },
         { provide: ChatErrorHandlerService, useValue: mockErrorHandler },
         { provide: ChatResponseBuilderService, useValue: mockResponseBuilder },
+        { provide: StreamCacheReplayService, useValue: mockStreamCacheReplay },
         { provide: ActiveStreamsTracker, useValue: mockActiveStreams },
+        { provide: AppMetricsService, useValue: mockAppMetrics },
       ],
     }).compile();
 
@@ -239,7 +268,7 @@ describe('ChatService', () => {
         resolvedConfig,
         expectedOptions,
       );
-      expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
+      expect(mockProviderCooldown.assertNotInCooldown).toHaveBeenCalledWith(
         TEST_GATEWAY_KEY_BRANDED,
         'anthropic',
         TEST_REQUEST_ID,
@@ -250,7 +279,7 @@ describe('ChatService', () => {
 
     it('should propagate cooldown errors', async () => {
       const rateLimitError = new HttpException('Rate limited', 429);
-      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+      (mockProviderCooldown.assertNotInCooldown as jest.Mock).mockRejectedValue(
         rateLimitError,
       );
 
@@ -272,7 +301,7 @@ describe('ChatService', () => {
         asGatewayKey(''),
       );
 
-      expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
+      expect(mockProviderCooldown.assertNotInCooldown).not.toHaveBeenCalled();
     });
   });
 
@@ -303,7 +332,7 @@ describe('ChatService', () => {
         baseRequest,
         resolvedConfig,
       );
-      expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
+      expect(mockProviderCooldown.assertNotInCooldown).toHaveBeenCalledWith(
         TEST_GATEWAY_KEY_BRANDED,
         'anthropic',
         TEST_REQUEST_ID,
@@ -316,6 +345,10 @@ describe('ChatService', () => {
       );
       expect(result.output.text).toBe('Hello!');
       expect(result.id).toBe(TEST_RESPONSE_ID_PREFIX);
+      expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledWith(
+        asModelAlias(TEST_MODEL_ALIAS),
+        false,
+      );
     });
 
     it('should return cached response without calling executor', async () => {
@@ -323,9 +356,10 @@ describe('ChatService', () => {
         id: 'cached-123',
         output: { type: 'text' as const, text: 'Cached response' },
       };
-      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue(
-        cachedResponse,
-      );
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: cachedResponse,
+        cacheSource: 'exact',
+      });
 
       const result = await service.executeChat(
         baseRequest,
@@ -335,18 +369,60 @@ describe('ChatService', () => {
         'native',
       );
 
-      expect(mockCacheGuard.getCachedIfAllowed).toHaveBeenCalled();
+      expect(mockCachePipeline.getCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
+        expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+      );
       expect(result).toEqual({
         ...cachedResponse,
         conversationId: VALID_CONVERSATION_ID,
+        cacheSource: 'exact',
+        requestId: TEST_REQUEST_ID,
       });
       expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith('Chat cache hit');
+      expect(mockAppMetrics.recordCachePipelineAccess).not.toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith('Chat cache hit', {
+        cacheSource: 'exact',
+      });
     });
 
-    it('should propagate cache guard rate limit errors', async () => {
+    it('should propagate semantic cacheSource on semantic hit', async () => {
+      const cachedResponse = {
+        id: 'cached-sem-123',
+        output: { type: 'text' as const, text: 'Semantic cached' },
+        cached: true as const,
+        cachedAt: '2026-01-01T00:00:00.000Z',
+      };
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: cachedResponse,
+        cacheSource: 'semantic',
+      });
+
+      const result = await service.executeChat(
+        baseRequest,
+        TEST_CLIENT_ID,
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        'native',
+      );
+
+      expect(result).toEqual({
+        ...cachedResponse,
+        conversationId: VALID_CONVERSATION_ID,
+        cacheSource: 'semantic',
+        requestId: TEST_REQUEST_ID,
+      });
+      expect(mockExecutor.executeWithRetryAndFallback).not.toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith('Chat cache hit', {
+        cacheSource: 'semantic',
+      });
+    });
+
+    it('should propagate provider cooldown errors', async () => {
       const rateLimitError = new HttpException('Rate limited', 429);
-      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+      (mockProviderCooldown.assertNotInCooldown as jest.Mock).mockRejectedValue(
         rateLimitError,
       );
 
@@ -383,6 +459,7 @@ describe('ChatService', () => {
         toolingRequest,
         resolvedConfig,
       );
+      expect(mockAppMetrics.recordCachePipelineAccess).not.toHaveBeenCalled();
     });
 
     it('should propagate validateTooling errors', async () => {
@@ -527,12 +604,43 @@ describe('ChatService', () => {
         'native',
       );
 
-      expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
+      expect(mockCachePipeline.setCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
         expect.objectContaining({
           output: { type: 'text', text: 'Fresh answer' },
         }),
         expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        undefined,
+      );
+    });
+
+    it('should pass embedState from lookup to cache write on miss', async () => {
+      const embedState = { vector: [0.1, 0.2, 0.3], embedAttempted: true };
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: null,
+        embedState,
+      });
+      mockExecutorChatSuccess({ text: 'Fresh answer' });
+
+      await service.executeChat(
+        baseRequest,
+        TEST_CLIENT_ID,
+        TEST_REQUEST_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        'native',
+      );
+
+      expect(mockCachePipeline.setCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
+        expect.objectContaining({
+          output: { type: 'text', text: 'Fresh answer' },
+        }),
+        expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        embedState,
       );
     });
 
@@ -547,8 +655,9 @@ describe('ChatService', () => {
         'native',
       );
 
-      expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
-      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockProviderCooldown.assertNotInCooldown).not.toHaveBeenCalled();
+      expect(mockCachePipeline.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockAppMetrics.recordCachePipelineAccess).not.toHaveBeenCalled();
     });
 
     it('should pass effectiveModelAlias to builder when fallback occurred', async () => {
@@ -593,6 +702,7 @@ describe('ChatService', () => {
         expectedOptions,
         resolvedConfig.providerType,
       );
+      expect(mockCachePipeline.setCachedIfAllowed).not.toHaveBeenCalled();
     });
 
     it('should not set fallbackAlias for tooling requests', async () => {
@@ -667,6 +777,457 @@ describe('ChatService', () => {
         TEST_GATEWAY_KEY_BRANDED,
       );
     });
+
+    it('should coalesce parallel identical misses into one completeOnce', async () => {
+      (
+        mockExecutor.executeWithRetryAndFallback as jest.Mock
+      ).mockImplementation(
+        async (opts: {
+          runOnce: (
+            alias: ModelAlias,
+            attemptNo: number,
+            signal: AbortSignal,
+          ) => Promise<unknown>;
+          primaryAlias: ModelAlias;
+        }) => {
+          await new Promise((r) => setTimeout(r, 20));
+          const value = await opts.runOnce(
+            opts.primaryAlias,
+            1,
+            new AbortController().signal,
+          );
+          return {
+            value,
+            usedAlias: opts.primaryAlias,
+            attempts: asAttemptNumber(1),
+            didFallback: false,
+          };
+        },
+      );
+
+      const [first, second] = await Promise.all([
+        service.executeChat(
+          baseRequest,
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+        service.executeChat(
+          baseRequest,
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+      ]);
+
+      expect(first).toEqual(second);
+      expect(mockProviderCall.completeOnce).toHaveBeenCalledTimes(1);
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledTimes(1);
+      expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledTimes(1);
+      expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledWith(
+        asModelAlias(TEST_MODEL_ALIAS),
+        false,
+      );
+    });
+
+    it('should not coalesce requests that differ only by trailing space', async () => {
+      (
+        mockExecutor.executeWithRetryAndFallback as jest.Mock
+      ).mockImplementation(
+        async (opts: {
+          runOnce: (
+            alias: ModelAlias,
+            attemptNo: number,
+            signal: AbortSignal,
+          ) => Promise<unknown>;
+          primaryAlias: ModelAlias;
+        }) => {
+          await new Promise((r) => setTimeout(r, 20));
+          const value = await opts.runOnce(
+            opts.primaryAlias,
+            1,
+            new AbortController().signal,
+          );
+          return {
+            value,
+            usedAlias: opts.primaryAlias,
+            attempts: asAttemptNumber(1),
+            didFallback: false,
+          };
+        },
+      );
+
+      await Promise.all([
+        service.executeChat(
+          {
+            ...baseRequest,
+            messages: [{ role: 'user', content: 'hello' }],
+          },
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+        service.executeChat(
+          {
+            ...baseRequest,
+            messages: [{ role: 'user', content: 'hello ' }],
+          },
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+      ]);
+
+      expect(mockProviderCall.completeOnce).toHaveBeenCalledTimes(2);
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledTimes(2);
+    });
+
+    it('should propagate leader failure to waiters and allow a later retry', async () => {
+      const boom = new Error('fail');
+      (
+        mockExecutor.executeWithRetryAndFallback as jest.Mock
+      ).mockImplementation(async () => {
+        await new Promise((r) => setTimeout(r, 20));
+        throw boom;
+      });
+
+      await expect(
+        Promise.all([
+          service.executeChat(
+            baseRequest,
+            TEST_CLIENT_ID,
+            TEST_REQUEST_ID,
+            TEST_GATEWAY_KEY_BRANDED,
+            'native',
+          ),
+          service.executeChat(
+            baseRequest,
+            TEST_CLIENT_ID,
+            TEST_REQUEST_ID,
+            TEST_GATEWAY_KEY_BRANDED,
+            'native',
+          ),
+        ]),
+      ).rejects.toThrow('fail');
+
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledTimes(1);
+
+      mockExecutorChatSuccess();
+      await expect(
+        service.executeChat(
+          baseRequest,
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+      ).resolves.toMatchObject({ output: { text: 'Hello!' } });
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalledTimes(2);
+    });
+
+    it('should check cooldown before cache lookup', async () => {
+      const rateLimitError = new HttpException('Rate limited', 429);
+      (mockProviderCooldown.assertNotInCooldown as jest.Mock).mockRejectedValue(
+        rateLimitError,
+      );
+
+      await expect(
+        service.executeChat(
+          baseRequest,
+          TEST_CLIENT_ID,
+          TEST_REQUEST_ID,
+          TEST_GATEWAY_KEY_BRANDED,
+          'native',
+        ),
+      ).rejects.toBe(rateLimitError);
+
+      expect(mockCachePipeline.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCachePipeline.buildIdentityKey).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resolveStreamCache', () => {
+    const baseRequest = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [{ role: 'user' as const, content: 'Hi' }],
+      params: {},
+    };
+
+    it('should return miss without lookup when gatewayKey is empty', async () => {
+      const decision = await service.resolveStreamCache(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        'native',
+        asGatewayKey(''),
+      );
+
+      expect(decision).toMatchObject({ outcome: 'miss' });
+      expect(decision.prep.primaryResolved).toBe(resolvedConfig);
+      expect(mockCachePipeline.getCachedIfAllowed).not.toHaveBeenCalled();
+    });
+
+    it('should return hit with cached payload and cacheSource', async () => {
+      const cachedResponse = {
+        id: 'cached-stream-123',
+        output: { type: 'text' as const, text: 'Cached stream' },
+      };
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: cachedResponse,
+        cacheSource: 'exact',
+      });
+
+      const decision = await service.resolveStreamCache(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+
+      expect(decision).toEqual({
+        outcome: 'hit',
+        prep: expect.objectContaining({
+          primaryResolved: resolvedConfig,
+        }),
+        cached: cachedResponse,
+        cacheSource: 'exact',
+      });
+      expect(mockCachePipeline.getCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
+        expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+    });
+
+    it('should return semantic hit with cacheSource', async () => {
+      const cachedResponse = {
+        id: 'cached-sem-stream',
+        output: { type: 'text' as const, text: 'Semantic stream' },
+        cached: true as const,
+        cachedAt: '2026-01-01T00:00:00.000Z',
+      };
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: cachedResponse,
+        cacheSource: 'semantic',
+      });
+
+      const decision = await service.resolveStreamCache(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+
+      expect(decision).toEqual({
+        outcome: 'hit',
+        prep: expect.objectContaining({
+          primaryResolved: resolvedConfig,
+        }),
+        cached: cachedResponse,
+        cacheSource: 'semantic',
+      });
+    });
+
+    it('should return miss with embedState from lookup', async () => {
+      const embedState = { vector: [0.1, 0.2], embedAttempted: true };
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+        cached: null,
+        embedState,
+      });
+
+      const decision = await service.resolveStreamCache(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+
+      expect(decision).toEqual({
+        outcome: 'miss',
+        prep: expect.objectContaining({
+          primaryResolved: resolvedConfig,
+        }),
+        embedState,
+      });
+    });
+
+    it('should propagate cooldown errors before cache lookup', async () => {
+      const rateLimitError = new HttpException('Rate limited', 429);
+      (mockProviderCooldown.assertNotInCooldown as jest.Mock).mockRejectedValue(
+        rateLimitError,
+      );
+
+      await expect(
+        service.resolveStreamCache(
+          baseRequest,
+          TEST_REQUEST_ID,
+          TEST_CLIENT_ID,
+          'native',
+          TEST_GATEWAY_KEY_BRANDED,
+        ),
+      ).rejects.toBe(rateLimitError);
+
+      expect(mockCachePipeline.getCachedIfAllowed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('replayStreamCacheHit', () => {
+    it('should delegate replay to StreamCacheReplayService', () => {
+      const emit = jest.fn();
+      const shouldAbort = jest.fn().mockReturnValue(false);
+      const cached: CachedChatResponse = {
+        id: asResponseId('gw_cached'),
+        provider: asProviderInstanceId('anthropic'),
+        model: asModelAlias(TEST_MODEL_ALIAS),
+        output: { type: 'text', text: 'From cache' },
+        cached: true,
+        cachedAt: '2026-01-01T00:00:00.000Z',
+        finishReason: 'stop',
+      };
+      const decision: StreamCacheHit = {
+        outcome: 'hit',
+        prep: {
+          responseConversationId: TEST_CONVERSATION_ID,
+        } as ChatExecutionPrep,
+        cached,
+        cacheSource: 'exact',
+      };
+
+      service.replayStreamCacheHit(
+        decision,
+        TEST_REQUEST_ID,
+        emit,
+        shouldAbort,
+      );
+
+      expect(mockStreamCacheReplay.replay).toHaveBeenCalledWith({
+        cached,
+        cacheSource: 'exact',
+        requestId: TEST_REQUEST_ID,
+        conversationId: TEST_CONVERSATION_ID,
+        emit,
+        shouldAbort,
+      });
+    });
+  });
+
+  describe('executeStreamMiss', () => {
+    const baseRequest = {
+      modelAlias: TEST_MODEL_ALIAS,
+      messages: [{ role: 'user' as const, content: 'Hi' }],
+      params: {},
+    };
+
+    it('should stream from passed prep without a second prepare or cooldown', async () => {
+      const prep = await service.prepareRequestForExecution(
+        baseRequest,
+        TEST_REQUEST_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+      (mockProviderCooldown.assertNotInCooldown as jest.Mock).mockClear();
+      (mockValidation.validateTooling as jest.Mock).mockClear();
+      mockStreamExecutorSuccess();
+
+      await service.executeStreamMiss(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        jest.fn(),
+        TEST_GATEWAY_KEY_BRANDED,
+        { outcome: 'miss', prep },
+      );
+
+      expect(mockProviderCooldown.assertNotInCooldown).not.toHaveBeenCalled();
+      expect(mockValidation.validateTooling).not.toHaveBeenCalled();
+      expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
+      expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalled();
+    });
+
+    it('should cache assembledText with stream meta id after a successful miss', async () => {
+      const prep = await service.prepareRequestForExecution(
+        baseRequest,
+        TEST_REQUEST_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+      const embedState = { vector: [0.4, 0.5], embedAttempted: true };
+      mockStreamExecutorSuccess({ assembledText: 'Hello streamed' });
+
+      await service.executeStreamMiss(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        jest.fn(),
+        TEST_GATEWAY_KEY_BRANDED,
+        { outcome: 'miss', prep, embedState },
+      );
+
+      expect(mockResponseBuilder.buildChatResponse).toHaveBeenCalledWith(
+        expect.objectContaining({ text: 'Hello streamed' }),
+        'anthropic',
+        TEST_MODEL_ALIAS,
+        TEST_REQUEST_ID,
+        expect.any(String),
+        undefined,
+        expect.any(Object),
+        resolvedConfig.providerType,
+        asResponseId(TEST_RESPONSE_ID_PREFIX),
+      );
+      expect(mockCachePipeline.setCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
+        expect.objectContaining({
+          id: TEST_RESPONSE_ID_PREFIX,
+          output: { type: 'text', text: 'Hello streamed' },
+        }),
+        expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        embedState,
+      );
+    });
+
+    it('should not cache when stream used fallback', async () => {
+      const prep = await service.prepareRequestForExecution(
+        baseRequest,
+        TEST_REQUEST_ID,
+        'native',
+        TEST_GATEWAY_KEY_BRANDED,
+      );
+      (mockExecutor.executeWithRetryAndFallback as jest.Mock).mockResolvedValue(
+        {
+          value: {
+            resolved: resolvedConfig,
+            assembledText: 'Fallback stream',
+            usageMetadata: { inputTokens: 5, outputTokens: 10 },
+            stopReason: 'end_turn',
+          },
+          usedAlias: asModelAlias('fallback-model'),
+          attempts: asAttemptNumber(2),
+          didFallback: true,
+        },
+      );
+
+      await service.executeStreamMiss(
+        baseRequest,
+        TEST_REQUEST_ID,
+        TEST_CLIENT_ID,
+        jest.fn(),
+        TEST_GATEWAY_KEY_BRANDED,
+        { outcome: 'miss', prep },
+      );
+
+      expect(mockResponseBuilder.buildChatResponse).not.toHaveBeenCalled();
+      expect(mockCachePipeline.setCachedIfAllowed).not.toHaveBeenCalled();
+    });
   });
 
   describe('executeStream', () => {
@@ -699,10 +1260,21 @@ describe('ChatService', () => {
         baseRequest,
         resolvedConfig,
       );
-      expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
+      expect(mockProviderCooldown.assertNotInCooldown).toHaveBeenCalledWith(
         TEST_GATEWAY_KEY_BRANDED,
         'anthropic',
         TEST_REQUEST_ID,
+      );
+      expect(mockCachePipeline.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCachePipeline.setCachedIfAllowed).toHaveBeenCalledWith(
+        baseRequest,
+        expect.objectContaining({
+          output: { type: 'text', text: 'Hello' },
+        }),
+        expect.any(Object),
+        TEST_CLIENT_ID,
+        TEST_GATEWAY_KEY_BRANDED,
+        undefined,
       );
       expect(mockValidation.validateThinking).toHaveBeenCalledWith(
         resolvedConfig,
@@ -808,7 +1380,7 @@ describe('ChatService', () => {
 
     it('should propagate cooldown errors before stream executor', async () => {
       const rateLimitError = new HttpException('Rate limited', 429);
-      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+      (mockProviderCooldown.assertNotInCooldown as jest.Mock).mockRejectedValue(
         rateLimitError,
       );
 
@@ -890,6 +1462,7 @@ describe('ChatService', () => {
         undefined,
         asModelAlias('fallback-model'),
       );
+      expect(mockCachePipeline.setCachedIfAllowed).not.toHaveBeenCalled();
     });
 
     it('should use primary fallbackAlias for streaming', async () => {

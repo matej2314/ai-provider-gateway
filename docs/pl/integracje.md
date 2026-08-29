@@ -153,7 +153,7 @@ Fasady muszą współdzielić **`SmartRateLimiterService`** z natywnym API.
 1. Guard auth fasady (ustawia `req.gatewayKey`)
 2. `SmartRateLimitGuard` (token bucket RPS, równoległe streamy)
 
-**Cooldown** po 429 od providera: **`prepareRequestForExecution`** (wspólne dla `executeChat` i `executeStream`) → `checkCooldown`; **ustawienie** cooldownu — `ChatErrorHandlerService.handleProviderError` → `setCooldown` (obie ścieżki). **Cache odpowiedzi** — tylko `executeChat` (non-stream).
+**Cooldown** po 429 od providera: **`prepareRequestForExecution`** (wspólne dla `executeChat` i `resolveStreamCache` / stream miss) → `checkCooldown`; **ustawienie** cooldownu — `ChatErrorHandlerService.handleProviderError` → `setCooldown` (obie ścieżki). **Cache odpowiedzi** — JSON (`executeChat`) oraz stream (`resolveStreamCache` / `executeStreamMiss`); fasady: nagłówek `X-Gateway-Cache` na hicie JSON i stream.
 
 **Helper `readClientGatewayKey(req)`** (`src/common/readClientGatewayKey.ts`):
 
@@ -205,7 +205,7 @@ Wewnętrznie fasady korzystają z `ChatProviderCallService.streamOnce` i mapują
 | `system` w messages klienta | **Ignorowane** — prompt z `src/config/system-prompt/` (źródło: serwer, nie body klienta) |
 | Tools / function calling | Mapowane na wewnętrzne `tooling` (`openai-tools.mapper.ts`, `anthropic-tools.mapper.ts`); wymaga `capabilities.tools: true` na aliasie |
 | Multimodal (obrazy) | Nieobsługiwane. Anthropic: **400** przy blokach `image`. OpenAI: bloki inne niż `text` są **cicho odrzucane** (`normalizeOpenAiContent`) — bez 400 |
-| Cache odpowiedzi | Działa przez `ChatService` dla wywołań non-stream; pola `cached` ukryte w odpowiedzi fasady |
+| Cache odpowiedzi | Działa przez `ChatService` dla JSON i streamu; pola `cached*` ukryte w body fasady — sygnał: `X-Gateway-Cache` |
 | `system_fingerprint` / `systemFingerprint` | Fasada OpenAI: pass-through gdy upstream zwraca (praktycznie OpenAI). Fasada Anthropic: brak pola. Anthropic/Gemini nie mają odpowiednika upstream — patrz `dictionary.md` |
 | OpenAPI / Swagger | Tagi **OpenAI API** i **Anthropic API** w `openapi.json` i Swagger UI; osobne schematy błędów (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`) |
 

@@ -199,7 +199,10 @@ export function createE2eProviderRegistry(
       .mockResolvedValue(
         createDefaultCompleteResponse(options.completeResponse),
       ),
-    stream: jest.fn().mockReturnValue(createStreamResult(streamOptions)),
+    // Fresh StreamResult per call — a consumed async generator cannot be replayed.
+    stream: jest
+      .fn()
+      .mockImplementation(() => createStreamResult(streamOptions)),
   };
 
   const resolveMock = jest.fn((alias: string) =>
@@ -260,7 +263,7 @@ export function createE2eFallbackProviderRegistry(options: {
     ),
     stream: jest
       .fn()
-      .mockReturnValue(createStreamResult({ chunks: ['fallback'] })),
+      .mockImplementation(() => createStreamResult({ chunks: ['fallback'] })),
   };
 
   const resolveMock = jest.fn((alias: string) => {

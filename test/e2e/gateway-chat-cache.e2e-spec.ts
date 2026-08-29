@@ -21,7 +21,10 @@ import {
 import { RedisConnectionService } from '../../src/cache/adapters/redis-cache/redis-connection.service';
 import { ProviderInstancesBootstrap } from '../../src/providers/provider-instances.bootstrap';
 import { LoggingService } from '../../src/logging/logging.service';
-import { closeE2eApp } from './helpers/create-e2e-app';
+import {
+  closeE2eApp,
+  createE2eGatewayKeyRuntime,
+} from './helpers/create-e2e-app';
 import {
   E2E_GATEWAY_KEY,
   E2E_POST_SUCCESS_STATUS,
@@ -51,7 +54,9 @@ async function createE2eAppWithCache(
     .overrideProvider(ConfigService)
     .useValue(
       createMockConfigService({
-        cache: { enabled: true, backend: 'memory', ttl: 3600 },
+        cache: { enabled: true, backend: 'noop', ttl: 3600 },
+        semanticCache: { enabled: false },
+        gatewayKey: createE2eGatewayKeyRuntime(),
       }),
     )
     .overrideProvider(CACHE_BACKEND)
@@ -101,6 +106,7 @@ describe('Gateway Chat Cache (E2E)', () => {
         .expect(E2E_POST_SUCCESS_STATUS);
 
       expect(response.body.cached).toBeUndefined();
+      expect(response.body.cacheSource).toBeUndefined();
       expect(completeMock).toHaveBeenCalledTimes(1);
     });
 
@@ -120,6 +126,7 @@ describe('Gateway Chat Cache (E2E)', () => {
       expect(second.body).toMatchObject({
         cached: true,
         cachedAt: expect.any(String),
+        cacheSource: 'exact',
         output: first.body.output,
       });
       expect(completeMock).toHaveBeenCalledTimes(1);
@@ -243,6 +250,7 @@ describe('Gateway Chat Cache (E2E)', () => {
         .expect(E2E_POST_SUCCESS_STATUS);
 
       expect(second.body.cached).toBe(true);
+      expect(second.body.cacheSource).toBe('exact');
       expect(second.body.warnings).toEqual(first.body.warnings);
     });
   });

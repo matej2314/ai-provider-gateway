@@ -1,9 +1,10 @@
 name: ai-provider-gateway
 
-# Base configuration: Gateway only
-# To add Redis: docker-compose -f docker-compose.yml -f docker-compose.redis.yml up -d
-# To add Monitoring: docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
-# Full stack: docker-compose -f docker-compose.yml -f docker-compose.redis.yml -f docker-compose.monitoring.yml up -d
+# Gateway service. Product base stack = this file + redis + ollama-embedding
+# (npm run docker:up / make docker-up). Infra only for start:dev: npm run infra:up
+# Gateway + Redis only: docker:up:redis
+# Full (base + monitoring): docker:up:full
+# Dev hot-reload + base + monitoring: docker:up:dev:full
 
 services:
   gateway:

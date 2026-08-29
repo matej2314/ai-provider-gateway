@@ -8,6 +8,7 @@ import {
   AttemptNumber,
   BaseUrl,
   CacheTtlSeconds,
+  SemanticCacheTtlSeconds,
   Port,
   SchemaVersion,
   RateLimitBurst,
@@ -105,6 +106,14 @@ export function isBaseUrl(value: string): value is BaseUrl {
  */
 export function isCacheTtlSeconds(value: number): value is CacheTtlSeconds {
   return isFiniteNumber(value) && value >= 0;
+}
+/**
+ * Mirrors asSemanticCacheTtlSeconds acceptance (min 1, floors on cast).
+ */
+export function isSemanticCacheTtlSeconds(
+  value: number,
+): value is SemanticCacheTtlSeconds {
+  return isFiniteNumber(value) && value >= 1;
 }
 /**
  * Mirrors asPort acceptance (1-65535, floors on cast).

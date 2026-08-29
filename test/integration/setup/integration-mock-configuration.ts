@@ -83,7 +83,7 @@ function cacheFromEnv() {
   const backendRaw = (process.env.CACHE_BACKEND ?? 'noop').toLowerCase();
   return {
     enabled,
-    backend: (enabled ? backendRaw : 'noop') as 'redis' | 'noop' | 'memory',
+    backend: (enabled ? backendRaw : 'noop') as 'redis' | 'noop',
     ttl: asCacheTtlSeconds(Number(process.env.CACHE_TTL ?? 60)),
     keyPrefix: process.env.CACHE_KEY_PREFIX ?? 'it-cache:',
   };

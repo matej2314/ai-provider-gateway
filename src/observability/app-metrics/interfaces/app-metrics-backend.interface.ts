@@ -48,8 +48,25 @@ export interface AppProviderStreamScope {
   fail(error: unknown): void;
 }
 
-export type HealthComponent = 'config' | 'redis' | 'cache';
+export type HealthComponent =
+  | 'config'
+  | 'redis'
+  | 'cache'
+  | 'embeddings'
+  | 'vectorStore';
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
+/**
+ * Semantic cache lookup outcome (exact cache keeps recordCacheAccess).
+ * `hash-hit` = Redis HASH identity match on trimmed last-user (no embed/KNN).
+ * `skip` = early-return without embed/KNN I/O (disabled, multi-turn, no text, circuit open after HASH miss).
+ * `error` = failed embed or KNN I/O after an attempt.
+ */
+export type SemanticCacheLookupResult =
+  | 'hit'
+  | 'hash-hit'
+  | 'below-threshold'
+  | 'error'
+  | 'skip';
 
 export interface HealthMetricsSnapshot {
   ready: boolean;
@@ -92,6 +109,15 @@ export interface AppMetricsBackend {
   // --- Infrastructure ---
   recordRateLimit(client: ClientId, reason: RateLimitReason): void;
   recordCacheAccess(model: ModelAlias, hit: boolean): void;
+  recordSemanticCacheLookup(
+    model: ModelAlias,
+    result: SemanticCacheLookupResult,
+  ): void;
+  /**
+   * Pipeline access (exact or semantic hit vs provider miss).
+   * Hit-rate aggregation lives in AppMetricsService; adapters may no-op.
+   */
+  recordCachePipelineAccess(model: ModelAlias, hit: boolean): void;
   updateCacheHitRate(model: ModelAlias, rate: number): void;
   // --- Gauges ---
   setActiveStreams(client: ClientId, count: number): void;

@@ -8,8 +8,11 @@ import { ChatService } from './chat.service';
 import type { Request } from 'express';
 import { createMockExpressRequest } from '../common/mocks/http-mocks';
 import {
+  TEST_CONVERSATION_ID,
   TEST_GATEWAY_KEY_BRANDED,
   TEST_MODEL_ALIAS,
+  TEST_MODEL_ALIAS_BRANDED,
+  TEST_PROVIDER_INSTANCE_BRANDED,
   TEST_REQUEST_ID,
 } from '../common/mocks/test-constants';
 import { GatewayKeyGuard } from '../guards/gateway-key.guard';
@@ -68,6 +71,65 @@ describe('ChatController', () => {
         'gw_key_123',
         'native',
       );
+    });
+
+    it('should map cache hit with cacheSource exact', async () => {
+      const mockRequest = createMockExpressRequest({
+        requestId: TEST_REQUEST_ID,
+        gatewayKey: TEST_GATEWAY_KEY_BRANDED,
+        header: jest.fn().mockReturnValue('gw_key_123'),
+        headers: { 'x-gateway-key': 'gw_key_123' },
+      });
+      (mockChatService.executeChat as jest.Mock).mockResolvedValue({
+        id: 'cached-123',
+        provider: TEST_PROVIDER_INSTANCE_BRANDED,
+        model: TEST_MODEL_ALIAS_BRANDED,
+        output: { type: 'text', text: 'From cache' },
+        requestId: TEST_REQUEST_ID,
+        conversationId: TEST_CONVERSATION_ID,
+        cached: true,
+        cachedAt: '2026-01-01T00:00:00.000Z',
+        cacheSource: 'exact',
+      });
+
+      const dto = await controller.chat(mockRequest as Request, {
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user' as const, content: 'Hello' }],
+      });
+
+      expect(dto).toMatchObject({
+        cached: true,
+        cacheSource: 'exact',
+        cachedAt: '2026-01-01T00:00:00.000Z',
+        output: { type: 'text', text: 'From cache' },
+      });
+    });
+
+    it('should omit cache fields on provider miss', async () => {
+      const mockRequest = createMockExpressRequest({
+        requestId: TEST_REQUEST_ID,
+        gatewayKey: TEST_GATEWAY_KEY_BRANDED,
+        header: jest.fn().mockReturnValue('gw_key_123'),
+        headers: { 'x-gateway-key': 'gw_key_123' },
+      });
+      (mockChatService.executeChat as jest.Mock).mockResolvedValue({
+        id: 'resp-123',
+        provider: TEST_PROVIDER_INSTANCE_BRANDED,
+        model: TEST_MODEL_ALIAS_BRANDED,
+        output: { type: 'text', text: 'Response' },
+        requestId: TEST_REQUEST_ID,
+        conversationId: TEST_CONVERSATION_ID,
+        finishReason: 'stop',
+      });
+
+      const dto = await controller.chat(mockRequest as Request, {
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [{ role: 'user' as const, content: 'Hello' }],
+      });
+
+      expect(dto).not.toHaveProperty('cached');
+      expect(dto).not.toHaveProperty('cachedAt');
+      expect(dto).not.toHaveProperty('cacheSource');
     });
   });
 });

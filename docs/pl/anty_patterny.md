@@ -1,4 +1,4 @@
-# Anty‑patterny / na co uważać — AI Provider Gateway
+﻿# Anty‑patterny / na co uważać — AI Provider Gateway
 
 Ten plik zbiera typowe pułapki w projektach “LLM gateway”.
 
@@ -126,9 +126,9 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 **Nie rób**: zakładania, że każda odpowiedź z **`POST /api/v1/chat`** jest “na żywo” z providera — przy włączonym cache możliwy jest zwrot z **`cached: true`**.
 
-**Nie rób**: oczekiwania, że **`requestId`** w odpowiedzi z cache zawsze odpowiada bieżącemu żądaniu — w implementacji zwracany jest identyfikator zapisany wraz z pierwszą odpowiedzią.
+**Nie rób**: oczekiwania, że **`id`** (`gw_*`) na hicie będzie nowy — to tożsamość zapisanej odpowiedzi. **`requestId`** na hicie **musi** zgadzać się z bieżącym żądaniem (`x-request-id`); nie jest trzymany w Redis.
 
-**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu zmienia klucz cache w obecnej implementacji). Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony wpis usuwany); streaming jest ścieżką bez cache (`spec/SPEC-CHAT-STREAMING.md`).
+**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu lub params zmienia klucz exact **oraz** partycję KNN semantic — pkt 20). Zapis wyłącznie dokończonej odpowiedzi tekstowej (`finishReason=stop`, niepusty tekst, bez `toolCalls` / `content_filter` / `length`) — `shouldStoreChatResponse` / `isUnservableCachedReply`. Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony lub nieserwowalny wpis usuwany); streaming używa tego samego magazynu co JSON z replay SSE (`spec/SPEC-CHAT-STREAMING.md` F-10); zapis Redis first-writer-wins (`SET NX` / `HSETNX`).
 
 ## 13) Mylenie trzech kontraktów API (natywny vs fasady oficjalnych kontraktów)
 
@@ -173,3 +173,40 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 **Nie rób**: oczekiwania, że `npm run start:dev` zadziała od razu po sklonowaniu bez uzupełnionego `.env` (klucze providerów + `MASTER_KEY`) i poprawnego `gateway.config.yaml`.
 
 **Rób**: uruchom `gateway config:init` albo ręcznie uzupełnij YAML + `.env` (`konfiguracja.md`); zweryfikuj przez `gateway config:validate` (pełna) lub `npm run config:validate` (YAML + reguły runtime).
+## 16) Rozszerzanie CacheBackend o vector search
+
+**Nie rób:** dodawaj zapytan Redis Search / KNN do istniejacych adapterow `CacheBackend` / `noop` / `redis` w `src/cache/adapters/`. Interfejs KV `CacheBackend` jest zaprojektowany dla dokladnych lookupu klucz-wartosc i nie ma koncepcji wyszukiwania podobienstwa.
+
+**Rób:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (cooldown → polityka aliasu → exact KV → semantic HASH przyciętego last-user → embed + KNN → provider → dual-write sync) jest orkiestrowana w `ChatCachePipelineService` / `SemanticCacheService`, nie wewnatrz istniejacych adapterow. Tani `VectorStore.getByTextIdentity` działa **przed** embed. **Nie** promuj trafienia HASH/KNN do exact KV — magazyny zostają równoległe. Przy zapisie reuse wektora z lookupu; **nie** wołaj ponownie `embed`, gdy lookup już go próbował (sukces bez wektora albo błąd).
+
+## 17) Nadpisywanie command: w Redis Stack Compose
+
+**Nie rób:** nadpisuj `command:` w `docker-compose.redis.yml` aby konfigurowac polityke pamieci Redis lub inne opcje. Nadpisanie `command:` na obrazie `redis/redis-stack-server` usuwa domyslne argumenty entry point ktore laduja moduly Redis Search i JSON — modul `search` zniknie cicho.
+
+**Rób:** przekazuj parametry Redis przez zmienna srodowiskowa **`REDIS_ARGS`** w serwisie Compose. Przyklad: `REDIS_ARGS: '--port 6380 --maxmemory 2gb --maxmemory-policy noeviction'`.
+
+## 18) Złe trafienie semantyczne — niski próg lub oczekiwanie na wieloturze
+
+**Nie rób:** ustaw `SEMANTIC_CACHE_MIN_SIMILARITY` poniżej 0.85 w produkcji. Niski próg powoduje, że odpowiedzi na semantycznie różne prompty są serwowane z cache — treściowo niepoprawne dla aktualnego zapytania. Start **odrzuca** wartości poza 0–1; `gateway config:validate` **ostrzega** przy wartości &lt; 0.85.
+
+**Nie rób:** wstawiaj przecinka (ani innych znaków specjalnych RediSearch TAG poza myślnikiem) w kluczach `clients.<id>` lub `models.<alias>` — przecinek to domyślny separator TAG i psuje izolację klienta.
+
+**Nie rób:** oczekiwać semantic hit na żądaniach wieloturowych ani traktować anaforycznych fraz last-user (`kontynuuj`, `podsumuj to`, `przetłumacz`) jako bezpiecznego klucza cache przy różnych historiach. Cache semantyczny działa tylko dla body **jednoturowego** (dokładnie jedna `role: user`, bez `assistant` / `tool`).
+
+**Rób:** zachowaj domyślne 0.85 (podobieństwo cosinusowe) lub zwiększ dla domen wymagających wysokiej precyzji. Opieraj się na pełnej **case-sensitive** partycji KNN (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`) i bramce jednoturowej. Monitoruj `hit` / `hash-hit` / `below-threshold` / `error` / `skip` na `gateway_semantic_cache_lookup_total` (`hash-hit` = trafienie HASH bez embed; `skip` = early-return bez embed/KNN, w tym otwarty circuit po missie HASH lub wyłączony/multi-turn; `error` = wyłącznie nieudany I/O embed/KNN). Uszkodzony `reply` w HASH semantycznym jest kasowany przy odczycie HASH i przy KNN (jak exact). Próbkuj trafienia cache podczas strojenia.
+
+## 19) Prefiks nomic / mxbai przy embeddingu Qwen
+
+**Nie rób:** dodawaj prefiksu `search_query:` (ani `search_document:`) do tekstu embeddingu przy `qwen3-embedding:0.6b`. Ta instrukcja należy do `nomic-embed-text` / `mxbai`. Qwen 3 Embedding jej nie rozumie — niespójność store vs lookup wygląda jak fałszywe missy.
+
+**Rób:** embedduj gołą treść last-user żądania **jednoturowego** (albo dedykowaną instrukcję Qwena) po **obu** stronach (zapis i lookup). Format musi być identyczny. Zmiana formatu albo przejście na `nomic-embed-text` (albo inny tag rozmiaru tej samej rodziny, np. `qwen3-embedding:4b`) wymaga nowego indeksu `{PROJECT_ID}:sem:idx:{znormalizowanyModel}-{DIM}-{schemaHash8}` (np. domyślny → `ai-provider-gateway:sem:idx:qwen3-embedding-0-6b-1024-<8hex>`), nie hot-swapu. **Nie** zakładaj, że krótki slug rodziny w stylu `qwen3` izoluje warianty modelu.
+
+## 20) Założenie, że zmiana promptu/params zostawia trafienia semantic w tej samej partycji
+
+**Nie rób:** zakładać, że edycja `MASTER_SYSTEM_PROMPT.md` / promptów per alias albo zmiana parametrów wywołania (`responseFormat`, `temperature`, `seed`, …) nadal serwuje poprzednie trafienia KNN. Exact i semantic dzielą tę samą tożsamość konfiguracji: Redis Search filtruje po `modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`. Zmiana promptu lub params → **inna partycja** → miss.
+
+**Nie rób:** oczekiwać hurtowego `FT.DROPINDEX` / masowego czyszczenia przy zmianie promptu lub params. Stare wektory w poprzedniej partycji zostają do TTL (`CACHE_TTL`). `SEMANTIC_CACHE_TTL` jest przestarzałe i ignorowane.
+
+**Nie rób:** traktować udanego `FT.INFO` na legacy nazwie indeksu (np. `qwen3-embedding-0-6b-1024` bez prefiksu `ai-provider-gateway:sem:idx:`, albo HASH-y pod `aigw:sem:…`) jako bieżącego indeksu gatewaya. Po zmianie SCHEMA / prefiksu projektu to **orphany** — zostaw je do TTL albo dropuj tylko indeksy zaczynające się od `ai-provider-gateway:` (nigdy `portfolio:*`).
+
+**Rób:** traktuj rozdział partycji jak rozdział klucza exact. Skróć `CACHE_TTL`, jeśli stare partycje mają znikać szybciej (TTL semantic zawsze = `CACHE_TTL`). Nie obniżaj progu podobieństwa, żeby „nadrobić” missy partycji.

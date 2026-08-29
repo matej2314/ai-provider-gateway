@@ -77,6 +77,16 @@ Contract (OpenAPI + `api-documentation.md`): **Server-Sent Events** (`text/event
 - The gateway does not guarantee identical token-by-token behavior across providers.
 - The client should treat SSE as a fragment stream + metadata from `meta`.
 
+## Response cache and idempotency
+
+For `POST /api/v1/chat`, the gateway uses this pipeline (code order): **cooldown → alias policy → exact KV → semantic HASH (trim last-user) → embed+KNN → provider → dual-write sync** (`await` exact SET and semantic upsert). No semantic→exact promotion. Semantic-only (`CACHE_ENABLED=false`) is supported. Default similarity 0.85. Vector TTL = `CACHE_TTL`.
+
+1. **Exact hit** — deterministic hash of `(modelAlias, clientId, messages, system prompt, effective params)` matches a stored response → returned with `cached: true`, `cachedAt`, and `cacheSource: "exact"`. Semantically identical to a fresh provider call.
+2. **Semantic hit** — no exact match, but the request is **single-turn**: cheap HASH on trimmed last-user text in the **same** partition, or (on HASH miss) the last `role: user` message embeds close enough to a cached query in that partition (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`), cosine similarity ≥ `SEMANTIC_CACHE_MIN_SIMILARITY` (default 0.85) → stored response returned with `cached: true` and `cacheSource: "semantic"`.
+3. **Miss** — provider is called; both stores are written **before** HTTP 201 (semantic upsert only for single-turn). Fields `cached`, `cachedAt`, and `cacheSource` are omitted.
+
+**Idempotency note:** exact and semantic hits share `cached: true` / `cachedAt` and are distinguished by **`cacheSource`**. They are **not** unrestricted substitutes: a semantic hit is valid only inside the same configuration partition and for a single-turn body. Streaming (`POST /api/v1/chat/stream`) uses the **same** store (lookup before `flushHeaders`; hit → SSE replay with `meta.cached*`). OpenAI/Anthropic facade JSON does not include `cacheSource`; facades set HTTP header `X-Gateway-Cache: exact | semantic` on a hit (JSON **and** stream; absent on miss).
+
 ## HTTP errors
 
 **Contract ([`openapi.json`](../openapi.json)):** **`ErrorEnvelope`** envelope from `GlobalExceptionFilter` (`APP_FILTER` in `AppModule`). Explicit **`code`** from the exception payload (guards, `RATE_LIMITED`, codes from `provider-error.mapper.ts`); otherwise `DEFAULT_HTTP_STATUS_TO_CODE` (for HTTP **429** fallback is **`RATE_LIMITED`** — see `dictionary.md`). **`requestId`:** `RequestIdMiddleware` — request header `x-request-id` (echo) or `req_<uuid>`; the same ID in the JSON field (`requestId`) and in the **response header** `x-request-id` (`res.setHeader` in `src/common/middleware/request-id.middleware.ts`).

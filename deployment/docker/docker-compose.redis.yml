@@ -1,23 +1,27 @@
 name: ai-provider-gateway-redis
 
-# Redis gatewaya na porcie 6380 (wewnątrz kontenera i na hoście) —
+# Redis Stack gatewaya na porcie 6380 (wewnątrz kontenera i na hoście) —
 # celowo nie 6379, żeby nie kolidować z innym Redisem na hoście.
 # Vault / .env: REDIS_HOST=ai-gateway-redis (lub redis), REDIS_PORT=6380
 # Gateway + Redis: npm run docker:up:redis
+# UWAGA: nie nadpisuj command: — kasuje moduł Search (użyj REDIS_ARGS)
+# Sanity: docker exec ai-gateway-redis redis-cli -p 6380 MODULE LIST | grep search
+# Tag pinned (nie :latest) — spójny z test/integration/docker-compose.redis-stack.yml
 
 services:
+  gateway:
+    depends_on:
+      redis:
+        condition: service_healthy
 
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack-server:7.4.0-v8
     container_name: ai-gateway-redis
     restart: unless-stopped
     ports:
       - "0.0.0.0:6380:6380"
-    command: >-
-      redis-server
-      --port 6380
-      --maxmemory ${REDIS_MAX_MEMORY:-256mb}
-      --maxmemory-policy noeviction
+    environment:
+      REDIS_ARGS: '--port 6380 --maxmemory ${REDIS_MAX_MEMORY:-500mb} --maxmemory-policy noeviction'
     healthcheck:
       test: ["CMD", "redis-cli", "-p", "6380", "ping"]
       interval: 10s

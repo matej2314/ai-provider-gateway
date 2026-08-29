@@ -2,6 +2,7 @@ import {
   getRedisConsumers,
   isRedisRequired,
   isRedisRequiredFromEnv,
+  isSemanticCacheEnabledFromEnv,
 } from './should-include-redis-stack';
 
 describe('should-include-redis-stack', () => {
@@ -57,5 +58,32 @@ describe('should-include-redis-stack', () => {
     it('should be false for empty snapshot', () => {
       expect(isRedisRequired({})).toBe(false);
     });
+  });
+
+  it('should be true when only semantic cache enabled', () => {
+    expect(
+      isRedisRequiredFromEnv({
+        CACHE_ENABLED: 'false',
+        CACHE_BACKEND: 'noop',
+        RATE_LIMIT_SMART_ENABLED: 'false',
+        SEMANTIC_CACHE_ENABLED: 'true',
+      }),
+    ).toBe(true);
+  });
+
+  it('isSemanticCacheEnabledFromEnv matches Redis semantic consumer toggle', () => {
+    expect(
+      isSemanticCacheEnabledFromEnv({ SEMANTIC_CACHE_ENABLED: 'true' }),
+    ).toBe(true);
+    expect(
+      isSemanticCacheEnabledFromEnv({ SEMANTIC_CACHE_ENABLED: 'false' }),
+    ).toBe(false);
+    expect(isSemanticCacheEnabledFromEnv({})).toBe(false);
+  });
+
+  it('should include semantic-cache consumer', () => {
+    expect(getRedisConsumers({ semanticCacheEnabled: true })).toEqual([
+      'semantic-cache',
+    ]);
   });
 });

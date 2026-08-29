@@ -10,11 +10,16 @@ import { LoggingService } from '../../../logging/logging.service';
 import { isRedisRequiredFromConfig } from '../../should-include-redis-stack';
 import Redis from 'ioredis';
 
+const RECONNECT_COOLDOWN_MS = 2_000;
+
 @Injectable()
 export class RedisConnectionService
   implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown
 {
   private client: Redis | null = null;
+  private connectInFlight: Promise<void> | null = null;
+  private nextRetryAtMs = 0;
+  private closed = false;
   private readonly logger: LoggingService;
 
   constructor(
@@ -28,13 +33,111 @@ export class RedisConnectionService
     if (!isRedisRequiredFromConfig(this.config)) {
       return;
     }
+    await this.ensureConnected();
+  }
 
+  getClient(): Redis | null {
+    if (this.closed || !isRedisRequiredFromConfig(this.config)) {
+      return null;
+    }
+    if (this.client) {
+      return this.client;
+    }
+    this.scheduleEnsureConnected();
+    return null;
+  }
+
+  isReady(): boolean {
+    if (this.closed || !isRedisRequiredFromConfig(this.config)) {
+      return false;
+    }
+    if (this.client?.status === 'ready') {
+      return true;
+    }
+    if (!this.client) {
+      this.scheduleEnsureConnected();
+    }
+    return false;
+  }
+
+  async ping(): Promise<boolean> {
+    if (!this.isReady() || !this.client) {
+      return false;
+    }
+
+    try {
+      const result = await this.client.ping();
+      return result === 'PONG';
+    } catch {
+      return false;
+    }
+  }
+
+  async ensureConnected(): Promise<void> {
+    if (this.closed || !isRedisRequiredFromConfig(this.config)) {
+      return;
+    }
+    if (this.client?.status === 'ready') {
+      return;
+    }
+    // Live client still owned by ioredis retryStrategy — do not recreate.
+    if (
+      this.client &&
+      (this.client.status === 'connecting' ||
+        this.client.status === 'reconnecting' ||
+        this.client.status === 'wait')
+    ) {
+      return;
+    }
+    if (this.connectInFlight) {
+      return this.connectInFlight;
+    }
+    if (Date.now() < this.nextRetryAtMs) {
+      return;
+    }
+
+    this.connectInFlight = this.establishConnection().finally(() => {
+      this.connectInFlight = null;
+    });
+    return this.connectInFlight;
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    this.closed = true;
+    if (!this.client) return;
+    try {
+      await this.client.quit();
+    } catch {
+      this.logger.debug('Redis client disconnected.', {
+        host: this.client.options.host,
+        port: this.client.options.port,
+      });
+      this.client.disconnect();
+    } finally {
+      this.client.removeAllListeners();
+      this.client = null;
+    }
+  }
+
+  async onApplicationShutdown(signal?: string) {
+    this.logger.info(`Redis connection shutting down`, {
+      signal: signal ?? 'unknown signal',
+    });
+    await this.onModuleDestroy();
+  }
+
+  private scheduleEnsureConnected(): void {
+    void this.ensureConnected();
+  }
+
+  private async establishConnection(): Promise<void> {
     const redis = getAppConfigOrThrow(this.config, 'redis');
-
     const password =
       redis.password && redis.password.trim().length > 0
         ? redis.password
         : undefined;
+
+    this.disposeClient();
 
     try {
       this.client = new Redis({
@@ -62,6 +165,7 @@ export class RedisConnectionService
 
       await this.client.connect();
       await this.client.ping();
+      this.nextRetryAtMs = 0;
       this.logger.info('Redis connected.', {
         host: redis.host,
         port: redis.port,
@@ -74,54 +178,19 @@ export class RedisConnectionService
         port: redis.port,
         message,
       });
-      if (this.client) {
-        this.client.disconnect();
-        this.client = null;
-      }
+      this.disposeClient();
+      this.nextRetryAtMs = Date.now() + RECONNECT_COOLDOWN_MS;
     }
   }
 
-  async onModuleDestroy(): Promise<void> {
+  private disposeClient(): void {
     if (!this.client) return;
     try {
-      await this.client.quit();
-    } catch {
-      this.logger.debug('Redis client disconnected.', {
-        host: this.client.options.host,
-        port: this.client.options.port,
-      });
-      this.client.disconnect();
-    } finally {
       this.client.removeAllListeners();
-      this.client = null;
-    }
-  }
-
-  async onApplicationShutdown(signal?: string) {
-    this.logger.info(`Redis connection shutting down`, {
-      signal: signal ?? 'unknown signal',
-    });
-    await this.onModuleDestroy();
-  }
-
-  getClient(): Redis | null {
-    return this.client;
-  }
-
-  isReady(): boolean {
-    return this.client !== null && this.client.status === 'ready';
-  }
-
-  async ping(): Promise<boolean> {
-    if (!this.isReady() || !this.client) {
-      return false;
-    }
-
-    try {
-      const result = await this.client.ping();
-      return result === 'PONG';
+      this.client.disconnect();
     } catch {
-      return false;
+      /* ignore dispose races */
     }
+    this.client = null;
   }
 }

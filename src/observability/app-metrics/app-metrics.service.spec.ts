@@ -28,6 +28,7 @@ describe('AppMetricsService', () => {
       recordHttpRequestDuration: jest.fn(),
       recordRequest: jest.fn(),
       recordTokens: jest.fn(),
+      updateCacheHitRate: jest.fn(),
     };
 
     preMetricsScrapeRegistry = new PreMetricsScrapeRegistry();
@@ -210,6 +211,36 @@ describe('AppMetricsService', () => {
       service.syncHealthMetrics(snapshot);
 
       expect(mockBackend.syncHealthMetrics).toHaveBeenCalledWith(snapshot);
+    });
+  });
+
+  describe('recordCachePipelineAccess', () => {
+    it('should set hit rate to 1 after a pipeline hit', () => {
+      service.recordCachePipelineAccess(TEST_MODEL_ALIAS_BRANDED, true);
+
+      expect(mockBackend.updateCacheHitRate).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        1,
+      );
+    });
+
+    it('should set hit rate to 0 after a pipeline miss', () => {
+      service.recordCachePipelineAccess(TEST_MODEL_ALIAS_BRANDED, false);
+
+      expect(mockBackend.updateCacheHitRate).toHaveBeenCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        0,
+      );
+    });
+
+    it('should treat exact miss + later hit as 0.5 pipeline rate', () => {
+      service.recordCachePipelineAccess(TEST_MODEL_ALIAS_BRANDED, false);
+      service.recordCachePipelineAccess(TEST_MODEL_ALIAS_BRANDED, true);
+
+      expect(mockBackend.updateCacheHitRate).toHaveBeenLastCalledWith(
+        TEST_MODEL_ALIAS_BRANDED,
+        0.5,
+      );
     });
   });
 });

@@ -11,6 +11,10 @@ import {
   asProviderInstanceId,
   asModelAlias,
 } from '../../../common/types/branded.types';
+import {
+  isRedisSearchTagSafeId,
+  REDIS_SEARCH_TAG_ID_MESSAGE,
+} from '../../../cache/semantic/escape-tag';
 
 type ModelPromptResult = CliAiModel;
 
@@ -67,6 +71,9 @@ export class ModelPromptService {
             const trimmed = String(input).trim();
             if (!trimmed) {
               return 'Alias is required.';
+            }
+            if (!isRedisSearchTagSafeId(trimmed)) {
+              return `Model alias ${REDIS_SEARCH_TAG_ID_MESSAGE}`;
             }
             if (models.some((model) => model.alias === trimmed)) {
               return 'Alias must be unique.';

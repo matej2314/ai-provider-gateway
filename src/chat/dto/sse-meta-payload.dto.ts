@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { ChatCacheSource } from '../../cache/types/chat-cache-source.type';
 import type {
   ResponseId,
   RequestId,
@@ -17,6 +18,10 @@ export interface SseMetaPayload {
   effectiveModelAlias?: ModelAlias;
   requestId: RequestId;
   conversationId: ConversationId;
+  /** Tylko cache hit na native stream — pomijane na miss / w body fasad. */
+  cached?: true;
+  cachedAt?: string;
+  cacheSource?: ChatCacheSource;
 }
 
 /**
@@ -42,6 +47,24 @@ export class SseMetaPayloadDto {
 
   @ApiProperty()
   conversationId: string;
+
+  @ApiPropertyOptional({
+    enum: [true],
+    description: 'Present on cache hit',
+  })
+  cached?: true;
+
+  @ApiPropertyOptional({
+    format: 'date-time',
+  })
+  cachedAt?: string;
+
+  @ApiPropertyOptional({
+    enum: ['exact', 'semantic'],
+    description:
+      'Which cache layer served this stream. Present only on a cache hit; omitted on a provider miss.',
+  })
+  cacheSource?: ChatCacheSource;
 }
 
 /** Maps internal branded SSE meta payload to API DTO (implicit unbrand). */
@@ -57,5 +80,10 @@ export function toSseMetaPayloadDto(
     }),
     requestId: payload.requestId,
     conversationId: payload.conversationId,
+    ...(payload.cached === true && {
+      cached: true,
+      cachedAt: payload.cachedAt,
+      cacheSource: payload.cacheSource,
+    }),
   };
 }

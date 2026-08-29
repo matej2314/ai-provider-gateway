@@ -12,6 +12,7 @@ import type {
   ProviderInstanceId,
   RateLimitBurst,
   RateLimitRps,
+  SemanticCacheTtlSeconds,
 } from '../common/types/branded.types';
 
 export type CacheRuntimeConfig = {
@@ -36,6 +37,17 @@ export type RateLimitRuntimeConfig = {
   cooldownAfter429: number;
 };
 
+export type SemanticCacheRuntimeConfig = {
+  enabled: boolean;
+  embeddingBaseUrl: string;
+  embeddingModel: string;
+  embeddingDim: number;
+  embeddingTimeoutMs: number;
+  minSimilarity: number;
+  ttl: SemanticCacheTtlSeconds;
+  k: number;
+};
+
 export type AppConfiguration = {
   gateway: GatewayConfig;
   gatewayKey: GatewayKeyRuntimeConfig;
@@ -45,6 +57,7 @@ export type AppConfiguration = {
   resolvedSystemPrompts: ResolvedSystemPrompts;
   cache: CacheRuntimeConfig;
   redis: RedisRuntimeConfig;
+  semanticCache: SemanticCacheRuntimeConfig;
   RATE_LIMIT_SMART_ENABLED: boolean;
   rateLimit: RateLimitRuntimeConfig;
 };

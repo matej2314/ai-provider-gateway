@@ -208,9 +208,10 @@ Inicjalizacja projektu: **wizard interaktywny** (styl `npm init`) **lub** tryb a
    - **4/5** Klienci gateway (`ClientPromptService` — typ: `webapp` | `ide` | `cli` | `service` | `backend` | `automation`; klucze `gw_<slug>_<base64url>`; env ref `GATEWAY_KEY_<ID>`; opcjonalny `rateLimit` per klient **w YAML** — limity per klucz klienta; wymaga w runtime `RATE_LIMIT_SMART_ENABLED=true`, patrz krok 5/5)
    - **5/5** Ustawienia serwera (`ServerPromptService`) — kolejno:
      - **Podstawowe:** port, `NODE_ENV`, Swagger (`SWAGGER_ENABLED`).
-     - **Response cache:** `CACHE_ENABLED`, `CACHE_BACKEND` (`redis` | `noop` — bez opcji `memory` w wizardzie).
+     - **Response cache:** `CACHE_ENABLED`, `CACHE_BACKEND` (`redis` | `noop`).
      - **Smart rate limit:** `RATE_LIMIT_SMART_ENABLED` (niezależnie od backendu cache).
-     - **Redis (wspólna infrastruktura):** host, port, hasło — **tylko gdy** `isRedisRequired()` z `src/cache/should-include-redis-stack.ts` zwraca `true`, tj. gdy `CACHE_ENABLED=true` **oraz** `CACHE_BACKEND=redis`, **lub** gdy `RATE_LIMIT_SMART_ENABLED=true`. Ta sama reguła co przy starcie HTTP (`isRedisRequiredFromEnv()` w `AppModule`).
+     - **Zmienne env semantic cache** (`SEMANTIC_CACHE_ENABLED`, `EMBEDDING_BASE_URL`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `EMBEDDING_TIMEOUT_MS`, `SEMANTIC_CACHE_MIN_SIMILARITY`, `SEMANTIC_CACHE_TTL`, `SEMANTIC_CACHE_K`) **nie** są konfigurowane przez wizard — ustaw je ręcznie w `.env`. Domyślnie w kodzie: flaga `false`, model `qwen3-embedding:0.6b`, DIM `1024`, podobieństwo `0.85`. `SEMANTIC_CACHE_TTL` jest przestarzałe i ignorowane (TTL semantic = `CACHE_TTL`). Pytania wizarda o semantic / URL embeddingu to osobny krok po kodzie feature’u. Patrz `konfiguracja.md` (sekcja cache semantycznego) i `.env.example`.
+     - **Redis (wspólna infrastruktura):** host, port, hasło — **tylko gdy** `isRedisRequired()` z `src/cache/should-include-redis-stack.ts` zwraca `true`, tj. gdy `CACHE_ENABLED=true` **oraz** `CACHE_BACKEND=redis`, **lub** gdy `RATE_LIMIT_SMART_ENABLED=true`, **lub** gdy `SEMANTIC_CACHE_ENABLED=true`. Ta sama reguła co przy starcie HTTP (`isRedisRequiredFromEnv()` w `AppModule`). Cache semantyczny wymaga Redis Search (Redis Stack), nie alpine Redis.
      - **Monitoring:** Sentry LLM (`AI_METRICS_BACKEND`, `SENTRY_*`) lub `noop`; App metrics Prometheus (`METRICS_BACKEND`).
 
 3. **Zapis plików** — `ConfigGeneratorService.generateFullConfig()`:
@@ -588,7 +589,7 @@ Kierunek zależności: **config → cli**, **cache/should-include-redis-stack �
 | `templates/env.template.ts` | `generateEnvTemplate()`, `isEnvInputRedisRequired()` |
 | `src/cache/should-include-redis-stack.ts` | Współdzielona z runtime logika `isRedisRequired()` (CLI importuje **bez** `ConfigModule`) |
 
-Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `validateEnvironment()` / fasada walidacji, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import z `src/cache/should-include-redis-stack.ts`: predykat wymagania Redis (cache redis i/lub smart rate limit). Patrz `anty_patterny.md` (§14).
+Importy z `src/config/`: typy, schematy Zod, `validateGatewayConfig()`, `validateEnvironment()` / fasada walidacji, `PROVIDER_TYPES`, `GATEWAY_CLIENT_TYPES`. Import z `src/cache/should-include-redis-stack.ts`: predykat wymagania Redis (cache redis i/lub smart rate limit i/lub semantic cache). Patrz `anty_patterny.md` (§14).
 
 ## Wskazówki
 

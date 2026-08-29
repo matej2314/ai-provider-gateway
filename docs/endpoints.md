@@ -1,7 +1,7 @@
 # Endpoint list — AI Provider Gateway
 
 Document version: **1.9**.  
-**OpenAPI:** [`openapi.json`](../openapi.json) (v0.14.0) — synchronized with `src/` (health, native chat, **models**, OpenAI/Anthropic facades, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` via `ResilientExecutor` (`src/chat/resilience/`), `@nestjs/swagger` decorators). **Errors:** native chat and models — `ErrorEnvelope` (`GlobalExceptionFilter`); facades — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (local filters). **`RequestIdMiddleware`** — body + response header **`x-request-id`**. **Auth in spec:** `GatewayKeyAuth` (chat, models), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Chat / models:** `@GatewayKeyAndSmartRateLimit()` on `ChatController`, `ChatStreamController`, `ModelsController`; allowlist from `gateway.config.yaml` + env (`configuration.md`). **Offline validation:** `npm run config:validate`. **Cache:** `src/cache/` — only `POST /chat`.
+**OpenAPI:** [`openapi.json`](../openapi.json) (v0.14.0) — synchronized with `src/` (health, native chat, **models**, OpenAI/Anthropic facades, smart rate limit `src/rate-limit/`, `params`, tooling, cache, SSE, `ChatProviderCallService`, retry/fallback/`effectiveModelAlias` via `ResilientExecutor` (`src/chat/resilience/`), `@nestjs/swagger` decorators). **Errors:** native chat and models — `ErrorEnvelope` (`GlobalExceptionFilter`); facades — `OpenAiErrorResponseDto` / `AnthropicErrorResponseDto` (local filters). **`RequestIdMiddleware`** — body + response header **`x-request-id`**. **Auth in spec:** `GatewayKeyAuth` (chat, models), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic). **Chat / models:** `@GatewayKeyAndSmartRateLimit()` on `ChatController`, `ChatStreamController`, `ModelsController`; allowlist from `gateway.config.yaml` + env (`configuration.md`). **Offline validation:** `npm run config:validate`. **Cache:** `src/cache/` — `POST /chat`, `POST /chat/stream`, and facade streams (shared store).
 
 ## Global conventions
 
@@ -32,7 +32,7 @@ Additionally at startup the `gateway.config.yaml` file is loaded (Zod validation
 
 | | |
 |--|--|
-| **200** | Readiness in body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.redis`, `checks.cache`. **HTTP always 200** — the probe evaluates the `status` field, not the HTTP code. `checks.redis: degraded` (Redis required but unavailable) and `checks.cache: degraded` do **not** block `ready`. After evaluation, Prometheus metrics sync (`publishMetrics`). Details: `api-documentation.md`. |
+| **200** | Readiness in body: `status` (`ready` \| `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks.config`, `checks.redis`, `checks.cache`, optionally `checks.embeddings` and `checks.vectorStore`. **HTTP always 200** — the probe evaluates the `status` field, not the HTTP code. `checks.redis: degraded`, `checks.cache: degraded`, `checks.embeddings: degraded`, and `checks.vectorStore: degraded` do **not** block `ready` (fail-open). `checks.embeddings` / `checks.vectorStore` present only when `SEMANTIC_CACHE_ENABLED=true`. After evaluation, Prometheus metrics sync (`publishMetrics`). Details: `api-documentation.md`. |
 
 ---
 

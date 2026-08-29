@@ -402,5 +402,112 @@ describe('validateGatewayConfig', () => {
       expect(policy.timeoutMs).toBe(asTimeoutMs(30000));
       expect(policy.retry.maxAttempts).toBe(asMaxAttempts(3));
     });
+
+    it('rejects client id with comma (RediSearch TAG separator)', () => {
+      const configPath = writeTempConfig(
+        tempDir,
+        minimalValidConfig({
+          clients: {
+            'a,b': {
+              name: 'Bad',
+              type: 'webapp',
+              gatewayKeyRef: 'GATEWAY_KEY_BAD',
+            },
+          },
+        }),
+      );
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        ANTHROPIC_PRIMARY_API_KEY: 'sk-ant-test-key',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(false);
+      expect(result.errors.join('\n')).toMatch(
+        /Invalid key in record|TAG|special/i,
+      );
+    });
+
+    it('rejects model alias with comma', () => {
+      const configPath = writeTempConfig(
+        tempDir,
+        minimalValidConfig({
+          models: {
+            'bad,alias': {
+              providerInstance: 'anthropic-primary',
+              modelId: 'claude-sonnet-4-5-20250929',
+            },
+          },
+        }),
+      );
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        ANTHROPIC_PRIMARY_API_KEY: 'sk-ant-test-key',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(false);
+      expect(result.errors.join('\n')).toMatch(
+        /Invalid key in record|TAG|special/i,
+      );
+    });
+
+    it('accepts hyphenated client id (Team-A)', () => {
+      const configPath = writeTempConfig(
+        tempDir,
+        minimalValidConfig({
+          clients: {
+            'Team-A': {
+              name: 'Team A',
+              type: 'webapp',
+              gatewayKeyRef: 'GATEWAY_KEY_TEAM_A',
+            },
+          },
+        }),
+      );
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        ANTHROPIC_PRIMARY_API_KEY: 'sk-ant-test-key',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(true);
+      expect(result.effectiveConfig!.clients['Team-A']).toBeDefined();
+    });
+
+    it('warns when SEMANTIC_CACHE_MIN_SIMILARITY is below 0.85', () => {
+      const configPath = writeTempConfig(tempDir, minimalValidConfig());
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        ANTHROPIC_PRIMARY_API_KEY: 'sk-ant-test-key',
+        SEMANTIC_CACHE_MIN_SIMILARITY: '0.7',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(true);
+      expect(result.warnings.join('\n')).toMatch(
+        /SEMANTIC_CACHE_MIN_SIMILARITY=0\.7/,
+      );
+    });
+
+    it('warns when SEMANTIC_CACHE_TTL is set (deprecated and ignored)', () => {
+      const configPath = writeTempConfig(tempDir, minimalValidConfig());
+      const env = {
+        MASTER_KEY: 'gw_mk_test',
+        ANTHROPIC_PRIMARY_API_KEY: 'sk-ant-test-key',
+        SEMANTIC_CACHE_TTL: '1200',
+      };
+
+      const result = validateGatewayConfig({ configPath, env });
+
+      expect(result.success).toBe(true);
+      expect(result.warnings.join('\n')).toMatch(
+        /SEMANTIC_CACHE_TTL is deprecated and ignored/,
+      );
+    });
   });
 });

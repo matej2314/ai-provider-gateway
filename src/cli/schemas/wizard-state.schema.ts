@@ -77,6 +77,7 @@ export const WizardStateSchema = z.object({
         redisPort: z.number().optional(),
         redisPassword: z.string().optional(),
         rateLimitSmartEnabled: z.boolean().optional(),
+        semanticCacheEnabled: z.boolean().optional(),
         metricsBackend: z.enum(['sentry', 'noop']).optional(),
         sentryDsn: z.string().optional(),
       })

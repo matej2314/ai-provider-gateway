@@ -17,6 +17,10 @@ import {
   asRateLimitBurst,
   asRateLimitRps,
 } from '../../../common/types/branded.types';
+import {
+  isRedisSearchTagSafeId,
+  REDIS_SEARCH_TAG_ID_MESSAGE,
+} from '../../../cache/semantic/escape-tag';
 
 export type ClientPromptResult = GatewayClient;
 
@@ -59,6 +63,9 @@ export class ClientPromptService {
             const trimmed = String(input).trim();
             if (!trimmed) {
               return 'Client ID is required.';
+            }
+            if (!isRedisSearchTagSafeId(trimmed)) {
+              return `Client ID ${REDIS_SEARCH_TAG_ID_MESSAGE}`;
             }
             if (clients.some((client) => client.id === trimmed)) {
               return 'Client ID must be unique.';

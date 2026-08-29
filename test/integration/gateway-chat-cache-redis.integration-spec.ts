@@ -79,6 +79,7 @@ describe('Gateway chat cache Redis (integration)', () => {
     expect(second.body).toMatchObject({
       cached: true,
       cachedAt: expect.any(String),
+      cacheSource: 'exact',
       output: { text: first.body.output.text },
     });
     expectGatewayUsage(second.body.usage);

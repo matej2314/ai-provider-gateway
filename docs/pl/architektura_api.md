@@ -77,6 +77,16 @@ Kontrakt (OpenAPI + `dokumentacja_api.md`): **Server‑Sent Events** (`text/even
 - Gateway nie gwarantuje identycznego zachowania token‑po‑token między providerami.
 - Klient powinien traktować SSE jako strumień fragmentów + metadane z `meta`.
 
+## Cache odpowiedzi i idempotencja
+
+Dla `POST /api/v1/chat` gateway stosuje pipeline (kolejność z kodu): **cooldown → polityka aliasu → exact KV → semantic HASH (trim last-user) → embed+KNN → provider → dual-write sync** (`await` exact SET i semantic upsert). Brak promocji semantic→exact. Semantic-only (`CACHE_ENABLED=false`) wspierany. Domyślny próg 0.85. TTL wektorów = `CACHE_TTL`.
+
+1. **Trafienie exact** — deterministyczny hash `(modelAlias, clientId, messages, system prompt, efektywne parametry)` pasuje do zapisanej odpowiedzi → zwracana z `cached: true`, `cachedAt` i `cacheSource: "exact"`. Semantycznie równoważna ze świeżym wywołaniem providera.
+2. **Trafienie semantyczne** — brak exact match, ale żądanie jest **jednoturowe**: tani HASH po przyciętym last-user w **tej samej** partycji, albo (przy missie HASH) ostatnia wiadomość `role: user` embedduje się wystarczająco blisko zapisanego zapytania w tej partycji (`modelAlias` + `clientId` + `embeddingModel` + `systemSignature` + `callParams`), podobieństwo cosinusowe ≥ `SEMANTIC_CACHE_MIN_SIMILARITY` (domyślnie 0.85) → zwracana zapisana odpowiedź z `cached: true` i `cacheSource: "semantic"`.
+3. **Miss** — wywołanie providera; oba magazyny zapisywane **przed** HTTP 201 (upsert semantyczny tylko dla jednotury). Pola `cached`, `cachedAt` i `cacheSource` są nieobecne.
+
+**Uwaga o idempotencji:** trafienie exact i semantyczne mają `cached: true` / `cachedAt` i są rozróżniane przez **`cacheSource`**. **Nie** są nieograniczonymi substytutami: semantic hit jest ważny tylko w tej samej partycji konfiguracji i przy body jednoturowym. Streaming (`POST /api/v1/chat/stream`) korzysta z **tego samego** magazynu (lookup przed `flushHeaders`; hit → replay SSE z `meta.cached*`). JSON fasad OpenAI/Anthropic nie zawiera `cacheSource`; przy hicie fasady ustawiają nagłówek HTTP `X-Gateway-Cache: exact | semantic` (JSON **i** stream; brak przy missie).
+
 ## Błędy HTTP
 
 **Kontrakt ([`openapi.json`](../../openapi.json)):** envelope **`ErrorEnvelope`** z `GlobalExceptionFilter` (`APP_FILTER` w `AppModule`). Jawne **`code`** z payloadu wyjątku (guardy, `RATE_LIMITED`, kody z `provider-error.mapper.ts`); inaczej `DEFAULT_HTTP_STATUS_TO_CODE` (dla HTTP **429** fallback to **`RATE_LIMITED`** — patrz `dictionary.md`). **`requestId`:** `RequestIdMiddleware` — nagłówek żądania `x-request-id` (echo) lub `req_<uuid>`; to samo ID w polu JSON (`requestId`) oraz w **nagłówku odpowiedzi** `x-request-id` (`res.setHeader` w `src/common/middleware/request-id.middleware.ts`).

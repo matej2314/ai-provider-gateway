@@ -1,4 +1,4 @@
-# Dokumentacja API — AI Provider Gateway
+﻿# Dokumentacja API — AI Provider Gateway
 
 Wersja dokumentu: **1.6**. Dokument jest wersjonowany razem z kodem. **[`openapi.json`](../../openapi.json)** jest zsynchronizowany z **`src/`** — obejmuje **trzy powierzchnie API** (natywny czat + **models**, fasada OpenAI, fasada Anthropic) oraz health. **Metryki Prometheus** (`GET /metrics`) są poza OpenAPI — opis w tym dokumencie i w `deployment.md`. Schematy sukcesu i błędów pochodzą z dekoratorów `@Api*` na kontrolerach i DTO; rejestracja modeli w `src/swagger/swagger.setup.ts`.
 
@@ -36,7 +36,7 @@ Wersja dokumentu: **1.6**. Dokument jest wersjonowany razem z kodem. **[`openapi
 
 ## Format błędów
 
-Wszystkie odpowiedzi błędów obsłużone przez `GlobalExceptionFilter` jako JSON są w envelope **`ErrorEnvelope`** (`openapi.json`) — patrz `src/common/filters/http-exception.filter.ts` (rejestracja: `APP_FILTER` w `src/app.module.ts`). **Uwaga:** przy `POST /api/v1/chat/stream` część błędów może powstać **po** `flushHeaders` (patrz sekcja streamingu) — wtedy klient może nie otrzymać poprawnego JSON.
+Wszystkie odpowiedzi błędów obsłużone przez `GlobalExceptionFilter` jako JSON są w envelope **`ErrorEnvelope`** (`openapi.json`) — patrz `src/common/filters/http-exception.filter.ts` (rejestracja: `APP_FILTER` w `src/app.module.ts`). **Uwaga:** przy `POST /api/v1/chat/stream` cooldown i błędy `resolveStreamCache` wracają jako JSON **przed** SSE; błędy live miss mogą powstać **po** `flushHeaders` (patrz sekcja streamingu).
 
 ```json
 {
@@ -140,11 +140,11 @@ Udana odpowiedź JSON: **201 Created** — domyślne zachowanie NestJS dla `POST
 
 `ChatService.executeChat`: `id`, **`provider`** (identyfikator **`providerInstance`** z YAML), `model` (żądany `modelAlias`), opcjonalnie **`effectiveModelAlias`**, opcjonalnie **`toolCalls`**, **`finishReason`**, **`usageDetails`**, opcjonalnie **`systemFingerprint`** (tylko gdy adapter upstream je dostarczy — patrz `dictionary.md`), `output`, `usage`, `requestId`, **`conversationId`**.
 
-**Cache (opcjonalny):** lookup przed wywołaniem providera; **pomijany** dla żądań z toolingiem. Przy trafieniu — gdy alias i provider są **włączone** w YAML — zwracany JSON z **`cached: true`**, **`cachedAt`**. Odczyt z backendu parsowany przez **`parseCachedChatResponse`** (`CachedChatResponseSchema`); niepoprawny wpis usuwany. Streaming nie jest cache’owany.
+**Cache (opcjonalny):** lookup przed wywołaniem providera; **pomijany** dla żądań z toolingiem. Przy trafieniu — gdy alias i provider są **włączone** w YAML — zwracany JSON z **`cached: true`**, **`cachedAt`** i **`cacheSource`** (`"exact"` albo `"semantic"`), albo na streamie SSE `meta` z tymi polami (replay 64 znaki). **`requestId`** w hicie = bieżące żądanie (nie z Redis); **`id`** = z payloadu. Zapis tylko dokończonej odpowiedzi tekstowej (`finishReason=stop`, niepusty tekst, bez `toolCalls`). Przy missie providera pola cache są nieobecne i **nie** są zapisywane w Redis. Odczyt z backendu parsowany przez **`parseCachedChatResponse`** (`CachedChatResponseSchema`); niepoprawny lub nieserwowalny wpis usuwany. Streaming native i fasady (`stream: true`) używają **wspólnego** magazynu z JSON; zapis Redis: first-writer-wins (`SET NX` / `HSETNX`). Fasady OpenAI/Anthropic **nie** eksponują `cacheSource` w body vendora — sygnał to nagłówek **`X-Gateway-Cache`** (JSON i stream).
 
 **Cooldown po 429 od providera** (`SmartRateLimiterService.setCooldown`) jest ustawiany w **`ChatErrorHandlerService.handleProviderError`** po błędzie upstream — dotyczy **`executeChat` i `executeStream`** (w obu ścieżkach przekazywany jest `gatewayKey`). Wspólne sprawdzenie cooldownu przed wywołaniem: `prepareRequestForExecution` → `checkCooldown`.
 
-Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi standardowej, jak i w SSE (`meta.model`) — vendorowy `modelId` nie jest zwracany w żadnej odpowiedzi. SSE **`meta`** jest emitowane w `ChatProviderCallService.streamOnce` (pierwsze udane wywołanie w łańcuchu retry/fallback).
+Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi standardowej, jak i w SSE (`meta.model`) — vendorowy `modelId` nie jest zwracany w żadnej odpowiedzi. SSE **`meta`** na live miss jest emitowane w `ChatProviderCallService.streamOnce` (pierwsze udane wywołanie w łańcuchu retry/fallback); na hicie cache — w `StreamCacheReplayService`.
 
 ### Typowe kody
 
@@ -166,16 +166,16 @@ Pole **`model`** to **alias** z żądania (`modelAlias`) zarówno w odpowiedzi s
 
 **Kontroler:** `ChatStreamController` + `StreamCleanupInterceptor` (zwolnienie slotu streamu w `finalize`).
 
-Przepływ: `validateForStreaming(modelAlias)` → nagłówki SSE + **`flushHeaders()`** → `executeStream`. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation_tracking.md`).
+Przepływ: `validateForStreaming(modelAlias)` → **`resolveStreamCache`** (prepare + cooldown + lookup cache) → nagłówki SSE + **`flushHeaders()`** → hit: **`replayStreamCacheHit`** / miss: **`executeStreamMiss`**. Body jak dla czatu standardowego (w tym opcjonalne **`conversationId`** — `conversation_tracking.md`).
 
-**Zdarzenia:** `meta` → `delta`\* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**. W **`done`**: opcjonalnie `usage` (z `totalTokens`), **`toolCalls`**, **`finishReason`**, opcjonalnie **`systemFingerprint`** (reguły jak w JSON powyżej). Retry/fallback — `ResilientExecutor` (fallback wyłączony przy tooling, jak w JSON).
+**Zdarzenia:** `meta` → `delta`\* → `done`. W **`meta`**: `id`, `provider`, `model`, opcjonalnie **`effectiveModelAlias`**, `requestId`, **`conversationId`**; przy hicie cache dodatkowo **`cached: true`**, **`cachedAt`**, **`cacheSource`** (`exact` | `semantic`) — tekst w `delta` z replay chunkami po 64 znaki. W **`done`**: opcjonalnie `usage` (z `totalTokens`), **`toolCalls`**, **`finishReason`**, opcjonalnie **`systemFingerprint`** (reguły jak w JSON powyżej). Retry/fallback — `ResilientExecutor` (fallback wyłączony przy tooling, jak w JSON); po udanym missie zapis do wspólnego magazynu gdy `!didFallback`.
 
 **Błędy i JSON `ErrorEnvelope`:**
 
-- **Przed SSE (pewny JSON):** `ValidationPipe`, guardy (`GatewayKeyGuard`, `SmartRateLimitGuard`), **`validateForStreaming`** — m.in. `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`.
-- **Po `flushHeaders`:** błędy z **`executeStream`** / **`ChatProviderCallService.streamOnce`** — m.in. `MODEL_NOT_ALLOWED` (niedozwolone pole w `params` sprawdzane dopiero w `resolveProviderCallOptions` wewnątrz `streamOnce`), błędy providera (`PROVIDER_*`), timeout (`PROVIDER_TIMEOUT`), wyczerpanie retry+fallback (`PROVIDER_UNAVAILABLE`). Klient może dostać **częściowy** strumień (`meta` / `delta`) zamiast poprawnego JSON; połączenie kończy się w `finally` kontrolera (`res.end()`).
+- **Przed SSE (pewny JSON):** `ValidationPipe`, guardy (`GatewayKeyGuard`, `SmartRateLimitGuard`), **`validateForStreaming`**, **`resolveStreamCache`** (cooldown → `RATE_LIMITED`) — m.in. `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `RATE_LIMITED`.
+- **Po `flushHeaders`:** błędy z **`executeStreamMiss`** / **`ChatProviderCallService.streamOnce`** — m.in. `MODEL_NOT_ALLOWED` (niedozwolone pole w `params` sprawdzane dopiero w `resolveProviderCallOptions` wewnątrz `streamOnce`), błędy providera (`PROVIDER_*`), timeout (`PROVIDER_TIMEOUT`), wyczerpanie retry+fallback (`PROVIDER_UNAVAILABLE`). Klient może dostać **częściowy** strumień (`meta` / `delta`) zamiast poprawnego JSON; połączenie kończy się w `finally` kontrolera (`res.end()`).
 
-Patrz: `src/chat/chat-stream.controller.ts`, `src/chat/chat.service.ts`, `src/chat/services/chat-provider-call.service.ts`.
+Patrz: `src/chat/chat-stream.controller.ts`, `src/chat/chat.service.ts`, `src/chat/services/stream-cache-replay.service.ts`, `src/chat/services/chat-provider-call.service.ts`.
 
 ---
 
@@ -185,14 +185,16 @@ Liveness — `HealthService.getLiveness()`: `{ status: "healthy", timestamp }`. 
 
 ## `GET /api/v1/health/ready`
 
-Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `redis`, `cache`).
+Readiness — `HealthService.getReadiness()`: `status` (`ready` | `not_ready`), `timestamp` (ISO 8601), `version`, `uptime`, `checks` (`config`, `redis`, `cache`, opcjonalnie `embeddings` i `vectorStore`).
 
 | Aspekt              | Zachowanie w kodzie                                                                                                                                                                                                                                                                                                                                                                  |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **HTTP**            | Zawsze **200** — gotowość oceniasz po polu **`status`** w body (`ready` / `not_ready`), nie po kodzie HTTP.                                                                                                                                                                                                                                                                          |
 | **`checks.config`** | **`healthy`** gdy załadowane są **`gateway`** i **`resolvedSystemPrompts`** (typowy start po poprawnym YAML). **`unhealthy`** gdy brakuje któregoś z tych obiektów w config — wtedy body często ma `status: not_ready`. Implementacja: `HealthService.checkConfig`.                                                                                                                  |
-| **`checks.redis`**  | **`required: false`** → **`healthy`**, „Redis not required”, bez probe. **`required: true`** → `RedisConnectionService.ping()`; **`healthy`** gdy PONG OK, **`degraded`** gdy połączenie/ping niedostępne — **nie** blokuje `ready`. Pole **`consumers`**: `cache`, `rate-limit` (kto wymaga Redis w tym deploymencie). Implementacja: `isRedisRequiredFromConfig()` + `checkRedis`. |
-| **`checks.cache`**  | Stan **feature** cache: wyłączony → **`healthy`** („Cache disabled (noop)”). Backend **`redis`** → status zależy od **`checks.redis`** (bez osobnego probe przez `CacheRegistryService`). Inne backendy → probe przez registry jak dotychczas. **`degraded`** nie blokuje `ready`.                                                                                                   |
+| **`checks.redis`**  | **`required: false`** → **`healthy`**, „Redis not required”, bez probe. **`required: true`** → `RedisConnectionService.ping()`; **`healthy`** gdy PONG OK, **`degraded`** gdy połączenie/ping niedostępne — **nie** blokuje `ready`. Pole **`consumers`**: `cache`, `rate-limit`, `semantic-cache` (kto wymaga Redis w tym deploymencie). Implementacja: `isRedisRequiredFromConfig()` + `checkRedis`. |
+| **`checks.cache`**  | Agregat **włączonych** warstw pipeline cache (exact Redis KV i/lub semantic embeddings + vectorStore). Obie wyłączone → **`healthy`** („Cache disabled (noop)”). `healthy` tylko gdy **wszystkie włączone** warstwy działają; inaczej **`degraded`** z listą `exact-redis`, `embeddings` i/lub `vectorStore`. Brak backendu `memory` / innych. **`degraded`** nie blokuje `ready`.                                                                                                   |
+| **`checks.embeddings`** | Obecne tylko gdy `SEMANTIC_CACHE_ENABLED=true`. Sprawdza dostępność serwisu embeddingów Ollama (`EMBEDDING_BASE_URL`, domyślnie `qwen3-embedding:0.6b`). **`healthy`** przy sukcesie, **`degraded`** gdy niedostępny — **fail-open**: stan degraded **nie** blokuje `ready`. Probe **nie** resetuje obwodu embeddingu. Pole nieobecne gdy cache semantyczny wyłączony. `consumers` w `checks.redis` zawiera `semantic-cache` gdy włączony. |
+| **`checks.vectorStore`** | Obecne tylko gdy `SEMANTIC_CACHE_ENABLED=true`. Sprawdza Redis Search / skonfigurowany indeks wektorowy (`FT.INFO` po leniwym `ensureIndex`). **`healthy`** gdy indeks dostępny; **`degraded`** gdy brak modułu Search lub indeksu (zwykły Redis → czytelny komunikat o braku `FT.*`) — **fail-open**, **nie** blokuje `ready`. `MODULE LIST` pozostaje checklistą Compose, nie jedynym sygnałem. |
 
 Orchestrator powinien traktować instancję jako gotową tylko przy `status === "ready"` w JSON.
 
@@ -209,7 +211,7 @@ Po każdej ewaluacji readiness (`getReadiness()` lub hook przy `GET /metrics`) w
 | **Format** | Prometheus text exposition (`Content-Type: text/plain; version=0.0.4`) |
 | **Backend** | `PrometheusAppMetricsAdapter` w production / `METRICS_BACKEND=prometheus`; dev domyślnie noop (pusty body) |
 | **Health gauges** | Przed `getMetricsSnapshot()` — `PreMetricsScrapeRegistry.runAll()` → `HealthService.refreshMetricsForScrape()` (throttle 5s; pełny check bez throttle na `GET /ready`) |
-| **Przykładowe metryki** | `gateway_readiness`, `gateway_health_status{component="config\|redis\|cache"}`, `gateway_requests_total`, `gateway_tokens_total`, `gateway_nodejs_*` |
+| **Przykładowe metryki** | `gateway_readiness`, `gateway_health_status{component="config\|redis\|cache\|embeddings\|vectorStore"}`, exact cache hit/miss, semantic hit / hash-hit / below-threshold / error / skip, `gateway_requests_total`, `gateway_tokens_total`, `gateway_nodejs_*` |
 | **Monitoring stack** | `deployment/monitoring/prometheus.yml`, alerty: `alerts.yml` — `deployment.md` |
 
 ---
@@ -457,7 +459,7 @@ Stabilne kody maszynowe — **`dictionary.md`**. **`GlobalExceptionFilter`** zac
 1. Używaj **`openapi.json`** do generatorów i integracji — wybierz właściwy **`securityScheme`**: `GatewayKeyAuth` (czat natywny), `BearerAuth` (OpenAI), `ApiKeyAuth` (Anthropic).
 2. Do **`POST /api/v1/chat`** i **`POST /api/v1/chat/stream`** dołącz nagłówek **`X-Gateway-Key`** z wartością operatora (allowlista — `konfiguracja.md`).
 3. **`params`** w body są opcjonalne — bez nich używane są wyłącznie `policy.params.defaults` z YAML; override wymaga wpisu pola w `allowOverrides` dla aliasu (`konfiguracja.md`). **Skutek u vendora** zależy od providera aliasu (np. Anthropic odrzuca jednoczesne `temperature` + `topP`) — `dictionary.md`.
-4. Przy włączonym cache powtórzone **`POST /api/v1/chat`** z tym samym body mogą zwrócić odpowiedź z **`cached: true`** bez wywołania providera (`konfiguracja.md`).
+4. Przy włączonym cache powtórzone **`POST /api/v1/chat`** z tym samym body mogą zwrócić odpowiedź z **`cached: true`** i **`cacheSource: "exact"`** (albo `"semantic"` po hicie KNN) bez wywołania providera (`konfiguracja.md`).
 5. Nie polegaj na **`role=system`** w `messages[]` — jest odrzucane; politykę systemową ustala operator w `src/config/system-prompt/`.
 6. Przy streamingu składaj tekst z kolejnych `delta`; metadane końcowe (`usage`, `toolCalls`, `finishReason`, opcjonalnie `systemFingerprint` — tylko gdy upstream je dostarczy) są w evencie **`done`**.
 7. **`usage`** może być niekompletne między providerami.

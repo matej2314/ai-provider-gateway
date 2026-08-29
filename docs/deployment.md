@@ -11,6 +11,7 @@ Gateway CLI (wizard, provider/model/client CRUD): [`command_line_interface.md`](
 
 - **Docker** 20.10+
 - **Docker Compose** 2.0+
+- **16 GB RAM** minimum for the base stack (gateway + Redis Stack + ollama-embedding). Chat Ollama (`llama3.1:8b`) is **not** part of the base and needs extra memory
 - Provider API keys (e.g. Anthropic, Google) — depending on configured adapters
 - (Optional) **Node.js 20+** and `npm install` — for configuration validation and CLI before deploy
 - **VPS deploy (Actions):** self-hosted runner on the server (`[self-hosted, linux]`), Docker daemon available to the runner (often DooD / `docker.sock`), application secrets as a copied `.env` on the host **or** via your own secrets manager (requires adapting [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) and scripts under `deployment/scripts/`), GitHub Environment `production`
@@ -22,12 +23,13 @@ Gateway CLI (wizard, provider/model/client CRUD): [`command_line_interface.md`](
 ```
 deployment/
 ├── docker/
-│   ├── Dockerfile                         # Multi-stage build (production)
-│   ├── docker-compose.yml                 # MVP: gateway only
-│   ├── docker-compose.redis.yml           # Extension: + Redis
-│   ├── docker-compose.monitoring.yml      # Extension: + Prometheus + Grafana
-│   ├── docker-compose.ollama.yml          # Extension: + Ollama (local LLM)
-│   ├── docker-compose.dev.yml             # Override: dev mode (hot reload)
+│   ├── Dockerfile                              # Multi-stage build (production)
+│   ├── docker-compose.yml                      # Gateway service (combined in the base stack with Redis + embedding)
+│   ├── docker-compose.redis.yml                # Extension: + Redis Stack (port 6380, redis/redis-stack-server:7.4.0-v8, REDIS_ARGS)
+│   ├── docker-compose.monitoring.yml           # Extension: + Prometheus + Grafana
+│   ├── docker-compose.ollama.yml               # Optional: + Ollama chat LLM (not part of the base)
+│   ├── docker-compose.ollama-embedding.yml     # Extension: + Ollama embedding (qwen3-embedding:0.6b, port 11435, CPU)
+│   ├── docker-compose.dev.yml                  # Override: dev mode (hot reload)
 │   └── docker-compose.override.yml.example
 ├── monitoring/                            # Prometheus, Grafana, alert rules
 │   ├── prometheus.yml                     # Scrape /metrics every 10s
@@ -155,12 +157,44 @@ Choose a stack variant:
 
 | Variant | Makefile | npm |
 |---------|----------|-----|
-| MVP (gateway only) | `make docker-up` | `npm run docker:up` |
-| Gateway + Redis | `make docker-up-redis` | `npm run docker:up:redis` |
+| **Base** (gateway + Redis Stack + ollama-embedding) | `make docker-up` | `npm run docker:up` |
+| Gateway + Redis Stack (no embedding) | `make docker-up-redis` | `npm run docker:up:redis` |
 | Gateway + monitoring | `make docker-up-monitoring` | `npm run docker:up:monitoring` |
-| Full stack (prod) | `make docker-up-full` | `npm run docker:up:full` |
+| Full stack (base + Prometheus + Grafana) | `make docker-up-full` | `npm run docker:up:full` |
+| Infra only (Redis Stack + embedding, for `start:dev`) | `make infra-up` | `npm run infra:up` |
+| Chat Ollama (optional local LLM — **not** part of the base) | `make docker-up-ollama` | `npm run docker:up:ollama` |
 | Dev (hot reload) | `make docker-up-dev` | `npm run docker:up:dev` |
-| Dev + full stack | `make docker-up-dev-full` | `npm run docker:up:dev:full` |
+| Dev + full stack (base + monitoring, hot reload) | `make docker-up-dev-full` | `npm run docker:up:dev:full` |
+
+**Product base stack:** gateway + Redis Stack + ollama-embedding. Delivered by `deployment/docker/docker-compose.ollama-embedding.yml`, Redis Stack image/`REDIS_ARGS`, and npm scripts `infra:up` / base `docker:up` (also `docker:up:full` and `docker:up:dev:full`). `npm run start:dev` does **not** start Docker — use `npm run infra:up` first for semantic cache locally. Chat Ollama (`llama3.1:8b`) stays on `docker:up:ollama`.
+
+**RAM requirement:** the base stack (gateway + Redis Stack + ollama-embedding with `qwen3-embedding:0.6b` on CPU) requires minimum **16 GB RAM**. Chat Ollama is a separate optional service and is **not** included in that figure.
+
+**Redis Stack:** image `redis/redis-stack-server:7.4.0-v8` (pinned tag — do not use `:latest`), port **6380**, `noeviction` policy (via **`REDIS_ARGS`** — do **not** override `command:` in the Compose file or the Redis Search module will be lost). Health check: `redis-cli -p 6380 ping`. Sanity: `MODULE LIST` contains `search`. When the gateway Compose file is included, gateway waits for `redis` healthy.
+
+**Ollama embedding (`docker-compose.ollama-embedding.yml`):** official `ollama/ollama` image with a one-shot `ollama-pull` of `qwen3-embedding:0.6b` (DIM **1024**), CPU-only (no GPU), host port **11435** → container 11434, `OLLAMA_KEEP_ALIVE=-1`, **separate volume** from the chat Ollama service, network `ai-gateway-network`, API `POST /api/embed`. When the gateway Compose file is included, gateway waits for `ollama-embedding` healthy. Set `EMBEDDING_BASE_URL=http://localhost:11435` on the host (`start:dev`) or `http://ollama-embedding:11434` inside Docker networking.
+
+### First semantic cache locally
+
+Minimal path without containerizing the gateway:
+
+```bash
+docker network create ai-gateway-network   # once; ignore error if it already exists
+cp .env.example .env                       # set REDIS_PORT=6380, EMBEDDING_BASE_URL=http://localhost:11435, SEMANTIC_CACHE_ENABLED=true
+npm run infra:up                           # Redis Stack :6380 + Ollama embedding :11435
+npm run start:dev
+```
+
+Smoke after infra is up:
+
+```bash
+docker exec ai-gateway-redis redis-cli -p 6380 MODULE LIST   # expect name=search
+curl -s http://localhost:11435/api/embed -H 'Content-Type: application/json' \
+  -d '{"model":"qwen3-embedding:0.6b","input":"ping"}'       # non-empty embedding
+curl -s http://localhost:3000/api/v1/health/ready            # with SEMANTIC_CACHE_ENABLED=true: checks.embeddings + checks.vectorStore present (healthy or degraded fail-open)
+```
+
+Stop infra: `npm run infra:down`.
 
 Image build (optionally separately):
 
@@ -180,7 +214,7 @@ Compose loads `.env` from the root directory (`--env-file .env`) and mounts:
 # Liveness
 curl http://localhost:3000/api/v1/health
 
-# Readiness (config, Redis, cache — depending on env)
+# Readiness (config, Redis, cache, optionally embeddings — depending on env)
 curl http://localhost:3000/api/v1/health/ready
 
 # Chat test (replace YOUR_MASTER_KEY and model alias)
@@ -210,7 +244,8 @@ make docker-down
 | Swagger UI | http://localhost:3000/api/v1/api-docs | Disabled in production by default (`SWAGGER_ENABLED`) |
 | Prometheus | http://localhost:9090 | Only with `docker-compose.monitoring.yml` |
 | Grafana | http://localhost:3001 | Login: `GRAFANA_USER` / `GRAFANA_PASSWORD` from `.env` (default admin/admin) |
-| Redis | localhost:6379 | Only with the Redis extension |
+| Redis Stack | localhost:6380 | Redis Search required for semantic cache; do not override `command:` |
+| Ollama embedding | http://localhost:11435 | `qwen3-embedding:0.6b`; container listens on 11434 |
 
 ---
 
@@ -322,8 +357,11 @@ Full template: `.env.example` (repo root; paired with `gateway.config.example.ya
 | `PORT` | `3000` | HTTP port |
 | `NODE_ENV` | — | `production` / `development` |
 | `REDIS_HOST` | `localhost` | Redis host (in Compose: `redis`) |
-| `CACHE_ENABLED` | `false` | Enable response cache |
-| `CACHE_BACKEND` | `noop` | `redis` requires Redis |
+| `CACHE_ENABLED` | `false` | Enable exact response cache |
+| `CACHE_BACKEND` | `noop` | `redis` requires Redis; semantic cache is **not** a `CACHE_BACKEND` value |
+| `SEMANTIC_CACHE_ENABLED` | `false` (code) / `true` (project `.env`) | Semantic lookup; requires Redis Stack + embedding |
+| `EMBEDDING_BASE_URL` | `http://localhost:11435` | Host vs `http://ollama-embedding:11434` in Docker |
+| `EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Change = new Redis Search index (`ai-provider-gateway:sem:idx:` + full normalized model + DIM + schema hash) |
 | `RATE_LIMIT_SMART_ENABLED` | `false` | Smart rate limit per key (requires Redis) |
 | `SENTRY_DSN` | empty | Error reporting / AI metrics (Sentry) |
 | `METRICS_BACKEND` | auto | `prometheus` / `noop` — in production defaults to Prometheus |
@@ -401,7 +439,7 @@ Manual rollback without waiting for auto-rollback: the same workflow with `sha` 
 4. **Mutation point** — from here a failure may leave the host in a half-state; auto-rollback is authorized.
 5. `deploy-production.sh sync` — stop old gateway/prometheus/grafana containers, clear `DEPLOY_DIR` (keeps `.env` and `.deployed-sha`), upload checkout via tar (DooD-safe path).
 6. `secrets` — AppRole login to Vault, write `.env`.
-7. `up` — **creates** the external `ai-gateway-network` network (if missing; `docker network create … || true`), host bind overlays (`DEPLOY_DIR` → config/logs/monitoring), `compose build gateway` + `up -d` (full stack: gateway + Redis + monitoring).
+7. `up` — **creates** the external `ai-gateway-network` network (if missing; `docker network create … || true`), host bind overlays (`DEPLOY_DIR` → config/logs/monitoring), `compose build gateway` + `up -d` (full stack: gateway + Redis Stack + ollama-embedding + monitoring). Redis is already in production; embedding is part of the documented base.
 8. `health` — readiness loop.
 9. Write new SHA to `.deployed-sha`.
 10. Cleanup workspace `.env` (does **not** delete host `.env`).
@@ -450,7 +488,7 @@ Important variables: `DEPLOY_DIR`, `LAST_GOOD_SHA_FILE`, `SKIP_VAULT_FETCH`, `HE
 - **Container logs:** `docker logs ai-gateway -f` or `make docker-logs`
 - **Prometheus:** http://localhost:9090 (after enabling the monitoring extension)
 - **Grafana:** http://localhost:3001 — `make dashboard`
-- **Application metrics:** `GET /metrics` (public, **without** `/api/v1` prefix) — Prometheus text format; before export, readiness gauges are refreshed (`gateway_readiness`, `gateway_health_status{component="config|redis|cache"}`) and `gateway_process_uptime_seconds`
+- **Application metrics:** `GET /metrics` (public, **without** `/api/v1` prefix) — Prometheus text format; before export, readiness gauges are refreshed (`gateway_readiness`, `gateway_health_status{component="config|redis|cache|embeddings"}`) and `gateway_process_uptime_seconds`. Semantic cache also exposes exact hit/miss and semantic hit / hash-hit / below-threshold / error / skip counters (fail-open).
 - **HTTP health:**
   - Liveness: `GET /api/v1/health`
   - Readiness: `GET /api/v1/health/ready` (Docker HEALTHCHECK parses `body.status`)
@@ -466,6 +504,7 @@ curl -s http://localhost:3000/metrics | grep -E 'gateway_readiness|gateway_healt
 # gateway_health_status{component="config"} 1
 # gateway_health_status{component="redis"} 1
 # gateway_health_status{component="cache"} 1
+# gateway_health_status{component="embeddings"} 1   # when SEMANTIC_CACHE_ENABLED=true
 ```
 
 ### Prometheus and alerts
@@ -523,10 +562,10 @@ Typical causes: missing `gateway.config.yaml` in the root directory, missing `ai
 
 ```bash
 docker ps | grep redis
-docker exec ai-gateway-redis redis-cli ping   # expected: PONG
+docker exec ai-gateway-redis redis-cli -p 6380 ping   # expected: PONG
 ```
 
-When `RATE_LIMIT_SMART_ENABLED=true` or `CACHE_BACKEND=redis`, readiness may report `degraded` without a working Redis.
+When `RATE_LIMIT_SMART_ENABLED=true`, `CACHE_BACKEND=redis`, or `SEMANTIC_CACHE_ENABLED=true`, readiness may report `checks.redis: degraded` without a working Redis. `checks.cache` is the pipeline aggregate of **enabled** layers (exact Redis KV and/or semantic embeddings + vectorStore); it is `degraded` when any enabled layer fails (`exact-redis`, `embeddings`, `vectorStore`) and does **not** block `ready`. Semantic cache fail-open still lets chat through; `checks.embeddings: degraded` and `checks.vectorStore: degraded` do not block `ready`. `/ready` surfaces Search/index health via `checks.vectorStore`; `MODULE LIST` remains a Compose runbook checklist, not the only signal.
 
 ### Prometheus / Grafana do not respond
 
@@ -562,7 +601,7 @@ Before deploying to production:
 - [ ] Host directory `/opt/ai-provider-gateway` exists and is mountable by the Docker daemon
 - [ ] HTTPS — reverse proxy (nginx, Traefik, load balancer)
 - [ ] Rate limit limits — matched to provider API tiers and traffic
-- [ ] Redis — if cache is enabled (`CACHE_BACKEND=redis`) or smart rate limit
+- [ ] Redis Stack — if exact cache (`CACHE_BACKEND=redis`), smart rate limit, or semantic cache (`SEMANTIC_CACHE_ENABLED=true`) is enabled; confirm `MODULE LIST` includes `search`
 - [ ] `gateway config:validate` — success on the target configuration (more complete than `npm run config:validate` alone)
 - [ ] Green `ci.yml` for the SHA that will go to the VPS (gate in `deploy.yml`)
 - [ ] `npm run test:all` — before local MVP/staging deploy

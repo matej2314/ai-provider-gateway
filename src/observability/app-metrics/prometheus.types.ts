@@ -16,6 +16,7 @@ export interface PrometheusMetrics {
   llmTokensPerRequest: Histogram<'provider' | 'model'>;
   rateLimitsTotal: Counter<'client' | 'reason'>;
   cacheAccessTotal: Counter<'model' | 'hit'>;
+  semanticCacheLookupTotal: Counter<'model' | 'result'>;
   cacheHitRate: Gauge<'model'>;
   activeStreams: Gauge<'client'>;
   providerHealth: Gauge<'provider'>;

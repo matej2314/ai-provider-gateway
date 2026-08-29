@@ -26,6 +26,11 @@ import { ApiRequestIdHeader } from '../../../common/decorators/api-request-id-he
 import { mapAnthropicRequestToGateway } from '../mappers/anthropic-request.mapper';
 import { mapGatewayResponseToAnthropicFormat } from '../mappers/anthropic-response.mapper';
 import {
+  toChatResponseDto,
+  toChatResponseDtoFromCache,
+} from '../../../chat/dto/chat-response.dto';
+import { GATEWAY_CACHE_HEADER } from '../../../cache/types/chat-cache-source.type';
+import {
   createAnthropicStreamState,
   mapSseEventToAnthropic,
 } from '../mappers/anthropic-stream.mapper';
@@ -37,7 +42,6 @@ import { ApiErrorCode } from '../../../common/errors/api-error.code';
 import { asRequestId, asClientId } from '../../../common/types/branded.types';
 import type { SseEvent } from '../../../chat/sse/sse-event.type';
 import type { Request, Response } from 'express';
-import type { ChatResponseDto } from '../../../chat/dto/chat-response.dto';
 import type { GatewayKey } from '../../../common/types';
 
 @ApiTags('Anthropic API')
@@ -61,11 +65,25 @@ export class AnthropicMessagesController {
     status: 201,
     type: AnthropicMessagesResponseDto,
     description: 'Non-streaming response.',
+    headers: {
+      [GATEWAY_CACHE_HEADER]: {
+        description:
+          'Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.',
+        schema: { type: 'string', enum: ['exact', 'semantic'] },
+      },
+    },
   })
   @ApiProduces('text/event-stream')
   @ApiResponse({
     status: 200,
     description: ANTHROPIC_STREAM_API_DESCRIPTION,
+    headers: {
+      [GATEWAY_CACHE_HEADER]: {
+        description:
+          'Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.',
+        schema: { type: 'string', enum: ['exact', 'semantic'] },
+      },
+    },
     content: {
       'text/event-stream': {
         schema: { type: 'string' },
@@ -99,14 +117,27 @@ export class AnthropicMessagesController {
     }
 
     const gatewayRequest = mapAnthropicRequestToGateway(body);
-    const result = (await this.chatService.executeChat(
+    const result = await this.chatService.executeChat(
       gatewayRequest,
       req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
       asRequestId(req.requestId),
       gatewayKey,
       'facade-anthropic',
-    )) as ChatResponseDto;
-    res.json(mapGatewayResponseToAnthropicFormat(result, body.model));
+    );
+
+    if ('cached' in result && result.cached && result.cacheSource) {
+      res.setHeader(GATEWAY_CACHE_HEADER, result.cacheSource);
+    }
+
+    const dto =
+      'cached' in result && result.cached
+        ? toChatResponseDtoFromCache(result, result.conversationId, {
+            cacheSource: result.cacheSource,
+            requestId: result.requestId,
+          })
+        : toChatResponseDto(result);
+
+    res.json(mapGatewayResponseToAnthropicFormat(dto, body.model));
   }
 
   private async handleStream(
@@ -117,9 +148,14 @@ export class AnthropicMessagesController {
   ) {
     this.chatService.validateForStreaming(body.model);
 
+    const requestId = asRequestId(req.requestId);
+    const clientId = req.clientId
+      ? asClientId(req.clientId)
+      : asClientId('unknown');
+
     const streamsCheck = await this.rateLimiter.checkConcurrentStreams(
       gatewayKey,
-      req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
+      clientId,
     );
 
     if (!streamsCheck.allowed) {
@@ -138,32 +174,61 @@ export class AnthropicMessagesController {
     const gatewayRequest = mapAnthropicRequestToGateway(body);
     const state = createAnthropicStreamState(body.model);
 
-    res.status(200);
-    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-    res.setHeader('anthropic-version', '2023-06-01');
-    res.setHeader('Cache-Control', 'no-cache');
-    if (req.requestId) {
-      res.setHeader('x-request-id', req.requestId);
-    }
-    res.flushHeaders?.();
-
     try {
-      await this.chatService.executeStream(
+      const decision = await this.chatService.resolveStreamCache(
         gatewayRequest,
-        asRequestId(req.requestId),
-        req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
-        (event: SseEvent) => {
-          const lines = mapSseEventToAnthropic(event, state);
-          for (const line of lines) {
-            res.write(line);
-          }
-        },
+        requestId,
+        clientId,
         'facade-anthropic',
         gatewayKey,
       );
+
+      res.status(200);
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('anthropic-version', '2023-06-01');
+      res.setHeader('Cache-Control', 'no-cache');
+      if (req.requestId) {
+        res.setHeader('x-request-id', req.requestId);
+      }
+
+      if (decision.outcome === 'hit') {
+        res.setHeader(GATEWAY_CACHE_HEADER, decision.cacheSource);
+      }
+
+      res.flushHeaders?.();
+
+      const emit = (event: SseEvent) => {
+        const lines = mapSseEventToAnthropic(event, state);
+        for (const line of lines) {
+          if (!res.writableEnded) {
+            res.write(line);
+          }
+        }
+      };
+
+      try {
+        if (decision.outcome === 'hit') {
+          this.chatService.replayStreamCacheHit(
+            decision,
+            requestId,
+            emit,
+            () => res.writableEnded,
+          );
+        } else {
+          await this.chatService.executeStreamMiss(
+            gatewayRequest,
+            requestId,
+            clientId,
+            emit,
+            gatewayKey,
+            decision,
+          );
+        }
+      } finally {
+        res.end();
+      }
     } finally {
       await this.rateLimiter.releaseStream(gatewayKey);
-      res.end();
     }
   }
 }

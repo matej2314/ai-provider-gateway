@@ -11,7 +11,7 @@ class HealthReadinessChecksDto {
   @ApiPropertyOptional({
     type: HealthRedisCheckItemDto,
     description:
-      'Shared redis infrastructure. Present only when Redis is required (cache redis and/or smart rate limit). Probed when present.',
+      'Shared redis infrastructure. Present only when Redis is required (cache redis and/or smart rate limit and/or semantic cache). Probed when present.',
   })
   redis?: HealthRedisCheckItemDto;
 
@@ -21,6 +21,20 @@ class HealthReadinessChecksDto {
       'Response cache feature state. When backend is redis, availability follows checks.redis.',
   })
   cache: HealthCheckItemDto;
+
+  @ApiPropertyOptional({
+    type: HealthCheckItemDto,
+    description:
+      'Embedding service health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded state does not block ready status. Probe does not reset the embedding circuit breaker.',
+  })
+  embeddings?: HealthCheckItemDto;
+
+  @ApiPropertyOptional({
+    type: HealthCheckItemDto,
+    description:
+      'Redis Search vector index health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded (missing Search module or index) does not block ready status.',
+  })
+  vectorStore?: HealthCheckItemDto;
 }
 
 export class HealthReadinessResponseDto {

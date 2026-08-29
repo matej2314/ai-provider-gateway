@@ -4,5 +4,6 @@ export function createMockResponseCacheService(): Partial<ResponseCacheService> 
   return {
     getCachedResponse: jest.fn().mockResolvedValue(null),
     setCachedResponse: jest.fn(),
+    buildIdentityKey: jest.fn().mockReturnValue('cache-identity-key'),
   };
 }

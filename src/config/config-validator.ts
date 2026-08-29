@@ -124,6 +124,26 @@ export function validateGatewayConfig(
 
   warnings.push(...collectInactiveProviderWarnings(parsed, effectiveConfig));
 
+  const rawMinSimilarity = env.SEMANTIC_CACHE_MIN_SIMILARITY;
+  if (
+    rawMinSimilarity !== undefined &&
+    String(rawMinSimilarity).trim() !== ''
+  ) {
+    const minSimilarity = Number(rawMinSimilarity);
+    if (Number.isFinite(minSimilarity) && minSimilarity < 0.85) {
+      warnings.push(
+        `WARN: SEMANTIC_CACHE_MIN_SIMILARITY=${minSimilarity} is below 0.85 — low thresholds increase false semantic hits (see anti-patterns §18)`,
+      );
+    }
+  }
+
+  const rawSemanticTtl = env.SEMANTIC_CACHE_TTL;
+  if (rawSemanticTtl !== undefined && String(rawSemanticTtl).trim() !== '') {
+    warnings.push(
+      'WARN: SEMANTIC_CACHE_TTL is deprecated and ignored — semantic entry TTL always follows CACHE_TTL',
+    );
+  }
+
   return {
     success: true,
     effectiveConfig,

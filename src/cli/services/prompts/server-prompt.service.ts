@@ -18,6 +18,8 @@ export interface ServerConfigPromptResult {
   redisPassword?: string;
 
   rateLimitSmartEnabled?: boolean;
+  /** Snapshot from existing env; wizard questions = Phase 5. */
+  semanticCacheEnabled?: boolean;
 
   metricsBackend?: 'sentry' | 'noop';
   sentryDsn?: string;
@@ -132,6 +134,9 @@ export class ServerPromptService {
       },
     ]);
 
+    // Semantic cache prompts = Phase 5; honor existing env for Redis snapshot.
+    const semanticCacheEnabled = process.env.SEMANTIC_CACHE_ENABLED === 'true';
+
     const redisRequired = isRedisRequired({
       cache: {
         enabled: cacheAnswers.cacheEnabled === true,
@@ -140,6 +145,7 @@ export class ServerPromptService {
           : 'noop',
       },
       rateLimitSmartEnabled: rateLimitAnswers.rateLimitSmartEnabled === true,
+      semanticCacheEnabled,
     });
 
     let redisAnswers: RedisAnswers = {};
@@ -242,6 +248,7 @@ export class ServerPromptService {
         ? asPort(redisAnswers.redisPort)
         : undefined,
       rateLimitSmartEnabled: rateLimitAnswers.rateLimitSmartEnabled,
+      semanticCacheEnabled,
       ...metricsAnswers,
       ...sentryAnswers,
     };

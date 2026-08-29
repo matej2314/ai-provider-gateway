@@ -10,7 +10,9 @@ import { StreamCleanupInterceptor } from 'src/common/interceptors/stream-cleanup
 import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
-import { ChatCacheGuardService } from './services/chat-cache-guard.service';
+import { ChatCachePipelineService } from './services/chat-cache-pipeline.service';
+import { ChatProviderCooldownService } from './services/chat-provider-cooldown.service';
+import { StreamCacheReplayService } from './services/stream-cache-replay.service';
 
 @Module({
   controllers: [ChatController, ChatStreamController],
@@ -24,7 +26,9 @@ import { ChatCacheGuardService } from './services/chat-cache-guard.service';
     ChatErrorHandlerService,
     ChatValidationService,
     ChatResponseBuilderService,
-    ChatCacheGuardService,
+    ChatCachePipelineService,
+    ChatProviderCooldownService,
+    StreamCacheReplayService,
   ],
   exports: [ChatService, SmartRateLimitGuard],
 })

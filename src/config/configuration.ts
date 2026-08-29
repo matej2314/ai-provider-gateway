@@ -21,7 +21,10 @@ import type {
   ResolvedGatewayClient,
   GatewayKeyRuntimeConfig,
 } from './configuration.types';
-import type { AppConfiguration } from './app-configuration.types';
+import type {
+  AppConfiguration,
+  SemanticCacheRuntimeConfig,
+} from './app-configuration.types';
 
 export type {
   GatewayConfig,
@@ -48,6 +51,7 @@ import {
   asRateLimitRps,
   asMaxConcurrentStreams,
   asCacheTtlSeconds,
+  asSemanticCacheTtlSeconds,
   asPort,
 } from 'src/common/types/branded.types';
 import { isRedisRequired } from '../cache/should-include-redis-stack';
@@ -266,10 +270,23 @@ export function buildAppConfiguration(
   };
 
   const rateLimitSmartEnabled = env.RATE_LIMIT_SMART_ENABLED ?? false;
+  const semanticCacheEnabled = env.SEMANTIC_CACHE_ENABLED ?? false;
+
+  const semanticCacheConfig: SemanticCacheRuntimeConfig = {
+    enabled: semanticCacheEnabled,
+    embeddingBaseUrl: env.EMBEDDING_BASE_URL ?? 'http://localhost:11435',
+    embeddingModel: env.EMBEDDING_MODEL ?? 'qwen3-embedding:0.6b',
+    embeddingDim: env.EMBEDDING_DIM ?? 1024,
+    embeddingTimeoutMs: env.EMBEDDING_TIMEOUT_MS ?? 5000,
+    minSimilarity: env.SEMANTIC_CACHE_MIN_SIMILARITY ?? 0.85,
+    ttl: asSemanticCacheTtlSeconds(env.CACHE_TTL ?? 3600),
+    k: env.SEMANTIC_CACHE_K ?? 3,
+  };
 
   const redisConfig: RedisRuntimeConfig = isRedisRequired({
     cache: cacheConfig,
     rateLimitSmartEnabled,
+    semanticCacheEnabled,
   })
     ? {
         host: env.REDIS_HOST ?? 'localhost',
@@ -295,6 +312,7 @@ export function buildAppConfiguration(
     resolvedSystemPrompts: systemPromptsResolved,
     cache: cacheConfig,
     redis: redisConfig,
+    semanticCache: semanticCacheConfig,
     RATE_LIMIT_SMART_ENABLED: rateLimitSmartEnabled,
     rateLimit: {
       rps: asRateLimitRps(env.RATE_LIMIT_RPS_PER_KEY ?? 10),

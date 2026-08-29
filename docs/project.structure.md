@@ -38,8 +38,8 @@ ai-provider-gateway/
 ├── deployment/                     # Docker, monitoring, VPS scripts
 │   ├── docker/
 │   │   ├── Dockerfile              # Multi-stage build (production)
-│   │   ├── docker-compose.yml      # MVP: gateway only
-│   │   └── docker-compose.*.yml    # redis, monitoring, ollama, dev
+│   │   ├── docker-compose.yml      # gateway service (base stack = this + redis + ollama-embedding)
+│   │   └── docker-compose.*.yml    # redis (Redis Stack :6380), monitoring, ollama (chat LLM), ollama-embedding (qwen3-embedding:0.6b :11435), dev
 │   ├── monitoring/                 # Prometheus, Grafana, alerts
 │   ├── scripts/                    # deploy-production.sh, deploy-staging.sh, rollback.sh (Actions)
 │   └── templates/                  # optional CI/mirror PLACEHOLDER copies (prefer root examples)
@@ -137,8 +137,8 @@ ai-provider-gateway/
 │   │   │   ├── chat-validation.service.spec.ts
 │   │   │   ├── chat-response-builder.service.ts
 │   │   │   ├── chat-response-builder.service.spec.ts
-│   │   │   ├── chat-cache-guard.service.ts
-│   │   │   └── chat-cache-guard.service.spec.ts
+│   │   │   ├── chat-cache-pipeline.service.ts
+│   │   │   └── chat-cache-pipeline.service.spec.ts
 │   │   ├── dto/
 │   │   │   ├── chat-request.dto.ts
 │   │   │   ├── chat-params.dto.ts
@@ -467,7 +467,7 @@ ai-provider-gateway/
 │   │
 │   ├── cache/
 │   │   ├── cache.module.ts                 # CacheModule.register({ includeRedisStack: isRedisRequiredFromEnv() })
-│   │   ├── should-include-redis-stack.ts   # isRedisRequired — redis cache and/or smart rate limit
+│   │   ├── should-include-redis-stack.ts   # isRedisRequired — exact redis and/or smart rate limit and/or semantic-cache
 │   │   ├── cache.tokens.ts
 │   │   ├── cache-registry.service.ts
 │   │   ├── response-cache.service.ts
@@ -477,7 +477,12 @@ ai-provider-gateway/
 │   │   ├── types/
 │   │   │   └── cached-chat-response.type.ts
 │   │   ├── interfaces/
-│   │   │   └── cache-backend-interface.ts
+│   │   │   └── cache-backend-interface.ts  # KV only — do not add Search here
+│   │   ├── semantic/                       # EmbeddingBackend + VectorStore ports (not CacheBackend)
+│   │   │   ├── embedding-backend.interface.ts
+│   │   │   ├── vector-store.interface.ts
+│   │   │   ├── semantic-cache.service.ts   # HASH last-user, then embed + KNN, threshold, reuse vector on SET
+│   │   │   └── adapters/                   # Ollama POST /api/embed; Redis Search FT.CREATE / KNN
 │   │   └── adapters/
 │   │       ├── noop-cache/
 │   │       │   ├── noop-cache.module.ts
@@ -485,7 +490,7 @@ ai-provider-gateway/
 │   │       └── redis-cache/
 │   │           ├── redis-cache.module.ts
 │   │           ├── redis-cache.adapter.ts
-│   │           └── redis-connection.service.ts
+│   │           └── redis-connection.service.ts  # shared: exact KV + rate limit + semantic Search
 │   │
 │   └── common/
 │       ├── readGatewayKeyHeader.ts
@@ -570,13 +575,13 @@ ai-provider-gateway/
 
 | Directory                                  | Responsibility                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`src/chat/`**                          | HTTP chat + SSE. **`ChatService`**: shared `prepareRequestForExecution` (ingress, cooldown check), orchestration (`executeChat` with cache / `executeStream` without cache), **`ResilientExecutor`** (`resilience/`). Helper services: **`ChatProviderCallService`**, **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCacheGuardService`**, **`ChatErrorHandlerService`**. Retry policy: `helpers/retry-policy.ts` + `src/common/retry-policy-defaults.ts`.                                                                                                                                                                                                                                                |
+| **`src/chat/`**                          | HTTP chat + SSE. **`ChatService`**: shared `prepareRequestForExecution` (ingress, cooldown check), orchestration (`executeChat` with cache / `resolveStreamCache` + `executeStreamMiss` / `replayStreamCacheHit`), **`StreamCacheReplayService`**, **`ResilientExecutor`** (`resilience/`). Helper services: **`ChatProviderCallService`**, **`ChatValidationService`**, **`ChatResponseBuilderService`**, **`ChatCachePipelineService`**, **`ChatErrorHandlerService`**. Retry policy: `helpers/retry-policy.ts` + `src/common/retry-policy-defaults.ts`.                                                                                                                                                                                                                                                |
 | **`src/providers/`**                     | Port `AIProvider`, SDK factories (`factories/`), instance bootstrap (`ProviderInstancesBootstrap`), registry (`ProviderRegistryService`). Types: `anthropic`, `google`, `openai`, `openai-compatible`. Mappers: `anthropic-tools.mapper.ts`, `anthropic-thinking.mapper.ts`, `google-tools.mapper.ts`, `openai/` (Chat Completions + Responses adapters; routing in `create-openai-provider.core.ts`: `openai` → Responses, `openai-compatible` → Chat Completions). Sole layer with direct vendor SDK use. Multiple YAML entries with the same `type` → multiple factory calls with different API keys / `baseUrlRef`. |
 | **`src/integrations/`**                  | HTTP facades (OpenAI API, Anthropic Messages API) — vendor contract ↔ `ChatRequestDto` / `ChatService` mapping. No SDK calls; errors in vendor format (local filters). Anthropic facade: reverse map `finishReason` via `anthropic-stop-reason.mapper.ts`; usage JSON/stream — `anthropic-usage.mapper.ts`. Details: `integrations.md`.                                                                                                                                                                                                                                                                       |
 | **`src/config/`**                        | Load `gateway.config.yaml`, Zod schema (`gateway-config.schema.ts`), `buildEffectiveGatewayConfig`, `buildAppConfiguration` → **`AppConfiguration`**, `getAppConfig` / `getAppConfigOrThrow` (`typed-config.ts`). **Validation facade:** `ConfigurationValidationService` (`configuration-validation.service.ts`) — `validateEnvironment`, master key, provider secrets (delegation to `env.validation` / `provider-*-validation`). Offline: `validateGatewayConfig()` (`config-validator.ts`). Prompt files in `system-prompt/`. |
 | **`src/chat/resilience/`**               | `ResilientExecutor` — retry, timeout (`AbortSignal` per attempt + deadline → `PROVIDER_TIMEOUT`), one-hop fallback; `fallback-chain.ts`, `is-retryable-http-error.ts`, `resilience.types.ts` (`runOnce(alias, attempt, signal)`). Provider in `ChatModule`; used only by `ChatService`.                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | **`src/common/`**                        | Error filter, `requestId` middleware, stream interceptor, SDK error mapping, guard and OpenAPI decorators (`ApiGatewayChatErrorResponses`, `ApiOpenAiErrorResponses`, `ApiAnthropicErrorResponses`, `ApiRequestIdHeader`), **`RETRY_POLICY_DEFAULTS`**, **brand types** (`types/branded.*`), Express types (`express.d.ts`), test mocks (`mocks/` — among others `createMockResilientExecutor`), validators (`validators/` — e.g. `stop` as string \| string[]). |
-| **`src/cache/`**                         | Response cache only for **`POST /api/v1/chat`** (`noop` / `redis`). Reads validated with **`CachedChatResponseSchema`**. **`RedisConnectionService`** — shared Redis infrastructure (cache + rate limit); predicate `isRedisRequired()` in `should-include-redis-stack.ts`.                                                                                                                                                                                                                                                                                                                                        |
+| **`src/cache/`**                         | Response cache for **`POST /api/v1/chat`** — two layers: (1) **exact** (`noop` / `redis` KV, `ResponseCacheService`, reads validated with `CachedChatResponseSchema`); (2) **semantic** (`src/cache/semantic/` — `EmbeddingBackend` + `VectorStore` ports, Ollama + Redis Search KNN adapters, `SemanticCacheService`). **`RedisConnectionService`** — shared Redis infrastructure (exact cache + rate limit + semantic Search); predicate `isRedisRequired()` in `should-include-redis-stack.ts`. Lookup order: exact → semantic → provider. Store only `finishReason=stop` + non-empty text without `toolCalls`. `requestId` not stored; hit stamps the current request. At most one `embed` per JSON request (vector reuse / no retry / first embed if lookup skipped). |
 | **`src/guards/`**, **`src/rate-limit/`** | `GatewayKeyGuard`, `SmartRateLimitGuard` (may be used standalone — then it verifies `X-Gateway-Key` itself); `SmartRateLimiterService` + Redis via shared `RedisConnectionService` (loaded when `isRedisRequiredFromEnv()`).                                                                                                                                                                                                                                                                                                                                                                                      |
 | **`src/logging/`**                       | Pino structured logging; optional Sentry error reporting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **`src/observability/`**                 | **`AiMetricsModule`** (Sentry LLM) + **`AppMetricsModule`** (Prometheus, `GET /metrics`, health gauges, `PreMetricsScrapeRegistry`). See `conversation-tracking.md`, `deployment.md`.                                                                                                                                                                                                                                                                                                                                                                 |
@@ -632,7 +637,7 @@ Full command documentation: **`command_line_interface.md`**.
 - Error envelope (`GlobalExceptionFilter`), codes **`RATE_LIMITED`** / **`PROVIDER_RATE_LIMITED`** (`api-error.code.ts`).
 - `RequestIdMiddleware` — body + response header **`x-request-id`**.
 - Gateway key + smart rate limit (`@GatewayKeyAndSmartRateLimit()`).
-- System prompt from files, cache (`noop`/`redis`, read validation `CachedChatResponseSchema`), typed config (`AppConfiguration`, `typed-config.ts`), logging + observability (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges on `/metrics`), readiness (`checks.config`, `checks.redis`, `checks.cache`), Prometheus alerts (`deployment/monitoring/alerts.yml`), graceful shutdown.
+- System prompt from files, cache — exact (`noop`/`redis` KV, `clientId` in the hash, read validation `CachedChatResponseSchema`) and semantic (`src/cache/semantic/`, Redis Search + `qwen3-embedding:0.6b`), typed config (`AppConfiguration`, `typed-config.ts`), logging + observability (`src/observability/` — Sentry AI metrics, Prometheus app metrics, health gauges on `/metrics`), readiness (`checks.config`, `checks.redis`, `checks.cache`, optionally `checks.embeddings`), Prometheus alerts (`deployment/monitoring/alerts.yml`), graceful shutdown.
 - `GatewayFinishReason` (`stop` | `tool_calls` | `length` | `content_filter`) in native API; reverse map on Anthropic facade (`anthropic-stop-reason.mapper.ts`).
 - OpenAPI/Swagger: `@nestjs/swagger` decorators on native and official contract facade controllers; vendor error schemas (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`); `src/swagger/`, export `npm run openapi:export` → [`openapi.json`](../openapi.json).
 - **Official contract facades:** `src/integrations/` — OpenAI and Anthropic HTTP contracts (`IntegrationsModule` in `AppModule`), `Request.gatewayKey`, exports from `ChatModule` and `ModelsModule`; routes `/api/v1/openai/…`, `/api/v1/anthropic/…` and native `/api/v1/models` (`integrations.md`, `openai-contract-integration.md`, `anthropic-messages-integration.md`). **Do not confuse** with SDK adapters in `src/providers/` — OpenAI adapter: `provider-openai-runtime.md`.

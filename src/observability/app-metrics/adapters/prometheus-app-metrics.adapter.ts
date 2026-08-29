@@ -13,6 +13,7 @@ import type {
   HealthStatus,
   HttpRequestLabels,
   HttpMethod,
+  SemanticCacheLookupResult,
 } from '../interfaces/app-metrics-backend.interface';
 import type {
   ClientId,
@@ -191,6 +192,17 @@ export class PrometheusAppMetricsAdapter implements AppMetricsBackend {
       model,
       hit: hit ? 'true' : 'false',
     });
+  }
+
+  recordSemanticCacheLookup(
+    model: ModelAlias,
+    result: SemanticCacheLookupResult,
+  ): void {
+    this.prometheus.metrics.semanticCacheLookupTotal.inc({ model, result });
+  }
+
+  recordCachePipelineAccess(_model: ModelAlias, _hit: boolean): void {
+    return;
   }
 
   updateCacheHitRate(model: ModelAlias, rate: number): void {

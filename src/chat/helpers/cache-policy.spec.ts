@@ -1,14 +1,25 @@
-import { isCachedChatAllowedForModelAlias } from './cache-policy';
-import type { GatewayConfig } from '../../config/configuration';
 import {
+  isCachedChatAllowedForModelAlias,
+  shouldStoreChatResponse,
+} from './cache-policy';
+import type { GatewayConfig } from '../../config/configuration';
+import type { ChatResponseData } from '../dto/chat-response.dto';
+import {
+  asConversationId,
   asEnvRef,
   asProviderInstanceId,
+  asRequestId,
+  asResponseId,
 } from '../../common/types/branded.types';
 import {
   TEST_API_KEY_REF,
+  TEST_CONVERSATION_ID,
   TEST_MASTER_KEY_REF,
   TEST_MODEL_ALIAS,
+  TEST_MODEL_ALIAS_BRANDED,
   TEST_PROVIDER_INSTANCE,
+  TEST_PROVIDER_INSTANCE_BRANDED,
+  TEST_TOOL_CALL_ID,
 } from '../../common/mocks/test-constants';
 
 describe('isCachedChatAllowedForModelAlias', () => {
@@ -170,5 +181,69 @@ describe('isCachedChatAllowedForModelAlias', () => {
     const result = isCachedChatAllowedForModelAlias(config, 'gpt-model');
 
     expect(result).toBe(false);
+  });
+});
+
+describe('shouldStoreChatResponse', () => {
+  const base: ChatResponseData = {
+    id: asResponseId('gw_store'),
+    provider: TEST_PROVIDER_INSTANCE_BRANDED,
+    model: TEST_MODEL_ALIAS_BRANDED,
+    output: { type: 'text', text: 'Hello' },
+    requestId: asRequestId('req-store'),
+    conversationId: asConversationId(TEST_CONVERSATION_ID),
+    finishReason: 'stop',
+  };
+
+  it('returns true for a complete text reply', () => {
+    expect(shouldStoreChatResponse(base)).toBe(true);
+  });
+
+  it('returns false when finishReason is length', () => {
+    expect(shouldStoreChatResponse({ ...base, finishReason: 'length' })).toBe(
+      false,
+    );
+  });
+
+  it('returns false when finishReason is content_filter', () => {
+    expect(
+      shouldStoreChatResponse({ ...base, finishReason: 'content_filter' }),
+    ).toBe(false);
+  });
+
+  it('returns false when finishReason is tool_calls', () => {
+    expect(
+      shouldStoreChatResponse({ ...base, finishReason: 'tool_calls' }),
+    ).toBe(false);
+  });
+
+  it('returns false when finishReason is missing', () => {
+    expect(shouldStoreChatResponse({ ...base, finishReason: undefined })).toBe(
+      false,
+    );
+  });
+
+  it('returns false when output text is empty or whitespace', () => {
+    expect(
+      shouldStoreChatResponse({
+        ...base,
+        output: { type: 'text', text: '' },
+      }),
+    ).toBe(false);
+    expect(
+      shouldStoreChatResponse({
+        ...base,
+        output: { type: 'text', text: '   ' },
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when the reply contains toolCalls', () => {
+    expect(
+      shouldStoreChatResponse({
+        ...base,
+        toolCalls: [{ id: TEST_TOOL_CALL_ID, name: 'search', arguments: '{}' }],
+      }),
+    ).toBe(false);
   });
 });

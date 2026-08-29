@@ -30,6 +30,35 @@ export function createE2eRateLimiterBlocked(): Partial<SmartRateLimiterService> 
   };
 }
 
+/** Provider cooldown active — JSON 429 before SSE (stream cache prepare path). */
+export function createE2eCooldownDeniedLimiter(): Partial<SmartRateLimiterService> {
+  const allowed = {
+    allowed: true,
+    remaining: 999,
+    resetAt: new Date(),
+  };
+  const cooldownBlocked = {
+    allowed: false,
+    remaining: 0,
+    resetAt: new Date(),
+    reason: 'Provider anthropic-primary in cooldown after 429. 60 remaining.',
+  };
+
+  return {
+    checkRateLimit: jest
+      .fn()
+      .mockImplementation(() => Promise.resolve(allowed)),
+    checkConcurrentStreams: jest
+      .fn()
+      .mockImplementation(() => Promise.resolve(allowed)),
+    releaseStream: jest.fn().mockResolvedValue(undefined),
+    setCooldown: jest.fn().mockResolvedValue(undefined),
+    checkCooldown: jest
+      .fn()
+      .mockImplementation(() => Promise.resolve(cooldownBlocked)),
+  };
+}
+
 export function createE2eSaturatedConcurrentStreamLimiter(): Partial<SmartRateLimiterService> {
   return {
     checkRateLimit: jest.fn().mockImplementation(() =>

@@ -21,6 +21,7 @@ import {
   type InputTokens,
   type OutputTokens,
   type SystemFingerprint,
+  type ResponseId,
 } from '../../common/types/branded.types';
 
 export type { ChatResponseData } from '../dto/chat-response.dto';
@@ -50,6 +51,7 @@ export class ChatResponseBuilderService {
     effectiveModelAlias?: ModelAlias,
     options?: ProviderCallOptions,
     providerType?: GatewayProviderType,
+    responseId?: ResponseId,
   ): ChatResponseData {
     const warnings =
       options && providerType
@@ -57,7 +59,7 @@ export class ChatResponseBuilderService {
         : [];
 
     return {
-      id: asResponseId(`gw_${uuidv4()}`),
+      id: responseId ?? asResponseId(`gw_${uuidv4()}`),
       provider: asProviderInstanceId(providerName),
       model: asModelAlias(modelAlias),
       ...(effectiveModelAlias && { effectiveModelAlias }),

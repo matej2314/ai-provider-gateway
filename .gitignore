@@ -82,6 +82,7 @@ coverage-security/*
 .env.test
 .env.example.old
 gateway.config.placeholder.yaml
+bug_fix.md
+streaming_*
+#!streaming_cache_layer-plan.md
 
-production-readiness-plan.md
-prometheus-grafana-implementation-plan.md

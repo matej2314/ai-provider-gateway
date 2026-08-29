@@ -56,6 +56,8 @@ Details: [`conceptual-documentation.md`](conceptual-documentation.md) (“Reposi
 | Facade vs provider runtime | [`dictionary.md`](dictionary.md), [`integrations.md`](integrations.md) |
 | System prompt (server files) | [`configuration.md`](configuration.md), [`architecture.md`](architecture.md) |
 | Tool calling / `finishReason` | [`api-documentation.md`](api-documentation.md), [`dictionary.md`](dictionary.md) |
+| Exact + semantic cache (env, lookup order, fail-open, `qwen3-embedding:0.6b`) | [`configuration.md`](configuration.md), [`dictionary.md`](dictionary.md) |
+| Base Compose stack (Redis Stack + embedding, 16 GB) | [`deployment.md`](deployment.md) |
 | Cache and smart rate limit | [`configuration.md`](configuration.md) |
 | Retry, timeout, fallback | [`configuration.md`](configuration.md), [`api-documentation.md`](api-documentation.md) |
 | Observability (Pino, Sentry, Prometheus) | [`architecture.md`](architecture.md), [`deployment.md`](deployment.md) |

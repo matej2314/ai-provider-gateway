@@ -14,6 +14,7 @@ import {
   asRateLimitBurst,
   asRateLimitRps,
   asCacheTtlSeconds,
+  asSemanticCacheTtlSeconds,
   asPort,
 } from '../types/branded.types';
 import type { AppConfiguration } from '../../config/app-configuration.types';
@@ -27,6 +28,7 @@ import type {
 import type {
   CacheRuntimeConfig,
   RateLimitRuntimeConfig,
+  SemanticCacheRuntimeConfig,
 } from '../../config/app-configuration.types';
 
 type Nullable<T> = T | null | undefined;
@@ -57,6 +59,17 @@ export type TestRateLimitConfigOptions = {
   cooldownAfter429?: number;
 };
 
+export type TestSemanticCacheConfigOptions = {
+  enabled?: boolean;
+  embeddingBaseUrl?: string;
+  embeddingModel?: string;
+  embeddingDim?: number;
+  embeddingTimeoutMs?: number;
+  minSimilarity?: number;
+  ttl?: number;
+  k?: number;
+};
+
 export type MockConfigServiceOptions = {
   /** Full gateway config object. Takes precedence over `gatewayOptions`. */
   gateway?: Nullable<GatewayConfig>;
@@ -67,6 +80,7 @@ export type MockConfigServiceOptions = {
   providers?: Nullable<Record<string, Partial<ProviderInstanceRuntime>>>;
   cache?: Nullable<TestCacheConfigOptions>;
   redis?: Nullable<TestRedisConfigOptions>;
+  semanticCache?: Nullable<TestSemanticCacheConfigOptions>;
   rateLimit?: TestRateLimitConfigOptions;
   rateLimitSmartEnabled?: boolean;
   port?: number;
@@ -200,6 +214,22 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
           keyPrefix: options.redis?.keyPrefix ?? 'aigw:',
         };
 
+  const semanticCache: SemanticCacheRuntimeConfig | undefined =
+    options.semanticCache === null
+      ? undefined
+      : {
+          enabled: options.semanticCache?.enabled ?? false,
+          embeddingBaseUrl:
+            options.semanticCache?.embeddingBaseUrl ?? 'http://localhost:11435',
+          embeddingModel:
+            options.semanticCache?.embeddingModel ?? 'qwen3-embedding:0.6b',
+          embeddingDim: options.semanticCache?.embeddingDim ?? 1024,
+          embeddingTimeoutMs: options.semanticCache?.embeddingTimeoutMs ?? 5000,
+          minSimilarity: options.semanticCache?.minSimilarity ?? 0.85,
+          ttl: asSemanticCacheTtlSeconds(options.semanticCache?.ttl ?? 3600),
+          k: options.semanticCache?.k ?? 3,
+        };
+
   const root = {
     gateway,
     gatewayKey,
@@ -207,6 +237,7 @@ function buildDefaultConfigSnapshot(options: MockConfigServiceOptions): {
     providers,
     cache,
     redis,
+    semanticCache,
     port: asPort(options.port ?? 3000),
     nodeEnv: options.nodeEnv ?? 'test',
     RATE_LIMIT_SMART_ENABLED: options.rateLimitSmartEnabled ?? false,

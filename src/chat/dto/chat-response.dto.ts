@@ -11,6 +11,7 @@ import type { GatewayToolCall } from '../../providers/types/tooling-types';
 import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
 import type { GatewayFinishReason } from '../types/gateway-finish-reason.type';
 import type { CachedChatResponse } from '../../cache/types/cached-chat-response.type';
+import type { ChatCacheSource } from '../../cache/types/chat-cache-source.type';
 import type {
   ResponseId,
   RequestId,
@@ -21,6 +22,8 @@ import type {
   OutputTokens,
   SystemFingerprint,
 } from '../../common/types/branded.types';
+
+export type { ChatCacheSource };
 
 export class ChatUsageDetailsDto {
   @ApiPropertyOptional({
@@ -151,6 +154,13 @@ export class ChatResponseDto {
   cachedAt?: string;
 
   @ApiPropertyOptional({
+    enum: ['exact', 'semantic'],
+    description:
+      'Which cache layer served this response. Present only on a cache hit; omitted on a provider miss. Not stored in the Redis payload.',
+  })
+  cacheSource?: ChatCacheSource;
+
+  @ApiPropertyOptional({
     type: ChatUsageDetailsDto,
     description:
       'Extended usage details (cache tokens, reasoning tokens). Populated when provider supports extended usage details.',
@@ -182,9 +192,11 @@ export class ChatResponseDto {
   warnings?: ChatWarningDto[];
 }
 
-/** Cached response enriched with conversation context for API mapping. */
+/** Cached response enriched with per-request correlation for API mapping. */
 export type CachedChatResponseWithConversation = CachedChatResponse & {
   conversationId: ConversationId;
+  cacheSource: ChatCacheSource;
+  requestId: RequestId;
 };
 
 export function toChatResponseDto(data: ChatResponseData): ChatResponseDto {
@@ -216,17 +228,36 @@ export function toChatResponseDto(data: ChatResponseData): ChatResponseDto {
 export function toChatResponseDtoFromCache(
   data: CachedChatResponse,
   conversationId: ConversationId,
+  options: { cacheSource: ChatCacheSource; requestId: RequestId },
 ): ChatResponseDto {
+  const usage = data.usage
+    ? {
+        ...data.usage,
+        totalTokens:
+          (data.usage.inputTokens ?? 0) + (data.usage.outputTokens ?? 0),
+      }
+    : undefined;
+
   return {
     id: data.id,
     provider: data.provider,
     model: data.model,
     output: data.output,
-    ...(data.usage && { usage: data.usage }),
-    requestId: data.requestId,
+    ...(usage && { usage }),
+    requestId: options.requestId,
     conversationId,
     cached: true,
     cachedAt: data.cachedAt,
+    cacheSource: options.cacheSource,
+    finishReason: data.finishReason,
     ...(data.warnings?.length && { warnings: data.warnings }),
+    ...(data.thinkingContent && { thinkingContent: data.thinkingContent }),
+    ...(data.effectiveModelAlias && {
+      effectiveModelAlias: data.effectiveModelAlias,
+    }),
+    ...(data.usageDetails && { usageDetails: data.usageDetails }),
+    ...(data.systemFingerprint && {
+      systemFingerprint: data.systemFingerprint,
+    }),
   };
 }

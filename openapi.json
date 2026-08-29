@@ -139,7 +139,7 @@
     },
     "/api/v1/chat/stream": {
       "post": {
-        "description": "SSE (`text/event-stream`): event sequence `meta` → `delta`* → `done` (empty `{}`).\n\n`done` may include `toolCalls` and `finishReason` when tooling is used.\n\nSame body as POST /chat. JSON errors (ErrorEnvelope) only **before** flushHeaders.\n\nAfter stream starts, errors may be partial SSE.",
+        "description": "SSE (`text/event-stream`): event sequence `meta` → `delta`* → `done` (empty `{}`).\n\n`done` may include `toolCalls` and `finishReason` when tooling is used.\n\nOn cache hit, `meta` includes `cached`, `cachedAt`, and `cacheSource`; omitted on miss.\n\nSame body as POST /chat. JSON errors (ErrorEnvelope) only **before** flushHeaders.\n\nAfter stream starts, errors may be partial SSE.",
         "operationId": "ChatStreamController_streamChat",
         "parameters": [
           {
@@ -175,6 +175,9 @@
                 "examples": {
                   "meta": {
                     "value": "event: meta\ndata: {\"id\":\"gw_...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\",\"conversationId\":\"conv_...\"}"
+                  },
+                  "metaCacheHit": {
+                    "value": "event: meta\ndata: {\"id\":\"gw_...\",\"provider\":\"anthropic\",\"model\":\"chat-default\",\"requestId\":\"req_...\",\"conversationId\":\"conv_...\",\"cached\":true,\"cachedAt\":\"2026-01-01T00:00:00.000Z\",\"cacheSource\":\"exact\"}"
                   }
                 }
               }
@@ -800,6 +803,18 @@
         "responses": {
           "200": {
             "description": "When `stream: true`, returns `text/event-stream` with OpenAI chunk format.\n\nEach line: `data: <json>\\n\\n`, terminated with `data: [DONE]\\n\\n`.\n\nJSON errors (OpenAiErrorResponseDto) only **before** flushHeaders.",
+            "headers": {
+              "X-Gateway-Cache": {
+                "description": "Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "semantic"
+                  ]
+                }
+              }
+            },
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -819,6 +834,18 @@
           },
           "201": {
             "description": "Non-streaming response.",
+            "headers": {
+              "X-Gateway-Cache": {
+                "description": "Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "semantic"
+                  ]
+                }
+              }
+            },
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -1213,6 +1240,18 @@
         "responses": {
           "200": {
             "description": "When `stream: true`, returns Anthropic SSE events.\n\nFormat: `event: <name>\\ndata: <json>\\n\\n` (message_start, content_block_*, message_delta, message_stop).\n\nResponse header `anthropic-version: 2023-06-01` is set on stream.\n\nFinal `message_delta.usage` includes `input_tokens`, `output_tokens`, and cache token fields when available (parity with non-stream JSON).\n\nExtended thinking: emitted as `content_block` with `type: thinking` in the final `done` phase (not real-time; same as gateway native SSE).",
+            "headers": {
+              "X-Gateway-Cache": {
+                "description": "Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "semantic"
+                  ]
+                }
+              }
+            },
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -1228,6 +1267,18 @@
           },
           "201": {
             "description": "Non-streaming response.",
+            "headers": {
+              "X-Gateway-Cache": {
+                "description": "Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "semantic"
+                  ]
+                }
+              }
+            },
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -1331,7 +1382,7 @@
   },
   "info": {
     "title": "AI Provider Gateway API",
-    "description": "REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/dokumentacja_api.md`.",
+    "description": "REST API: chat JSON + streaming SSE. System prompt on server side. Details: `docs/pl/dokumentacja_api.md`.",
     "version": "0.14.0",
     "contact": {}
   },
@@ -1827,6 +1878,14 @@
             "type": "string",
             "format": "date-time"
           },
+          "cacheSource": {
+            "enum": [
+              "exact",
+              "semantic"
+            ],
+            "type": "string",
+            "description": "Which cache layer served this response. Present only on a cache hit; omitted on a provider miss. Not stored in the Redis payload."
+          },
           "usageDetails": {
             "description": "Extended usage details (cache tokens, reasoning tokens). Populated when provider supports extended usage details.",
             "allOf": [
@@ -1874,7 +1933,7 @@
           "code": {
             "type": "string",
             "example": "VALIDATION_FAILED",
-            "description": "Machine-readable error code; dictionary: docs/dictionary.md"
+            "description": "Machine-readable error code; dictionary: docs/pl/dictionary.md"
           },
           "message": {
             "type": "string",
@@ -2032,7 +2091,7 @@
           },
           "required": {
             "type": "boolean",
-            "description": "Whether Redis is required in this deployment (cache redis and/or smart rate limit).",
+            "description": "Whether Redis is required in this deployment (cache redis and/or smart rate limit and/or semantic cache).",
             "example": true
           },
           "consumers": {
@@ -2041,7 +2100,8 @@
               "type": "string",
               "enum": [
                 "cache",
-                "rate-limit"
+                "rate-limit",
+                "semantic-cache"
               ]
             },
             "description": "Features that require Redis. Omitted when required=false.",
@@ -2063,7 +2123,7 @@
             "$ref": "#/components/schemas/HealthCheckItemDto"
           },
           "redis": {
-            "description": "Shared redis infrastructure. Probed only when required=true.",
+            "description": "Shared redis infrastructure. Present only when Redis is required (cache redis and/or smart rate limit and/or semantic cache). Probed when present.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/HealthRedisCheckItemDto"
@@ -2077,11 +2137,26 @@
                 "$ref": "#/components/schemas/HealthCheckItemDto"
               }
             ]
+          },
+          "embeddings": {
+            "description": "Embedding service health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded state does not block ready status. Probe does not reset the embedding circuit breaker.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCheckItemDto"
+              }
+            ]
+          },
+          "vectorStore": {
+            "description": "Redis Search vector index health. Present only when SEMANTIC_CACHE_ENABLED=true. Fail-open: degraded (missing Search module or index) does not block ready status.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCheckItemDto"
+              }
+            ]
           }
         },
         "required": [
           "config",
-          "redis",
           "cache"
         ]
       },
@@ -2973,6 +3048,25 @@
           },
           "conversationId": {
             "type": "string"
+          },
+          "cached": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Present on cache hit"
+          },
+          "cachedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cacheSource": {
+            "enum": [
+              "exact",
+              "semantic"
+            ],
+            "type": "string",
+            "description": "Which cache layer served this stream. Present only on a cache hit; omitted on a provider miss."
           }
         },
         "required": [
