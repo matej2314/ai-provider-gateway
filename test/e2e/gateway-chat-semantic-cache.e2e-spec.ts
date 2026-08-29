@@ -50,7 +50,7 @@ import {
  * E2E setup leaves SEMANTIC_CACHE_ENABLED=false so AppModule's CacheModule
  * does not import SemanticCacheModule (toggle comes from
  * `isSemanticCacheEnabledFromEnv()` via CacheModuleOptions).
- * Import it here as global so ChatCacheGuardService can resolve SemanticCacheService
+ * Import it here as global so ChatCachePipelineService can resolve SemanticCacheService
  * without jest.resetModules() / dynamic import (unsupported under Jest CJS).
  */
 @Global()
@@ -285,6 +285,44 @@ describe('Gateway Chat Semantic Cache (E2E)', () => {
       output: first.body.output,
     });
     expect(completeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('JSON semantic store → stream semantic hit', async () => {
+    const streamSpy = jest.spyOn(providerRegistry.provider, 'stream');
+
+    const first = await request(app.getHttpServer())
+      .post(E2E_ROUTES.chat)
+      .set('x-gateway-key', E2E_GATEWAY_KEY)
+      .send({
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [
+          { role: 'user' as const, content: 'Semantic stream seed text' },
+        ],
+      })
+      .expect(E2E_POST_SUCCESS_STATUS);
+
+    expect(first.body.cached).toBeUndefined();
+    expect(completeMock).toHaveBeenCalledTimes(1);
+
+    const streamHit = await request(app.getHttpServer())
+      .post(E2E_ROUTES.chatStream)
+      .set('x-gateway-key', E2E_GATEWAY_KEY)
+      .send({
+        modelAlias: TEST_MODEL_ALIAS,
+        messages: [
+          {
+            role: 'user' as const,
+            content: 'Semantic stream different wording',
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(streamHit.headers['content-type']).toMatch(/text\/event-stream/);
+    expect(streamHit.text).toContain('"cached":true');
+    expect(streamHit.text).toContain('"cacheSource":"semantic"');
+    expect(streamHit.text).toContain(first.body.output.text);
+    expect(streamSpy).not.toHaveBeenCalled();
   });
 
   it('skips semantic cache when tooling.definitions are present', async () => {

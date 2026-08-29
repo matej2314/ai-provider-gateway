@@ -12,6 +12,7 @@ import {
 } from '../../src/common/mocks/test-constants';
 import {
   asClientId,
+  asModelAlias,
   asPort,
   asSemanticCacheTtlSeconds,
 } from '../../src/common/types/branded.types';
@@ -29,7 +30,7 @@ import {
 } from '../../src/cache/cache-identity';
 import { LoggingService } from '../../src/logging/logging.service';
 import { AppMetricsService } from '../../src/observability/app-metrics/app-metrics.service';
-import type { ChatRequestDto } from '../../src/chat/dto/chat-request.dto';
+import type { ChatCacheIdentity } from '../../src/cache/types/chat-cache-identity.type';
 import type { CachedChatResponse } from '../../src/cache/types/cached-chat-response.type';
 import type { EmbeddingBackend } from '../../src/cache/semantic/embedding-backend.interface';
 import type { ProviderCallOptions } from '../../src/providers/interfaces/ai-provider.interface';
@@ -102,10 +103,15 @@ function createRoutableEmbeddingBackend(): EmbeddingBackend {
   };
 }
 
-function userRequest(content: string): ChatRequestDto {
+function cacheIdentity(
+  content: string,
+  extras: Partial<ChatCacheIdentity> = {},
+): ChatCacheIdentity {
   return {
-    modelAlias: TEST_MODEL_ALIAS,
+    modelAlias: TEST_MODEL_ALIAS_BRANDED,
+    clientId: CLIENT_A,
     messages: [{ role: 'user', content }],
+    ...extras,
   };
 }
 
@@ -214,16 +220,14 @@ const shouldRunSemanticVector =
       expect(client).not.toBeNull();
       await client!.flushdb();
 
-      const request = userRequest('semantic-integration-flushdb-recover');
+      const request = cacheIdentity('semantic-integration-flushdb-recover');
       await semanticCache.storeReply(
         request,
         cachedReply('Recovered after FLUSHDB'),
-        CLIENT_A,
-        undefined,
         { embedAttempted: false },
       );
 
-      const result = await semanticCache.lookup(request, CLIENT_A);
+      const result = await semanticCache.lookup(request);
 
       expect(result.reply).toMatchObject({
         cached: true,
@@ -235,17 +239,15 @@ const shouldRunSemanticVector =
     });
 
     it('SET → KNN hit at similarity threshold 0.90', async () => {
-      const request = userRequest('semantic-integration-ping');
+      const request = cacheIdentity('semantic-integration-ping');
 
       await semanticCache.storeReply(
         request,
         cachedReply('Semantic integration hit'),
-        CLIENT_A,
-        undefined,
         { embedAttempted: false },
       );
 
-      const result = await semanticCache.lookup(request, CLIENT_A);
+      const result = await semanticCache.lookup(request);
 
       expect(result.embedAttempted).toBe(true);
       expect(result.vector).toHaveLength(EMBEDDING_DIM);
@@ -256,17 +258,18 @@ const shouldRunSemanticVector =
     });
 
     it('different clientId → KNN miss (TAG partition)', async () => {
-      const request = userRequest('semantic-integration-client-partition');
+      const request = cacheIdentity('semantic-integration-client-partition');
 
       await semanticCache.storeReply(
         request,
         cachedReply('Semantic integration hit'),
-        CLIENT_A,
-        undefined,
         { embedAttempted: false },
       );
 
-      const result = await semanticCache.lookup(request, CLIENT_B);
+      const result = await semanticCache.lookup({
+        ...request,
+        clientId: CLIENT_B,
+      });
 
       expect(result.embedAttempted).toBe(true);
       expect(result.vector).toHaveLength(EMBEDDING_DIM);
@@ -274,21 +277,18 @@ const shouldRunSemanticVector =
     });
 
     it('different callParams → KNN miss despite identical embedding vector (B1)', async () => {
-      const request = userRequest('semantic-integration-params-partition');
+      const request = cacheIdentity('semantic-integration-params-partition');
 
       await semanticCache.storeReply(
-        request,
+        { ...request, callParams: OPTIONS_LOW_TEMP },
         cachedReply('Stored at temperature 0.2'),
-        CLIENT_A,
-        OPTIONS_LOW_TEMP,
         { embedAttempted: false },
       );
 
-      const result = await semanticCache.lookup(
-        request,
-        CLIENT_A,
-        OPTIONS_HIGH_TEMP,
-      );
+      const result = await semanticCache.lookup({
+        ...request,
+        callParams: OPTIONS_HIGH_TEMP,
+      });
 
       expect(result.embedAttempted).toBe(true);
       expect(result.vector).toHaveLength(EMBEDDING_DIM);
@@ -296,21 +296,18 @@ const shouldRunSemanticVector =
     });
 
     it('matching callParams → KNN hit with same fake embedding (B1 positive)', async () => {
-      const request = userRequest('semantic-integration-params-hit');
+      const request = cacheIdentity('semantic-integration-params-hit');
 
       await semanticCache.storeReply(
-        request,
+        { ...request, callParams: OPTIONS_LOW_TEMP },
         cachedReply('Params partition hit'),
-        CLIENT_A,
-        OPTIONS_LOW_TEMP,
         { embedAttempted: false },
       );
 
-      const result = await semanticCache.lookup(
-        request,
-        CLIENT_A,
-        OPTIONS_LOW_TEMP,
-      );
+      const result = await semanticCache.lookup({
+        ...request,
+        callParams: OPTIONS_LOW_TEMP,
+      });
 
       expect(result.embedAttempted).toBe(true);
       expect(result.reply).toMatchObject({
@@ -320,8 +317,9 @@ const shouldRunSemanticVector =
     });
 
     it('multi-turn request skips lookup embed (B2)', async () => {
-      const multiTurn: ChatRequestDto = {
-        modelAlias: TEST_MODEL_ALIAS,
+      const multiTurn: ChatCacheIdentity = {
+        modelAlias: TEST_MODEL_ALIAS_BRANDED,
+        clientId: CLIENT_A,
         messages: [
           { role: 'user', content: 'Explain topic A' },
           { role: 'assistant', content: 'Topic A is…' },
@@ -330,14 +328,12 @@ const shouldRunSemanticVector =
       };
 
       await semanticCache.storeReply(
-        userRequest('semantic-integration-seed'),
+        cacheIdentity('semantic-integration-seed'),
         cachedReply('Should not be returned to multi-turn'),
-        CLIENT_A,
-        undefined,
         { embedAttempted: false },
       );
 
-      const result = await semanticCache.lookup(multiTurn, CLIENT_A);
+      const result = await semanticCache.lookup(multiTurn);
 
       expect(result).toEqual({
         reply: null,
@@ -397,12 +393,10 @@ const shouldRunSemanticVector =
       expect(client).not.toBeNull();
       await expect(client!.call('FT.INFO', otherIndex)).resolves.toBeDefined();
 
-      const request = userRequest('semantic-integration-embedding-model');
+      const request = cacheIdentity('semantic-integration-embedding-model');
       await semanticCache.storeReply(
         request,
         cachedReply('Stored under 0.6b index'),
-        CLIENT_A,
-        undefined,
         { embedAttempted: false },
       );
 
@@ -477,21 +471,19 @@ const shouldRunSemanticVector =
       embeddingByText.set(missText, BELOW_THRESHOLD_VECTOR);
 
       await semanticCache.storeReply(
-        userRequest(seedText),
+        cacheIdentity(seedText),
         cachedReply('Threshold seed reply'),
-        CLIENT_A,
-        undefined,
         { embedAttempted: false },
       );
 
-      const hit = await semanticCache.lookup(userRequest(hitText), CLIENT_A);
+      const hit = await semanticCache.lookup(cacheIdentity(hitText));
       expect(hit.embedAttempted).toBe(true);
       expect(hit.reply).toMatchObject({
         cached: true,
         output: { text: 'Threshold seed reply' },
       });
 
-      const miss = await semanticCache.lookup(userRequest(missText), CLIENT_A);
+      const miss = await semanticCache.lookup(cacheIdentity(missText));
       expect(miss.embedAttempted).toBe(true);
       expect(miss.vector).toHaveLength(EMBEDDING_DIM);
       expect(miss.reply).toBeNull();
@@ -500,18 +492,15 @@ const shouldRunSemanticVector =
     it('different modelAlias → KNN miss (TAG partition)', async () => {
       const text = 'semantic-integration-model-partition';
       await semanticCache.storeReply(
-        userRequest(text),
+        cacheIdentity(text),
         cachedReply('Stored under test-model'),
-        CLIENT_A,
-        undefined,
         { embedAttempted: false },
       );
 
-      const otherAliasRequest: ChatRequestDto = {
-        modelAlias: 'other-model',
-        messages: [{ role: 'user', content: text }],
-      };
-      const result = await semanticCache.lookup(otherAliasRequest, CLIENT_A);
+      const otherAliasRequest = cacheIdentity(text, {
+        modelAlias: asModelAlias('other-model'),
+      });
+      const result = await semanticCache.lookup(otherAliasRequest);
 
       expect(result.embedAttempted).toBe(true);
       expect(result.reply).toBeNull();
@@ -520,23 +509,19 @@ const shouldRunSemanticVector =
     it('Team-A vs team-a are distinct CASESENSITIVE client partitions (S16)', async () => {
       const text = 'semantic-integration-case-sensitive-client';
       await semanticCache.storeReply(
-        userRequest(text),
+        cacheIdentity(text, { clientId: CLIENT_TEAM_A }),
         cachedReply('Stored for Team-A'),
-        CLIENT_TEAM_A,
-        undefined,
         { embedAttempted: false },
       );
 
       const lower = await semanticCache.lookup(
-        userRequest(text),
-        CLIENT_TEAM_A_LOWER,
+        cacheIdentity(text, { clientId: CLIENT_TEAM_A_LOWER }),
       );
       expect(lower.embedAttempted).toBe(true);
       expect(lower.reply).toBeNull();
 
       const sameCase = await semanticCache.lookup(
-        userRequest(text),
-        CLIENT_TEAM_A,
+        cacheIdentity(text, { clientId: CLIENT_TEAM_A }),
       );
       expect(sameCase.reply).toMatchObject({
         output: { text: 'Stored for Team-A' },

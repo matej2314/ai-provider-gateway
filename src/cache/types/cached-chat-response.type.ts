@@ -1,5 +1,3 @@
-import type { ChatWarningDto } from '../../chat/dto/chat-warning.dto';
-import type { GatewayFinishReason } from '../../chat/types/gateway-finish-reason.type';
 import type { ProviderUsageDetails } from '../../providers/interfaces/ai-provider.interface';
 import type {
   ResponseId,
@@ -9,6 +7,18 @@ import type {
   OutputTokens,
   SystemFingerprint,
 } from '../../common/types/branded.types';
+
+export type CachedFinishReason =
+  | 'stop'
+  | 'tool_calls'
+  | 'length'
+  | 'content_filter';
+
+export type CachedChatWarning = {
+  code: string;
+  message: string;
+  field?: string;
+};
 
 export interface CachedChatResponse {
   id: ResponseId;
@@ -24,8 +34,8 @@ export interface CachedChatResponse {
   };
   cached: true;
   cachedAt: string;
-  finishReason: GatewayFinishReason;
-  warnings?: ChatWarningDto[];
+  finishReason: CachedFinishReason;
+  warnings?: CachedChatWarning[];
   thinkingContent?: string;
   effectiveModelAlias?: ModelAlias;
   usageDetails?: ProviderUsageDetails;

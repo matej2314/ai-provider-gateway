@@ -478,9 +478,9 @@ describe('OpenAiChatCompletionsController', () => {
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
       resolveStreamCacheMock.mockRejectedValue(rateLimitError);
 
-      await expect(
-        controller.completions(req, streamBody, res),
-      ).rejects.toBe(rateLimitError);
+      await expect(controller.completions(req, streamBody, res)).rejects.toBe(
+        rateLimitError,
+      );
 
       expect(flushHeaders).not.toHaveBeenCalled();
       expect(end).not.toHaveBeenCalled();

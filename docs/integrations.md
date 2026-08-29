@@ -153,7 +153,7 @@ Facades must share **`SmartRateLimiterService`** with the native API.
 1. Facade auth guard (sets `req.gatewayKey`)
 2. `SmartRateLimitGuard` (token bucket RPS, concurrent streams)
 
-**Cooldown** after a 429 from the provider: **`prepareRequestForExecution`** (shared by `executeChat` and `executeStream`) → `checkCooldown`; **setting** the cooldown — `ChatErrorHandlerService.handleProviderError` → `setCooldown` (both paths). **Response cache** — only `executeChat` (non-stream).
+**Cooldown** after a 429 from the provider: **`prepareRequestForExecution`** (shared by `executeChat` and `resolveStreamCache` / stream miss) → `checkCooldown`; **setting** the cooldown — `ChatErrorHandlerService.handleProviderError` → `setCooldown` (both paths). **Response cache** — JSON (`executeChat`) and stream (`resolveStreamCache` / `executeStreamMiss`); facades: `X-Gateway-Cache` header on JSON and stream hit.
 
 **Helper `readClientGatewayKey(req)`** (`src/common/readClientGatewayKey.ts`):
 
@@ -205,7 +205,7 @@ Internally, facades use `ChatProviderCallService.streamOnce` and map gateway eve
 | `system` in client messages | **Ignored** — prompt from `src/config/system-prompt/` (source: server, not client body) |
 | Tools / function calling | Mapped to internal `tooling` (`openai-tools.mapper.ts`, `anthropic-tools.mapper.ts`); requires `capabilities.tools: true` on the alias |
 | Multimodal (images) | Unsupported — 400 for `image` blocks (Anthropic) |
-| Response cache | Works via `ChatService` for non-stream calls; `cached` fields hidden in the facade response |
+| Response cache | Works via `ChatService` for JSON and stream; `cached*` fields hidden in facade body — signal: `X-Gateway-Cache` |
 | `system_fingerprint` / `systemFingerprint` | OpenAI facade: pass-through when upstream returns it (practically OpenAI). Anthropic facade: no field. Anthropic/Gemini have no upstream equivalent — see `dictionary.md` |
 | OpenAPI / Swagger | Tags **OpenAI API** and **Anthropic API** in `openapi.json` and Swagger UI; separate error schemas (`OpenAiErrorResponseDto`, `AnthropicErrorResponseDto`) |
 

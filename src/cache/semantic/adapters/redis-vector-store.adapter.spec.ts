@@ -40,6 +40,9 @@ describe('RedisVectorStoreAdapter', () => {
       hsetnx?: jest.Mock;
       expire?: jest.Mock;
       hget?: jest.Mock;
+      hmget?: jest.Mock;
+      hexists?: jest.Mock;
+      ttl?: jest.Mock;
     } | null,
   ) {
     if (client) {
@@ -523,11 +526,13 @@ describe('RedisVectorStoreAdapter', () => {
     };
 
     it('should return parsed reply on HASH hit', async () => {
-      const hget = jest.fn().mockResolvedValue(validReplyJson);
+      const hmget = jest
+        .fn()
+        .mockResolvedValue([validReplyJson, Buffer.from('vec')]);
       await initAdapter({
         call: jest.fn().mockResolvedValue([0]),
         del: jest.fn().mockResolvedValue(1),
-        hget,
+        hmget,
       });
 
       await expect(adapter.getByTextIdentity(identity)).resolves.toEqual(
@@ -536,18 +541,31 @@ describe('RedisVectorStoreAdapter', () => {
           finishReason: 'stop',
         }),
       );
-      expect(hget).toHaveBeenCalledWith(
+      expect(hmget).toHaveBeenCalledWith(
         expect.stringMatching(new RegExp(`^${indexName}:[a-f0-9]{32}$`)),
         'reply',
+        'vector',
       );
     });
 
     it('should return null on HASH miss', async () => {
-      const hget = jest.fn().mockResolvedValue(null);
+      const hmget = jest.fn().mockResolvedValue([null, null]);
       await initAdapter({
         call: jest.fn().mockResolvedValue([0]),
         del: jest.fn().mockResolvedValue(1),
-        hget,
+        hmget,
+      });
+
+      await expect(adapter.getByTextIdentity(identity)).resolves.toBeNull();
+      expect(mockDel).not.toHaveBeenCalled();
+    });
+
+    it('should miss on orphan reply-only HASH without deleting (K1 race-safe)', async () => {
+      const hmget = jest.fn().mockResolvedValue([validReplyJson, null]);
+      await initAdapter({
+        call: jest.fn().mockResolvedValue([0]),
+        del: jest.fn().mockResolvedValue(1),
+        hmget,
       });
 
       await expect(adapter.getByTextIdentity(identity)).resolves.toBeNull();
@@ -555,13 +573,16 @@ describe('RedisVectorStoreAdapter', () => {
     });
 
     it('should delete corrupt reply and return null', async () => {
-      const hget = jest
+      const hmget = jest
         .fn()
-        .mockResolvedValue(JSON.stringify({ cached: false }));
+        .mockResolvedValue([
+          JSON.stringify({ cached: false }),
+          Buffer.from('vec'),
+        ]);
       await initAdapter({
         call: jest.fn().mockResolvedValue([0]),
         del: jest.fn().mockResolvedValue(1),
-        hget,
+        hmget,
       });
 
       await expect(adapter.getByTextIdentity(identity)).resolves.toBeNull();
@@ -570,16 +591,36 @@ describe('RedisVectorStoreAdapter', () => {
       );
     });
 
-    it('should delete unservable length replies and return null', async () => {
-      const hget = jest
+    it('should delete key when reply JSON is malformed (K3)', async () => {
+      const hmget = jest
         .fn()
-        .mockResolvedValue(
-          JSON.stringify({ ...validReply, finishReason: 'length' }),
-        );
+        .mockResolvedValue(['{not-json', Buffer.from('vec')]);
       await initAdapter({
         call: jest.fn().mockResolvedValue([0]),
         del: jest.fn().mockResolvedValue(1),
-        hget,
+        hmget,
+      });
+
+      await expect(adapter.getByTextIdentity(identity)).resolves.toBeNull();
+      expect(mockDel).toHaveBeenCalledWith(
+        expect.stringMatching(new RegExp(`^${indexName}:[a-f0-9]{32}$`)),
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid semantic cache reply — deleted key:'),
+      );
+    });
+
+    it('should delete unservable length replies and return null', async () => {
+      const hmget = jest
+        .fn()
+        .mockResolvedValue([
+          JSON.stringify({ ...validReply, finishReason: 'length' }),
+          Buffer.from('vec'),
+        ]);
+      await initAdapter({
+        call: jest.fn().mockResolvedValue([0]),
+        del: jest.fn().mockResolvedValue(1),
+        hmget,
       });
 
       await expect(adapter.getByTextIdentity(identity)).resolves.toBeNull();
@@ -601,7 +642,9 @@ describe('RedisVectorStoreAdapter', () => {
           [null, 1],
         ]),
       };
-      const hget = jest.fn().mockResolvedValue(validReplyJson);
+      const hmget = jest
+        .fn()
+        .mockResolvedValue([validReplyJson, Buffer.from('vec')]);
       const hsetnx = jest.fn().mockResolvedValue(1);
       const multi = jest.fn().mockReturnValue(multiChain);
       await initAdapter({
@@ -609,7 +652,7 @@ describe('RedisVectorStoreAdapter', () => {
         del: jest.fn().mockResolvedValue(1),
         multi,
         hsetnx,
-        hget,
+        hmget,
       });
 
       await adapter.upsert({
@@ -625,7 +668,7 @@ describe('RedisVectorStoreAdapter', () => {
       await adapter.getByTextIdentity(identity);
 
       const upsertKey = hsetnx.mock.calls[0]![0] as string;
-      expect(hget).toHaveBeenCalledWith(upsertKey, 'reply');
+      expect(hmget).toHaveBeenCalledWith(upsertKey, 'reply', 'vector');
     });
   });
 
@@ -666,9 +709,20 @@ describe('RedisVectorStoreAdapter', () => {
       const hset = jest.fn();
       const expire = jest.fn();
       const hsetnx = jest.fn().mockResolvedValue(1);
+      const hexists = jest.fn().mockResolvedValue(1);
+      const ttl = jest.fn().mockResolvedValue(60);
       const multi = jest.fn().mockReturnValue(multiChain);
       const call = jest.fn().mockResolvedValue([0]);
-      return { call, multi, multiChain, hset, expire, hsetnx };
+      return {
+        call,
+        multi,
+        multiChain,
+        hset,
+        expire,
+        hsetnx,
+        hexists,
+        ttl,
+      };
     }
 
     it('should HSETNX reply then MULTI hset+expire on first write', async () => {
@@ -686,11 +740,14 @@ describe('RedisVectorStoreAdapter', () => {
         expect.any(String),
       );
       expect(client.multi).toHaveBeenCalled();
+      expect(client.hexists).not.toHaveBeenCalled();
     });
 
-    it('should log and return without overwrite when HSETNX returns 0', async () => {
+    it('should log and return without overwrite when complete entry exists', async () => {
       const client = mockMultiClient();
       client.hsetnx.mockResolvedValue(0);
+      client.hexists.mockResolvedValue(1);
+      client.ttl.mockResolvedValue(60);
       await initAdapter(client);
 
       await adapter.upsert({
@@ -701,6 +758,59 @@ describe('RedisVectorStoreAdapter', () => {
       expect(client.multi).not.toHaveBeenCalled();
       expect(mockLogger.debug).toHaveBeenCalledWith(
         expect.stringContaining('Semantic upsert NX noop'),
+      );
+    });
+
+    it('should heal incomplete entry when HSETNX returns 0 and vector missing (K1)', async () => {
+      const client = mockMultiClient();
+      client.hsetnx.mockResolvedValue(0);
+      client.hexists.mockResolvedValue(0);
+      client.ttl.mockResolvedValue(-1);
+      await initAdapter(client);
+
+      await adapter.upsert({
+        ...baseUpsert,
+        ttlSeconds: asSemanticCacheTtlSeconds(60),
+      });
+
+      expect(client.multi).toHaveBeenCalledTimes(1);
+      expect(client.multiChain.hset).toHaveBeenCalledWith(
+        expect.stringMatching(new RegExp(`^${indexName}:`)),
+        expect.objectContaining({
+          modelAlias: 'test-model',
+          vector: expect.any(Buffer),
+        }),
+      );
+      const hsetFields = client.multiChain.hset.mock.calls[0]![1] as Record<
+        string,
+        unknown
+      >;
+      expect(hsetFields).not.toHaveProperty('reply');
+      expect(client.multiChain.expire).toHaveBeenCalledWith(
+        expect.any(String),
+        60,
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('healed incomplete entry'),
+      );
+    });
+
+    it('should heal when vector exists but key has no TTL (K1)', async () => {
+      const client = mockMultiClient();
+      client.hsetnx.mockResolvedValue(0);
+      client.hexists.mockResolvedValue(1);
+      client.ttl.mockResolvedValue(-1);
+      await initAdapter(client);
+
+      await adapter.upsert({
+        ...baseUpsert,
+        ttlSeconds: asSemanticCacheTtlSeconds(90),
+      });
+
+      expect(client.multi).toHaveBeenCalledTimes(1);
+      expect(client.multiChain.expire).toHaveBeenCalledWith(
+        expect.any(String),
+        90,
       );
     });
 

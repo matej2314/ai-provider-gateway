@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { HttpStatus } from '@nestjs/common';
-import { ChatCacheGuardService } from './chat-cache-guard.service';
+import { ChatCachePipelineService } from './chat-cache-pipeline.service';
 import { ResponseCacheService } from '../../cache/response-cache.service';
 import { SemanticCacheService } from '../../cache/semantic/semantic-cache.service';
 import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
@@ -36,6 +36,7 @@ import {
   asResponseId,
 } from '../../common/types/branded.types';
 import type { ChatRequestDto } from '../dto/chat-request.dto';
+import { toChatCacheIdentity } from '../helpers/to-chat-cache-identity';
 import type { ChatResponseData } from './chat-response-builder.service';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 
@@ -61,8 +62,8 @@ const cacheEnabledGatewayConfig: MockConfigServiceOptions = {
   },
 };
 
-describe('ChatCacheGuardService', () => {
-  let service: ChatCacheGuardService;
+describe('ChatCachePipelineService', () => {
+  let service: ChatCachePipelineService;
   let mockCache: Partial<ResponseCacheService>;
   let mockSemanticCache: {
     lookup: jest.Mock;
@@ -121,9 +122,9 @@ describe('ChatCacheGuardService', () => {
     const mockConfig = createMockConfigService(configOptions);
 
     const providers: Array<
-      typeof ChatCacheGuardService | { provide: unknown; useValue: unknown }
+      typeof ChatCachePipelineService | { provide: unknown; useValue: unknown }
     > = [
-      ChatCacheGuardService,
+      ChatCachePipelineService,
       { provide: ResponseCacheService, useValue: mockCache },
       { provide: ConfigService, useValue: mockConfig },
       { provide: SmartRateLimiterService, useValue: mockRateLimiter },
@@ -142,7 +143,7 @@ describe('ChatCacheGuardService', () => {
       providers,
     }).compile();
 
-    service = module.get(ChatCacheGuardService);
+    service = module.get(ChatCachePipelineService);
   }
 
   beforeEach(async () => {
@@ -256,9 +257,7 @@ describe('ChatCacheGuardService', () => {
           cacheSource: 'exact',
         });
         expect(mockCache.getCachedResponse).toHaveBeenCalledWith(
-          baseRequest,
-          TEST_CLIENT_ID,
-          providerOptions,
+          toChatCacheIdentity(baseRequest, TEST_CLIENT_ID, providerOptions),
         );
         expect(mockSemanticCache.lookup).not.toHaveBeenCalled();
         expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledWith(
@@ -287,9 +286,7 @@ describe('ChatCacheGuardService', () => {
           cacheSource: 'semantic',
         });
         expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
-          baseRequest,
-          TEST_CLIENT_ID,
-          providerOptions,
+          toChatCacheIdentity(baseRequest, TEST_CLIENT_ID, providerOptions),
         );
         expect(mockAppMetrics.recordCachePipelineAccess).toHaveBeenCalledWith(
           TEST_MODEL_ALIAS_BRANDED,
@@ -410,9 +407,7 @@ describe('ChatCacheGuardService', () => {
           embedState: { vector: undefined, embedAttempted: false },
         });
         expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
-          request,
-          TEST_CLIENT_ID,
-          providerOptions,
+          toChatCacheIdentity(request, TEST_CLIENT_ID, providerOptions),
         );
       });
 
@@ -444,9 +439,7 @@ describe('ChatCacheGuardService', () => {
           embedState: { vector: undefined, embedAttempted: false },
         });
         expect(mockSemanticCache.lookup).toHaveBeenCalledWith(
-          multiTurn,
-          TEST_CLIENT_ID,
-          providerOptions,
+          toChatCacheIdentity(multiTurn, TEST_CLIENT_ID, providerOptions),
         );
       });
 
@@ -580,20 +573,20 @@ describe('ChatCacheGuardService', () => {
         );
 
         expect(mockCache.setCachedResponse).toHaveBeenCalledWith(
-          baseRequest,
-          chatResponse,
-          TEST_CLIENT_ID,
-          providerOptions,
-        );
-        expect(mockSemanticCache.storeReply).toHaveBeenCalledWith(
-          baseRequest,
+          toChatCacheIdentity(baseRequest, TEST_CLIENT_ID, providerOptions),
           expect.objectContaining({
             id: chatResponse.id,
             cached: true,
             output: chatResponse.output,
           }),
-          TEST_CLIENT_ID,
-          providerOptions,
+        );
+        expect(mockSemanticCache.storeReply).toHaveBeenCalledWith(
+          toChatCacheIdentity(baseRequest, TEST_CLIENT_ID, providerOptions),
+          expect.objectContaining({
+            id: chatResponse.id,
+            cached: true,
+            output: chatResponse.output,
+          }),
           { vector: FIXED_VECTOR, embedAttempted: true },
         );
       });
@@ -730,10 +723,8 @@ describe('ChatCacheGuardService', () => {
 
         expect(mockCache.setCachedResponse).toHaveBeenCalled();
         expect(mockSemanticCache.storeReply).toHaveBeenCalledWith(
-          multiTurn,
+          toChatCacheIdentity(multiTurn, TEST_CLIENT_ID, providerOptions),
           expect.objectContaining({ cached: true }),
-          TEST_CLIENT_ID,
-          providerOptions,
           { vector: FIXED_VECTOR, embedAttempted: true },
         );
       });
@@ -837,9 +828,7 @@ describe('ChatCacheGuardService', () => {
 
       expect(key).toBe('identity-key');
       expect(mockCache.buildIdentityKey).toHaveBeenCalledWith(
-        baseRequest,
-        TEST_CLIENT_ID,
-        providerOptions,
+        toChatCacheIdentity(baseRequest, TEST_CLIENT_ID, providerOptions),
       );
     });
   });

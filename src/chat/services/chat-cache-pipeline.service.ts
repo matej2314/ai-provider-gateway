@@ -6,16 +6,15 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggingService } from '../../logging/logging.service';
-import {
-  ResponseCacheService,
-  toCachedChatResponse,
-} from '../../cache/response-cache.service';
+import { ResponseCacheService } from '../../cache/response-cache.service';
 import { SmartRateLimiterService } from '../../rate-limit/smart-rate-limiter.service';
 import { ApiErrorCode } from '../../common/errors/api-error.code';
 import {
   isCachedChatAllowedForModelAlias,
   shouldStoreChatResponse,
 } from '../helpers/cache-policy';
+import { toChatCacheIdentity } from '../helpers/to-chat-cache-identity';
+import { toCachedChatResponse } from '../helpers/to-cached-chat-response';
 import { isToolingRequest } from '../helpers/tooling-request';
 import {
   asModelAlias,
@@ -50,7 +49,7 @@ export type ChatCacheLookupResult =
     };
 
 @Injectable()
-export class ChatCacheGuardService {
+export class ChatCachePipelineService {
   private readonly logger: LoggingService;
 
   constructor(
@@ -62,7 +61,7 @@ export class ChatCacheGuardService {
     @Optional() private readonly semanticCache?: SemanticCacheService,
   ) {
     const logger = this.loggingService.child({
-      module: 'ChatCacheGuardService',
+      module: 'ChatCachePipelineService',
     });
     this.logger = logger;
   }
@@ -118,11 +117,8 @@ export class ChatCacheGuardService {
     }
 
     const alias = asModelAlias(modelAlias);
-    const exact = await this.cacheService.getCachedResponse(
-      requestBody,
-      clientId,
-      options,
-    );
+    const identity = toChatCacheIdentity(requestBody, clientId, options);
+    const exact = await this.cacheService.getCachedResponse(identity);
     if (exact) {
       this.appMetrics.recordCachePipelineAccess(alias, true);
       return { cached: exact, cacheSource: 'exact' };
@@ -133,11 +129,7 @@ export class ChatCacheGuardService {
       return { cached: null };
     }
 
-    const semantic = await this.semanticCache.lookup(
-      requestBody,
-      clientId,
-      options,
-    );
+    const semantic = await this.semanticCache.lookup(identity);
     if (semantic.reply) {
       this.appMetrics.recordCachePipelineAccess(alias, true);
       return { cached: semantic.reply, cacheSource: 'semantic' };
@@ -156,7 +148,9 @@ export class ChatCacheGuardService {
     clientId: ClientId,
     options: ProviderCallOptions,
   ) {
-    return this.cacheService.buildIdentityKey(requestBody, clientId, options);
+    return this.cacheService.buildIdentityKey(
+      toChatCacheIdentity(requestBody, clientId, options),
+    );
   }
 
   async setCachedIfAllowed(
@@ -184,19 +178,14 @@ export class ChatCacheGuardService {
       return;
     }
 
-    await this.cacheService.setCachedResponse(
-      requestBody,
-      response,
-      clientId,
-      options,
-    );
+    const identity = toChatCacheIdentity(requestBody, clientId, options);
+    const cached = toCachedChatResponse(response);
+    await this.cacheService.setCachedResponse(identity, cached);
     // Single-turn / last-user gates live in SemanticCacheService.
     if (this.semanticCache) {
       await this.semanticCache.storeReply(
-        requestBody,
-        toCachedChatResponse(response),
-        clientId,
-        options,
+        identity,
+        cached,
         embedState ?? { embedAttempted: false },
       );
     }

@@ -5,7 +5,7 @@ import { getAppConfigOrThrow } from '../../../config/typed-config';
 import { LoggingService } from '../../../logging/logging.service';
 import { RedisConnectionService } from '../../adapters/redis-cache/redis-connection.service';
 import { parseCachedChatResponse } from '../../schemas/cached-chat-response.schema';
-import { isUnservableCachedReply } from '../../../chat/helpers/cache-policy';
+import { isUnservableCachedReply } from '../../helpers/is-unservable-cached-reply';
 import { semanticIndexName } from '../index-name';
 import { semanticSchemaFtCreateArgs } from '../semantic-cache.constants';
 import type { CachedChatResponse } from '../../types/cached-chat-response.type';
@@ -20,6 +20,13 @@ import type {
 import { unbrand } from '../../../common/types/branded.types';
 import { isSemanticCacheTtlSeconds } from '../../../common/types/branded.guards';
 import { escapeRedisSearchTag } from '../escape-tag';
+import { asString, parseKnnHits } from '../parse-knn-hits';
+import {
+  isRedisSearchIndexAlreadyExistsError,
+  isRedisSearchMissingIndexError,
+  isRedisSearchModuleMissingError,
+  redisSearchErrorMessage,
+} from '../redis-search-error';
 
 @Injectable()
 export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
@@ -40,104 +47,9 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     return semanticIndexName(semCache.embeddingModel, semCache.embeddingDim);
   }
 
-  /**
-   * Escape TAG specials for FT.SEARCH query syntax only.
-   * HASH field values stay raw (IDs are validated without commas / braces);
-   * escaping hyphens into the stored value would break KNN matching.
-   */
-  private escapeTag(value: string): string {
-    return escapeRedisSearchTag(value);
-  }
-
-  private errorMessage(err: unknown): string {
-    return err instanceof Error ? err.message : String(err);
-  }
-
-  private isIndexAlreadyExistsError(err: unknown): boolean {
-    return /already exists/i.test(this.errorMessage(err));
-  }
-
-  private isMissingIndexError(err: unknown): boolean {
-    const msg = this.errorMessage(err);
-    return /unknown index|no such index/i.test(msg);
-  }
-
-  private isSearchModuleMissingError(err: unknown): boolean {
-    return /unknown command/i.test(this.errorMessage(err));
-  }
-
   private vectorBlob(vector: number[]): Buffer {
     const floats = new Float32Array(vector);
     return Buffer.from(floats.buffer, floats.byteOffset, floats.byteLength);
-  }
-
-  private asString(value: unknown): string {
-    if (typeof value === 'string') return value;
-    if (Buffer.isBuffer(value)) return value.toString('utf8');
-    if (typeof value === 'number') return String(value);
-    return '';
-  }
-
-  /**
-   * Parse FT.SEARCH RESP2 hits. Corrupt reply payloads are collected for DEL
-   * (same hygiene as exact cache invalid entries) — missing dist alone does not delete.
-   */
-  private parseKnnHits(raw: unknown): {
-    hits: VectorSearchHit[];
-    corruptKeys: string[];
-  } {
-    if (!Array.isArray(raw) || raw.length < 3) {
-      return { hits: [], corruptKeys: [] };
-    }
-
-    const items = raw as unknown[];
-    const count = Number(raw[0]);
-    if (!Number.isFinite(count) || count < 1) {
-      return { hits: [], corruptKeys: [] };
-    }
-
-    const hits: VectorSearchHit[] = [];
-    const corruptKeys: string[] = [];
-    for (let i = 1; i + 1 < items.length; i += 2) {
-      const key = this.asString(items[i]);
-      const fields = items[i + 1];
-      if (!Array.isArray(fields)) continue;
-
-      const map = new Map<string, string>();
-      for (let j = 0; j + 1 < fields.length; j += 2) {
-        map.set(this.asString(fields[j]), this.asString(fields[j + 1]));
-      }
-
-      const replyRaw = map.get('reply');
-      if (!replyRaw) {
-        if (key) corruptKeys.push(key);
-        continue;
-      }
-
-      let parsedJson: unknown;
-      try {
-        parsedJson = JSON.parse(replyRaw);
-      } catch {
-        if (key) corruptKeys.push(key);
-        continue;
-      }
-
-      const reply = parseCachedChatResponse(parsedJson);
-      if (!reply || isUnservableCachedReply(reply)) {
-        if (key) corruptKeys.push(key);
-        continue;
-      }
-
-      const dist = Number.parseFloat(map.get('dist') ?? '');
-      if (!Number.isFinite(dist)) continue;
-
-      hits.push({
-        similarity: 1 - dist,
-        reply,
-      });
-    }
-
-    return { hits, corruptKeys };
   }
 
   /** Fail-open delete of a semantic HASH with invalid reply (exact-cache parity). */
@@ -149,7 +61,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       this.logger.warn(`Invalid semantic cache reply — deleted key: ${key}`);
     } catch (err: unknown) {
       this.logger.warn(
-        `Semantic cache DEL failed for key ${key}: ${this.errorMessage(err)}`,
+        `Semantic cache DEL failed for key ${key}: ${redisSearchErrorMessage(err)}`,
       );
     }
   }
@@ -187,10 +99,10 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       this.indexCreated = true;
       return;
     } catch (infoErr: unknown) {
-      if (this.isSearchModuleMissingError(infoErr)) {
+      if (isRedisSearchModuleMissingError(infoErr)) {
         this.logger.warn(
           'Redis Search module unavailable (FT.* commands missing — use Redis Stack)',
-          { message: this.errorMessage(infoErr) },
+          { message: redisSearchErrorMessage(infoErr) },
         );
         return;
       }
@@ -211,7 +123,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       );
       this.indexCreated = true;
     } catch (createErr: unknown) {
-      if (this.isIndexAlreadyExistsError(createErr)) {
+      if (isRedisSearchIndexAlreadyExistsError(createErr)) {
         this.indexCreated = true;
         return;
       }
@@ -219,7 +131,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
         'Failed to create Redis Search vector index (fail-open)',
         {
           index,
-          message: this.errorMessage(createErr),
+          message: redisSearchErrorMessage(createErr),
         },
       );
     }
@@ -243,7 +155,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
         message: 'Redis Search index available',
       };
     } catch (err: unknown) {
-      if (this.isSearchModuleMissingError(err)) {
+      if (isRedisSearchModuleMissingError(err)) {
         return {
           available: false,
           message:
@@ -252,18 +164,18 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       }
       return {
         available: false,
-        message: `Vector index unavailable: ${this.errorMessage(err)}`,
+        message: `Vector index unavailable: ${redisSearchErrorMessage(err)}`,
       };
     }
   }
 
   private buildKnnQuery(input: VectorStoreKnnInput): string {
     const semCache = getAppConfigOrThrow(this.config, 'semanticCache');
-    const modelAlias = this.escapeTag(input.modelAlias);
-    const clientId = this.escapeTag(input.clientId);
-    const embeddingModel = this.escapeTag(semCache.embeddingModel);
-    const systemSig = this.escapeTag(input.systemSignature);
-    const callParams = this.escapeTag(input.callParams);
+    const modelAlias = escapeRedisSearchTag(input.modelAlias);
+    const clientId = escapeRedisSearchTag(input.clientId);
+    const embeddingModel = escapeRedisSearchTag(semCache.embeddingModel);
+    const systemSig = escapeRedisSearchTag(input.systemSignature);
+    const callParams = escapeRedisSearchTag(input.callParams);
     return `(@modelAlias:{${modelAlias}} @clientId:{${clientId}} @embeddingModel:{${embeddingModel}} @systemSignature:{${systemSig}} @callParams:{${callParams}})=>[KNN ${input.k} @vector $blob AS dist]`;
   }
 
@@ -297,7 +209,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       '2',
     );
 
-    const { hits, corruptKeys } = this.parseKnnHits(raw);
+    const { hits, corruptKeys } = parseKnnHits(raw);
     for (const key of corruptKeys) {
       await this.deleteCorruptEntry(key);
     }
@@ -318,7 +230,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     try {
       return await this.searchKnn(input);
     } catch (err: unknown) {
-      if (this.isMissingIndexError(err)) {
+      if (isRedisSearchMissingIndexError(err)) {
         this.indexCreated = false;
         await this.ensureIndex();
         try {
@@ -327,7 +239,7 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
           this.logger.warn(
             'Semantic KNN failed after index recreate (fail-open)',
             {
-              message: this.errorMessage(retryErr),
+              message: redisSearchErrorMessage(retryErr),
             },
           );
           return [];
@@ -377,9 +289,19 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
     );
 
     try {
-      const replyRaw = await redisClient.hget(key, 'reply');
+      // Require vector too — orphan HASH (reply-only after crashed upsert) is unservable.
+      const [replyRaw, vectorRaw] = await redisClient.hmget(
+        key,
+        'reply',
+        'vector',
+      );
       if (!replyRaw) return null;
-      const parsedJson: unknown = JSON.parse(this.asString(replyRaw));
+      if (vectorRaw == null || vectorRaw === '') {
+        // Incomplete / in-flight upsert — miss without DEL (avoid racing MULTI after HSETNX).
+        // Orphans are healed on the next upsert (hexists/ttl check).
+        return null;
+      }
+      const parsedJson: unknown = JSON.parse(asString(replyRaw));
       const reply = parseCachedChatResponse(parsedJson);
       if (!reply || isUnservableCachedReply(reply)) {
         await this.deleteCorruptEntry(key);
@@ -387,8 +309,44 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
       }
       return reply;
     } catch {
+      // Same hygiene as invalid schema / unservable reply (exact-cache parity).
+      await this.deleteCorruptEntry(key);
       return null;
     }
+  }
+
+  /**
+   * Meta + vector fields written after HSETNX claim (never overwrites `reply`).
+   */
+  private metaFields(
+    input: VectorStoreUpsertInput,
+    embeddingModel: string,
+  ): Record<string, string | Buffer> {
+    return {
+      modelAlias: input.modelAlias,
+      clientId: input.clientId,
+      embeddingModel,
+      systemSignature: input.systemSignature,
+      callParams: input.callParams,
+      vector: this.vectorBlob(input.vector),
+    };
+  }
+
+  /**
+   * Completes an orphan HASH (reply claimed, missing vector and/or TTL).
+   * Preserves first-writer `reply` (SPEC-CHAT F-8d). No Lua — same HSETNX+MULTI shape.
+   */
+  private async healIncompleteEntry(
+    key: string,
+    fields: Record<string, string | Buffer>,
+    ttl: number,
+  ): Promise<void> {
+    const redisClient = this.redis.getClient();
+    if (!redisClient) return;
+    await redisClient.multi().hset(key, fields).expire(key, ttl).exec();
+    this.logger.warn(
+      `Semantic upsert healed incomplete entry (missing vector and/or TTL): ${key}`,
+    );
   }
 
   async upsert(input: VectorStoreUpsertInput): Promise<void> {
@@ -420,40 +378,41 @@ export class RedisVectorStoreAdapter implements VectorStore, OnModuleInit {
         input.systemSignature,
         input.callParams,
       );
+      const fields = this.metaFields(input, semCache.embeddingModel);
 
-      // First-writer-wins na entryKey: pole `reply` jako wartownik tożsamości treści.
+      // First-writer-wins: `reply` as content-identity sentinel (SPEC-CHAT F-8d).
+      // Window between HSETNX and MULTI can leave reply-only orphans — heal below.
       const claimed = await redisClient.hsetnx(
         key,
         'reply',
         JSON.stringify(input.reply),
       );
 
-      if (claimed === 0) {
-        this.logger.debug(
-          `Semantic upsert NX noop (entry already exists): ${key}`,
-        );
+      if (claimed === 1) {
+        await redisClient.multi().hset(key, fields).expire(key, ttl).exec();
         return;
       }
 
-      await redisClient
-        .multi()
-        .hset(key, {
-          modelAlias: input.modelAlias,
-          clientId: input.clientId,
-          embeddingModel: semCache.embeddingModel,
-          systemSignature: input.systemSignature,
-          callParams: input.callParams,
-          vector: this.vectorBlob(input.vector),
-          // `reply` już ustawione przez HSETNX — nie nadpisujemy w HSET
-        })
-        .expire(key, ttl)
-        .exec();
+      const [hasVector, keyTtl] = await Promise.all([
+        redisClient.hexists(key, 'vector'),
+        redisClient.ttl(key),
+      ]);
+      // TTL -1 = no expiry; -2 = missing (race) — both need heal / recreate path.
+      const incomplete = hasVector === 0 || keyTtl < 0;
+      if (incomplete) {
+        await this.healIncompleteEntry(key, fields, ttl);
+        return;
+      }
+
+      this.logger.debug(
+        `Semantic upsert NX noop (entry already exists): ${key}`,
+      );
     };
 
     try {
       await write();
     } catch (err: unknown) {
-      if (this.isMissingIndexError(err)) {
+      if (isRedisSearchMissingIndexError(err)) {
         this.indexCreated = false;
         await this.ensureIndex();
         await write();

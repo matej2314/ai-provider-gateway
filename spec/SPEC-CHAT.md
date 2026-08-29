@@ -1,7 +1,7 @@
 ---
-wersja: 15
+wersja: 18
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-28
+data_modyfikacji: 2026-08-29
 ---
 
 # SPEC — Chat (standard) — `POST /chat`
@@ -14,7 +14,9 @@ Udostępnić jeden endpoint, który zwraca pełną odpowiedź LLM w spójnym for
 
 Gateway musi działać na poprawnie zwalidowanym środowisku: sekrety włączonych instancji wg `SPEC-KONFIGURACJA.md` (F-1a — w tym wyjątek OpenAI: pusty `apiKeyRef`, wymagany `baseUrlRef`) oraz poprawny `gateway.config.yaml` (fail‑fast przy starcie).
 
-**Stan implementacji:** nagłówek **`X-Gateway-Key`** — wymagany (`@GatewayKeyAndSmartRateLimit()`, `openapi.json`). Allowlista i RPS: `SPEC-PLATFORMA-I-KONTRAKTY.md`, `SPEC-KONFIGURACJA.md`. Body: `modelAlias`, `messages`, opcjonalne `conversationId` (`docs/pl/conversation_tracking.md`), opcjonalne `metadata`, opcjonalne `params` i `tooling`. Cache **exact-match** i opcjonalny **semantyczny** dla czatu JSON — `executeChat` (`src/cache/`, `ChatCacheGuardService`). Streaming v1 bez cache — `SPEC-CHAT-STREAMING.md`.
+**Stan implementacji:** nagłówek **`X-Gateway-Key`** — wymagany (`@GatewayKeyAndSmartRateLimit()`, `openapi.json`). Allowlista i RPS: `SPEC-PLATFORMA-I-KONTRAKTY.md`, `SPEC-KONFIGURACJA.md`. Body: `modelAlias`, `messages`, opcjonalne `conversationId` (`docs/pl/conversation_tracking.md`), opcjonalne `metadata`, opcjonalne `params` i `tooling`. Cache **exact-match** i opcjonalny **semantyczny** — wspólny magazyn `CachedChatResponse` dla JSON (`executeChat`) i streamingu (`resolveStreamCache` / `executeStreamMiss`) — `src/cache/`, `ChatCachePipelineService`; kontrakt SSE — `SPEC-CHAT-STREAMING.md` F-10.
+
+Zmiana względem: w wersji 17 dokumentu ten sam serwis aplikacyjny nazywał się `ChatCacheGuardService`. Obowiązuje `ChatCachePipelineService` (`src/chat/services/chat-cache-pipeline.service.ts`) — ta sama odpowiedzialność (lookup/store exact + semantic, `checkRateLimit`); nazwa nie jest Nest Guard.
 
 ## Użytkownicy i scenariusze
 
@@ -76,7 +78,9 @@ F-7. Limity DTO: `messages` — **1..150** elementów; `content` — max **3000*
 
 Zmiana względem: wcześniejsze F-7 („max 3000 znaków na wiadomość” bez rozróżnienia roli). Powód: treść `tool` ma wyższy limit w DTO.
 
-F-8. *(Opcjonalnie — cache exact-match)* Gateway może zwracać zapisaną odpowiedź dla `POST /api/v1/chat` z polami `cached: true`, `cachedAt` oraz `cacheSource: "exact"`, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Odczyt walidowany `CachedChatResponseSchema` — uszkodzony wpis usuwany. Pole `cacheSource` należy do **tej** odpowiedzi lookupu i **nie** jest zapisywane w Redis (`CachedChatResponse` / Zod bez tego pola). Przy missie (odpowiedź z providera) pola `cached`, `cachedAt` i `cacheSource` są nieobecne. Streaming v1 nie podlega temu cache (`SPEC-CHAT-STREAMING.md`).
+F-8. *(Opcjonalnie — cache exact-match)* Gateway może zwracać zapisaną odpowiedź dla `POST /api/v1/chat` z polami `cached: true`, `cachedAt` oraz `cacheSource: "exact"`, gdy włączony jest dostępny backend cache i istnieje pasujący wpis (`ResponseCacheService`). Odczyt walidowany `CachedChatResponseSchema` — uszkodzony wpis usuwany. Pole `cacheSource` należy do **tej** odpowiedzi lookupu i **nie** jest zapisywane w Redis (`CachedChatResponse` / Zod bez tego pola). Przy missie (odpowiedź z providera) pola `cached`, `cachedAt` i `cacheSource` są nieobecne. Ten sam magazyn i guard służą streamingowi — lookup/zapis/replay: `SPEC-CHAT-STREAMING.md` F-10 (nie jest już „bez cache”).
+
+Zmiana względem: F-8 w wersji 15 („Streaming v1 nie podlega temu cache”). Powód: wspólny `CachedChatResponse` + `resolveStreamCache` / `executeStreamMiss`.
 
 Hit native ma ten sam kształt co live: `finishReason`, opcjonalnie `thinkingContent`, `effectiveModelAlias`, `usageDetails`, `systemFingerprint`. `toolCalls` nie są zapisywane. `id` zostaje z pierwszego zapisu (tożsamość odpowiedzi w Redis). `requestId` **nie** jest w payloadzie Redis — hit stempluje bieżący `requestId` żądania (`ChatService.executeChat`, `toChatResponseDtoFromCache`). `conversationId` nie jest w magazynie — echo lub `conv_*` z bieżącego żądania (F-9).
 
@@ -122,15 +126,19 @@ F-8c. *(Polityka cache — decyzje v1)* Uzupełnienie F-8 / F-8b:
 - **`metadata` wyłączone z tożsamości** — exact key i partycja semantic; szczegóły operacyjne: `docs/pl/konfiguracja.md`.
 - **Brak flagi `cache` per alias** — cache dozwolony gdy `providers[].enabled === true` dla instancji aliasu + globalne env; per-model toggle **nie** jest planowany.
 - **Invalidation odroczone** — `ResponseCacheService.invalidateCache()` istnieje w kodzie, lecz **nie** jest podpięte do ścieżek produkcyjnych (brak API operacyjnego). Wpisy wygasają przez TTL lub stają się niedostępne po zmianie `systemSignature` / params; semantic bez dedykowanego API invalidation.
-- **Singleflight v1 in-process**; **v2 planowane** — distributed lock w Redis na `buildIdentityKey` (między replikami).
+- **Singleflight v1 in-process** — **tylko** ścieżka JSON (`executeChat`); streaming **bez** soft singleflight (`SPEC-CHAT-STREAMING.md` F-10). **v2 planowane** — distributed lock w Redis na `buildIdentityKey` (między replikami) dla JSON.
+
+F-8d. *(Atomowy zapis Redis — first-writer-wins)* Zapis exact przez backend Redis: `SET … NX` (z `EX` gdy TTL &gt; 0) — `RedisCacheAdapter.set`. Zapis semantic: `HSETNX` pola `reply` jako wartownik tożsamości treści, potem `MULTI` `HSET` pozostałych pól + `EXPIRE` — `RedisVectorStoreAdapter.upsert`. Drugi writer przy **kompletnym** wpisie (jest `vector` i TTL ≥ 0): NX/`HSETNX` noop → log **debug** (nie `warn` / nie „Failed to cache”). Gdy `HSETNX` = 0, ale wpis jest **niekompletny** (brak `vector` albo TTL &lt; 0 — orphan po crashu między claim a `MULTI`): **heal** — `MULTI` `HSET` meta+vector + `EXPIRE` **bez** nadpisywania `reply` → log **warn**. Hash-hit (`getByTextIdentity`) wymaga `reply` **i** `vector`; orphan / in-flight → miss **bez** `DEL` (żeby nie wyścigać `MULTI`). Ścieżka aplikacyjna traktuje NX noop / heal jako sukces. **Bez** nowych metod na portach `CacheBackend` / `VectorStore` i **bez** Lua. Noop backend nadal nadpisuje lokalnie (bez NX). Współdzielony `RedisConnectionService`: po failu connect na starcie kolejne `getClient` / `isReady` mogą odtworzyć klienta (exact + semantic + rate-limit + health) bez restartu procesu; po udanym connect — `retryStrategy` ioredis.
+
+Zmiana względem: F-8d w wersji 16 (sam `HSETNX` + `MULTI`, `claimed === 0` zawsze noop; brak heal / odmowy orphanów na hash-hit; brak recreate klienta po failu startu). Powód: orphan HASH blokował tożsamość na stałe i mógł serwować `reply` bez wektora; fail connect na starcie wyłączał cache do restartu procesu.
 
 F-9. *(Conversation tracking i metryki LLM)* `conversationId` opcjonalne w żądaniu w formacie `conv_<uuid>`. Do Sentry trafia **tylko** ID z body klienta. Gateway **zawsze** zwraca `conversationId` w odpowiedzi (echo lub `conv_<uuid>`). Klient od tury 2+ z ID musi wysyłać pełną historię w `messages[]`.
 
 Adapter metryk LLM (`AiMetricsModule`): `AI_METRICS_BACKEND=noop` | `sentry`; brak override — w **production** Sentry gdy `SENTRY_DSN` ustawiony, w przeciwnym razie noop. `AI_METRICS_BACKEND=sentry` bez DSN → błąd startu. Spany `gen_ai.*`; `gen_ai.conversation.id` tylko przy ID z body. Treści wiadomości na spanie — `SENTRY_INCLUDE_PROMPTS=true`. Inicjalizacja SDK: `src/instrument.ts`. Szczegóły: `docs/pl/conversation_tracking.md` / `docs/conversation-tracking.md`. Error reporting (wyjątki procesu) — `SPEC-PLATFORMA-I-KONTRAKTY.md` F-22; scrape Prometheus — `SPEC-METRYKI.md`.
 
-F-10. *(Odporność)* Gateway stosuje `policy.retry` i `policy.timeoutMs` z YAML przez `ResilientExecutor`. Po wyczerpaniu prób na aliasie żądanym, gdy skonfigurowano `models[].fallback`, próbuje alias zapasowy. Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne `effectiveModelAlias`; pole `model` = żądany `modelAlias`. Odpowiedź z sukcesu na fallbacku (`didFallback: true`) **nie** jest zapisywana do exact ani semantic cache — kolejne identyczne żądanie ponownie próbuje aliasu żądanego (`ChatService.completeChatAndStore`). Ten sam kontrakt obowiązuje przy przyszłym cache streamingu (`SPEC-CHAT-STREAMING.md`).
+F-10. *(Odporność)* Gateway stosuje `policy.retry` i `policy.timeoutMs` z YAML przez `ResilientExecutor`. Po wyczerpaniu prób na aliasie żądanym, gdy skonfigurowano `models[].fallback`, próbuje alias zapasowy. Przy sukcesie na fallbacku odpowiedź zawiera opcjonalne `effectiveModelAlias`; pole `model` = żądany `modelAlias`. Odpowiedź z sukcesu na fallbacku (`didFallback: true`) **nie** jest zapisywana do exact ani semantic cache — kolejne identyczne żądanie ponownie próbuje aliasu żądanego (`ChatService.completeChatAndStore` / analogicznie `executeStreamMiss`). Ten sam kontrakt obowiązuje na streamingu (`SPEC-CHAT-STREAMING.md` F-10).
 
-Zmiana względem: F-10 w wersji 14 (brak normy o pominięciu cache przy fallbacku). Powód: uniknięcie serwowania odpowiedzi fallbacku z cache pod primary aliasem.
+Zmiana względem: F-10 w wersji 15 („przy przyszłym cache streamingu”). Powód: zapis po stream miss jest wdrożony; nadal bez cache przy `didFallback`.
 
 F-11. *(Cooldown po 429 upstream)* Po błędzie providera 429 gateway może ustawić cooldown per klucz klienta + provider (`ChatErrorHandlerService` → `setCooldown`). Kolejne żądania — **JSON i streaming** — są odrzucane z `RATE_LIMITED` przez `checkCooldown` w wspólnym `prepareRequestForExecution`. Szczegóły env: `docs/pl/konfiguracja.md` (`RATE_LIMIT_COOLDOWN_AFTER_429`). Gdy Redis nie jest `ready` — fail-open (jak RPS — `SPEC-PLATFORMA-I-KONTRAKTY.md` F-17). Limit RPS/burst na brzegu (przed `ChatService`) — tamże F-16.
 
@@ -154,7 +162,8 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - [x] Retry/timeout/fallback z YAML (`effectiveModelAlias` przy fallbacku).
 - [x] Cooldown po 429 dotyczy ścieżki `executeChat` (wspólne `prepareRequestForExecution` ze streamem — `SPEC-CHAT-STREAMING.md`).
 - [x] Exact-match nie serwuje wpisu, gdy instancja aliasu jest wyłączona; klucz cache różni klientów.
-- [x] Cache semantyczny: co najwyżej jeden `embed` na żądanie JSON; brak retry `embed` przy zapisie, gdy lookup już go wołał; stream v1 bez tej warstwy.
+- [x] Cache semantyczny: co najwyżej jeden `embed` na żądanie JSON; brak retry `embed` przy zapisie, gdy lookup już go wołał; stream używa tego samego guarda / magazynu (`SPEC-CHAT-STREAMING.md` F-10).
+- [x] *(First-writer-wins)* Exact Redis `SET NX` i semantic `HSETNX` nie nadpisują kompletnego wpisu; NX noop → debug; orphan semantic → heal; hash-hit bez vector → miss bez DEL (F-8d).
 - [x] Cache semantyczny: inne efektywne params albo inna `systemSignature` → brak semantic hit (ta sama ostatnia fraza user nie wystarcza).
 - [x] Cache semantyczny: wieloturowa `messages[]` (lub więcej niż jeden `user`) → brak lookupu/store semantic (brak wywołania `embed`).
 - [x] Cache semantyczny: identyczny przycięty last-user w tej samej partycji → HASH hit bez `embed` (`getByTextIdentity`, metryka `hash-hit`).
@@ -170,4 +179,4 @@ NFR-3. Odpowiedź nie może zawierać surowych sekretów ani surowych stack trac
 - Narzędzia wykonywane po stronie gateway (tool runner) — function calling przez adaptery jest wdrożony.
 - Fasady HTTP vendora (`/openai`, `/anthropic`) — `SPEC-FASADY.md`.
 - Natywny katalog modeli — `SPEC-MODELS.md`.
-- Zapis i odczyt cache na `POST /chat/stream` — `SPEC-CHAT-STREAMING.md` (v1 bez cache; plan Faza 5).
+- Soft singleflight / live tee na streamie oraz distributed lock singleflight (v2) — `SPEC-CHAT-STREAMING.md` / F-8c.

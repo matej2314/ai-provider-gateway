@@ -128,7 +128,7 @@ Details: `dictionary.md`, `api-documentation.md`.
 
 **Don’t:** expect that **`id`** (`gw_*`) on a cache hit is newly generated — it is the identity of the stored reply. **`requestId`** on a hit **must** match the current request (`x-request-id`); it is not stored in Redis.
 
-**Do:** consciously enable cache only where response repeatability is acceptable; monitor TTL and invalidation (changing the system prompt or call params changes the exact cache key **and** the semantic KNN partition — see 20). Store only a completed text reply (`finishReason=stop`, non-empty text, no `toolCalls` / `content_filter` / `length`) — `shouldStoreChatResponse` / `isUnservableCachedReply`. Read `configuration.md` (env `CACHE_*`, `REDIS_*`); Redis reads are validated with a Zod schema (`CachedChatResponseSchema` — corrupt or unservable entry removed); streaming is a cache-free path (`spec/SPEC-CHAT-STREAMING.md`).
+**Do:** consciously enable cache only where response repeatability is acceptable; monitor TTL and invalidation (changing the system prompt or call params changes the exact cache key **and** the semantic KNN partition — see 20). Store only a completed text reply (`finishReason=stop`, non-empty text, no `toolCalls` / `content_filter` / `length`) — `shouldStoreChatResponse` / `isUnservableCachedReply`. Read `configuration.md` (env `CACHE_*`, `REDIS_*`); Redis reads are validated with a Zod schema (`CachedChatResponseSchema` — corrupt or unservable entry removed); streaming uses the same store as JSON with SSE replay (`spec/SPEC-CHAT-STREAMING.md` F-10); Redis write is first-writer-wins (`SET NX` / `HSETNX`).
 
 ## 13) Confusing three API contracts (native vs official contract facades)
 
@@ -177,7 +177,7 @@ Details: `command_line_interface.md`, `architecture.md`, `project.structure.md` 
 
 **Don’t:** add Redis Search / KNN queries to the existing `CacheBackend` / `noop` / `redis` adapters in `src/cache/adapters/`. The KV `CacheBackend` interface is for exact key-value lookup and has no similarity-search concept.
 
-**Do:** implement semantic lookup as a **separate port** (`EmbeddingBackend`, `VectorStore`) in `src/cache/semantic/` — independent adapters wired by `SemanticCacheService`. Lookup order (cooldown → alias policy → exact KV → semantic HASH on trimmed last-user → embed + KNN → provider → dual-write sync) is orchestrated in `ChatCacheGuardService` / `SemanticCacheService`, not inside the KV adapters. Cheap `VectorStore.getByTextIdentity` runs **before** embed. Do **not** promote a semantic HASH/KNN hit into exact KV — the stores stay parallel. On store, reuse the lookup vector; do **not** call `embed` again when lookup already attempted it (failed or succeeded without a usable vector).
+**Do:** implement semantic lookup as a **separate port** (`EmbeddingBackend`, `VectorStore`) in `src/cache/semantic/` — independent adapters wired by `SemanticCacheService`. Lookup order (cooldown → alias policy → exact KV → semantic HASH on trimmed last-user → embed + KNN → provider → dual-write sync) is orchestrated in `ChatCachePipelineService` / `SemanticCacheService`, not inside the KV adapters. Cheap `VectorStore.getByTextIdentity` runs **before** embed. Do **not** promote a semantic HASH/KNN hit into exact KV — the stores stay parallel. On store, reuse the lookup vector; do **not** call `embed` again when lookup already attempted it (failed or succeeded without a usable vector).
 
 ## 17) Overriding `command:` on Redis Stack Compose
 

@@ -25,14 +25,6 @@ export function normalizeEmbeddingModelForIndex(
     .replace(/^-+|-+$/g, '');
 }
 
-/**
- * Redis Search index name:
- * `{PROJECT_ID}:sem:idx:{normalizedModel}-{dim}-{schemaHash8}`
- *
- * `schemaHash8` = first 8 hex chars of SHA-256 over
- * `{PROJECT_ID}\n{embeddingModel}\n{dim}\n{canonicalSchema}`.
- * Changing SCHEMA fields/types, project id, model, or DIM → new index (orphan old).
- */
 export function semanticIndexName(
   embeddingModel: string,
   dim: number,

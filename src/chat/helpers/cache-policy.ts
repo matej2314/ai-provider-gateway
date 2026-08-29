@@ -1,6 +1,5 @@
 import type { GatewayConfig } from '../../config/configuration';
 import type { ChatResponseData } from '../dto/chat-response.dto';
-import type { CachedChatResponse } from '../../cache/types/cached-chat-response.type';
 
 export function isCachedChatAllowedForModelAlias(
   gateway: GatewayConfig | undefined,
@@ -24,7 +23,3 @@ export function shouldStoreChatResponse(response: ChatResponseData): boolean {
   return true;
 }
 
-export function isUnservableCachedReply(parsed: CachedChatResponse): boolean {
-  if (parsed.finishReason !== 'stop') return true;
-  return parsed.output.text.trim().length === 0;
-}

@@ -1,7 +1,7 @@
 ---
-wersja: 5
+wersja: 6
 data_utworzenia: 2026-08-26
-data_modyfikacji: 2026-08-28
+data_modyfikacji: 2026-08-29
 ---
 
 # SPEC — Fasady oficjalnych kontraktów (OpenAI / Anthropic)
@@ -34,11 +34,13 @@ Alias `chat-default` → `providerInstance: anthropic-primary` działa zarówno 
 
 ## Wymagania funkcjonalne — wspólne
 
-F-1. Fasady są **anti-corruption layer**: kontrolery i mappery tłumaczą HTTP; jedynym orkiestratorem czatu pozostaje `ChatService` (cache exact i semantyczny na JSON — `SPEC-CHAT.md` F-8 / F-8b; retry, fallback, cooldown — `SPEC-CHAT.md` / `SPEC-CHAT-STREAMING.md`). Stream fasady jak native v1: bez cache.
+F-1. Fasady są **anti-corruption layer**: kontrolery i mappery tłumaczą HTTP; jedynym orkiestratorem czatu pozostaje `ChatService` (cache exact i semantyczny na JSON **i** streamie — `SPEC-CHAT.md` F-8 / F-8b / F-8d, `SPEC-CHAT-STREAMING.md` F-10; retry, fallback, cooldown — `SPEC-CHAT.md` / `SPEC-CHAT-STREAMING.md`). Stream fasady: `resolveStreamCache` przed `flushHeaders`, hit → `replayStreamCacheHit`, miss → `executeStreamMiss` (jak native).
 
-F-1a. Pola natywne cache (`cached`, `cachedAt`, `cacheSource` z `SPEC-CHAT.md` F-8 / F-8b) **nie** są mapowane do JSON vendora (`chat.completion` / Messages). Trafienie cache nadal zwraca 201 w kontrakcie OpenAI/Anthropic — bez tych pól. Świadome pominięcie: kontrakt vendora nie ma odpowiednika `cacheSource`.
-Nagłówek HTTP `X-Gateway-Cache: exact | semantic` na 201 JSON fasady przy hicie; brak nagłówka przy missie i na streamie. Body vendora nadal bez `cached` / `cacheSource`.
-Zmiana względem: F-1a tylko „brak pól w JSON”. Powód: klient vendora nie ma pola cache w kontrakcie, nagłówek jest sygnałem poza body.
+Zmiana względem: F-1 w wersji 5 („Stream fasady jak native v1: bez cache”). Powód: parity native stream cache w `OpenAiChatCompletionsController` / `AnthropicMessagesController`.
+
+F-1a. Pola natywne cache (`cached`, `cachedAt`, `cacheSource` z `SPEC-CHAT.md` F-8 / F-8b) **nie** są mapowane do JSON vendora (`chat.completion` / Messages) ani do chunków SSE vendora (`openai-stream.mapper` / `anthropic-stream.mapper` ignorują `cached*`). Trafienie cache nadal zwraca 201 w kontrakcie OpenAI/Anthropic (JSON) — bez tych pól w body.
+Nagłówek HTTP `X-Gateway-Cache: exact | semantic` przy hicie cache — **JSON (201) i stream (200 SSE)** fasady; brak nagłówka przy missie. Body / chunki vendora nadal bez `cached` / `cacheSource`.
+Zmiana względem: F-1a w wersji 5 („brak nagłówka … na streamie”). Powód: parity JSON — `setHeader(GATEWAY_CACHE_HEADER, cacheSource)` przed `flushHeaders` na ścieżce hit.
 
 F-2. Pole `model` w requeście fasady mapuje się na `modelAlias` YAML (`openai-request.mapper.ts`, `anthropic-request.mapper.ts`). Wartość spoza allowlisty → błąd w **formacie vendora** (nie surowy `ErrorEnvelope`), bez wywołania LLM.
 
@@ -101,6 +103,7 @@ NFR-3. Odpowiedzi fasad nie dumpują sekretów ani surowych stack trace SDK.
 - [x] Ten sam alias działa na fasadzie niezależnie od `providerType` runtime (E2E mock + integracje live).
 - [x] Błędy w formacie vendora, nie `ErrorEnvelope`.
 - [x] RPS/burst na fasadzie przez `SmartRateLimitGuard`; concurrent streams przy `stream: true` w kontrolerze fasady.
+- [x] *(Cache stream)* Hit streamu ustawia `X-Gateway-Cache`; body vendora bez `cacheSource` / `cachedAt` (controller + mapper specs).
 
 ## Poza zakresem
 

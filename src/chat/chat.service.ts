@@ -19,7 +19,7 @@ import { isCachedChatAllowedForModelAlias } from './helpers/cache-policy';
 import { createInProcessSingleflight } from './helpers/in-process-singleflight';
 
 import { ChatProviderCallService } from './services/chat-provider-call.service';
-import { ChatCacheGuardService } from './services/chat-cache-guard.service';
+import { ChatCachePipelineService } from './services/chat-cache-pipeline.service';
 import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
@@ -65,7 +65,7 @@ export class ChatService {
     private readonly loggingService: LoggingService,
     private readonly resilientExecutor: ResilientExecutor,
     private readonly providerCallService: ChatProviderCallService,
-    private readonly cacheGuardService: ChatCacheGuardService,
+    private readonly cachePipelineService: ChatCachePipelineService,
     private readonly errorHandlerService: ChatErrorHandlerService,
     private readonly responseBuilderService: ChatResponseBuilderService,
     private readonly streamCacheReplay: StreamCacheReplayService,
@@ -105,7 +105,7 @@ export class ChatService {
     this.validationService.validateThinking(primaryResolved, options);
 
     if (gatewayKey) {
-      await this.cacheGuardService.checkRateLimit(
+      await this.cachePipelineService.checkRateLimit(
         gatewayKey,
         primaryResolved.providerName,
         requestId,
@@ -138,7 +138,7 @@ export class ChatService {
       return { outcome: 'miss', prep };
     }
 
-    const lookup = await this.cacheGuardService.getCachedIfAllowed(
+    const lookup = await this.cachePipelineService.getCachedIfAllowed(
       requestBody,
       prep.options,
       clientId,
@@ -205,7 +205,7 @@ export class ChatService {
     let embedState: SemanticStoreEmbedState | undefined;
 
     if (gatewayKey) {
-      const lookup = await this.cacheGuardService.getCachedIfAllowed(
+      const lookup = await this.cachePipelineService.getCachedIfAllowed(
         requestBody,
         options,
         clientId,
@@ -250,7 +250,7 @@ export class ChatService {
       );
 
     if (mayCoalesce) {
-      const key = this.cacheGuardService.buildIdentityKey(
+      const key = this.cachePipelineService.buildIdentityKey(
         requestBody,
         clientId,
         options,
@@ -335,7 +335,7 @@ export class ChatService {
       // Dual-write exact SET + semantic upsert must finish before HTTP 201 (P17x.D).
       // Fallback responses are not cached — next request should retry the primary alias.
       if (!didFallback) {
-        await this.cacheGuardService.setCachedIfAllowed(
+        await this.cachePipelineService.setCachedIfAllowed(
           requestBody,
           chatResult,
           options,
@@ -507,7 +507,7 @@ export class ChatService {
           id,
         );
 
-        await this.cacheGuardService.setCachedIfAllowed(
+        await this.cachePipelineService.setCachedIfAllowed(
           requestBody,
           chatResult,
           options,

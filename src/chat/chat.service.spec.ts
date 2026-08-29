@@ -10,7 +10,7 @@ import { ProviderRegistryService } from '../providers/provider-registry.service'
 import { LoggingService } from '../logging/logging.service';
 import { ApiErrorCode } from '../common/errors/api-error.code';
 import { ChatProviderCallService } from './services/chat-provider-call.service';
-import { ChatCacheGuardService } from './services/chat-cache-guard.service';
+import { ChatCachePipelineService } from './services/chat-cache-pipeline.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import {
@@ -61,7 +61,7 @@ describe('ChatService', () => {
   let mockProviderCall: Partial<ChatProviderCallService>;
   let mockExecutor: Partial<ResilientExecutor>;
   let mockLogger: Partial<LoggingService>;
-  let mockCacheGuard: Partial<ChatCacheGuardService>;
+  let mockCachePipeline: Partial<ChatCachePipelineService>;
   let mockValidation: Partial<ChatValidationService>;
   let mockErrorHandler: Partial<ChatErrorHandlerService>;
   let mockResponseBuilder: Partial<ChatResponseBuilderService>;
@@ -121,7 +121,7 @@ describe('ChatService', () => {
     mockLogger = createMockLoggingService();
     mockExecutor = createMockResilientExecutor();
 
-    mockCacheGuard = {
+    mockCachePipeline = {
       checkRateLimit: jest.fn().mockResolvedValue(undefined),
       getCachedIfAllowed: jest.fn().mockResolvedValue({ cached: null }),
       setCachedIfAllowed: jest.fn().mockResolvedValue(undefined),
@@ -207,7 +207,7 @@ describe('ChatService', () => {
         { provide: LoggingService, useValue: mockLogger },
         { provide: ResilientExecutor, useValue: mockExecutor },
         { provide: ChatProviderCallService, useValue: mockProviderCall },
-        { provide: ChatCacheGuardService, useValue: mockCacheGuard },
+        { provide: ChatCachePipelineService, useValue: mockCachePipeline },
         { provide: ChatValidationService, useValue: mockValidation },
         { provide: ChatErrorHandlerService, useValue: mockErrorHandler },
         { provide: ChatResponseBuilderService, useValue: mockResponseBuilder },
@@ -259,7 +259,7 @@ describe('ChatService', () => {
         resolvedConfig,
         expectedOptions,
       );
-      expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
+      expect(mockCachePipeline.checkRateLimit).toHaveBeenCalledWith(
         TEST_GATEWAY_KEY_BRANDED,
         'anthropic',
         TEST_REQUEST_ID,
@@ -270,7 +270,7 @@ describe('ChatService', () => {
 
     it('should propagate cooldown errors', async () => {
       const rateLimitError = new HttpException('Rate limited', 429);
-      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+      (mockCachePipeline.checkRateLimit as jest.Mock).mockRejectedValue(
         rateLimitError,
       );
 
@@ -292,7 +292,7 @@ describe('ChatService', () => {
         asGatewayKey(''),
       );
 
-      expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
+      expect(mockCachePipeline.checkRateLimit).not.toHaveBeenCalled();
     });
   });
 
@@ -323,7 +323,7 @@ describe('ChatService', () => {
         baseRequest,
         resolvedConfig,
       );
-      expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
+      expect(mockCachePipeline.checkRateLimit).toHaveBeenCalledWith(
         TEST_GATEWAY_KEY_BRANDED,
         'anthropic',
         TEST_REQUEST_ID,
@@ -347,7 +347,7 @@ describe('ChatService', () => {
         id: 'cached-123',
         output: { type: 'text' as const, text: 'Cached response' },
       };
-      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
         cached: cachedResponse,
         cacheSource: 'exact',
       });
@@ -360,7 +360,7 @@ describe('ChatService', () => {
         'native',
       );
 
-      expect(mockCacheGuard.getCachedIfAllowed).toHaveBeenCalledWith(
+      expect(mockCachePipeline.getCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
         expect.any(Object),
         TEST_CLIENT_ID,
@@ -386,7 +386,7 @@ describe('ChatService', () => {
         cached: true as const,
         cachedAt: '2026-01-01T00:00:00.000Z',
       };
-      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
         cached: cachedResponse,
         cacheSource: 'semantic',
       });
@@ -413,7 +413,7 @@ describe('ChatService', () => {
 
     it('should propagate cache guard rate limit errors', async () => {
       const rateLimitError = new HttpException('Rate limited', 429);
-      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+      (mockCachePipeline.checkRateLimit as jest.Mock).mockRejectedValue(
         rateLimitError,
       );
 
@@ -595,7 +595,7 @@ describe('ChatService', () => {
         'native',
       );
 
-      expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
+      expect(mockCachePipeline.setCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
         expect.objectContaining({
           output: { type: 'text', text: 'Fresh answer' },
@@ -609,7 +609,7 @@ describe('ChatService', () => {
 
     it('should pass embedState from lookup to cache write on miss', async () => {
       const embedState = { vector: [0.1, 0.2, 0.3], embedAttempted: true };
-      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
         cached: null,
         embedState,
       });
@@ -623,7 +623,7 @@ describe('ChatService', () => {
         'native',
       );
 
-      expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
+      expect(mockCachePipeline.setCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
         expect.objectContaining({
           output: { type: 'text', text: 'Fresh answer' },
@@ -646,8 +646,8 @@ describe('ChatService', () => {
         'native',
       );
 
-      expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
-      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCachePipeline.checkRateLimit).not.toHaveBeenCalled();
+      expect(mockCachePipeline.getCachedIfAllowed).not.toHaveBeenCalled();
       expect(mockAppMetrics.recordCachePipelineAccess).not.toHaveBeenCalled();
     });
 
@@ -693,7 +693,7 @@ describe('ChatService', () => {
         expectedOptions,
         resolvedConfig.providerType,
       );
-      expect(mockCacheGuard.setCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCachePipeline.setCachedIfAllowed).not.toHaveBeenCalled();
     });
 
     it('should not set fallbackAlias for tooling requests', async () => {
@@ -922,7 +922,7 @@ describe('ChatService', () => {
 
     it('should check cooldown before cache lookup', async () => {
       const rateLimitError = new HttpException('Rate limited', 429);
-      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+      (mockCachePipeline.checkRateLimit as jest.Mock).mockRejectedValue(
         rateLimitError,
       );
 
@@ -936,8 +936,8 @@ describe('ChatService', () => {
         ),
       ).rejects.toBe(rateLimitError);
 
-      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
-      expect(mockCacheGuard.buildIdentityKey).not.toHaveBeenCalled();
+      expect(mockCachePipeline.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCachePipeline.buildIdentityKey).not.toHaveBeenCalled();
     });
   });
 
@@ -959,7 +959,7 @@ describe('ChatService', () => {
 
       expect(decision).toMatchObject({ outcome: 'miss' });
       expect(decision.prep.primaryResolved).toBe(resolvedConfig);
-      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCachePipeline.getCachedIfAllowed).not.toHaveBeenCalled();
     });
 
     it('should return hit with cached payload and cacheSource', async () => {
@@ -967,7 +967,7 @@ describe('ChatService', () => {
         id: 'cached-stream-123',
         output: { type: 'text' as const, text: 'Cached stream' },
       };
-      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
         cached: cachedResponse,
         cacheSource: 'exact',
       });
@@ -988,7 +988,7 @@ describe('ChatService', () => {
         cached: cachedResponse,
         cacheSource: 'exact',
       });
-      expect(mockCacheGuard.getCachedIfAllowed).toHaveBeenCalledWith(
+      expect(mockCachePipeline.getCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
         expect.any(Object),
         TEST_CLIENT_ID,
@@ -1003,7 +1003,7 @@ describe('ChatService', () => {
         cached: true as const,
         cachedAt: '2026-01-01T00:00:00.000Z',
       };
-      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
         cached: cachedResponse,
         cacheSource: 'semantic',
       });
@@ -1028,7 +1028,7 @@ describe('ChatService', () => {
 
     it('should return miss with embedState from lookup', async () => {
       const embedState = { vector: [0.1, 0.2], embedAttempted: true };
-      (mockCacheGuard.getCachedIfAllowed as jest.Mock).mockResolvedValue({
+      (mockCachePipeline.getCachedIfAllowed as jest.Mock).mockResolvedValue({
         cached: null,
         embedState,
       });
@@ -1052,7 +1052,7 @@ describe('ChatService', () => {
 
     it('should propagate cooldown errors before cache lookup', async () => {
       const rateLimitError = new HttpException('Rate limited', 429);
-      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+      (mockCachePipeline.checkRateLimit as jest.Mock).mockRejectedValue(
         rateLimitError,
       );
 
@@ -1066,7 +1066,7 @@ describe('ChatService', () => {
         ),
       ).rejects.toBe(rateLimitError);
 
-      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCachePipeline.getCachedIfAllowed).not.toHaveBeenCalled();
     });
   });
 
@@ -1124,7 +1124,7 @@ describe('ChatService', () => {
         'native',
         TEST_GATEWAY_KEY_BRANDED,
       );
-      (mockCacheGuard.checkRateLimit as jest.Mock).mockClear();
+      (mockCachePipeline.checkRateLimit as jest.Mock).mockClear();
       (mockValidation.validateTooling as jest.Mock).mockClear();
       mockStreamExecutorSuccess();
 
@@ -1137,7 +1137,7 @@ describe('ChatService', () => {
         { outcome: 'miss', prep },
       );
 
-      expect(mockCacheGuard.checkRateLimit).not.toHaveBeenCalled();
+      expect(mockCachePipeline.checkRateLimit).not.toHaveBeenCalled();
       expect(mockValidation.validateTooling).not.toHaveBeenCalled();
       expect(mockExecutor.executeWithRetryAndFallback).toHaveBeenCalled();
       expect(mockResponseBuilder.buildStreamDoneEvent).toHaveBeenCalled();
@@ -1173,7 +1173,7 @@ describe('ChatService', () => {
         resolvedConfig.providerType,
         asResponseId(TEST_RESPONSE_ID_PREFIX),
       );
-      expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
+      expect(mockCachePipeline.setCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
         expect.objectContaining({
           id: TEST_RESPONSE_ID_PREFIX,
@@ -1217,7 +1217,7 @@ describe('ChatService', () => {
       );
 
       expect(mockResponseBuilder.buildChatResponse).not.toHaveBeenCalled();
-      expect(mockCacheGuard.setCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCachePipeline.setCachedIfAllowed).not.toHaveBeenCalled();
     });
   });
 
@@ -1251,13 +1251,13 @@ describe('ChatService', () => {
         baseRequest,
         resolvedConfig,
       );
-      expect(mockCacheGuard.checkRateLimit).toHaveBeenCalledWith(
+      expect(mockCachePipeline.checkRateLimit).toHaveBeenCalledWith(
         TEST_GATEWAY_KEY_BRANDED,
         'anthropic',
         TEST_REQUEST_ID,
       );
-      expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
-      expect(mockCacheGuard.setCachedIfAllowed).toHaveBeenCalledWith(
+      expect(mockCachePipeline.getCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCachePipeline.setCachedIfAllowed).toHaveBeenCalledWith(
         baseRequest,
         expect.objectContaining({
           output: { type: 'text', text: 'Hello' },
@@ -1371,7 +1371,7 @@ describe('ChatService', () => {
 
     it('should propagate cooldown errors before stream executor', async () => {
       const rateLimitError = new HttpException('Rate limited', 429);
-      (mockCacheGuard.checkRateLimit as jest.Mock).mockRejectedValue(
+      (mockCachePipeline.checkRateLimit as jest.Mock).mockRejectedValue(
         rateLimitError,
       );
 
@@ -1453,7 +1453,7 @@ describe('ChatService', () => {
         undefined,
         asModelAlias('fallback-model'),
       );
-      expect(mockCacheGuard.setCachedIfAllowed).not.toHaveBeenCalled();
+      expect(mockCachePipeline.setCachedIfAllowed).not.toHaveBeenCalled();
     });
 
     it('should use primary fallbackAlias for streaming', async () => {

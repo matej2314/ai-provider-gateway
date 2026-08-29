@@ -399,9 +399,9 @@ describe('AnthropicMessagesController', () => {
       rateLimiter.checkConcurrentStreams.mockResolvedValue(allowedStreamCheck);
       resolveStreamCacheMock.mockRejectedValue(rateLimitError);
 
-      await expect(
-        controller.createMessage(req, res, streamBody),
-      ).rejects.toBe(rateLimitError);
+      await expect(controller.createMessage(req, res, streamBody)).rejects.toBe(
+        rateLimitError,
+      );
 
       expect(flushHeaders).not.toHaveBeenCalled();
       expect(end).not.toHaveBeenCalled();

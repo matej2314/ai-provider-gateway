@@ -128,7 +128,7 @@ Szczegóły: `dictionary.md`, `dokumentacja_api.md`.
 
 **Nie rób**: oczekiwania, że **`id`** (`gw_*`) na hicie będzie nowy — to tożsamość zapisanej odpowiedzi. **`requestId`** na hicie **musi** zgadzać się z bieżącym żądaniem (`x-request-id`); nie jest trzymany w Redis.
 
-**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu lub params zmienia klucz exact **oraz** partycję KNN semantic — pkt 20). Zapis wyłącznie dokończonej odpowiedzi tekstowej (`finishReason=stop`, niepusty tekst, bez `toolCalls` / `content_filter` / `length`) — `shouldStoreChatResponse` / `isUnservableCachedReply`. Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony lub nieserwowalny wpis usuwany); streaming jest ścieżką bez cache (`spec/SPEC-CHAT-STREAMING.md`).
+**Rób**: świadomie włączać cache tylko tam, gdzie powtarzalność odpowiedzi jest akceptowalna; monitorować TTL i invalidację (zmiana system promptu lub params zmienia klucz exact **oraz** partycję KNN semantic — pkt 20). Zapis wyłącznie dokończonej odpowiedzi tekstowej (`finishReason=stop`, niepusty tekst, bez `toolCalls` / `content_filter` / `length`) — `shouldStoreChatResponse` / `isUnservableCachedReply`. Czytaj `konfiguracja.md` (env `CACHE_*`, `REDIS_*`); odczyt z Redis walidowany schematem Zod (`CachedChatResponseSchema` — uszkodzony lub nieserwowalny wpis usuwany); streaming używa tego samego magazynu co JSON z replay SSE (`spec/SPEC-CHAT-STREAMING.md` F-10); zapis Redis first-writer-wins (`SET NX` / `HSETNX`).
 
 ## 13) Mylenie trzech kontraktów API (natywny vs fasady oficjalnych kontraktów)
 
@@ -177,7 +177,7 @@ Szczegóły: `CLI.md`, `architektura.md`, `architektura_katalogi_pliki.md` (sekc
 
 **Nie rób:** dodawaj zapytan Redis Search / KNN do istniejacych adapterow `CacheBackend` / `noop` / `redis` w `src/cache/adapters/`. Interfejs KV `CacheBackend` jest zaprojektowany dla dokladnych lookupu klucz-wartosc i nie ma koncepcji wyszukiwania podobienstwa.
 
-**Rób:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (cooldown → polityka aliasu → exact KV → semantic HASH przyciętego last-user → embed + KNN → provider → dual-write sync) jest orkiestrowana w `ChatCacheGuardService` / `SemanticCacheService`, nie wewnatrz istniejacych adapterow. Tani `VectorStore.getByTextIdentity` działa **przed** embed. **Nie** promuj trafienia HASH/KNN do exact KV — magazyny zostają równoległe. Przy zapisie reuse wektora z lookupu; **nie** wołaj ponownie `embed`, gdy lookup już go próbował (sukces bez wektora albo błąd).
+**Rób:** implementuj lookup semantyczny jako **osobny port** (`EmbeddingBackend`, `VectorStore`) w `src/cache/semantic/` — niezalezne adaptery powiazane przez `SemanticCacheService`. Kolejnosc lookup (cooldown → polityka aliasu → exact KV → semantic HASH przyciętego last-user → embed + KNN → provider → dual-write sync) jest orkiestrowana w `ChatCachePipelineService` / `SemanticCacheService`, nie wewnatrz istniejacych adapterow. Tani `VectorStore.getByTextIdentity` działa **przed** embed. **Nie** promuj trafienia HASH/KNN do exact KV — magazyny zostają równoległe. Przy zapisie reuse wektora z lookupu; **nie** wołaj ponownie `embed`, gdy lookup już go próbował (sukces bez wektora albo błąd).
 
 ## 17) Nadpisywanie command: w Redis Stack Compose
 

@@ -36,7 +36,7 @@ Document version: **1.6**. The document is versioned with the code. **[`openapi.
 
 ## Error format
 
-All error responses handled by `GlobalExceptionFilter` as JSON are in the **`ErrorEnvelope`** envelope (`openapi.json`) â see `src/common/filters/http-exception.filter.ts` (registration: `APP_FILTER` in `src/app.module.ts`). **Note:** for `POST /api/v1/chat/stream` some errors may occur **after** `flushHeaders` (see streaming section) â then the client may not receive valid JSON.
+All error responses handled by `GlobalExceptionFilter` as JSON are in the **`ErrorEnvelope`** envelope (`openapi.json`) â see `src/common/filters/http-exception.filter.ts` (registration: `APP_FILTER` in `src/app.module.ts`). **Note:** for `POST /api/v1/chat/stream` cooldown and `resolveStreamCache` errors return as JSON **before** SSE; live-miss errors may occur **after** `flushHeaders` (see streaming section).
 
 ```json
 {
@@ -140,7 +140,7 @@ Successful JSON response: **201 Created** â default NestJS behavior for `PO
 
 `ChatService.executeChat`: `id`, **`provider`** (**`providerInstance`** identifier from YAML), `model` (requested `modelAlias`), optionally **`effectiveModelAlias`**, optionally **`toolCalls`**, **`finishReason`**, **`usageDetails`**, optionally **`systemFingerprint`** (only when the upstream adapter supplies it â see `dictionary.md`), `output`, `usage`, `requestId`, **`conversationId`**.
 
-**Cache (optional):** lookup before calling the provider; **skipped** for requests with tooling. On a hit — when the alias and provider are **enabled** in YAML — JSON is returned with **`cached: true`**, **`cachedAt`**, and **`cacheSource`** (`"exact"` or `"semantic"`). **`requestId`** on a hit is the current request (not from Redis); **`id`** comes from the payload. Store only a completed text reply (`finishReason=stop`, non-empty text, no `toolCalls`). The cache fields are omitted on a provider miss and are **not** stored in Redis. Backend reads are parsed by **`parseCachedChatResponse`** (`CachedChatResponseSchema`); invalid or unservable entry is removed. Streaming is not cached. OpenAI/Anthropic facades do **not** expose `cacheSource` (vendor JSON).
+**Cache (optional):** lookup before calling the provider; **skipped** for requests with tooling. On a hit — when the alias and provider are **enabled** in YAML — JSON is returned with **`cached: true`**, **`cachedAt`**, and **`cacheSource`** (`"exact"` or `"semantic"`), or on stream SSE `meta` with those fields (64-char replay). **`requestId`** on a hit is the current request (not from Redis); **`id`** comes from the payload. Store only a completed text reply (`finishReason=stop`, non-empty text, no `toolCalls`). The cache fields are omitted on a provider miss and are **not** stored in Redis. Backend reads are parsed by **`parseCachedChatResponse`** (`CachedChatResponseSchema`); invalid or unservable entry is removed. Native streaming and facade `stream: true` use the **shared** store with JSON; Redis write: first-writer-wins (`SET NX` / `HSETNX`). OpenAI/Anthropic facades do **not** expose `cacheSource` in vendor body — the signal is the **`X-Gateway-Cache`** header (JSON and stream).
 
 **Cooldown after provider 429** (`SmartRateLimiterService.setCooldown`) is set in **`ChatErrorHandlerService.handleProviderError`** after an upstream error â applies to **`executeChat` and `executeStream`** (in both paths `gatewayKey` is passed). Shared cooldown check before the call: `prepareRequestForExecution` â `checkCooldown`.
 
@@ -166,16 +166,16 @@ The **`model`** field is the **alias** from the request (`modelAlias`) both in t
 
 **Controller:** `ChatStreamController` + `StreamCleanupInterceptor` (release stream slot in `finalize`).
 
-Flow: `validateForStreaming(modelAlias)` â SSE headers + **`flushHeaders()`** â `executeStream`. Body same as standard chat (including optional **`conversationId`** â `conversation-tracking.md`).
+Flow: `validateForStreaming(modelAlias)` → **`resolveStreamCache`** (prepare + cooldown + cache lookup) → SSE headers + **`flushHeaders()`** → hit: **`replayStreamCacheHit`** / miss: **`executeStreamMiss`**. Body same as standard chat (including optional **`conversationId`** — `conversation-tracking.md`).
 
-**Events:** `meta` â `delta`\* â `done`. In **`meta`**: `id`, `provider`, `model`, optionally **`effectiveModelAlias`**, `requestId`, **`conversationId`**. In **`done`**: optionally `usage` (with `totalTokens`), **`toolCalls`**, **`finishReason`**, optionally **`systemFingerprint`** (rules as in JSON above). Retry/fallback â `ResilientExecutor` (fallback disabled with tooling, as in JSON).
+**Events:** `meta` → `delta`\* → `done`. In **`meta`**: `id`, `provider`, `model`, optionally **`effectiveModelAlias`**, `requestId`, **`conversationId`**; on cache hit also **`cached: true`**, **`cachedAt`**, **`cacheSource`** (`exact` | `semantic`) — text in `delta` from 64-char replay chunks. In **`done`**: optionally `usage` (with `totalTokens`), **`toolCalls`**, **`finishReason`**, optionally **`systemFingerprint`** (rules as in JSON above). Retry/fallback — `ResilientExecutor` (fallback disabled with tooling, as in JSON); after a successful miss, write to the shared store when `!didFallback`.
 
 **Errors and JSON `ErrorEnvelope`:**
 
-- **Before SSE (reliable JSON):** `ValidationPipe`, guards (`GatewayKeyGuard`, `SmartRateLimitGuard`), **`validateForStreaming`** â among others `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`.
-- **After `flushHeaders`:** errors from **`executeStream`** / **`ChatProviderCallService.streamOnce`** â among others `MODEL_NOT_ALLOWED` (disallowed field in `params` checked only in `resolveProviderCallOptions` inside `streamOnce`), provider errors (`PROVIDER_*`), timeout (`PROVIDER_TIMEOUT`), retry+fallback exhaustion (`PROVIDER_UNAVAILABLE`). The client may get a **partial** stream (`meta` / `delta`) instead of valid JSON; the connection ends in the controller `finally` (`res.end()`).
+- **Before SSE (reliable JSON):** `ValidationPipe`, guards (`GatewayKeyGuard`, `SmartRateLimitGuard`), **`validateForStreaming`**, **`resolveStreamCache`** (cooldown → `RATE_LIMITED`) — among others `MODEL_ALIAS_NOT_FOUND`, `STREAMING_NOT_SUPPORTED`, `RATE_LIMITED`.
+- **After `flushHeaders`:** errors from **`executeStreamMiss`** / **`ChatProviderCallService.streamOnce`** — among others `MODEL_NOT_ALLOWED` (disallowed field in `params` checked only in `resolveProviderCallOptions` inside `streamOnce`), provider errors (`PROVIDER_*`), timeout (`PROVIDER_TIMEOUT`), retry+fallback exhaustion (`PROVIDER_UNAVAILABLE`). The client may get a **partial** stream (`meta` / `delta`) instead of valid JSON; the connection ends in the controller `finally` (`res.end()`).
 
-See: `src/chat/chat-stream.controller.ts`, `src/chat/chat.service.ts`, `src/chat/services/chat-provider-call.service.ts`.
+See: `src/chat/chat-stream.controller.ts`, `src/chat/chat.service.ts`, `src/chat/services/stream-cache-replay.service.ts`, `src/chat/services/chat-provider-call.service.ts`.
 
 ---
 

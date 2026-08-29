@@ -10,14 +10,15 @@ This document complements `api-documentation.md` and `architecture.md`: it shows
 |-------|-----------|
 | **Client** | Any HTTP client (application, service, BFF). |
 | **HTTP** | Controller + DTO validation + response. |
-| **ChatService** | Shared `prepareRequestForExecution` (ingress, tooling/thinking, **cooldown before cache**). Cache only in `executeChat`: alias policy → exact KV → semantic HASH (trim last-user) → embed+KNN; miss path dual-write **await** exact SET + semantic upsert (no semantic→exact promotion; **no store on `didFallback`**). In-process singleflight on identity key (v2: Redis distributed lock — planned). `ResilientExecutor`, gateway response build (`id`, `conversationId`, `effectiveModelAlias`). |
-| **ChatProviderCallService** | Single adapter call: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `AiMetricsService.observeProviderCall` / `observeProviderStream`, `AppMetricsService` (RED), SSE `meta`/`delta` emission. |
+| **ChatService** | Shared `prepareRequestForExecution` (ingress, tooling/thinking, **cooldown before cache**). Cache in `executeChat` (JSON) and on stream (`resolveStreamCache` → hit: `StreamCacheReplayService` / miss: `executeStreamMiss` + `setCachedIfAllowed`): alias policy → exact KV → semantic HASH (trim last-user) → embed+KNN; miss path dual-write **await** exact `SET NX` + semantic `HSETNX` (no semantic→exact promotion; **no store on `didFallback`**). In-process singleflight on identity key **JSON only** (no soft singleflight on stream; v2: Redis distributed lock — planned). `ResilientExecutor`, gateway response build (`id`, `conversationId`, `effectiveModelAlias`). |
+| **ChatProviderCallService** | Single adapter call: `buildProviderInputForAlias`, `resolveProviderCallOptions`, `AiMetricsService.observeProviderCall` / `observeProviderStream`, `AppMetricsService` (RED), SSE `meta`/`delta` emission (live miss). |
 | **ResilientExecutor** | `src/chat/resilience/` — retry on the requested alias (`policy.retry`, `policy.timeoutMs` → `buildRetryPolicyFromResolved`), then optionally YAML `fallback` alias (one hop). On timeout: `AbortSignal` to `completeOnce` / `streamOnce` → SDK adapter; response `PROVIDER_TIMEOUT` (504). |
 | **Registry** | `ProviderRegistryService` — maps YAML alias to **`providerInstance`** → `AIProvider` + `modelId`. |
 | **Provider** | `AIProvider` instance (factory + API key per YAML entry). |
 | **LLM API** | External provider service. |
-| **ResponseCache (ExactCache)** | `ResponseCacheService` — read/write of exact cache for **`POST /api/v1/chat`** (hash key: `modelAlias`, `clientId`, `messages`, system prompt signature, effective call parameters; **`metadata` excluded**); reads validated with `CachedChatResponseSchema`; no impact on streaming. |
-| **SemanticCache** | `SemanticCacheService` — cheap HASH on trimmed last-user (`getByTextIdentity`, no embed); on miss, embed the last `role: user` message (bare text, `qwen3-embedding:0.6b`) → KNN in Redis Search → cosine similarity threshold (default 0.85). Parallel store to exact KV (no promotion). TTL = `CACHE_TTL`. Fail-open: embedding/Search error → provider call. Skipped for tooling, `clientId === 'unknown'`, and streaming. Store reuses the lookup vector or, if `embed` was not attempted, may run the first `embed` (no retry after a failed lookup). |
+| **ResponseCache (ExactCache)** | `ResponseCacheService` — read/write of exact cache for **`POST /api/v1/chat`** and **`POST /api/v1/chat/stream`** plus facade streams (shared store; hash key: `modelAlias`, `clientId`, `messages`, system prompt signature, effective call parameters; **`metadata` excluded**); reads validated with `CachedChatResponseSchema`; Redis write: first-writer-wins (`SET … NX`). |
+| **SemanticCache** | `SemanticCacheService` — cheap HASH on trimmed last-user (`getByTextIdentity`, no embed); on miss, embed the last `role: user` message (bare text, `qwen3-embedding:0.6b`) → KNN in Redis Search → cosine similarity threshold (default 0.85). Parallel store to exact KV (no promotion). TTL = `CACHE_TTL`. Fail-open: embedding/Search error → provider call. Skipped for tooling, `clientId === 'unknown'` (not skipped for streaming — stream uses the same layer). Store: `HSETNX` on `reply` (first-writer-wins); reuses the lookup vector or, if `embed` was not attempted, may run the first `embed` (no retry after a failed lookup). |
+| **StreamCacheReplay** | `StreamCacheReplayService` — on stream cache hit: `meta` with `cached*` → `delta` chunks of 64 chars from `output.text` → `done` (delay 0). |
 | **Metrics** | **`AiMetricsService`** (Sentry LLM spans) + **`AppMetricsService`** (Prometheus RED); span `gen_ai.chat` per LLM call; **`gen_ai.conversation.id`** only when client supplies `conversationId` (`conversation-tracking.md`). Health gauges refreshed on `GET /metrics`. |
 | **Integration facade** | Controller `src/integrations/openai` or `anthropic` + mappers — translate vendor contract to `ChatRequestDto`, then the same `ChatService` as native chat (`integrations.md`). |
 
@@ -44,7 +45,7 @@ sequenceDiagram
     E-->>S: stored response (cached: true)
     S-->>-H: 201 JSON (cached, exact)
   else exact MISS / disabled
-    S->>SC: semantic lookup (HASH last-user, then embedding + KNN) — skipped for tooling / unknown clientId / multi-turn / stream
+    S->>SC: semantic lookup (HASH last-user, then embedding + KNN) — skipped for tooling / unknown clientId / multi-turn
     alt semantic HIT (HASH or similarity >= threshold, same partition)
       SC-->>S: stored response (cached: true)
       S-->>-H: 201 JSON (cached, semantic)
@@ -134,7 +135,7 @@ sequenceDiagram
 
 ## 3. Streaming `POST /api/v1/chat/stream` — success (SSE)
 
-Per `openapi.json` and code (`ChatStreamController`, `ChatService.executeStream`): SSE headers, then `meta`, `delta`, `done`. The `done` payload may contain: `usage` (with `totalTokens`), `toolCalls`, `finishReason`, optionally `usageDetails`, `thinkingContent`, `systemFingerprint`, `warnings`, `effectiveModelAlias`.
+Per `openapi.json` and code (`ChatStreamController`, `ChatService.resolveStreamCache` / `executeStreamMiss` / `replayStreamCacheHit`): **first** prepare + cooldown + cache lookup, **then** SSE headers. Hit: replay (`meta` with `cached*` → `delta`×64 → `done`). Miss: live `meta`/`delta`/`done` + optional write to the shared store. The `done` payload may contain: `usage` (with `totalTokens`), `toolCalls`, `finishReason`, optionally `usageDetails`, `thinkingContent`, `systemFingerprint`, `warnings`, `effectiveModelAlias`.
 
 ```mermaid
 sequenceDiagram
@@ -142,6 +143,7 @@ sequenceDiagram
   participant K as Client
   participant H as HTTP (ChatStreamController)
   participant S as ChatService
+  participant C as CacheGuard / Replay
   participant PC as ChatProviderCallService
   participant R as ProviderRegistry
   participant M as AiMetricsService
@@ -150,25 +152,37 @@ sequenceDiagram
 
   K->>+H: POST /api/v1/chat/stream
   H->>H: DTO validation + validateForStreaming
-  H->>H: SSE headers + flushHeaders
-  H->>+S: executeStream
-  S->>S: prepareRequestForExecution (ingress, cooldown check, …)
-  S->>S: ResilientExecutor (retry / fallback / timeout + AbortSignal)
-  S->>+PC: streamOnce (emit via callback; signal)
-  PC->>PC: buildProviderInputForAlias
-  PC->>M: observeLlmStream
-  PC-->>H: SSE meta (id, conversationId, effectiveModelAlias?)
-  H-->>K: event meta
-  PC->>+P: stream(...)
-  P->>+A: streaming request
-  loop fragments
-    A-->>P: chunk
-    P-->>PC: text
-    PC-->>H: delta
-    H-->>K: SSE: event delta
+  H->>+S: resolveStreamCache (prepare + cooldown + getCachedIfAllowed)
+  alt cooldown
+    S-->>H: RATE_LIMITED (JSON, no SSE)
+    H-->>K: 429 ErrorEnvelope
+  else cache hit
+    S-->>-H: hit (cached, cacheSource)
+    H->>H: SSE headers + flushHeaders
+    H->>S: replayStreamCacheHit
+    S->>C: StreamCacheReplayService (meta cached* → delta×64 → done)
+    H-->>K: SSE hit
+  else cache miss
+    S-->>-H: miss (+ embedState?)
+    H->>H: SSE headers + flushHeaders
+    H->>+S: executeStreamMiss
+    S->>S: ResilientExecutor (retry / fallback / timeout + AbortSignal)
+    S->>+PC: streamOnce (emit via callback; signal)
+    PC->>PC: buildProviderInputForAlias
+    PC->>M: observeLlmStream
+    PC-->>H: SSE meta (id, conversationId, effectiveModelAlias?)
+    H-->>K: event meta
+    PC->>+P: stream(...)
+    P->>+A: streaming request
+    loop fragments
+      A-->>P: chunk
+      P-->>PC: text
+      PC-->>H: delta
+      H-->>K: SSE: event delta
+    end
+    S-->>H: emit done (+ setCachedIfAllowed when !didFallback)
+    H-->>-K: SSE: event done
   end
-  S-->>H: emit done (usage?, toolCalls?, finishReason?, usageDetails?, thinkingContent?, systemFingerprint?, warnings?, effectiveModelAlias?)
-  H-->>-K: SSE: event done
 ```
 
 ---
@@ -197,7 +211,7 @@ sequenceDiagram
   F-->>-K: 201 JSON (OpenAI shape)
 ```
 
-**Streaming (`stream: true`):** controller → `executeStream` → `openai-stream.mapper` (OpenAI SSE). Parallel stream slot — in the facade controller, not in `StreamCleanupInterceptor` (path without `/stream` in the URL).
+**Streaming (`stream: true`):** controller → `resolveStreamCache` (before headers) → hit: `X-Gateway-Cache` + replay via OpenAI mapper / miss: `executeStreamMiss` → `openai-stream.mapper` (OpenAI SSE; vendor body **without** `cached*` fields). Parallel stream slot — in the facade controller, not in `StreamCleanupInterceptor` (path without `/stream` in the URL).
 
 ---
 
@@ -225,7 +239,7 @@ sequenceDiagram
   F-->>-K: 201 JSON (Message shape)
 ```
 
-**Streaming (`stream: true`):** controller → `executeStream` → `anthropic-stream.mapper` (Anthropic SSE). Final `message_delta.usage` — via `anthropic-usage.mapper.ts` (parity with JSON). `thinking` blocks — in the `done` phase when the gateway returned `thinkingContent`. Parallel stream slot — in `AnthropicMessagesController`, analogous to OpenAI.
+**Streaming (`stream: true`):** controller → `resolveStreamCache` (before headers) → hit: `X-Gateway-Cache` + replay via Anthropic mapper / miss: `executeStreamMiss` → `anthropic-stream.mapper` (Anthropic SSE; vendor body **without** `cached*` fields). Final `message_delta.usage` — via `anthropic-usage.mapper.ts` (parity with JSON). `thinking` blocks — in the `done` phase when the gateway returned `thinkingContent`. Parallel stream slot — in `AnthropicMessagesController`, analogous to OpenAI.
 
 ---
 

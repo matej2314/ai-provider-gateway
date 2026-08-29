@@ -1,11 +1,9 @@
 import {
   isCachedChatAllowedForModelAlias,
-  isUnservableCachedReply,
   shouldStoreChatResponse,
 } from './cache-policy';
 import type { GatewayConfig } from '../../config/configuration';
 import type { ChatResponseData } from '../dto/chat-response.dto';
-import type { CachedChatResponse } from '../../cache/types/cached-chat-response.type';
 import {
   asConversationId,
   asEnvRef,
@@ -15,7 +13,6 @@ import {
 } from '../../common/types/branded.types';
 import {
   TEST_API_KEY_REF,
-  TEST_CACHED_RESPONSE_ID,
   TEST_CONVERSATION_ID,
   TEST_MASTER_KEY_REF,
   TEST_MODEL_ALIAS,
@@ -248,36 +245,5 @@ describe('shouldStoreChatResponse', () => {
         toolCalls: [{ id: TEST_TOOL_CALL_ID, name: 'search', arguments: '{}' }],
       }),
     ).toBe(false);
-  });
-});
-
-describe('isUnservableCachedReply', () => {
-  const parsed: CachedChatResponse = {
-    id: TEST_CACHED_RESPONSE_ID,
-    provider: TEST_PROVIDER_INSTANCE_BRANDED,
-    model: TEST_MODEL_ALIAS_BRANDED,
-    output: { type: 'text', text: 'Hello' },
-    cached: true,
-    cachedAt: '2026-01-01T00:00:00.000Z',
-    finishReason: 'stop',
-  };
-
-  it('returns false for a complete stop reply and true otherwise', () => {
-    expect(isUnservableCachedReply(parsed)).toBe(false);
-    expect(isUnservableCachedReply({ ...parsed, finishReason: 'length' })).toBe(
-      true,
-    );
-    expect(
-      isUnservableCachedReply({ ...parsed, finishReason: 'content_filter' }),
-    ).toBe(true);
-    expect(
-      isUnservableCachedReply({ ...parsed, finishReason: 'tool_calls' }),
-    ).toBe(true);
-    expect(
-      isUnservableCachedReply({
-        ...parsed,
-        output: { type: 'text', text: '   ' },
-      }),
-    ).toBe(true);
   });
 });

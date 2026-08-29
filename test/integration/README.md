@@ -41,6 +41,8 @@ Compose: `test/integration/docker-compose.redis-stack.yml`.
 | ---------------------------------------------- | -------------------------------------------------------------------- |
 | Redis, fabryki providerów, registry, bootstrap | Graf gateway (`configuration.ts`), `ConfigService`, `LoggingService` |
 
+Stream cache exact (cross-endpoint stream ↔ JSON, tooling, cooldown, fasada Anthropic): `gateway-stream-cache.integration-spec.ts` — wymaga Redis + klucza API jak pozostałe suite chat cache.
+
 ## Pliki konfiguracyjne
 
 - Env: `.env.test` (gitignore)

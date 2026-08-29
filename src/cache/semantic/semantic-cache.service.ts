@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { getAppConfigOrThrow } from '../../config/typed-config';
 import { AppMetricsService } from '../../observability/app-metrics/app-metrics.service';
 import { LoggingService } from '../../logging/logging.service';
-import { asModelAlias, type ClientId } from '../../common/types/branded.types';
 import { EMBEDDING_BACKEND, VECTOR_STORE } from './semantic-cache.tokens';
 import {
   lastUserMessageText,
@@ -16,10 +15,9 @@ import {
   EMBEDDING_CIRCUIT_OPEN_AFTER,
   embeddingProbeTimeoutMs,
 } from './semantic-cache.constants';
-import type { ChatRequestDto } from '../../chat/dto/chat-request.dto';
 import type { CachedChatResponse } from '../types/cached-chat-response.type';
+import type { ChatCacheIdentity } from '../types/chat-cache-identity.type';
 import type { EmbeddingBackend } from './embedding-backend.interface';
-import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
 import type { VectorStore } from './vector-store.interface';
 
 export type SemanticLookupResult = {
@@ -57,45 +55,41 @@ export class SemanticCacheService {
     this.logger = this.loggingService.child({ module: 'SemanticCacheService' });
   }
 
-  private recordLookupSkip(modelAlias: string): SemanticLookupResult {
-    this.appMetrics.recordSemanticCacheLookup(asModelAlias(modelAlias), 'skip');
+  private recordLookupSkip(identity: ChatCacheIdentity): SemanticLookupResult {
+    this.appMetrics.recordSemanticCacheLookup(identity.modelAlias, 'skip');
     return EMBED_NOT_ATTEMPTED;
   }
 
-  async lookup(
-    request: ChatRequestDto,
-    clientId: ClientId,
-    options?: ProviderCallOptions,
-  ): Promise<SemanticLookupResult> {
+  async lookup(identity: ChatCacheIdentity): Promise<SemanticLookupResult> {
     const cfg = getAppConfigOrThrow(this.config, 'semanticCache');
-    if (!cfg.enabled) return this.recordLookupSkip(request.modelAlias);
-    if (!isSingleTurnUserRequest(request.messages)) {
-      return this.recordLookupSkip(request.modelAlias);
+    if (!cfg.enabled) return this.recordLookupSkip(identity);
+    if (!isSingleTurnUserRequest(identity.messages)) {
+      return this.recordLookupSkip(identity);
     }
-    const text = lastUserMessageText(request);
-    if (!text) return this.recordLookupSkip(request.modelAlias);
+    const text = lastUserMessageText(identity.messages);
+    if (!text) return this.recordLookupSkip(identity);
 
     const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
-    const systemSig = computeSystemSignature(prompts, request.modelAlias);
-    const callParamsSig = hashCallParams(options);
+    const systemSig = computeSystemSignature(prompts, identity.modelAlias);
+    const callParamsSig = hashCallParams(identity.callParams);
 
     const identityReply = await this.vectorStore.getByTextIdentity({
       text,
-      modelAlias: asModelAlias(request.modelAlias),
-      clientId,
+      modelAlias: identity.modelAlias,
+      clientId: identity.clientId,
       systemSignature: systemSig,
       callParams: callParamsSig,
     });
     if (identityReply) {
       this.appMetrics.recordSemanticCacheLookup(
-        asModelAlias(request.modelAlias),
+        identity.modelAlias,
         'hash-hit',
       );
       return { reply: identityReply, vector: null, embedAttempted: false };
     }
 
     if (this.circuit.shouldSkipEmbed()) {
-      return this.recordLookupSkip(request.modelAlias);
+      return this.recordLookupSkip(identity);
     }
     let vector: number[];
 
@@ -104,10 +98,7 @@ export class SemanticCacheService {
       this.circuit.recordEmbedSuccess();
     } catch (err: unknown) {
       this.circuit.recordEmbedFailure();
-      this.appMetrics.recordSemanticCacheLookup(
-        asModelAlias(request.modelAlias),
-        'error',
-      );
+      this.appMetrics.recordSemanticCacheLookup(identity.modelAlias, 'error');
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Semantic cache lookup failed (fail-open): ${msg}`);
       return { reply: null, vector: null, embedAttempted: true };
@@ -116,8 +107,8 @@ export class SemanticCacheService {
     try {
       const hits = await this.vectorStore.knn({
         vector,
-        modelAlias: asModelAlias(request.modelAlias),
-        clientId,
+        modelAlias: identity.modelAlias,
+        clientId: identity.clientId,
         systemSignature: systemSig,
         callParams: callParamsSig,
         k: cfg.k,
@@ -125,38 +116,30 @@ export class SemanticCacheService {
       const best = hits.find((hit) => hit.similarity >= cfg.minSimilarity);
       if (!best) {
         this.appMetrics.recordSemanticCacheLookup(
-          asModelAlias(request.modelAlias),
+          identity.modelAlias,
           'below-threshold',
         );
         return { reply: null, vector, embedAttempted: true };
       }
-      this.appMetrics.recordSemanticCacheLookup(
-        asModelAlias(request.modelAlias),
-        'hit',
-      );
+      this.appMetrics.recordSemanticCacheLookup(identity.modelAlias, 'hit');
       return { reply: best.reply, vector, embedAttempted: true };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Semantic cache KNN failed (fail-open): ${msg}`);
-      this.appMetrics.recordSemanticCacheLookup(
-        asModelAlias(request.modelAlias),
-        'error',
-      );
+      this.appMetrics.recordSemanticCacheLookup(identity.modelAlias, 'error');
       return { reply: null, vector, embedAttempted: true };
     }
   }
 
   async storeReply(
-    request: ChatRequestDto,
+    identity: ChatCacheIdentity,
     reply: CachedChatResponse,
-    clientId: ClientId,
-    options?: ProviderCallOptions,
     embedState: SemanticStoreEmbedState = { embedAttempted: false },
   ): Promise<void> {
     const cfg = getAppConfigOrThrow(this.config, 'semanticCache');
     if (!cfg.enabled) return;
-    if (!isSingleTurnUserRequest(request.messages)) return;
-    const text = lastUserMessageText(request);
+    if (!isSingleTurnUserRequest(identity.messages)) return;
+    const text = lastUserMessageText(identity.messages);
     if (!text) return;
 
     let vector = embedState.vector;
@@ -177,15 +160,15 @@ export class SemanticCacheService {
     }
 
     const prompts = getAppConfigOrThrow(this.config, 'resolvedSystemPrompts');
-    const systemSig = computeSystemSignature(prompts, request.modelAlias);
-    const callParamsSig = hashCallParams(options);
+    const systemSig = computeSystemSignature(prompts, identity.modelAlias);
+    const callParamsSig = hashCallParams(identity.callParams);
 
     try {
       await this.vectorStore.upsert({
         vector,
         text,
-        modelAlias: asModelAlias(request.modelAlias),
-        clientId,
+        modelAlias: identity.modelAlias,
+        clientId: identity.clientId,
         systemSignature: systemSig,
         callParams: callParamsSig,
         reply,
