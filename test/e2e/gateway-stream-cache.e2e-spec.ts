@@ -276,7 +276,7 @@ describe('Gateway stream cache (E2E)', () => {
         fallbackAlias,
         fallbackText: 'fallback-stream-text',
       });
-      providerRegistry.provider.stream = jest.fn().mockImplementation(() => {
+      const streamSpy = jest.fn().mockImplementation(() => {
         throw new HttpException(
           {
             code: 'PROVIDER_ERROR',
@@ -286,6 +286,7 @@ describe('Gateway stream cache (E2E)', () => {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       });
+      providerRegistry.provider.stream = streamSpy;
 
       const app = await createE2eAppWithStreamCache({
         providerRegistry,
@@ -322,7 +323,7 @@ describe('Gateway stream cache (E2E)', () => {
           .expect(200);
 
         expect(second.text).not.toContain('"cached":true');
-        expect(providerRegistry.provider.stream).toHaveBeenCalledTimes(2);
+        expect(streamSpy).toHaveBeenCalledTimes(2);
       } finally {
         await closeE2eApp(app);
       }

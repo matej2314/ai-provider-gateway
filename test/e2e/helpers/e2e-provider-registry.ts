@@ -263,9 +263,7 @@ export function createE2eFallbackProviderRegistry(options: {
     ),
     stream: jest
       .fn()
-      .mockImplementation(() =>
-        createStreamResult({ chunks: ['fallback'] }),
-      ),
+      .mockImplementation(() => createStreamResult({ chunks: ['fallback'] })),
   };
 
   const resolveMock = jest.fn((alias: string) => {

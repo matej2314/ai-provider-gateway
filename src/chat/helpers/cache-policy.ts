@@ -22,4 +22,3 @@ export function shouldStoreChatResponse(response: ChatResponseData): boolean {
   if ((response.toolCalls?.length ?? 0) > 0) return false;
   return true;
 }
-

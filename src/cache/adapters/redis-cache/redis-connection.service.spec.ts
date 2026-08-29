@@ -23,8 +23,9 @@ jest.mock('ioredis', () => {
     const instance: MockRedis = {
       status: 'wait',
       options: { host: '127.0.0.1', port: 6379 },
-      connect: jest.fn().mockImplementation(async () => {
+      connect: jest.fn().mockImplementation(() => {
         instance.status = 'ready';
+        return Promise.resolve();
       }),
       ping: jest.fn().mockResolvedValue('PONG'),
       quit: jest.fn().mockResolvedValue('OK'),
@@ -86,14 +87,14 @@ describe('RedisConnectionService', () => {
     await service.onModuleInit();
 
     expect(mockRedisInstances).toHaveLength(1);
-    expect(mockRedisInstances[0]!.connect).toHaveBeenCalled();
+    expect(mockRedisInstances[0].connect).toHaveBeenCalled();
     expect(service.getClient()).toBe(mockRedisInstances[0]);
     expect(service.isReady()).toBe(true);
   });
 
   it('should leave client null after failed init but recreate on later getClient (K2)', async () => {
     service = await createService();
-    const RedisCtor = jest.requireMock('ioredis') as jest.Mock;
+    const RedisCtor = jest.requireMock('ioredis');
     RedisCtor.mockImplementationOnce(() => {
       const instance: MockRedis = {
         status: 'wait',
@@ -144,7 +145,7 @@ describe('RedisConnectionService', () => {
       release = r;
     });
 
-    const RedisCtor = jest.requireMock('ioredis') as jest.Mock;
+    const RedisCtor = jest.requireMock('ioredis');
     RedisCtor.mockImplementationOnce(() => {
       const instance: MockRedis = {
         status: 'wait',

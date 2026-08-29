@@ -4,10 +4,7 @@ import type {
   ChatCacheIdentity,
 } from '../../cache/types/chat-cache-identity.type';
 import type { ProviderCallOptions } from '../../providers/interfaces/ai-provider.interface';
-import {
-  asModelAlias,
-  type ClientId,
-} from '../../common/types/branded.types';
+import { asModelAlias, type ClientId } from '../../common/types/branded.types';
 
 export function toChatCacheIdentity(
   request: ChatRequestDto,
