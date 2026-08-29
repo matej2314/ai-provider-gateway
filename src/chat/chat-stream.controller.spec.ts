@@ -7,7 +7,6 @@ import { HttpException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ChatStreamController } from './chat-stream.controller';
 import { ChatService } from './chat.service';
-import { StreamCacheReplayService } from './services/stream-cache-replay.service';
 import {
   createMockExpressRequest,
   createMockExpressResponse,
@@ -29,6 +28,7 @@ import {
 import type { StreamCacheDecision } from './types/stream-cache-decision.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
 import type { CachedChatResponse } from '../cache/types/cached-chat-response.type';
+import type { SseEvent } from './sse/sse-event.type';
 
 describe('ChatStreamController', () => {
   let controller: ChatStreamController;
@@ -36,8 +36,8 @@ describe('ChatStreamController', () => {
     validateForStreaming: jest.Mock;
     resolveStreamCache: jest.Mock;
     executeStreamMiss: jest.Mock;
+    replayStreamCacheHit: jest.Mock;
   };
-  let mockReplay: { replay: jest.Mock };
 
   const requestBody = {
     modelAlias: TEST_MODEL_ALIAS,
@@ -82,17 +82,25 @@ describe('ChatStreamController', () => {
           emit({ name: 'delta', data: { text: 'Hello' } });
           emit({ name: 'done', data: { finishReason: 'stop' } });
         }),
-    };
-    mockReplay = {
-      replay: jest.fn(),
+      replayStreamCacheHit: jest.fn(
+        (_decision, _requestId, emit: (event: SseEvent) => void) => {
+          emit({
+            name: 'meta',
+            data: {
+              id: cachedHit.id,
+              provider: cachedHit.provider,
+              model: cachedHit.model,
+              requestId: TEST_REQUEST_ID,
+              conversationId: TEST_CONVERSATION_ID,
+            },
+          });
+        },
+      ),
     };
 
     const module = await Test.createTestingModule({
       controllers: [ChatStreamController],
-      providers: [
-        { provide: ChatService, useValue: mockChatService },
-        { provide: StreamCacheReplayService, useValue: mockReplay },
-      ],
+      providers: [{ provide: ChatService, useValue: mockChatService }],
     })
       .overrideGuard(GatewayKeyGuard)
       .useValue({ canActivate: jest.fn(() => true) })
@@ -164,16 +172,17 @@ describe('ChatStreamController', () => {
 
       expect(mockResponse.flushHeaders).not.toHaveBeenCalled();
       expect(mockChatService.executeStreamMiss).not.toHaveBeenCalled();
-      expect(mockReplay.replay).not.toHaveBeenCalled();
+      expect(mockChatService.replayStreamCacheHit).not.toHaveBeenCalled();
     });
 
     it('should replay cached response on exact hit without live stream', async () => {
-      mockChatService.resolveStreamCache.mockResolvedValue({
+      const hitDecision = {
         outcome: 'hit',
         prep: mockPrep,
         cached: cachedHit,
         cacheSource: 'exact',
-      } satisfies StreamCacheDecision);
+      } satisfies StreamCacheDecision;
+      mockChatService.resolveStreamCache.mockResolvedValue(hitDecision);
 
       await controller.streamChat(
         createStreamRequest() as Request,
@@ -181,24 +190,25 @@ describe('ChatStreamController', () => {
         mockResponse as Response,
       );
 
-      expect(mockReplay.replay).toHaveBeenCalledWith({
-        cached: cachedHit,
-        cacheSource: 'exact',
-        requestId: TEST_REQUEST_ID,
-        conversationId: TEST_CONVERSATION_ID,
-        emit: expect.any(Function),
-        shouldAbort: expect.any(Function),
-      });
+      expect(mockChatService.replayStreamCacheHit).toHaveBeenCalledWith(
+        hitDecision,
+        TEST_REQUEST_ID,
+        expect.any(Function),
+        expect.any(Function),
+      );
       expect(mockChatService.executeStreamMiss).not.toHaveBeenCalled();
+      expect(mockResponse.write).toHaveBeenCalled();
+      expect(mockResponse.end).toHaveBeenCalled();
     });
 
     it('should replay semantic hit with cacheSource semantic', async () => {
-      mockChatService.resolveStreamCache.mockResolvedValue({
+      const hitDecision = {
         outcome: 'hit',
         prep: mockPrep,
         cached: cachedHit,
         cacheSource: 'semantic',
-      } satisfies StreamCacheDecision);
+      } satisfies StreamCacheDecision;
+      mockChatService.resolveStreamCache.mockResolvedValue(hitDecision);
 
       await controller.streamChat(
         createStreamRequest() as Request,
@@ -206,8 +216,11 @@ describe('ChatStreamController', () => {
         mockResponse as Response,
       );
 
-      expect(mockReplay.replay).toHaveBeenCalledWith(
-        expect.objectContaining({ cacheSource: 'semantic' }),
+      expect(mockChatService.replayStreamCacheHit).toHaveBeenCalledWith(
+        hitDecision,
+        TEST_REQUEST_ID,
+        expect.any(Function),
+        expect.any(Function),
       );
       expect(mockChatService.executeStreamMiss).not.toHaveBeenCalled();
     });
@@ -227,7 +240,7 @@ describe('ChatStreamController', () => {
         'gw_key_123',
         missDecision,
       );
-      expect(mockReplay.replay).not.toHaveBeenCalled();
+      expect(mockChatService.replayStreamCacheHit).not.toHaveBeenCalled();
     });
 
     it('should set SSE headers', async () => {

@@ -23,6 +23,7 @@ import { ChatCacheGuardService } from './services/chat-cache-guard.service';
 import { ChatErrorHandlerService } from './services/chat-error-handler.service';
 import { ChatValidationService } from './services/chat-validation.service';
 import { ChatResponseBuilderService } from './services/chat-response-builder.service';
+import { StreamCacheReplayService } from './services/stream-cache-replay.service';
 import { ActiveStreamsTracker } from '../observability/app-metrics/active-streams.tracker';
 import { AppMetricsService } from '../observability/app-metrics/app-metrics.service';
 import { validateChatIngress } from './validation/chat-ingress.validator';
@@ -30,6 +31,7 @@ import type { ChatIngressProfile } from './validation/chat-ingress.types';
 import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
 import type {
   StreamCacheDecision,
+  StreamCacheHit,
   StreamCacheMiss,
 } from './types/stream-cache-decision.types';
 import type { ProviderCallOptions } from '../providers/interfaces/ai-provider.interface';
@@ -66,6 +68,7 @@ export class ChatService {
     private readonly cacheGuardService: ChatCacheGuardService,
     private readonly errorHandlerService: ChatErrorHandlerService,
     private readonly responseBuilderService: ChatResponseBuilderService,
+    private readonly streamCacheReplay: StreamCacheReplayService,
     private readonly validationService: ChatValidationService,
     private readonly activeStreams: ActiveStreamsTracker,
     private readonly appMetrics: AppMetricsService,
@@ -156,6 +159,22 @@ export class ChatService {
       prep,
       embedState: lookup.embedState,
     };
+  }
+
+  replayStreamCacheHit(
+    decision: StreamCacheHit,
+    requestId: RequestId,
+    emit: (event: SseEvent) => void,
+    shouldAbort?: () => boolean,
+  ): void {
+    this.streamCacheReplay.replay({
+      cached: decision.cached,
+      cacheSource: decision.cacheSource,
+      requestId,
+      conversationId: decision.prep.responseConversationId,
+      emit,
+      shouldAbort,
+    });
   }
 
   async executeChat(

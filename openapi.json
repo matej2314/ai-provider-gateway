@@ -803,6 +803,18 @@
         "responses": {
           "200": {
             "description": "When `stream: true`, returns `text/event-stream` with OpenAI chunk format.\n\nEach line: `data: <json>\\n\\n`, terminated with `data: [DONE]\\n\\n`.\n\nJSON errors (OpenAiErrorResponseDto) only **before** flushHeaders.",
+            "headers": {
+              "X-Gateway-Cache": {
+                "description": "Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "semantic"
+                  ]
+                }
+              }
+            },
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -824,11 +836,13 @@
             "description": "Non-streaming response.",
             "headers": {
               "X-Gateway-Cache": {
-                "description": "Present on cache hit: `exact` or `semantic`. Omitted on miss and on stream.",
-                "required": false,
+                "description": "Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.",
                 "schema": {
                   "type": "string",
-                  "enum": ["exact", "semantic"]
+                  "enum": [
+                    "exact",
+                    "semantic"
+                  ]
                 }
               }
             },
@@ -1226,6 +1240,18 @@
         "responses": {
           "200": {
             "description": "When `stream: true`, returns Anthropic SSE events.\n\nFormat: `event: <name>\\ndata: <json>\\n\\n` (message_start, content_block_*, message_delta, message_stop).\n\nResponse header `anthropic-version: 2023-06-01` is set on stream.\n\nFinal `message_delta.usage` includes `input_tokens`, `output_tokens`, and cache token fields when available (parity with non-stream JSON).\n\nExtended thinking: emitted as `content_block` with `type: thinking` in the final `done` phase (not real-time; same as gateway native SSE).",
+            "headers": {
+              "X-Gateway-Cache": {
+                "description": "Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "semantic"
+                  ]
+                }
+              }
+            },
             "content": {
               "text/event-stream": {
                 "schema": {
@@ -1243,11 +1269,13 @@
             "description": "Non-streaming response.",
             "headers": {
               "X-Gateway-Cache": {
-                "description": "Present on cache hit: `exact` or `semantic`. Omitted on miss and on stream.",
-                "required": false,
+                "description": "Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.",
                 "schema": {
                   "type": "string",
-                  "enum": ["exact", "semantic"]
+                  "enum": [
+                    "exact",
+                    "semantic"
+                  ]
                 }
               }
             },
@@ -1851,11 +1879,11 @@
             "format": "date-time"
           },
           "cacheSource": {
-            "type": "string",
             "enum": [
               "exact",
               "semantic"
             ],
+            "type": "string",
             "description": "Which cache layer served this response. Present only on a cache hit; omitted on a provider miss. Not stored in the Redis payload."
           },
           "usageDetails": {
@@ -3033,11 +3061,11 @@
             "format": "date-time"
           },
           "cacheSource": {
-            "type": "string",
             "enum": [
               "exact",
               "semantic"
             ],
+            "type": "string",
             "description": "Which cache layer served this stream. Present only on a cache hit; omitted on a provider miss."
           }
         },

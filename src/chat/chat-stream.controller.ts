@@ -18,7 +18,6 @@ import {
 import { ChatRequestDto } from './dto/chat-request.dto';
 import { SseSerializer } from './sse/sse.serializer';
 import { ChatService } from './chat.service';
-import { StreamCacheReplayService } from './services/stream-cache-replay.service';
 import { GatewayKeyAndSmartRateLimit } from '../common/decorators/gateway-key-and-smart-rate-limit.decorator';
 import { StreamCleanupInterceptor } from '../common/interceptors/stream-cleanup.interceptor';
 import { ApiGatewayChatErrorResponses } from '../common/decorators/api-gateway-error-responses.decorator';
@@ -36,10 +35,7 @@ import type { SseEvent } from './sse/sse-event.type';
 export class ChatStreamController {
   private readonly sse = new SseSerializer();
 
-  constructor(
-    private readonly chatService: ChatService,
-    private readonly streamCacheReplay: StreamCacheReplayService,
-  ) {}
+  constructor(private readonly chatService: ChatService) {}
 
   @Post('stream')
   @UseInterceptors(StreamCleanupInterceptor)
@@ -123,14 +119,12 @@ export class ChatStreamController {
 
     try {
       if (decision.outcome === 'hit') {
-        this.streamCacheReplay.replay({
-          cached: decision.cached,
-          cacheSource: decision.cacheSource,
+        this.chatService.replayStreamCacheHit(
+          decision,
           requestId,
-          conversationId: decision.prep.responseConversationId,
           emit,
-          shouldAbort: () => res.writableEnded,
-        });
+          () => res.writableEnded,
+        );
       } else {
         await this.chatService.executeStreamMiss(
           requestBody,

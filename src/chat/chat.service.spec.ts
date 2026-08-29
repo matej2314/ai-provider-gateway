@@ -17,6 +17,7 @@ import {
   ChatResponseBuilderService,
   type ProviderResponse,
 } from './services/chat-response-builder.service';
+import { StreamCacheReplayService } from './services/stream-cache-replay.service';
 import { resolveProviderCallOptions } from './helpers/resolve-provider-call-options';
 import { ResilientExecutor } from './resilience/resilient-executor';
 import { ActiveStreamsTracker } from '../observability/app-metrics/active-streams.tracker';
@@ -31,6 +32,7 @@ import {
   asClientId,
   asModelAlias,
   asResponseId,
+  asProviderInstanceId,
   asAttemptNumber,
   type ClientId,
   type ModelAlias,
@@ -48,6 +50,9 @@ import {
   VALID_CONVERSATION_ID,
 } from '../common/mocks/test-constants';
 import type { ResolvedProviderConfig } from '../providers/provider-registry.service';
+import type { ChatExecutionPrep } from './types/chat-execution-prep.types';
+import type { StreamCacheHit } from './types/stream-cache-decision.types';
+import type { CachedChatResponse } from '../cache/types/cached-chat-response.type';
 
 describe('ChatService', () => {
   let service: ChatService;
@@ -60,6 +65,7 @@ describe('ChatService', () => {
   let mockValidation: Partial<ChatValidationService>;
   let mockErrorHandler: Partial<ChatErrorHandlerService>;
   let mockResponseBuilder: Partial<ChatResponseBuilderService>;
+  let mockStreamCacheReplay: { replay: jest.Mock };
   let mockActiveStreams: Partial<ActiveStreamsTracker>;
   let mockAppMetrics: { recordCachePipelineAccess: jest.Mock };
   let resolvedConfig: ResolvedProviderConfig;
@@ -179,6 +185,10 @@ describe('ChatService', () => {
       streamOnce: jest.fn(),
     };
 
+    mockStreamCacheReplay = {
+      replay: jest.fn(),
+    };
+
     mockActiveStreams = {
       trackStream: jest.fn((_client: ClientId, fn: () => Promise<unknown>) =>
         fn(),
@@ -201,6 +211,7 @@ describe('ChatService', () => {
         { provide: ChatValidationService, useValue: mockValidation },
         { provide: ChatErrorHandlerService, useValue: mockErrorHandler },
         { provide: ChatResponseBuilderService, useValue: mockResponseBuilder },
+        { provide: StreamCacheReplayService, useValue: mockStreamCacheReplay },
         { provide: ActiveStreamsTracker, useValue: mockActiveStreams },
         { provide: AppMetricsService, useValue: mockAppMetrics },
       ],
@@ -1056,6 +1067,46 @@ describe('ChatService', () => {
       ).rejects.toBe(rateLimitError);
 
       expect(mockCacheGuard.getCachedIfAllowed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('replayStreamCacheHit', () => {
+    it('should delegate replay to StreamCacheReplayService', () => {
+      const emit = jest.fn();
+      const shouldAbort = jest.fn().mockReturnValue(false);
+      const cached: CachedChatResponse = {
+        id: asResponseId('gw_cached'),
+        provider: asProviderInstanceId('anthropic'),
+        model: asModelAlias(TEST_MODEL_ALIAS),
+        output: { type: 'text', text: 'From cache' },
+        cached: true,
+        cachedAt: '2026-01-01T00:00:00.000Z',
+        finishReason: 'stop',
+      };
+      const decision: StreamCacheHit = {
+        outcome: 'hit',
+        prep: {
+          responseConversationId: TEST_CONVERSATION_ID,
+        } as ChatExecutionPrep,
+        cached,
+        cacheSource: 'exact',
+      };
+
+      service.replayStreamCacheHit(
+        decision,
+        TEST_REQUEST_ID,
+        emit,
+        shouldAbort,
+      );
+
+      expect(mockStreamCacheReplay.replay).toHaveBeenCalledWith({
+        cached,
+        cacheSource: 'exact',
+        requestId: TEST_REQUEST_ID,
+        conversationId: TEST_CONVERSATION_ID,
+        emit,
+        shouldAbort,
+      });
     });
   });
 

@@ -62,9 +62,14 @@ export class OpenAiChatCompletionsController {
   ) {
     this.chatService.validateForStreaming(body.model);
 
+    const requestId = asRequestId(req.requestId);
+    const clientId = req.clientId
+      ? asClientId(req.clientId)
+      : asClientId('unknown');
+
     const streamsCheck = await this.rateLimiter.checkConcurrentStreams(
       gatewayKey,
-      req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
+      clientId,
     );
 
     if (!streamsCheck.allowed) {
@@ -86,32 +91,61 @@ export class OpenAiChatCompletionsController {
       body.include_usage === true;
     const state = createOpenAiStreamState(body.model, includeUsage);
 
-    res.status(200);
-    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
-    if (req.requestId) {
-      res.setHeader('x-request-id', req.requestId);
-    }
-    res.flushHeaders?.();
-
     try {
-      await this.chatService.executeStream(
+      const decision = await this.chatService.resolveStreamCache(
         gatewayRequest,
-        asRequestId(req.requestId),
-        req.clientId ? asClientId(req.clientId) : asClientId('unknown'),
-        (event: SseEvent) => {
-          const lines = mapSseEventToOpenAi(event, state);
-          for (const line of lines) {
-            res.write(line);
-          }
-        },
+        requestId,
+        clientId,
         'facade-openai',
         gatewayKey,
       );
+
+      res.status(200);
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      if (req.requestId) {
+        res.setHeader('x-request-id', req.requestId);
+      }
+
+      if (decision.outcome === 'hit') {
+        res.setHeader(GATEWAY_CACHE_HEADER, decision.cacheSource);
+      }
+
+      res.flushHeaders?.();
+
+      const emit = (event: SseEvent) => {
+        const lines = mapSseEventToOpenAi(event, state);
+        for (const line of lines) {
+          if (!res.writableEnded) {
+            res.write(line);
+          }
+        }
+      };
+
+      try {
+        if (decision.outcome === 'hit') {
+          this.chatService.replayStreamCacheHit(
+            decision,
+            requestId,
+            emit,
+            () => res.writableEnded,
+          );
+        } else {
+          await this.chatService.executeStreamMiss(
+            gatewayRequest,
+            requestId,
+            clientId,
+            emit,
+            gatewayKey,
+            decision,
+          );
+        }
+      } finally {
+        res.end();
+      }
     } finally {
       await this.rateLimiter.releaseStream(gatewayKey);
-      res.end();
     }
   }
 
@@ -129,7 +163,7 @@ export class OpenAiChatCompletionsController {
     headers: {
       [GATEWAY_CACHE_HEADER]: {
         description:
-          'Present on cache hit: `exact` or `semantic`. Omitted on miss and on stream.',
+          'Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.',
         schema: { type: 'string', enum: ['exact', 'semantic'] },
       },
     },
@@ -138,6 +172,13 @@ export class OpenAiChatCompletionsController {
   @ApiResponse({
     status: 200,
     description: OPENAI_STREAM_API_DESCRIPTION.join('\n\n'),
+    headers: {
+      [GATEWAY_CACHE_HEADER]: {
+        description:
+          'Present on cache hit (JSON and stream): `exact` or `semantic`. Omitted on miss.',
+        schema: { type: 'string', enum: ['exact', 'semantic'] },
+      },
+    },
     content: {
       'text/event-stream': {
         schema: {

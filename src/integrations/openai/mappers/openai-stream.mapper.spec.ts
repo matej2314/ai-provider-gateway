@@ -3,7 +3,16 @@ import {
   mapSseEventToOpenAi,
 } from './openai-stream.mapper';
 import type { SseEvent } from '../../../chat/sse/sse-event.type';
-import { asToolCallId } from '../../../common/types/branded.types';
+import {
+  asModelAlias,
+  asProviderInstanceId,
+  asResponseId,
+  asToolCallId,
+} from '../../../common/types/branded.types';
+import {
+  TEST_CONVERSATION_ID,
+  TEST_REQUEST_ID,
+} from '../../../common/mocks/test-constants';
 
 describe('openai-stream.mapper', () => {
   it('createOpenAiStreamState should store model, includeUsage and created timestamp', () => {
@@ -41,6 +50,30 @@ describe('openai-stream.mapper', () => {
     );
     expect(second).toEqual([]);
     expect(state.completionId).toBe('chatcmpl_other');
+  });
+
+  it('does not forward cached* fields into vendor chunks', () => {
+    const state = createOpenAiStreamState('gpt-4', false);
+    const lines = mapSseEventToOpenAi(
+      {
+        name: 'meta',
+        data: {
+          id: asResponseId('gw_1'),
+          provider: asProviderInstanceId('openai'),
+          model: asModelAlias('chat'),
+          requestId: TEST_REQUEST_ID,
+          conversationId: TEST_CONVERSATION_ID,
+          cached: true,
+          cachedAt: '2026-01-01T00:00:00.000Z',
+          cacheSource: 'exact',
+        },
+      },
+      state,
+    );
+    const joined = lines.join('');
+    expect(joined).not.toContain('cacheSource');
+    expect(joined).not.toContain('cachedAt');
+    expect(joined).not.toContain('"cached"');
   });
 
   it('delta should emit content chunk with shared created timestamp', () => {

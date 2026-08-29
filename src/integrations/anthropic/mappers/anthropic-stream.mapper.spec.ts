@@ -9,9 +9,16 @@ import {
 import type { SseEvent } from '../../../chat/sse/sse-event.type';
 import {
   asMessageId,
+  asModelAlias,
   asPromptCacheCreationTokens,
   asPromptCacheHitTokens,
+  asProviderInstanceId,
+  asResponseId,
 } from '../../../common/types/branded.types';
+import {
+  TEST_CONVERSATION_ID,
+  TEST_REQUEST_ID,
+} from '../../../common/mocks/test-constants';
 
 describe('anthropic-stream.mapper', () => {
   it('createAnthropicStreamState should initialize state', () => {
@@ -52,6 +59,30 @@ describe('anthropic-stream.mapper', () => {
 
       expect(lines).toEqual([]);
       expect(state.messageId).toBe('msg_xyz');
+    });
+
+    it('does not forward cached* fields into vendor chunks', () => {
+      const state = createAnthropicStreamState('claude-sonnet-4-5');
+      const lines = mapSseEventToAnthropic(
+        {
+          name: 'meta',
+          data: {
+            id: asResponseId('gw_1'),
+            provider: asProviderInstanceId('anthropic'),
+            model: asModelAlias('chat'),
+            requestId: TEST_REQUEST_ID,
+            conversationId: TEST_CONVERSATION_ID,
+            cached: true,
+            cachedAt: '2026-01-01T00:00:00.000Z',
+            cacheSource: 'exact',
+          },
+        },
+        state,
+      );
+      const joined = lines.join('');
+      expect(joined).not.toContain('cacheSource');
+      expect(joined).not.toContain('cachedAt');
+      expect(joined).not.toContain('"cached"');
     });
   });
 
